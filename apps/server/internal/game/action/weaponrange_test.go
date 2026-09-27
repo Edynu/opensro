@@ -5,11 +5,13 @@ import (
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
 
 func TestAuthoredBasicWeaponRangesAndCasterPursuit(t *testing.T) {
+	licensed.RequireGameData(t)
 	source := enterworld.NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata"))
 	for _, tc := range []struct {
 		code       string

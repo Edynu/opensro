@@ -1,6 +1,7 @@
 package enterworld
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
@@ -45,6 +46,7 @@ func TestPassiveDamageWholeProgramAdmission(t *testing.T) {
 }
 
 func TestAuthoredTwoHandPowerRanksAndConsumers(t *testing.T) {
+	licensed.RequireGameData(t)
 	s := NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata"))
 	if err := s.Load(); err != nil {
 		t.Fatal(err)

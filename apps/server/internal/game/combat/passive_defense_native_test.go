@@ -6,12 +6,14 @@ import (
 	"math"
 	"opensro.online/server/internal/domain"
 	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestPassiveDefenseNativeWriterVectors(t *testing.T) {
+	licensed.RequireGameData(t)
 	b, err := os.ReadFile("testdata/native-defp-vectors.json")
 	if err != nil {
 		t.Fatal(err)

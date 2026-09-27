@@ -7,6 +7,7 @@ import (
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/game/world/monster"
 	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 	"time"
@@ -89,6 +90,7 @@ func TestTimedJobFailedInstallationRetainsRecordForRetry(t *testing.T) {
 }
 
 func TestShippedSkillConsumableLifecycle(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata")
 	items := enterworld.NewTextdataItems(dir)
 	skills := enterworld.NewTextdataSkills(dir)

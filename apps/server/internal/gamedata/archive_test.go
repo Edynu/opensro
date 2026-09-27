@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"io/fs"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestMaterializeArchiveRoundTripsVerifiedProjection(t *testing.T) {
+	licensed.RequireGameData(t)
 	root, manifestDigest := writeTestBundle(t, nil)
 	archive := filepath.Join(t.TempDir(), "server.srogz")
 	writeTestArchive(t, archive, root)

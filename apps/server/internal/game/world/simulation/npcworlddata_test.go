@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
@@ -34,6 +35,7 @@ func TestShippedNpcWorldRosterCarriesConversationAndShopAuthority(t *testing.T) 
 }
 
 func TestPublishedMerchantBranchesCoverAllTabs(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	roster := LoadNpcWorldRoster(dir)
 	if len(roster) < 150 {
@@ -63,6 +65,7 @@ func TestPublishedMerchantBranchesCoverAllTabs(t *testing.T) {
 }
 
 func TestNpcQuestGreetingsNeverBorrowMissingNpcChatPS(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	roster := LoadNpcWorldRoster(dir)
 	text := map[string]bool{}

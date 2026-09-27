@@ -2,6 +2,7 @@ package quest
 
 import (
 	"fmt"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 
@@ -26,6 +27,7 @@ func TestQuestCalendarHourBranches(t *testing.T) {
 }
 
 func TestQuestCalendarProductionQuotaAndCancellation(t *testing.T) {
+	licensed.RequireGameData(t)
 	textdata := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	items := enterworld.NewTextdataItems(textdata)
 	defs, err := LoadDefinitions(NewCatalog(textdata), items)

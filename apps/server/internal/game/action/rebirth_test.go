@@ -11,6 +11,7 @@ package action
 import (
 	"encoding/binary"
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 
@@ -200,6 +201,7 @@ func TestPresentPositionRebirthIsLevelGated(t *testing.T) {
 }
 
 func TestRecallAppointmentGateCatalogAndPersistence(t *testing.T) {
+	licensed.RequireGameData(t)
 	c := rebirthTestCharacter(20, 100)
 	rt, _ := newTestRuntime(c, testItems())
 	rt.NpcSpawn.Enabled = true
@@ -290,6 +292,7 @@ func TestRecallReferenceUsesCurrentCatalogThenStoredFallback(t *testing.T) {
 }
 
 func TestRecallAppointmentSurvivesAuthorityReopen(t *testing.T) {
+	licensed.RequireGameData(t)
 	d := openDoorRuntime(t, t.TempDir(), rebirthTestCharacter(20, 100))
 	deps := d.rt.deps.(*enterworld.Deps)
 	deps.UpdateCharacter = d.authority.UpdateCharacter

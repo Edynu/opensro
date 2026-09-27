@@ -1,6 +1,7 @@
 package action
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 )
 
 func TestUniqueFatalCommitsItsAssignedTableOnlyOnce(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt, _, c, target := newCombatTestRuntimeAtLevel(t, 1, 20)
 
 	ref := target.Ref
@@ -109,6 +111,7 @@ func TestAlchemyFatalPublishesReferenceSpawnAndPickup(t *testing.T) {
 }
 
 func TestConsumablePlansKeepActualShippedTypeQuantityAndPersistence(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Clean("../../../../.." + "/.generated/game-data/1.150/server/textdata")
 	items := enterworld.NewTextdataItems(dir)
 	for _, code := range []string{"ITEM_ETC_HP_POTION_01", "ITEM_ETC_MP_POTION_01", "ITEM_ETC_CURE_ALL_01", "ITEM_ETC_ARCHEMY_REINFORCE_RECIPE_WEAPON_A", "ITEM_ETC_ARCHEMY_MAGICSTONE_STR_01", "ITEM_ETC_ARCHEMY_ATTRSTONE_PA_01", "ITEM_MALL_GLOBAL_CHATTING"} {

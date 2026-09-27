@@ -1,12 +1,14 @@
 package enterworld
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestProjectedConsumableNames(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	items := NewTextdataItems(dir)
 	for _, tc := range []struct {
@@ -34,6 +36,7 @@ func TestProjectedConsumableNames(t *testing.T) {
 }
 
 func TestEveryProjectedItemHasDisplayName(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	items := NewTextdataItems(dir)
 	if items.Len() != 8439 {

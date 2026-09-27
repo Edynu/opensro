@@ -1,6 +1,7 @@
 package gamedata
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -39,6 +40,7 @@ func TestResolveUsesShippedProjection(t *testing.T) {
 }
 
 func TestResolveSharesOneVerifiedImmutableIdentity(t *testing.T) {
+	licensed.RequireGameData(t)
 	root, manifestDigest := writeTestBundle(t, nil)
 	t.Setenv(EnvRoot, root)
 	t.Setenv(EnvManifestDigest, manifestDigest)

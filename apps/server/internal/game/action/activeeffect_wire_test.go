@@ -6,6 +6,7 @@ import (
 	"opensro.online/server/internal/game/item/statuseffect"
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/gamedata"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"strconv"
 	"testing"
@@ -14,6 +15,7 @@ import (
 // Real authenticated fixture sessions exercise the production hub and reliable
 // transport. Optional export lets the browser consume the actual received burst.
 func TestAttachedEffectAuthenticatedTransport(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir, err := gamedata.ResolveTextdataDir()
 	if err != nil {
 		t.Fatal(err)

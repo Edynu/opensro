@@ -2,6 +2,7 @@ package quest
 
 import (
 	"errors"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 
@@ -27,6 +28,7 @@ func rewardTestSkillSeeder(string, []uint32) ([]uint32, error) {
 }
 
 func TestQuestRewardUsesOneCharacterTransaction(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join(t.TempDir(), "authority")
 	open := func() *store.Store {
 		authority, err := store.Open(dir, store.Options{DefaultSkills: rewardTestSkillSeeder})

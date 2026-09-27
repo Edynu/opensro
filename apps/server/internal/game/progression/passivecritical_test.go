@@ -11,6 +11,7 @@ package progression
 import (
 	"opensro.online/server/internal/game/combat"
 	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
@@ -22,6 +23,7 @@ func (s passiveItemSource) ItemRefByCodename(name string) (*enterworld.ItemRef, 
 }
 
 func TestPassiveLearnUpgradeAndStoreRestoration(t *testing.T) {
+	licensed.RequireGameData(t)
 	source := enterworld.NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata"))
 	if err := source.Load(); err != nil {
 		t.Fatal(err)

@@ -15,6 +15,7 @@ import (
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/game/world/monster"
 	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -49,6 +50,7 @@ func childBuffFixture(t *testing.T, id uint32, skills *enterworld.TextdataSkills
 }
 
 func TestConditionalChildBuffsCastInstallExpireAndScope(t *testing.T) {
+	licensed.RequireGameData(t)
 	skills := enterworld.NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata"))
 	for _, id := range []uint32{10495, 10498, 10507, 10510} {
 		t.Run(strconv.Itoa(int(id)), func(t *testing.T) {
@@ -157,6 +159,7 @@ func TestConditionalChildBuffsCastInstallExpireAndScope(t *testing.T) {
 }
 
 func TestConditionalChildBuffCasterDeathCancels(t *testing.T) {
+	licensed.RequireGameData(t)
 	skills := enterworld.NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata"))
 	rt, clock, c, m, _ := childBuffFixture(t, 10510, skills)
 	if result := rt.MonsterBasicAttack(testDivision, m, enterworld.ObjectIDForCharacter(c), 10510, clock.NowMs()); !result.Accepted {

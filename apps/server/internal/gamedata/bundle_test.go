@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestOpenValidatesCompletePinnedBundle(t *testing.T) {
+	licensed.RequireGameData(t)
 	root, manifestDigest := writeTestBundle(t, nil)
 
 	bundle, err := Open(root, manifestDigest)

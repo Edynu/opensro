@@ -2,6 +2,7 @@ package enterworld
 
 import (
 	"opensro.online/server/internal/game/item/statuseffect"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -58,6 +59,7 @@ func TestMovementDescriptorAdmission(t *testing.T) {
 }
 
 func TestShippedDirectMovementAdmissionAndEnvelopeBoundaries(t *testing.T) {
+	licensed.RequireGameData(t)
 	source := NewTextdataSkills(filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata"))
 	if err := source.Load(); err != nil {
 		t.Fatal(err)

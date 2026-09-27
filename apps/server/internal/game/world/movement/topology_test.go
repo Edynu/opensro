@@ -5,6 +5,7 @@ import (
 	"math"
 	"opensro.online/server/internal/game/world/monster"
 	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -151,6 +152,7 @@ func TestLinkedLaneRescueAndDungeonObjects(t *testing.T) {
 }
 
 func TestPublishedDungeonPortalTraversal(t *testing.T) {
+	licensed.RequireGameData(t)
 	root, err := filepath.Abs("../../../../../../.generated/client-public")
 	if err != nil {
 		t.Fatal(err)

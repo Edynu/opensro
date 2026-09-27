@@ -2,6 +2,7 @@ package action
 
 import (
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -111,6 +112,7 @@ func pickupPublishedLoot(t *testing.T, rt *Runtime, c *enterworld.Character, ref
 }
 
 func TestPublishedLootPickupAndActivation(t *testing.T) {
+	licensed.RequireGameData(t)
 	items := enterworld.NewTextdataItems(filepath.Clean("../../../../../.generated/game-data/1.150/server/textdata"))
 	codes := publishedLootCodes(t)
 	t.Logf("pickup/persistence coverage: %d production loot identities; activation assertions cover equipment and recovery here", len(codes))

@@ -1,6 +1,7 @@
 package enterworld
 
 import (
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
@@ -41,6 +42,7 @@ func TestPassiveCriticalAdmissionIsWholeProgram(t *testing.T) {
 }
 
 func TestAuthoredPassiveCriticalFamily(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", "..", "extracted", "Media_extracted", "server_dep", "silkroad", "textdata")
 	source := NewTextdataSkills(dir)
 	if err := source.Load(); err != nil {

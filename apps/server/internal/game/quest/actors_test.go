@@ -3,6 +3,7 @@ package quest
 import (
 	"fmt"
 	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
@@ -35,6 +36,7 @@ func validateQuestActors(def *Definition, codesInMedia map[string]bool) error {
 // rejects NPCs with zero health. Do this at build verification, not by parsing
 // all character files a second time on every server startup.
 func TestEveryQuestActorResolvesInPrimaryMedia(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	codes := make(map[string]bool)
 	files, err := filepath.Glob(filepath.Join(dir, "characterdata*.txt"))
