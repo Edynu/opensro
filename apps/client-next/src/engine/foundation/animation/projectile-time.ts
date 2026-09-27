@@ -1,0 +1,30 @@
+import type {CharacterActor} from '@/engine/contracts/character';
+type Position=CharacterActor['pose'];
+export interface ProjectileArc {readonly amplitudePermille:number;readonly rotationRadians:number;}
+export type ProjectileSample={readonly phase:'delay'}|{readonly phase:'travel';readonly pose:Position}|{readonly phase:'arrived';readonly at:number;readonly pose:Position};
+export function projectileSpace(start:number,end:number):boolean {
+    return !(start&0x8000)&&!(end&0x8000)||start===end;
+}
+// 8d8580 -> 879650: the regional 3D distance sets the travel fraction. The target is captured on creation.
+// Pure algebra for the constant-speed straight lane, no runtime/global owner.
+export function sampleProjectile(start:Position,end:Position,speed:number,delay:number,elapsed:number,arc?:ProjectileArc):ProjectileSample {
+    if(!Number.isFinite(speed)||speed<=0||!Number.isFinite(delay)||delay<0||!Number.isFinite(elapsed))throw new Error('Invalid projectile clock');
+    if(!projectileSpace(start.regionId,end.regionId))throw new Error('Projectile requires linked dungeon coordinate projection');
+    const dungeon=!!(start.regionId&0x8000);
+    if(arc&&(!Number.isFinite(arc.amplitudePermille)||!Number.isFinite(arc.rotationRadians)))throw new Error('Invalid projectile arc');
+    if(elapsed<delay)return {phase:'delay'};
+    // SWorld vtable +0x1c -> 888140 returns zero sector displacement in dungeons.
+    const dx=end.x+(dungeon?0:((end.regionId&255)-(start.regionId&255))*1920)-start.x;
+    const dz=end.z+(dungeon?0:((end.regionId>>>8)-(start.regionId>>>8))*1920)-start.z;
+    const distance=Math.hypot(dx,end.y-start.y,dz),travel=distance/speed;
+    if(elapsed-delay>=travel)return {phase:'arrived',at:delay+travel,pose:{...end}};
+    const fraction=(elapsed-delay)/travel;
+    // 8d8580 computes the sine envelope; 8d5f20 applies a separate render
+    // offset. It must never lengthen travel or alter the captured destination.
+    const height=arc?Math.fround(Math.fround(Math.sin(Math.fround(Math.fround(fraction)*3.1415927410125732)))*Math.fround(distance)*arc.amplitudePermille/1000):0;
+    const sideways=arc?Math.fround(-Math.fround(Math.sin(arc.rotationRadians))*height):0;
+    const x=(dungeon?0:(start.regionId&255)*1920)+start.x+dx*fraction+Math.fround(Math.cos(start.yaw))*sideways;
+    const z=(dungeon?0:(start.regionId>>>8)*1920)+start.z+dz*fraction+Math.fround(Math.sin(start.yaw))*sideways;
+    const rx=dungeon?0:Math.floor(x/1920),rz=dungeon?0:Math.floor(z/1920);
+    return {phase:'travel',pose:{regionId:dungeon?start.regionId:rx|(rz<<8),x:x-rx*1920,y:start.y+(end.y-start.y)*fraction+(arc?Math.fround(Math.fround(Math.cos(arc.rotationRadians))*height):0),z:z-rz*1920,yaw:start.yaw}};
+}

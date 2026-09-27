@@ -1,0 +1,6911 @@
+{
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "rows": [
+    {
+      "category": 0,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 0,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 0,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_INVENTORY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 11,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_BE_STORED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_BE_STORED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 14,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_EQUIPITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 15,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_GOLD"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 16,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_HIGHER_LEVEL_REQUIRED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_HIGHER_LEVEL_REQUIRED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 18,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_LOCKED_BY_OTHER_ONE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_LOCKED_BY_OTHER_ONE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ENABLEINPUT_FEWERTHAN_REMAIN"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ENABLEINPUT_FEWERTHAN_REMAIN"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 22,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_GENDER_MISMATCH"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_GENDER_MISMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 25,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CAN_NOT_BE_MERGED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 26,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TARGET_ITEM_STOCK_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 30,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_BUSY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 31,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_NORMALCY"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_NORMALCY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 32,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_NORMALCY"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_NORMALCY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 33,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_TRADE_BAY_FULL"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TRADE_BAY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 34,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_INVENTORY_FULL_DEAL_CANCEL"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_INVENTORY_FULL_DEAL_CANCEL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_DEAL_FAIL_NON_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TIMEOUT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 39,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_FIND_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 40,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TRADING_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_SPECIFY_POSITIVE_NUMBER_ONLY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 43,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_EXCHANGE_CANCEL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 44,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TRADING_CANCELED_BY_USER"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 47,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_COUNTRY_MISMATCH"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_COUNTRY_MISMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 48,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_HIGHER_STRENGTH_REQUIRED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_HIGHER_STRENGTH_REQUIRED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 49,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_HIGHER_INTELLECT_REQUIRED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_HIGHER_INTELLECT_REQUIRED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 50,
+      "unresolved": "Invalid memory read (UC_ERR_READ_UNMAPPED)"
+    },
+    {
+      "category": 1,
+      "code": 52,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_STORAGE_OPERATION_BLOCKED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 53,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_USEITEM_WHILE_INTERACT"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_USEITEM_WHILE_INTERACT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 54,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_OPPONENT_INV_SPACE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 55,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_EQUIP_RAZED_ITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_EQUIP_RAZED_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 56,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_BE_DROPPED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_DROPPED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 57,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_BE_PICKED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_PICKED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 58,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_BE_TRADED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_TRADED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 59,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_AT_SHOP"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_DEAL_AT_SHOP"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 62,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANNOT_BE_USED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_USED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 63,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_SELL_EQUIPED_ITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_SELL_EQUIPED_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 67,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_INVALID_TARGET_STORAGE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_INVALID_TARGET_STORAGE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 69,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_DEALER_DONT_TREAT_THIS_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 70,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_SWAP_JOBITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_SWAP_JOBITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 71,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_WAIT_FOR_JOBCHANGE_COMPLETE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_WAIT_FOR_JOBCHANGE_COMPLETE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 72,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_DETACH_JOBITEM_IN_BATTLESTATE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_DETACH_JOBITEM_IN_BATTLESTATE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 73,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_YOU_CANT_ACTIVATE_CART"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_YOU_CANT_ACTIVATE_CART"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 80,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_YOU_CANT_DEAL_SPECIALTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 90,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_HAVE_CART"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 91,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_WAIT_FOR_REUSE_DELAY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 92,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_SUMMON_MULTIPLE_COSOBJ"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 93,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_PREV_TELESCROLL_ALREADY_WORKING"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_PREV_TELESCROLL_ALREADY_WORKING"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 94,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_TELEPORT_WITH_CART"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 95,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 96,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ONLY_TRADER_CAN_BUY_SPECIALTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 97,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_DONT_HAVE_ANY_TRADECART_TO_PICK_SPECIALTY"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_DONT_HAVE_ANY_TRADECART_TO_PICK_SPECIALTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 98,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_YOUR_CARAVAN_ISNT_OWNER_OF_THIS_SPECIALTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 99,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_YOU_ARENT_BUYER_OF_THIS_SPECIALTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 101,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_DEAL_SPECIALTY_SINCE_TOO_FAR_FROM_CART"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 102,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ALL_JOB_ACTIVATION_PROHIBITED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 103,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CAN_ACTIVATE_ROBBER_ONLY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 104,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_DEALER_DONT_TREAT_STOLEN_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 106,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ONLY_ROBBER_CAN_USE_THIS_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 107,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_OPERATE_REQUESTED_JOB_DURING_LOGOUT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 108,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_HIGHER_LEVEL_REQUIRED_TO_USE_THISITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_HIGHER_LEVEL_REQUIRED_TO_USE_THISITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 109,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_DROP_EQUIPED_ITEM_DIRECTLY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 110,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_PICK_ITEM_WHILE_TELEPORT_WORK"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 111,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ROBBER_CANT_PICK_HIS_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 112,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_WAIT_FOR_JOBITEM_DETACH_COMPLETE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_WAIT_FOR_JOBITEM_DETACH_COMPLETE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 113,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_CANNOT_BE_USED_ITEM_CART"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 114,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_POSSESSION_LIMIT_EXCEEDED"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_POSSESSION_LIMIT_EXCEEDED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 115,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_TO_USE_ITEM_TARGET_MUSTBE_SELECTED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 116,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_PICKED_AT_QUEST_ACHIEVE_CONDITION"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 117,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_MURDERER_CANT_USE_PORTAL_SCROLL"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_MURDERER_CANT_USE_PORTAL_SCROLL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 118,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_MURDERER_CANT_SUMMON_VEHICLE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_MURDERER_CANT_SUMMON_VEHICLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 119,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_CANT_DETACH_FREEBATTLEITEM_IN_BATTLESTATE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_DETACH_FREEBATTLEITEM_IN_BATTLESTATE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 120,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CAN_NOT_CREATE_BATTLE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COS_CAN_NOT_CREATE_BATTLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 121,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CREATE_DUNGEON"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COS_CREATE_DUNGEON"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 128,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_SILK_TO_BUY_ITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_SILK_TO_BUY_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 129,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_NOT_ENOUGH_SILK_TO_GIFT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 130,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_MUTATE_EQUIPED_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 131,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_MUTATE_SINCE_EQUIP_CLASS_TOO_HIGH"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 132,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_INVALID_TRANSGENDER_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 133,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_FIND_LAST_TELEPOS"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 134,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANT_FIND_LAST_DIEDPOS"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 135,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ONLY_THE_DEAD_CAN_USE_RESURRECT_SCROLL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 136,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_THERE_IS_NO_ITEM_TO_REPAIR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 137,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_SKILL_USE_FAIL_CHAR_DEAD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 146,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_CHAR_SKIN_ERR_ARMOR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 147,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_MAX_TRADING_LIMIT_EXCEEDED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 148,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_SKILL_USE_FAIL_OVERLAP"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 149,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_ROBBER_CANT_SUMMON_CART_IN_TOWN"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 157,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_CANT_STRIP_TIME_COS_RECALL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 158,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_NOJOB"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 159,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_NOALIAS"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 160,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 161,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_CHAO"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 162,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_NOPOSITION"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 163,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_WEARLIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 164,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_STATE_IS_NOT_SUMMONABLE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COS_STATE_IS_NOT_SUMMONABLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 165,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PETSUM_HIGHLEVEL"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_PETSUM_HIGHLEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 166,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_DEADPET"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_DEADPET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 167,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_BATTLE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_BATTLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 168,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CANT_SUMMON_OVER_MAX_COUNT"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COS_CANT_SUMMON_OVER_MAX_COUNT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 169,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CANT_SUMMON_DUPLICATE_PETTYPE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COS_CANT_SUMMON_DUPLICATE_PETTYPE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 175,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_SPECIALTY_ERR_NOTSELL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 176,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_SPECIALTY_ERR_QUEST_NOTCOMPLETE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 177,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_MOVETO_SUMITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_MOVETO_SUMITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 178,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_MOVETO_CHEST2"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_MOVETO_CHEST2"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 179,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_HGPFULL_NODRINK"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_HGPFULL_NODRINK"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 182,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_TRADE"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_TRADE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 183,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_SELL_ACTIVATED_COSITEM"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_SELL_ACTIVATED_COSITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 184,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_CANNOT_BE_USED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 185,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_COSPETERR_CANT_SUMMON_FREEBATTLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 187,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_ITEM_RIGHT_LIMIT"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_ITEM_RIGHT_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 188,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_ITEM_RIGHT_LIMIT"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_ITEM_RIGHT_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 189,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_UNION_NOT_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 190,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_SOLDIER_FREEPK_ERROR_SUMMON"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 191,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_WAIT_FOR_REUSE_DELAY"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 193,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_RECALL_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 194,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_RECALL_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 195,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILDWARERR_NOT_WEAR_JOBITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 196,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_STORE_BUY_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 197,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_LACK_GP"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 198,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_PREMIUM_USE_OVER"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 199,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_RECALL_LIMIT"
+        ],
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_RECALL_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 200,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_SOLDIER_FREEPK_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 201,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_SOLDIER_SAME_SUMMON_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 202,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_RIDE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 203,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_SOLDIER_NOT_RIGHT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 204,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_PREMIUM_NOT_USE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 205,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_WARENETWORK_ERROR_TRIANGLE"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 209,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_SPECIALTY_ERR_TRADESHOP"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 210,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_SOLDIER_RACE_DIFFERENT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 211,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_ERROR_RE_BUY_OBJECT_CANT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 212,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_TC_LACK_HONOR_POINT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 214,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 215,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 216,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 217,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 218,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_STRGERR_PARTY_INVENTORY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 219,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILD_STORE_BUY_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 224,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_POSITION"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 225,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_FORTIN"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 226,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_FORTPERIOD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 227,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_ONLY_ATTGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 228,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_ONLY_DEFENGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 229,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_STT_FORT_ITEMUSE_ERROR_ONLY_DEFENGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 230,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 231,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 232,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_NOTBUILD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 233,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_02"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 234,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 235,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_ITEMUSE_ERR_NOTPORTAL"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 236,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_SKILL_USE_FAIL_WRONGTARGET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 237,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_SKILL_USE_FAIL_WRONGTARGET"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 238,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_GUARD_SET_FAIL_03"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 239,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_ITEMUSE_ERR_NUMLIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 241,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_ALREADY_BUILD"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 242,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_ETC_ERROR_WRONGACTION_FORTWAR"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 243,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 1,
+      "code": 244,
+      "events": [
+        [
+          "guide",
+          5,
+          "UIIT_MSG_FORT_NOT_USE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_UNKNOWN_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_UNKNOWN_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_ERROR_BUSY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 7,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_PARTYERR_OUT_OF_LEVEL"
+        ],
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_OUT_OF_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_ALREADY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_TOO_LOW_CREATOR_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_CREATE_PARTY_REFUSED"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 13,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_CANT_FIND_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 14,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_CANT_FIND_CREATER"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 15,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_INVALID_USER"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 16,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_TIMEOUT"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_CREATER_LEFT_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_EXISTING_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_MEMBER_FULL_EXP_SHARED_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_MEMBER_FULL_NONEEXP_SHARED_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_JOIN_PARTY_REFUSED"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 24,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_MEMBER_OF_ANOTHER_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 27,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_RECORD_ERROR_AGAIN"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 28,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYERR_CANT_FIND_PARTY"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 29,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_RECORD_ERROR_PARTYLEADER"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 30,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_JOIN_ERROR_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 31,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_JOIN_ERROR_DUPLE"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTY_USER_MISSMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_JOIN_ERROR_DUPLE"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_PARTYMATCH_RECORD_ERROR_INVITE"
+        ]
+      ]
+    },
+    {
+      "category": 2,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          4,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_PARTYMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_NOTLEARN"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 4,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_NOTENOUGHMP"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_WRONGTARGET"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_WRONGDISTANCE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 8,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_NOTENOUGHLEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_OVERLAP"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 13,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_WRONGWEAPON"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 14,
+      "unresolved": "Invalid memory read (UC_ERR_READ_UNMAPPED)"
+    },
+    {
+      "category": 4,
+      "code": 15,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_BROKEN_WEAPON"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 16,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_PATH_INTERRUPTED"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_NONESELECTETARGET"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 18,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_RESURRECT"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 19,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_SKILL_USE_FAIL_NOTENOUGHHP"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_DAILY_PKLIMIT_EXCEEDED"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_TOTAL_PKLIMIT_EXCEEDED"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 22,
+      "unresolved": "unmodeled leaf 0x4b3830 at 0x68a034"
+    },
+    {
+      "category": 4,
+      "code": 23,
+      "unresolved": "unmodeled leaf 0x4b3830 at 0x68a059"
+    },
+    {
+      "category": 4,
+      "code": 24,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_ITS_NOT_A_BATTLE_FIELD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_ITS_NOT_A_BATTLE_FIELD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 25,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_WAITFOR_JOB_ACTIVATE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_WAITFOR_JOB_ACTIVATE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 32,
+      "unresolved": "unmodeled leaf 0x8645e0 at 0x68a0a6"
+    },
+    {
+      "category": 4,
+      "code": 33,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_USESKILL_IN_RIDESTATE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_USESKILL_IN_RIDESTATE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 34,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTY_MEMBER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTY_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 35,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTYMEMBERS_COS"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTYMEMBERS_COS"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 36,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_CARAVAN_LEVEL1"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_CARAVAN_LEVEL1"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_PK_PROHIBITED_IN_THIS_SERVER"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 40,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILLUSE_FAIL_CANT_BATTLE_STATE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_FAIL_OVERLAP_COUNT"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 48,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_EU_BAN_TRANS_SKILL"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 49,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_EU_BAN_HAWN_TRANS"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 50,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_FAIL_MUSICAL_RANGE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 51,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_FAIL_MONSTER_CLASS"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 52,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_DO_STEALTH"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 53,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_FAIL_TARGET_LV"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 54,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_USE_FAIL_GROGGY"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 55,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_QUEST_ERR_CANNOT_MAKE_TRAP"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 56,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_QUEST_ERR_CANNOT_MAKE_TRAP_EXIST_MONSTER"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 57,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_DUPLICATE"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 59,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CANT_ATTACK_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 60,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CANT_ATTACK_ALLYGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 61,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CAN_ATTACK_ONLYSIEGEWEAPON"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 62,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CAN_ATTACK_DEFGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 63,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CAN_ATTACK_ATTGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 64,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_NOTDESTROYGUARD"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 65,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CAN_ONLYPERIODFORT"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 66,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_SKILL_USE_FAIL_WRONGTARGET"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 67,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLE_ERR_CAN_ONLYPERIODFORT"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 68,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 69,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 70,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_DELAYTIME"
+        ]
+      ]
+    },
+    {
+      "category": 4,
+      "code": 71,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 5,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_LEARN_STR_INSUFFICIENCY"
+        ]
+      ]
+    },
+    {
+      "category": 5,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_LEARN_INT_INSUFFICIENCY"
+        ]
+      ]
+    },
+    {
+      "category": 5,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_POINT_INSUFFICIENCY"
+        ]
+      ]
+    },
+    {
+      "category": 7,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_POINT_INSUFFICIENCY_MASTERY"
+        ]
+      ]
+    },
+    {
+      "category": 7,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_LEARN_MASTERY_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 7,
+      "code": 5,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_STT_SKILL_LEARN_MASTERY_TOTAL_LIMIT"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_STT_SKILL_LEARN_MASTERY_TOTAL_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 1,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_NOT_LEARN"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_INVALID_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_UNKNOWN"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_NOT_ENOUGH_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_NOT_ENOUGH_POTION"
+        ]
+      ]
+    },
+    {
+      "category": 8,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WITHDRAW_SKILL_FAIL_DEPENDANCY_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_INVALID_PRICE"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_NOTHING_TO_SELL"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 14,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_MARKET_CLOSED"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_NOT_ENOUGH_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_INVENTORY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_HOST_LEFT"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 22,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FLEAMARKET_ERR_IM_BUSY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_IM_BUSY"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_CLOSED_BY_HOST"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 24,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_MARKET_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 43,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_INVALID_HOST_STATE"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 44,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_CUSTOMER_BANNED"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 52,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_CANT_OPEN_MARKET_IN_RIDESTATE"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 56,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_NOT_ALLOWED_FMARKETNAME"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 57,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FLEAMARKET_ERR_CANT_OPEN_MARKET_MURDERER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_CANT_OPEN_MARKET_MURDERER"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 59,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FREEMARKET_NOTUSE_JOB"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 70,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_WARENETWORK_SCAN_FAIL"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_SCAN_FAIL"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 73,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_WARENETWORK_USE_CITY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_USE_CITY"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 74,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_USE_CITY"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 76,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 79,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_BUY_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 80,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_BUY_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 81,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_WARENETWORK_BUY_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 82,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_NOT_ENOUGH_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 10,
+      "code": 83,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FLEAMARKET_ERR_INVENTORY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSERR_YOU_DONT_HAVE_ACTIVE_COS_OBJ"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSERR_YOU_CANT_CONTROL_THIS_OBJ"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 8,
+      "unresolved": "unmodeled leaf 0x9c422e at 0x68a496"
+    },
+    {
+      "category": 12,
+      "code": 9,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSERR_CANT_SELL_RIDING_COS"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSERR_CANT_SELL_RIDING_COS"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 10,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSERR_CANT_SELL_REQUESTED_COS"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSERR_CANT_SELL_REQUESTED_COS"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 11,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSERR_CANT_SELL_COS_HAVE_ITEMS"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSERR_CANT_SELL_COS_HAVE_ITEMS"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 13,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_BATTLE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_BATTLE"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 14,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_PETNAME_NOTPUT"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_PETNAME_NOTPUT"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 15,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_PETNAME_SUMENESS"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_PETNAME_SUMENESS"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 17,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_DEACTIVATE_IN_DEADSTATE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_CANT_DEACTIVATE_IN_DEADSTATE"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 34,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTY_MEMBER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SKILL_USE_FAIL_CANT_ATTACK_PARTY_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 166,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_DEADPET"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_CANT_PETRE_DEADPET"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 180,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PICKITEM1"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_CANT_PICKITEM1"
+        ]
+      ]
+    },
+    {
+      "category": 12,
+      "code": 181,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COSPETERR_CANT_PICKITEM2"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COSPETERR_CANT_PICKITEM2"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_I_DONT_HAVE_ANYTHING_FOR_YOU"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 7,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_NOT_ENOUGH_MONEY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_NOT_ENOUGH_MONEY"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 11,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_IM_BUSY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_IM_BUSY"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 16,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_CANT_USE_TELEPORT_WITH_TRADECART"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_CANT_USE_TELEPORT_WITH_TRADECART"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 17,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_CANNOT_BE_REPAIRED"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_CANNOT_BE_REPAIRED"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 18,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_CANNOT_BE_REVIVED"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_CANNOT_BE_REVIVED"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 19,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_TOO_FAR_FROM_TRADECART"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_TOO_FAR_FROM_TRADECART"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 20,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_TELESCROLL_ALREADY_WORKING"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_TELESCROLL_ALREADY_WORKING"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 21,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_OUT_OF_REQUIRED_LEVEL_FOR_TELEPORT"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_OUT_OF_REQUIRED_LEVEL_FOR_TELEPORT"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 22,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_MURDERER_CAN_USE_PORTAL_STRUCTURE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_MURDERER_CAN_USE_PORTAL_STRUCTURE"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 23,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL__REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL__REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 24,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_INTERACTION_FAIL_ONLY_ROBBER_CAN_TELEPORT_TO_THIEFDEN"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_INTERACTION_FAIL_ONLY_ROBBER_CAN_TELEPORT_TO_THIEFDEN"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 26,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_ENTRANCE_FORTRESS_FAIL_01"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ENTRANCE_FORTRESS_FAIL_01"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 27,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_04"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_04"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 28,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_ENTRANCE_FORTRESS_FAIL_02"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ENTRANCE_FORTRESS_FAIL_02"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 29,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_NOT_POSSESS_FORTRESS_MEMBER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_NOT_POSSESS_FORTRESS_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 30,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_ETC_ERR_CANT_ENTER_5MINBEFORE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERR_CANT_ENTER_5MINBEFORE"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 32,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_NEWBIE_RETURN_LV20_OVER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_NEWBIE_RETURN_LV20_OVER"
+        ]
+      ]
+    },
+    {
+      "category": 13,
+      "code": 33,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_NEWBIE_RETURN_ERROR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_NEWBIE_RETURN_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_CMSERR_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "CMSERR_CANT_GETOFF_FROM_RUNNING_HORSE"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_CMSERR_ITS_NOT_MY_COS_OBJ"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_CMSERR_CANT_RIDE_ON_IT"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_CMSERR_HUNTER_CANT_RIDE_CART"
+        ]
+      ]
+    },
+    {
+      "category": 14,
+      "code": 11,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CAN_NOT_RIDE_BATTLE"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COS_CAN_NOT_RIDE_BATTLE"
+        ]
+      ]
+    },
+    {
+      "category": 15,
+      "code": 1,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_LOGOUT_ERR_CANT_LOGOUT_IN_BATTLE_STATE"
+        ]
+      ]
+    },
+    {
+      "category": 15,
+      "code": 2,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_LOGOUT_ERR_CANT_LOGOUT_WHILE_TELEPORT_WORKING"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_LOGOUT_ERR_CANT_LOGOUT_WHILE_TELEPORT_WORKING"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TARGET_BUSY"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_IM_DEAD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TOO_LOW_CREATOR_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_NOT_ENOUGH_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_EXISTING_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_MEMBER_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 22,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_JOIN_GUILD_REFUSED"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_MEMBER_OF_ANOTHER_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 24,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_INVALID_GUILDNAME_LEN"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 25,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_NOT_ALLOWED_GUILDNAME"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 26,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_SAME_GUILDNAME_EXIST"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 27,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_CANT_CREATE_GUILD_IN_DB"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 28,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_CANT_ADD_MEMBER_IN_DB"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 29,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_CANT_FIND_MEMBER"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 30,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 31,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_EXPULSION_NOTEXP"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ERROR_GUILD_LEVEL_UP_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 34,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_INVALID_MASTER_COMMENT_TITLE"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_INVALID_MASTER_COMMENT"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TARGET_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 37,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDERR_CANT_FIND_TARGET_GUILD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_CANT_FIND_TARGET_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_CANT_ALLY_TO_OWN_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 39,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_ALREADY_ALLIED"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 40,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TARGET_GUILD_HAS_ALLIANCE_ALREADY"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_ALLIANCE_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 42,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TOO_LOW_CREATOR_ALLIANCE"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 43,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TOO_LOW_JOINER_ALLIANCE"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 49,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ERROR_GUILD_LEVEL_UP_GOLD_DEFICIT"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 50,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ERROR_GUILD_LEVEL_UP_GP_DEFICIT"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 54,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_EXPULSION_NOTEXP"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 56,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_MRELEASEERR_NOTSECEDE"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 57,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_MRELEASEERR_NOTREMOVE"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 58,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDWARERR_ENEMYGUILD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDWARERR_ENEMYGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 59,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDERR_TARGET_GUILD_MASTER_IS_NOT_IN_GAME"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_TARGET_GUILD_MASTER_IS_NOT_IN_GAME"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 60,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDWARERR_GUILD_CREATE_PENALTY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDWARERR_GUILD_CREATE_PENALTY"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 61,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_PENALTY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_PENALTY"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 62,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDWARERR_MAX_HOSTILE_GUILD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDWARERR_MAX_HOSTILE_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 63,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDWARERR_TARGET_MAX_HOSTILE_GUILD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDWARERR_TARGET_MAX_HOSTILE_GUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 65,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDWARERR_ALLYGUILD"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDWARERR_ALLYGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 66,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_QUESTION_GUILD_RESPECT_ALLY_NOTALLY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_QUESTION_GUILD_RESPECT_ALLY_NOTALLY"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 67,
+      "unresolved": "unmodeled leaf 0x9c422e at 0x68a9d1"
+    },
+    {
+      "category": 16,
+      "code": 68,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_UNKNOWN_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 70,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_ERROR_BREAK_WAR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_ERROR_BREAK_WAR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 72,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_WAREHOUSE_INTERRUPT"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_WAREHOUSE_INTERRUPT"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 74,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_WAREHOUSE_LIMIT"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_WAREHOUSE_LIMIT"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 75,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_UNION_CHAT_FULL"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_UNION_CHAT_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 76,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_WAREHOUSE_USE_ING"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_WAREHOUSE_USE_ING"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 77,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_ERROR_NAME_GRANT_SPECIAL_LETTER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_ERROR_NAME_GRANT_SPECIAL_LETTER"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 82,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 83,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_SOLDIER_ABILITY_OVER"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_SOLDIER_ABILITY_OVER"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 84,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_SOLDIER_ABILITY_SELECT_ERROR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_SOLDIER_ABILITY_SELECT_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 85,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_GUILD_SOLDIER_LEAVE_MASTER_ERROR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_SOLDIER_LEAVE_MASTER_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 86,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_CTL_GUILD_JOIN_JOB_ERROR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_CTL_GUILD_JOIN_JOB_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 87,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_CTL_GUILD_CREATE_JOB_ERROR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_CTL_GUILD_CREATE_JOB_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 88,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_04"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_04"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 89,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_03"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_03"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 90,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_02"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_02"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 91,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_05"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_05"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 92,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 93,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_01"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_01"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 94,
+      "unresolved": "unmodeled leaf 0x78ead0 at 0x68aaa9"
+    },
+    {
+      "category": 16,
+      "code": 96,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 112,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 113,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 114,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 115,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 116,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 117,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 118,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 119,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 16,
+      "code": 120,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 1,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JSERR_ROBBER_CANT_ENTER_TOWN_WITH_CART"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JSERR_PREVIOUS_TELEPORT_WORKING"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 4,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_COS_CAN_NOT_ENTER_DUNGEON"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COS_CAN_NOT_ENTER_DUNGEON"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 8,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_READY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_READY"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 9,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_START"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_START"
+        ]
+      ]
+    },
+    {
+      "category": 17,
+      "code": 10,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_END"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_SPECIALTY_ANNOUNCE_SELL_END"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_TARGE T_EQUIP_NOT_LOADED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_RECIPE_NOT_LOADED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_ONLY_EQUIPITEM_CAN_BE_REINFORCED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 9,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_RECIPE_MISMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_EQUIPCLASS_MISMATCH_PROB_UP"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 11,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_EQUIPCLASS_MISMATCH_ATHANASIA"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_EQUIPCLASS_MISMATCH_SOLID"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 13,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_OPTLEVEL_MISMATCH_ATHANASIA"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 14,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_OPTLEVEL_MISMATCH_SOLID"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 15,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_TARGETEQUIP_CANT_BE_REINFORCED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 16,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_IS_NOT_REINFORCE_STUFF"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_STUFF_CANT_BE_LOADED_MULTIPLE_TIME"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_NO_ITEM_LOADED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_INVALID_ITEM_SLOT"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_LOAD_EQUIP_FIRST"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 22,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_CANNOT_OPEN_FLEAMARKET"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_CANNOT_JOIN_FLEAMARKET"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 24,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_CANNOT_USE_ALCHEMY_AT_FLEAMARKET"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 25,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_REINFORCERR_CANNOT_TRADE"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 32,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_ASTRAL"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_EQUIPCLASS_MISMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 34,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_MAGICSTONE2_MAX"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_ASTRAL"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ENCHANT_HONOR_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 18,
+      "code": 100,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_SLOT_MISMATCH_REINFORCE"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 8,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIENDERR_FULLLIST"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 9,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIENDERR_ALREADYFRIEND"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 10,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIEND_SYSCANCEL"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 11,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIENDERR_REFUSAL"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 13,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIENDERR_UNKNOWNUSER"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 14,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIEND_SYSPROGRESS"
+        ]
+      ]
+    },
+    {
+      "category": 19,
+      "code": 15,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_FRIENDERR_TARGETLISTFULL"
+        ]
+      ]
+    },
+    {
+      "category": 20,
+      "code": 13,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_LETTERERR_UNKNOWNUSER"
+        ]
+      ]
+    },
+    {
+      "category": 20,
+      "code": 16,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_LETTERERR_SENDERR"
+        ]
+      ]
+    },
+    {
+      "category": 20,
+      "code": 20,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_LETTERERR_FULLLETTERBOX"
+        ]
+      ]
+    },
+    {
+      "category": 21,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_MRELEASEERR_NOTVOTING"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_EQUIPCLASS_MISMATCH"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 100,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_MAGICSTONE_LUCK_MAX"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 101,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_MAGICSTONE_ATHANASIA_MAX"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 102,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_MAGICSTONE_SOLID_MAX"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 103,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_NOT_ENOUGH_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 22,
+      "code": 104,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_SLOT_MISMATCH_MAGICSTONE"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ALCHEMY_NOT_ENOUGH_INVENTORY"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 9,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 16,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STRGERR_CANNOT_BE_USED_TO_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANTERR_RONDO2_UNREPAIRABLE_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_FAILED"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_RONDO_HONOR_ITEM"
+        ]
+      ]
+    },
+    {
+      "category": 23,
+      "code": 22,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ENCHANT_SLOT_MISMATCH_REINFORCE"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 7,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_NOT_ENOUGH_MONEY"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_NOT_ENOUGH_MONEY"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 16,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL_CANT_USE_TELEPORT_WITH_TRADECART"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_CANT_USE_TELEPORT_WITH_TRADECART"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 23,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_MSG_INTERACTION_FAIL__REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL__REQUESTED_JOB_BLOCKED_BY_QUEST"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 24,
+      "events": [
+        [
+          "banner",
+          null,
+          "UIIT_INTERACTION_FAIL_ONLY_ROBBER_CAN_TELEPORT_TO_THIEFDEN"
+        ],
+        [
+          "guide",
+          0,
+          "UIIT_INTERACTION_FAIL_ONLY_ROBBER_CAN_TELEPORT_TO_THIEFDEN"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 25,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JOBGUILD_JOIN_ERR_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 32,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JOBGUILD_JOIN_ERR_OVERLAP"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JOBITEM_WEAR_ERR_NOGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 34,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_CTL_JOBGUILD_WITHD_ERR_WEARITEM"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ALIAS_CREATE_ERR_NOTRULE"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JOBGUILD_JOIN_ERR_EXPIRE"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ALIAS_CREATE_ERR_NAMEDULPLICATE"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ALIAS_CREATE_ERR_NAMEDULPLICATE"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_JOBINFO_OLD_NOTEXIST"
+        ]
+      ]
+    },
+    {
+      "category": 24,
+      "code": 43,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYMATCH_RECORD_ERROR_JOBWITHDRAW"
+        ]
+      ]
+    },
+    {
+      "category": 25,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_COS_BAN_FOLLOW_COS"
+        ]
+      ]
+    },
+    {
+      "category": 26,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_EU_BAN_TRANS_HAWN"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_DIE_PASSING"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 9,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_OPEN_LEVEL"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_OPEN_GOLD"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 11,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_TRAININGCAMP_NOTHING"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 15,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_TRAININGCAMP_ALREADY_ENTRY"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 16,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_SECOND_GUARDIAN_COUNT_OVER"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_INVITE_REJECTION"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_OTHER_TRAININGCAMP_ENTRY"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ORDER_WORK"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ORDER_WORK"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ORDER_WORK"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 22,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ORDER_WORK"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILD_COMMON_NOTEXIST"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 26,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_GRADUATION_LEVER"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 28,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_OPEN_7D"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 29,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_DISORGANIZATION_7D"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 30,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_ENTRY_24T"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 31,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_INVITE_24T"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 32,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_BAN_24T"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_OUT_24T"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 34,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_POSIBLE_41L"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_JOB_DRESS"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_POSITION"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_ALREADY_OPEN"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_NOT_INFORMATION"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 40,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_STUDENT_COUNT_OVER"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_TC_BAN_MACHING_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 29,
+      "code": 42,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_TC_ERROR_INVITE_TYPE_DIFFERENT"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_UNKNOWN_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_UNKNOWN_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_POSITION_GRANT_FAIL_05"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_ONLYGUILDMASTER_ACTION"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_MANAGER_TAX_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 9,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_MANAGER_EMPLOY_DUPLICATE"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 11,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_NOTJOINGUILD"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 12,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_TOOLESSGUILDLV"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 13,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_TOOLESSGUILDMB"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 14,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_ERROR_GUILD_LEVEL_UP_GP_DEFICIT"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 15,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_INTERACTION_FAIL_NOT_ENOUGH_MONEY"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 16,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_OFFICIAL_FORTWAR_APPLY_ERROR_03"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 17,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_ALREADYPOSSESSFORT"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 18,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_WRONGALLIANCE"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 19,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_OFFICIAL_FORTWAR_APPLY_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 20,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_OFFICIAL_FORTWAR_APPLY_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 21,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_MANAGER_TAX_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 22,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 23,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 24,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_ETC_ERROR_WRONGACTION_FORTWAR"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 25,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_03"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 26,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_04"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 27,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_05"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 28,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_STRGERR_INVENTORY_FULL"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 29,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_SMITH_PRODUCT_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 30,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 31,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 32,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 33,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 34,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 35,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 36,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 37,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 38,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 39,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 40,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 41,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_03"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 42,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_04"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 43,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_05"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 44,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 45,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 46,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 47,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_06"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 48,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_REPAIR_FAIL"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 49,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 50,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_01"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 51,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_GUILDERR_PERMISSION_DENIED"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 52,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_UPGRADE_FAIL2"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 53,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_UPGRADE_FAIL"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 54,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_UPGRADE_FAIL"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 55,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_UPGRADE_FAIL3"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 56,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_MANAGER_TAX_ERROR_03"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 57,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_BATTLEAIDE_UPGRADE_FAIL4"
+        ]
+      ]
+    },
+    {
+      "category": 30,
+      "code": 60,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_STRUCTURE_ACTION_ERROR_02"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 2,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_UNKNOWN_ERROR"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 3,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_INVALID_TARGET"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 4,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_ERR_COMMON_TOO_FAR"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 5,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_PARTYERR_UNKNOWN_OPERATION"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_02"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_03"
+        ]
+      ]
+    },
+    {
+      "category": 31,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_FORT_PORTALSTONE_FAIL_01"
+        ]
+      ]
+    },
+    {
+      "category": 32,
+      "code": 6,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_MSG_AVATAR_MAGICOPTION_ADD_ERORR"
+        ]
+      ]
+    },
+    {
+      "category": 32,
+      "code": 7,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_AVATAR_MAGICOPTION_ADD_FAIL"
+        ]
+      ]
+    },
+    {
+      "category": 32,
+      "code": 8,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_AVATAR_MAGICOPTION_ONLY_AVATAR"
+        ]
+      ]
+    },
+    {
+      "category": 32,
+      "code": 10,
+      "events": [
+        [
+          "guide",
+          0,
+          "UIIT_STT_AVATAR_MAGICOPTION_WRONG"
+        ]
+      ]
+    }
+  ]
+}

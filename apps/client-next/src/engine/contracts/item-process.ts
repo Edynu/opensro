@@ -1,0 +1,9 @@
+export type AlchemyMode='reinforce'|'attribute'|'magic'|'compound'|'advanced'|'dissolve';
+export type ItemProcessCommand=
+ | {readonly kind:'alchemy-open'} | {readonly kind:'alchemy-close'} | {readonly kind:'alchemy-cancel'}
+ | {readonly kind:'alchemy-start';readonly mode:AlchemyMode;readonly slots:readonly number[];readonly quantity?:number}
+ | {readonly kind:'gacha-open';readonly gid:number}
+ | {readonly kind:'gacha-close'}
+ | {readonly kind:'gacha-roll';readonly entry:number;readonly slot:number};
+export interface AlchemyState {readonly locked?:boolean;readonly remaining?:number;readonly total?:number;readonly lockUntil?:number;readonly cancelled?:boolean;readonly visible:boolean;readonly pending:boolean;readonly mode:AlchemyMode;readonly flags:number;readonly error:number|null;readonly slot:number|null;}
+export interface GachaState {readonly visible:boolean;readonly phase:'closed'|'opening'|'idle'|'rolling'|'waiting'|'result';readonly npc:number;readonly slot:number|null;readonly entry:number;readonly started:number;readonly result:'win'|'lose'|null;readonly reward?:{readonly refObjId:number;readonly quantity:number};readonly error:number|null;}

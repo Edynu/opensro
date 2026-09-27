@@ -1,0 +1,311 @@
+/*
+===========================================================================
+
+world-stream.test.mjs - tests for the client modules it imports
+
+Loads the TypeScript sources directly through the shared native loader
+(tests/helpers/native-source-loader.mjs), so the tests exercise the same
+modules the client ships, not a per-test bundle.
+
+===========================================================================
+*/
+import "../helpers/native-source-loader.mjs";
+import { pathToFileURL as sourceFileUrl } from "node:url";
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import path from "node:path";
+import { root } from "../../tools/project.mjs";
+async function load( file ) {
+	return import( sourceFileUrl( path.join( root, file ) ).href );
+}
+const { createWorldStream } = await load( "src/engine/runtime/world/world.ts" );
+const { prepareWorldScene, worldSceneTransfers } = await load( "src/engine/foundation/rendering/world-scene.ts" );
+const { createWorldLease } = await load( "src/engine/runtime/assets/world-lease.ts" );
+const { createWorldRenderer } = await load( "src/engine/runtime/renderer/world/world.ts" );
+const identity = () => new Float32Array( [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
+function fixture() {
+	let id = 0;
+	const ready = new Map(), requests = [], cancelled = [];
+	const world = createWorldRenderer();
+	let camera;
+	const assets = {
+		available: () => 4 - ready.size,
+		request( url, limit, decode ) {
+			const key = ++id;
+			requests.push( { key, url, decode } );
+			if ( decode === "world" ) {
+				const region = url.includes( "/a.json" ) ? 1 : 2;
+				ready.set( key, {
+					kind: "world",
+					id: key,
+					scene: {
+						id: String( region ),
+						originRegion: region,
+						warnings: [],
+						groups: [ {
+							id: String( region ),
+							center: [ 0, 0, 0 ],
+							radius: 10000,
+							material: {
+								texture: `/assets/${region}.png`,
+								color: [ 1, 1, 1, 1 ],
+								alphaCutoff: 0,
+								blend: false,
+								doubleSided: true
+							},
+							geometry: {
+								positions: new Float32Array( [ 0, 0, 0, 1, 0, 0, 0, 1, 0 ] ),
+								normals: new Float32Array( 9 ),
+								uvs: new Float32Array( 6 ),
+								indices: new Uint32Array( [ 0, 1, 2 ] ),
+								instances: identity(),
+								transform: identity()
+							}
+						} ]
+					}
+				} );
+			} else if ( decode === "png" ) {
+				ready.set( key, {
+					kind: "image",
+					id: key,
+					image: { width: 1, height: 1, close() {} }
+				} );
+			} else {ready.set( key, {
+					kind: "bytes",
+					id: key,
+					buffer: new TextEncoder().encode(
+						JSON.stringify( {
+							regionsById: {
+								"0x0001": [ { bundlePublicPath: "/assets/a.json" } ],
+								"0x0002": [ { bundlePublicPath: "/assets/b.json" } ]
+							}
+						} )
+					).buffer
+				} );}
+			return key;
+		},
+		take( key ) {
+			const value = ready.get( key );
+			ready.delete( key );
+			if ( value?.kind === "world" ) {
+				const prepared = prepareWorldScene( value.scene );
+				return {
+					kind: "world",
+					id: key,
+					world: createWorldLease(
+						structuredClone( prepared, { transfer: worldSceneTransfers( prepared.scene ) } )
+					)
+				};
+			}
+			return value ?? null;
+		},
+		cancel( key ) {
+			cancelled.push( key );
+			ready.delete( key );
+		}
+	};
+	const renderer = {
+		cancelWorldUpdate: () => world.cancelPending(),
+		setWorld: scene => world.scene( scene ),
+		adoptWorld: lease => world.adopt( lease ),
+		setWorldTexture: ( path, image ) => world.texture( path, image ),
+		neededWorldTextures: () => world.neededTextures(),
+		worldStats: () => world.stats(),
+		setWorldCamera( value ) {
+			camera = value;
+			world.camera( value );
+		}
+	};
+	const stream = createWorldStream( assets, renderer, "https://assets.test" );
+	function step( region, controls ) {
+		stream.step( { regionId: region, x: 0, y: 0, z: 0, angle: 0 }, controls );
+		world.prepare( { upload: data => ({ data }), release() {} }, { upload: () => ({}), release() {} }, 1 );
+		assert.equal( stream.error(), null );
+	}
+	return { stream, world, step, requests, cancelled, ready, camera: () => camera };
+}
+test("stream revisits an evicted region and finishes its texture transaction", () => {
+	const f = fixture();
+	for ( const region of [ 1, 2, 1 ] ) for ( let i = 0; i < 5; i++ ) f.step( region );
+	assert.equal( f.requests.filter( r => r.url.endsWith( "/1.png" ) ).length, 2 );
+	assert.equal( f.world.stats().pendingTextures, 0 );
+	assert.equal( f.world.stats().visibleGroups, 1 );
+});
+test("reset cancels outstanding jobs and permits a fresh world transaction", () => {
+	const f = fixture();
+	f.step( 1 );
+	f.stream.reset();
+	assert.equal( f.cancelled.length, 1 );
+	for ( let i = 0; i < 5; i++ ) f.step( 2 );
+	assert.equal( f.world.stats().pendingTextures, 0 );
+});
+test("committed camera controls change the actual world view", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	const before = f.camera();
+	f.step( 1, { yaw: 0.5, pitch: 0.7, distance: 300 } );
+	assert.notDeepEqual( f.camera().eye, before.eye );
+	assert.deepEqual( f.camera().target, before.target );
+});
+
+test("returning from a failed neighbor reuses the still-displayed region", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	f.step( 2 );
+	const job = f.requests.at( -1 );
+	f.ready.set( job.key, { kind: "error", id: job.key, error: "neighbor unavailable" } );
+	f.stream.step( { regionId: 2, x: 0, y: 0, z: 0, angle: 0 } );
+	assert.match( f.stream.error(), /neighbor unavailable/ );
+	const count = f.requests.length;
+	for ( let i = 0; i < 8; i++ ) f.step( 1 );
+	assert.equal( f.requests.length, count );
+	assert.equal( f.world.stats().sceneId, "1" );
+	assert.equal( f.world.stats().pendingGroups, 0 );
+	f.stream.reset();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	assert.ok( f.requests.length > count, "reset invalidates displayed-region reuse" );
+});
+test("failed scene transaction preserves current scene and camera, then retries with fresh handles", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	f.step( 2 );
+	const worldJob = f.requests.at( -1 ), replacement = f.ready.get( worldJob.key ).scene;
+	replacement.groups.push( {
+		...replacement.groups[0],
+		id: "extra",
+		material: { ...replacement.groups[0].material, texture: "/assets/extra.png" }
+	} );
+	f.step( 2 );
+	const textures = f.requests.filter( r => r.decode === "png" && f.ready.has( r.key ) );
+	assert.equal( textures.length, 2 );
+	f.ready.set( textures[0].key, { kind: "error", id: textures[0].key, error: "HTTP 503" } );
+	const pose = { regionId: 2, x: 100, y: 0, z: 0, angle: 0 };
+	f.stream.step( pose );
+	assert.match( f.stream.error(), /503/ );
+	assert.ok( f.cancelled.includes( textures[1].key ) );
+	assert.equal( f.ready.size, 0 );
+	assert.equal( f.world.stats().sceneId, "1" );
+	assert.equal( f.world.stats().pendingGroups, 0 );
+	const requests = f.requests.length;
+	f.stream.step( { ...pose, x: 200 } );
+	assert.equal( f.camera().target[0], 200 );
+	assert.equal( f.requests.length, requests );
+	f.stream.retry();
+	for ( let i = 0; i < 5; i++ ) f.step( 2 );
+	assert.equal( f.world.stats().sceneId, "2" );
+	assert.equal( f.stream.error(), null );
+	f.stream.dispose();
+	f.stream.retry();
+	f.stream.step( pose );
+	assert.equal( f.requests.length, requests + 2 );
+});
+
+test("one neighbouring preload transfers across the boundary and reversal cancels it", () => {
+	for ( const completed of [ false, true ] ) {
+		const f = fixture();
+		for ( let i = 0; i < 5; i++ ) f.step( 1 );
+		const pose = x => ({ regionId: 1, x, y: 0, z: 960, angle: 0 });
+		f.stream.step( pose( 1000 ) );
+		f.stream.step( pose( 1600 ) );
+		const request = f.requests.at( -1 );
+		assert.ok( request.url.endsWith( "/b.json" ) );
+		if ( completed ) f.stream.step( pose( 1700 ) );
+		f.step( 2 );
+		for ( let i = 0; i < 5; i++ ) f.step( 2 );
+		assert.equal( f.requests.filter( r => r.url.endsWith( "/b.json" ) ).length, 1 );
+		assert.equal( f.world.stats().sceneId, "2" );
+		f.stream.dispose();
+	}
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	const pose = x => ({ regionId: 1, x, y: 0, z: 960, angle: 0 });
+	f.stream.step( pose( 1000 ) );
+	f.stream.step( pose( 1600 ) );
+	const request = f.requests.at( -1 );
+	f.ready.delete( request.key );
+	f.stream.step( pose( 1550 ) );
+	assert.ok( f.cancelled.includes( request.key ) );
+	f.stream.dispose();
+});
+test("reset cancels a pending future scene as well as active work", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	f.stream.step( { regionId: 1, x: 1000, y: 0, z: 960, angle: 0 } );
+	f.stream.step( { regionId: 1, x: 1600, y: 0, z: 960, angle: 0 } );
+	const request = f.requests.at( -1 );
+	f.stream.reset();
+	assert.ok( f.cancelled.includes( request.key ) );
+});
+
+test("ordinary sector crossings remain visible while discontinuous travel requests a loading screen", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	f.step( 2 );
+	assert.equal( f.stream.loadingRegion(), undefined );
+	for ( let i = 0; i < 5; i++ ) f.step( 2 );
+	f.step( 0x8001 );
+	assert.equal( f.stream.loadingRegion(), 0x8001 );
+	for ( let i = 0; i < 5; i++ ) f.step( 0x8001 );
+	assert.equal( f.stream.loadingRegion(), undefined );
+	f.stream.dispose();
+});
+
+test("an old displayed scene cannot satisfy readiness for a newly requested region", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	assert.equal( f.stream.ready(), true );
+	f.step( 2 );
+	assert.equal( f.stream.ready(), false );
+	assert.ok( f.stream.progress() < 1 );
+	for ( let i = 0; i < 5; i++ ) f.step( 2 );
+	assert.equal( f.stream.ready(), true );
+	f.stream.reset();
+	assert.equal( f.stream.ready(), false );
+});
+
+test("failed speculation waits for a new intent; actual crossing can retry once as required work", () => {
+	const f = fixture();
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	const pose = x => ({ regionId: 1, x, y: 0, z: 960, angle: 0 });
+	f.stream.step( pose( 1000 ) );
+	f.stream.step( pose( 1500 ) );
+	const request = f.requests.at( -1 );
+	f.ready.set( request.key, { kind: "error", id: request.key, error: "503" } );
+	for ( let x = 1550; x < 1800; x += 50 ) f.stream.step( pose( x ) );
+	assert.equal( f.requests.filter( r => r.url.endsWith( "/b.json" ) ).length, 1 );
+	assert.equal( f.stream.error(), null );
+	for ( let i = 0; i < 5; i++ ) f.step( 2 );
+	assert.equal( f.requests.filter( r => r.url.endsWith( "/b.json" ) ).length, 2 );
+	assert.equal( f.stream.ready(), true );
+	f.stream.dispose();
+});
+
+test("mission selection ignores frontend catalog order on entry and edge prefetch", () => {
+	const f = fixture();
+	f.step( 1 );
+	const request = f.requests.at( -1 );
+	f.ready.set( request.key, {
+		kind: "bytes",
+		buffer: new TextEncoder().encode( JSON.stringify( {
+			regionsById: {
+				"0x0001": [ { source: "title", bundlePublicPath: "/assets/wrong-title.json" }, {
+					source: "mission-outdoor-global",
+					area: "outdoor",
+					bundlePublicPath: "/assets/a.json"
+				} ],
+				"0x0002": [ { source: "character-create-europe", bundlePublicPath: "/assets/wrong-create.json" }, {
+					source: "mission-outdoor-global",
+					area: "outdoor",
+					bundlePublicPath: "/assets/b.json"
+				} ]
+			}
+		} ) ).buffer
+	} );
+	for ( let i = 0; i < 5; i++ ) f.step( 1 );
+	f.stream.step( { regionId: 1, x: 1500, y: 0, z: 960, angle: 0 } );
+	assert.ok( f.requests.some( r => r.url.endsWith( "/a.json" ) ) );
+	assert.ok( f.requests.some( r => r.url.endsWith( "/b.json" ) ) );
+	assert.ok( f.requests.every( r => !r.url.includes( "wrong-" ) ) );
+	f.stream.dispose();
+	f.world.dispose();
+});

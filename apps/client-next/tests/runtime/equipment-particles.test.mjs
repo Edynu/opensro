@@ -1,0 +1,164 @@
+/*
+===========================================================================
+
+equipment-particles.test.mjs - tests for the client modules it imports
+
+Loads the TypeScript sources directly through the shared native loader
+(tests/helpers/native-source-loader.mjs), so the tests exercise the same
+modules the client ships, not a per-test bundle.
+
+===========================================================================
+*/
+import "../helpers/native-source-loader.mjs";
+import { pathToFileURL as sourceFileUrl } from "node:url";
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readPublishedAssetJsonSync, readPublishedAssetBytesSync } from "../../../../scripts/lib/publishedAsset.mjs";
+import { publicRoot } from "../../../../scripts/build/world/paths.mjs";
+import { equipmentParticleCatalog } from "../../../../scripts/build/char/equipmentParticles.mjs";
+async function load( entry ) {
+	return import( sourceFileUrl( entry ).href );
+}
+const { appendEquipmentSockets, equipmentSocket, validateEquipmentBranches } = await load(
+	"src/engine/foundation/animation/equipment-sockets.ts"
+);
+const { createCharacterPose } = await load( "src/engine/foundation/animation/animation-pose.ts" );
+const { createModelEmission } = await load( "src/engine/foundation/animation/model-emission.ts" );
+const { createCharacterDecoder } = await load( "src/engine/runtime/assets/worker/model/character/character.ts" );
+const node = ( name, parent, t = [ 0, 0, 0 ], q = [ 0, 0, 0, 1 ] ) => ({
+	name,
+	parent,
+	translation: t,
+	rotation: q,
+	scale: [ 1, 1, 1 ]
+});
+test("private marker namespaces preserve both handles and cancel bind rotation, not current motion", () => {
+	const q = Math.SQRT1_2,
+		body = [
+			node( "root", -1 ),
+			node( "handR", 0, [ 10, 0, 0 ], [ 0, 0, q, q ] ),
+			node( "handL", 0, [ -10, 0, 0 ] ),
+			node( "ai_end", 0, [ 999, 999, 999 ] )
+		];
+	const branches = [ {
+		part: "R",
+		attachBone: "handR",
+		nodes: [ node( "Bone01", -1 ), node( "ai_end", 0, [ 2, 0, 0 ] ) ]
+	}, { part: "L", attachBone: "handL", nodes: [ node( "ai_end", -1, [ 3, 0, 0 ] ) ] } ];
+	validateEquipmentBranches( branches );
+	const nodes = appendEquipmentSockets( body, branches, 6 );
+	const model = {
+			nodes,
+			primitives: [],
+			images: [],
+			clips: [ { name: "stand", duration: 1, channels: [] }, {
+				name: "turn",
+				duration: 1,
+				channels: [ {
+					node: 1,
+					path: "rotation",
+					interpolation: "LINEAR",
+					times: Float32Array.of( 0 ),
+					values: Float32Array.of( 0, 0, 1, 0 )
+				} ]
+			} ]
+		},
+		pose = createCharacterPose( model );
+	pose.evaluate( "stand", 0 );
+	const pos = name => [ ...pose.socket( name ).slice( 12, 15 ) ];
+	assert.deepEqual( pos( equipmentSocket( 6, "L", "ai_end" ) ), [ -7, 0, 0 ] );
+	assert.ok( Math.abs( pos( equipmentSocket( 6, "R", "ai_end" ) )[0] - 12 ) < 1e-5 );
+	pose.evaluate( "turn", 0 );
+	const p = pos( equipmentSocket( 6, "R", "ai_end" ) );
+	assert.ok( Math.abs( p[0] - 10 ) < 1e-5 && Math.abs( p[1] - 2 ) < 1e-5 );
+	assert.equal( pose.socket( "equipment:6:R:missing" ), null );
+	assert.deepEqual( pos( "ai_end" ), [ 999, 999, 999 ] );
+	assert.throws(
+		() => appendEquipmentSockets( body, [ { ...branches[0], attachBone: "missing" } ], 6 ),
+		/wearer socket/
+	);
+	assert.throws(
+		() => validateEquipmentBranches( [ { ...branches[0], nodes: [ node( "cycle", 0 ) ] } ] ),
+		/private socket/
+	);
+});
+test("equipment particle lifetime survives cold resources and retires on replace, hide, despawn and reset", () => {
+	let id = -1;
+	const owner = createModelEmission( () => id-- ),
+		actor = {
+			gid: 1,
+			model: "equipped",
+			pose: { regionId: 257, x: 1, y: 2, z: 3, yaw: 0 },
+			scale: 2,
+			modelAnimation: { selected: { override: true } }
+		};
+	const particles = [ "R", "L" ].map( part => ({
+			source: "equipment",
+			effectPath: "system/rare.efp",
+			bone: equipmentSocket( 6, part, "ai_end" ),
+			scale: 1.3,
+			offset: [ 0, 0, 0 ],
+			root: false
+		})
+		),
+		holders = [ { actor, particles } ];
+	assert.deepEqual( owner.step( holders, 0, () => false, 20 ), [] );
+	const first = owner.step( holders, 1, () => true, 20 );
+	assert.equal( first.length, 2 );
+	assert.notEqual( first[0].gid, first[1].gid );
+	assert.equal( first[0].attachment.modelScale, 1.3 );
+	assert.equal( first[0].deferredParticle.lodHidden, false );
+	const next = owner.step( holders, 2, () => true, 20 );
+	assert.equal( next[0].gid, first[0].gid );
+	assert.equal( next[0].time, 1 );
+	const changed = owner.step( [ { actor: { ...actor, model: "replacement" }, particles } ], 3, () => true, 20 );
+	assert.notEqual( changed[0].gid, first[0].gid );
+	assert.deepEqual( owner.step( [], 4, () => true, 20 ), [] );
+	const restored = owner.step( holders, 5, () => true, 20 );
+	assert.notEqual( restored[0].gid, changed[0].gid );
+	owner.reset();
+	assert.notEqual( owner.step( holders, 6, () => true, 20 )[0].gid, restored[0].gid );
+});
+test("every authored active special-state item has reachable effects and real private sockets on every admitted body", () => {
+	const roster = readPublishedAssetJsonSync( "/assets/char/roster.json", publicRoot ),
+		programs = readPublishedAssetJsonSync( "/assets/effects/programs.json", publicRoot ),
+		catalog = equipmentParticleCatalog(),
+		cache = new Map();
+	let cases = 0;
+	assert.deepEqual( roster.dress.specialGlows, catalog );
+	for ( const [id, rows] of Object.entries( catalog ) ) {
+		for ( const [prefix, entry] of Object.entries( roster.dress.equipment[id].bodies ) ) {
+			if ( !entry ) {
+				continue;
+			}
+			validateEquipmentBranches( entry.branches );
+			const [race, sex] = prefix.split( "_" ),
+				body = roster.models.find( r =>
+					r.codename.startsWith( `CHAR_${race}_${sex === "M" ? "MAN" : "WOMAN"}_` )
+				);
+			let model = cache.get( body.glb );
+			if ( !model ) {
+				const bytes = readPublishedAssetBytesSync( body.glb, publicRoot ),
+					end = 20 + bytes.readUInt32LE( 12 ),
+					bin = bytes.subarray( end + 8 );
+				model = createCharacterDecoder().decode( {
+					json: JSON.parse( bytes.subarray( 20, end ) ),
+					binary: bin.buffer.slice( bin.byteOffset, bin.byteOffset + bin.length )
+				} );
+				cache.set( body.glb, model );
+			}
+			const nodes = appendEquipmentSockets( model.nodes, entry.branches, roster.dress.equipment[id].slot ),
+				pose = createCharacterPose( { ...model, nodes } );
+			pose.evaluate( "stand", 0 );
+			for ( const row of rows ) {
+				assert.ok( programs.effects[row.effectPath], row.effectPath );
+				for ( const part of entry.parts ) {
+					const matrix = pose.socket( equipmentSocket( roster.dress.equipment[id].slot, part, row.bone ) );
+					assert.ok( matrix && [ ...matrix ].every( Number.isFinite ), id + ":" + prefix + ":" + part );
+					cases++;
+				}
+			}
+		}
+	}
+	assert.ok( cases > 900 );
+});

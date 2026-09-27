@@ -1,0 +1,7 @@
+import type {CatalogMessage} from '@/engine/contracts/message';
+// SRO_Client 0x73EE40: data_CC9E5C, with direct-message exceptions.
+export function characterStatus(code=2):CatalogMessage|undefined{
+ if(code===1)return;
+ const keys:Record<number,string>={3:'UIO_SMERR_INVALID_CHARGEN_INFO',4:'UIO_MSG_ERROR_CHARACTER_SELECTWEAPON',5:'UIO_MSG_ERROR_CHARACTER_OVER_3',6:'UIO_SMERR_FAILED_TO_CREATE_CHARACTER',9:'UIO_SMERR_CANT_FIND_GAMESERVER',12:'UIO_MSG_ERROR_CHARACTER_NAME_STRING',13:'UIO_SMERR_NOT_ALLOWED_CHARNAME',15:'UIO_SMERR_CANT_ACCESS_PARENT_SERVER',16:'UIO_MSG_ERROR_ID',17:'UIO_MSG_ERROR_OVERLAP',18:'UIO_SMERR_FAILED_TO_CREATE_NEW_USER',20:'UIO_SMERR_MAX_USER_EXCEEDED',21:'UIO_SMERR_FAILED_TO_ENTERLOBBY',25:'UIO_MSG_ERROR_CANT_BE_REVIVED'};
+ return {key:keys[code]??'UIO_MSG_ERROR_SEVER_CONNECT',suffix:[4,5,12,13,16,17,20].includes(code)?'':`(S${code})`};
+}

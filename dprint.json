@@ -1,0 +1,51 @@
+{
+	"$schema": "https://dprint.dev/schemas/v0.json",
+	"lineWidth": 120,
+	"indentWidth": 4,
+	"useTabs": true,
+	"newLineKind": "lf",
+	"typescript": {
+		"quoteStyle": "preferDouble",
+		"semiColons": "always",
+		"trailingCommas": "never",
+		"bracePosition": "sameLine",
+		"operatorPosition": "sameLine",
+		"module.sortImportDeclarations": "maintain",
+		"importDeclaration.sortNamedImports": "maintain",
+		"exportDeclaration.sortNamedExports": "maintain",
+		"arguments.spaceAround": true,
+		"parameters.spaceAround": true,
+		"arrayExpression.spaceAround": true,
+		"ifStatement.spaceAround": true,
+		"forStatement.spaceAround": true,
+		"forInStatement.spaceAround": true,
+		"forOfStatement.spaceAround": true,
+		"whileStatement.spaceAround": true,
+		"doWhileStatement.spaceAround": true,
+		"switchStatement.spaceAround": true,
+		"catchClause.spaceAround": true,
+		"objectExpression.spaceSurroundingProperties": true,
+		"importDeclaration.spaceSurroundingNamedImports": true,
+		"exportDeclaration.spaceSurroundingNamedExports": true
+	},
+	"includes": [
+		"apps/client-next/src/**/*.{ts,mts,cts,js,mjs,cjs}",
+		"apps/client-next/tests/**/*.{ts,mts,cts,js,mjs,cjs}",
+		"apps/client-next/tools/**/*.{ts,mts,cts,js,mjs,cjs}",
+		"apps/server-observatory/**/*.{ts,mts,cts,js,mjs,cjs}",
+		"scripts/**/*.{ts,mts,cts,js,mjs,cjs}",
+		"*.{mjs,cjs}"
+	],
+	"excludes": [
+		"**/node_modules",
+		"**/temp",
+		"**/*.d.ts",
+		"apps/client-next/tools/types",
+		"apps/client-next/src/engine/foundation/audio/item-sound-catalog.ts",
+		"apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts",
+		"apps/client-next/src/engine/foundation/gameplay/windows1252.ts"
+	],
+	"plugins": [
+		"./node_modules/@dprint/typescript/plugin.wasm"
+	]
+}

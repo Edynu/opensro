@@ -1,0 +1,107 @@
+package domain
+
+import "sync"
+
+// characterPublicationMu protects record fields that can be read by one
+// session while another session publishes a replacement. The authority-store
+// mutation door remains the outer writer boundary.
+var characterPublicationMu sync.Mutex
+
+// FriendRecord is one persisted mutual friend edge.
+type FriendRecord struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	ModelRefID uint32 `json:"modelRefId"`
+}
+
+// FriendMaxCount is the roster bound imposed by the native friend panel.
+const FriendMaxCount = 0x14
+
+// FriendsView returns a stable copy for cross-session readers.
+func FriendsView(character *Character) []FriendRecord {
+	if character == nil {
+		return nil
+	}
+	characterPublicationMu.Lock()
+	defer characterPublicationMu.Unlock()
+
+	friends := make([]FriendRecord, len(character.Friends))
+	copy(friends, character.Friends)
+	return friends
+}
+
+// SwapFriends publishes a rebuilt friend list. Callers must already be inside
+// the authority-store mutation door.
+func SwapFriends(character *Character, next []FriendRecord) {
+	if character == nil {
+		return
+	}
+	characterPublicationMu.Lock()
+	character.Friends = next
+	characterPublicationMu.Unlock()
+}
+
+// MissionRuntime contains mutable mission state owned by the character.
+type MissionRuntime struct {
+	EventGuideStateMask          *int64 `json:"eventGuideStateMask,omitempty"`
+	EventGuideStateMaskUpdatedAt string `json:"eventGuideStateMaskUpdatedAt,omitempty"`
+}
+
+// ResolveEventGuideStateMask returns the persisted mask or zero.
+func ResolveEventGuideStateMask(character *Character) uint32 {
+	if character == nil {
+		return 0
+	}
+	characterPublicationMu.Lock()
+	defer characterPublicationMu.Unlock()
+	return resolveEventGuideStateMaskLocked(character)
+}
+
+func resolveEventGuideStateMaskLocked(character *Character) uint32 {
+	if character.Mission == nil {
+		return 0
+	}
+	return uint32(coerceInt(
+		character.Mission.EventGuideStateMask,
+		0,
+		0xffffffff,
+		0,
+	))
+}
+
+// Snapshot returns the normalized character view used during enter-world.
+func (character *Character) Snapshot() *Character {
+	if character == nil {
+		return nil
+	}
+
+	characterPublicationMu.Lock()
+	snapshot := cloneCharacter(character)
+	mask := int64(resolveEventGuideStateMaskLocked(character))
+	mission := MissionRuntime{EventGuideStateMask: &mask}
+	if character.Mission != nil {
+		mission.EventGuideStateMaskUpdatedAt =
+			character.Mission.EventGuideStateMaskUpdatedAt
+	}
+	characterPublicationMu.Unlock()
+
+	statPoints := coerceInt(snapshot.StatPoints, 0, 0xffff, 0)
+	snapshot.StatPoints = &statPoints
+	snapshot.Mission = &mission
+	return snapshot
+}
+
+// MutateMission publishes a replacement mission record. Callers that persist
+// characters must invoke it inside the authority-store mutation door.
+func MutateMission(
+	character *Character,
+	mutate func(current *MissionRuntime) MissionRuntime,
+) {
+	if character == nil || mutate == nil {
+		return
+	}
+	characterPublicationMu.Lock()
+	next := mutate(character.Mission)
+	character.Mission = &next
+	characterPublicationMu.Unlock()
+}

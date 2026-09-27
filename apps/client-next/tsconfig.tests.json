@@ -1,0 +1,33 @@
+{
+	// Type-checks the tests (runtime, architecture, helpers and browser) against
+	// the client sources, for `pnpm verify:test-types`.
+	//
+	// - Inherits the client's settings, except two that do not fit untyped
+	//   test JavaScript: noImplicitAny (tests carry no JSDoc on every callback)
+	//   and noUncheckedIndexedAccess (assertions index fixtures constantly).
+	//   strictNullChecks stays on: it finds real bugs.
+	// - Node types are loaded for the tests. That changes a few browser types
+	//   in src/ (timer handles), so tools/verify-test-types.mjs judges only
+	//   errors inside tests/; src/ is checked by `pnpm typecheck`.
+	// - Browser tests are included: tests/browser/types/page-globals.d.ts
+	//   declares the probes their page.evaluate bodies read and the /src/...
+	//   modules they import through the Vite dev server.
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"noImplicitAny": false,
+		"noUncheckedIndexedAccess": false,
+		"types": [ "node", "vite/client" ]
+	},
+	"include": [
+		"tests/runtime/**/*.mjs",
+		"tests/architecture/**/*.mjs",
+		"tests/helpers/**/*.mjs",
+		"tests/browser/**/*.mjs",
+		"tests/browser/types/*.d.ts",
+		"tools/types/**/*.d.ts"
+	]
+}

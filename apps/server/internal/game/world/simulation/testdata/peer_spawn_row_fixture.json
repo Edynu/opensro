@@ -1,0 +1,91 @@
+{
+  "comment": [
+    "GENERATED + PINNED by internal/game/world/simulation/peervis_test.go (TestPeerSpawnRowFixturePinned).",
+    "Each payloadHex is one 0x30D7 CICUser spawn row from simulation.BuildPeerSpawnRow,",
+    "the exact bytes the peer-visibility tick leg pushes.",
+    "Regenerate: UPDATE_PEER_SPAWN_FIXTURE=1 go test ./internal/game/world/simulation/ -run TestPeerSpawnRowFixturePinned"
+  ],
+  "opcode": 12503,
+  "scenarios": [
+    {
+      "name": "unarmed-peer",
+      "characterName": "PeerA",
+      "modelRefObjId": 1907,
+      "modelTidWord": 38,
+      "countryByte9c": 0,
+      "sexSelector1ac": 0,
+      "bodyShapeByte": 4,
+      "gid": 100042,
+      "regionId": 25000,
+      "x": 1616,
+      "y": 20,
+      "z": 1650,
+      "heading": 0,
+      "equipment": null,
+      "payloadHex": "7307000004000000000000ca860100a8610000ca440000a0410040ce44000000000000000000000000a041000048420000c8420005005065657241000000000000000000000000000000000000000000000000000000000000ff01"
+    },
+    {
+      "name": "worn-set-peer",
+      "characterName": "PeerB",
+      "modelRefObjId": 1907,
+      "modelTidWord": 38,
+      "countryByte9c": 0,
+      "sexSelector1ac": 0,
+      "bodyShapeByte": 4,
+      "gid": 100043,
+      "regionId": 25000,
+      "x": 1620,
+      "y": 20,
+      "z": 1652,
+      "heading": 16384,
+      "equipment": [
+        {
+          "refObjId": 3643,
+          "typeFlags": 6316,
+          "optLevel": 0,
+          "codename": "ITEM_CH_M_CLOTHES_01_BA_A_DEF"
+        },
+        {
+          "refObjId": 3644,
+          "typeFlags": 8364,
+          "optLevel": 0,
+          "codename": "ITEM_CH_M_CLOTHES_01_LA_A_DEF"
+        },
+        {
+          "refObjId": 3645,
+          "typeFlags": 12460,
+          "optLevel": 0,
+          "codename": "ITEM_CH_M_CLOTHES_01_FA_A_DEF"
+        },
+        {
+          "refObjId": 107,
+          "typeFlags": 6956,
+          "optLevel": 0,
+          "codename": "ITEM_CH_BLADE_01_A"
+        }
+      ],
+      "payloadHex": "73070000040000043b0e0000003c0e0000003d0e0000006b00000000000000cb860100a8610080ca440000a0410080ce44004000000000400000000000a041000048420000c8420005005065657242000000000000000000000000000000000000000000000000000000000000ff01"
+    },
+    {
+      "name": "guild-member-peer",
+      "characterName": "PeerC",
+      "modelRefObjId": 1907,
+      "modelTidWord": 38,
+      "countryByte9c": 0,
+      "sexSelector1ac": 0,
+      "bodyShapeByte": 4,
+      "gid": 100044,
+      "regionId": 25000,
+      "x": 1624,
+      "y": 20,
+      "z": 1654,
+      "heading": 8192,
+      "equipment": null,
+      "guildName": "NineSuns",
+      "guildId": 3,
+      "guildGrantName": "Vanguard",
+      "crestParamA": 7,
+      "payloadHex": "7307000004000000000000cc860100a8610000cb440000a04100c0ce44002000000000200000000000a041000048420000c8420005005065657243000000000000000008004e696e6553756e7303000000080056616e67756172640700000000000000000000000000ff01"
+    }
+  ]
+}

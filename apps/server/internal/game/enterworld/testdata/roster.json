@@ -1,0 +1,5704 @@
+{
+  "format": "sro-title-crowd-roster",
+  "version": 2,
+  "source": "SpawnEuropIntroCrowd sub_4e26d0 (rand()%60 roster; CharacterData model+speed)",
+  "mountSeatBone": "saddle",
+  "count": 60,
+  "builtCount": 60,
+  "models": [
+    {
+      "codename": "CHAR_EU_MAN_ADVENTURER",
+      "refObjId": 14726,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_adventurer.glb",
+      "bytes": 504324,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_adventurer.glb",
+      "previewBytes": 622456,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_ANGEL",
+      "refObjId": 14727,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_angel.glb",
+      "bytes": 513956,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_angel.glb",
+      "previewBytes": 632088,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_BARBARIAN",
+      "refObjId": 14725,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_barbarian.glb",
+      "bytes": 484340,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_barbarian.glb",
+      "previewBytes": 602472,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_DEVIL",
+      "refObjId": 14728,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_devil.glb",
+      "bytes": 466412,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_devil.glb",
+      "previewBytes": 584544,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_EXORCIST",
+      "refObjId": 14718,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_exorcist.glb",
+      "bytes": 524708,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_exorcist.glb",
+      "previewBytes": 642844,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_GLADIATOR",
+      "refObjId": 14724,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_gladiator.glb",
+      "bytes": 472024,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_gladiator.glb",
+      "previewBytes": 590156,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_KNIGHT",
+      "refObjId": 14722,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_knight.glb",
+      "bytes": 510968,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_knight.glb",
+      "previewBytes": 629100,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_MERCHANT",
+      "refObjId": 14720,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_merchant.glb",
+      "bytes": 441564,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_merchant.glb",
+      "previewBytes": 559696,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_NECROMENCER",
+      "refObjId": 14719,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_necromencer.glb",
+      "bytes": 512096,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_necromencer.glb",
+      "previewBytes": 630232,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_NOBLE",
+      "refObjId": 14717,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_noble.glb",
+      "bytes": 494032,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_noble.glb",
+      "previewBytes": 612168,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_PRIEST",
+      "refObjId": 14721,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_priest.glb",
+      "bytes": 476552,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_priest.glb",
+      "previewBytes": 594684,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_WARRIOR",
+      "refObjId": 14723,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_warrior.glb",
+      "bytes": 504432,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_warrior.glb",
+      "previewBytes": 622568,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_MAN_WEREWOLF",
+      "refObjId": 14729,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europeman_werewolf.glb",
+      "bytes": 554836,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europeman_werewolf.glb",
+      "previewBytes": 672972,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_ADVENTURER",
+      "refObjId": 14738,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_adventurer.glb",
+      "bytes": 500672,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_adventurer.glb",
+      "previewBytes": 615976,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_AMAZONESS",
+      "refObjId": 14736,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_amazoness.glb",
+      "bytes": 519168,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_amazoness.glb",
+      "previewBytes": 634476,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_ANGEL",
+      "refObjId": 14740,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_angel.glb",
+      "bytes": 522544,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_angel.glb",
+      "previewBytes": 637848,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_CRUSADER",
+      "refObjId": 14735,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_crusader.glb",
+      "bytes": 501584,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_crusader.glb",
+      "previewBytes": 616888,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_DEVIL",
+      "refObjId": 14741,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_devil.glb",
+      "bytes": 478020,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_devil.glb",
+      "previewBytes": 593324,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_GLADIATOR",
+      "refObjId": 14739,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_gladiator.glb",
+      "bytes": 497900,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_gladiator.glb",
+      "previewBytes": 613204,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_KNIGHT",
+      "refObjId": 14737,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_knight.glb",
+      "bytes": 505216,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_knight.glb",
+      "previewBytes": 620520,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_MERCHANT",
+      "refObjId": 14733,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_merchant.glb",
+      "bytes": 489976,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_merchant.glb",
+      "previewBytes": 605280,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_NOBLE",
+      "refObjId": 14730,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_noble.glb",
+      "bytes": 470972,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_noble.glb",
+      "previewBytes": 586276,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_ORACLE",
+      "refObjId": 14734,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_oracle.glb",
+      "bytes": 503220,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_oracle.glb",
+      "previewBytes": 618528,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_SUCCUBUS",
+      "refObjId": 14742,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_succubus.glb",
+      "bytes": 515684,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_succubus.glb",
+      "previewBytes": 630988,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_SUMMONER",
+      "refObjId": 14732,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_summoner.glb",
+      "bytes": 513816,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_summoner.glb",
+      "previewBytes": 629120,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_EU_WOMAN_WITCH",
+      "refObjId": 14731,
+      "region": "europe",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/europe/europewoman_witch.glb",
+      "bytes": 494260,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/europe/europewoman_witch.glb",
+      "previewBytes": 609564,
+      "previewClips": [
+        "stand",
+        "preview-state0-bow",
+        "preview-state0-onehand-staff",
+        "preview-state0-twohand-sword",
+        "preview-state0-twohand-staff",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_ADVENTURER",
+      "refObjId": 1907,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_adventurer.glb",
+      "bytes": 434444,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_adventurer.glb",
+      "previewBytes": 463964,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 1,
+        "1": 0,
+        "2": 8,
+        "3": 7,
+        "5": 3,
+        "6": 2,
+        "11": 5,
+        "12": 6,
+        "13": 4
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_BOGY",
+      "refObjId": 1908,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_bogy.glb",
+      "bytes": 422328,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_bogy.glb",
+      "previewBytes": 443264,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_FIGHTER",
+      "refObjId": 1909,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_fighter.glb",
+      "bytes": 437308,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_fighter.glb",
+      "previewBytes": 466828,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_MERCHANT",
+      "refObjId": 1910,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_merchant.glb",
+      "bytes": 434532,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_merchant.glb",
+      "previewBytes": 439864,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_MONK",
+      "refObjId": 1911,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_monk.glb",
+      "bytes": 455476,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_monk.glb",
+      "previewBytes": 484992,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_MONKEY",
+      "refObjId": 1912,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_monkey.glb",
+      "bytes": 455576,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_monkey.glb",
+      "previewBytes": 480672,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_NECROMANCER",
+      "refObjId": 1913,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_necromancer.glb",
+      "bytes": 428192,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_necromancer.glb",
+      "previewBytes": 457708,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_NOBLEBOY",
+      "refObjId": 1914,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_nobleboy.glb",
+      "bytes": 411404,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_nobleboy.glb",
+      "previewBytes": 416736,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 1,
+        "1": 0,
+        "2": 8,
+        "3": 7,
+        "5": 3,
+        "6": 2,
+        "11": 5,
+        "12": 6,
+        "13": 4
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_PERFORMER",
+      "refObjId": 1915,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_performer.glb",
+      "bytes": 413252,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_performer.glb",
+      "previewBytes": 418584,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 1,
+        "1": 0,
+        "2": 8,
+        "3": 7,
+        "5": 3,
+        "6": 2,
+        "11": 5,
+        "12": 6,
+        "13": 4
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_PRIEST",
+      "refObjId": 1916,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_priest.glb",
+      "bytes": 439388,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_priest.glb",
+      "previewBytes": 467604,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_SCHOLAR",
+      "refObjId": 1917,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_scholar.glb",
+      "bytes": 412924,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_scholar.glb",
+      "previewBytes": 418256,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_TATTOO",
+      "refObjId": 1918,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_tattoo.glb",
+      "bytes": 494044,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_tattoo.glb",
+      "previewBytes": 526568,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_MAN_WARRIOR",
+      "refObjId": 1919,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinaman_warrior.glb",
+      "bytes": 413668,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinaman_warrior.glb",
+      "previewBytes": 443188,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_ADVENTURER",
+      "refObjId": 1920,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_adventurer.glb",
+      "bytes": 447620,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_adventurer.glb",
+      "previewBytes": 441100,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_ASSASSIN",
+      "refObjId": 1921,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_assassin.glb",
+      "bytes": 447592,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_assassin.glb",
+      "previewBytes": 467536,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_BOGY",
+      "refObjId": 1922,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_bogy.glb",
+      "bytes": 447660,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_bogy.glb",
+      "previewBytes": 467608,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_FIGHTER",
+      "refObjId": 1923,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_fighter.glb",
+      "bytes": 434608,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_fighter.glb",
+      "previewBytes": 454552,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_FOX",
+      "refObjId": 1924,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_fox.glb",
+      "bytes": 477252,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_fox.glb",
+      "previewBytes": 470732,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_KANGSI",
+      "refObjId": 1925,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_kangsi.glb",
+      "bytes": 423612,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_kangsi.glb",
+      "previewBytes": 465576,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_KISAENG",
+      "refObjId": 1926,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_kisaeng.glb",
+      "bytes": 434436,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_kisaeng.glb",
+      "previewBytes": 427920,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_MERCHANT",
+      "refObjId": 1927,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_merchant.glb",
+      "bytes": 442904,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_merchant.glb",
+      "previewBytes": 436388,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_NECROMENCERB",
+      "refObjId": 1928,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_necromencerb.glb",
+      "bytes": 439548,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_necromencerb.glb",
+      "previewBytes": 466148,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_NECROMENCERW",
+      "refObjId": 1929,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_necromencerw.glb",
+      "bytes": 439424,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_necromencerw.glb",
+      "previewBytes": 432904,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_NOBLEGIRL",
+      "refObjId": 1930,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_noblegirl.glb",
+      "bytes": 442624,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_noblegirl.glb",
+      "previewBytes": 436108,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_SCHOLAR",
+      "refObjId": 1931,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_scholar.glb",
+      "bytes": 431896,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_scholar.glb",
+      "previewBytes": 420916,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "CHAR_CH_WOMAN_WARRIOR",
+      "refObjId": 1932,
+      "region": "china",
+      "isMount": false,
+      "walkSpeed": 16,
+      "runSpeed": 50,
+      "glb": "/assets/char/china/chinawoman_warrior.glb",
+      "bytes": 437080,
+      "bones": 45,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand",
+        "ride",
+        "pick"
+      ],
+      "materials": 2,
+      "previewGlb": "/assets/char/preview/china/chinawoman_warrior.glb",
+      "previewBytes": 457024,
+      "previewClips": [
+        "stand",
+        "preview-state0-spear",
+        "charselect-state13",
+        "charselect-state14",
+        "charselect-state15"
+      ],
+      "cover": {
+        "0": 8,
+        "1": 7,
+        "2": 6,
+        "3": 5,
+        "5": 1,
+        "6": 0,
+        "11": 3,
+        "12": 4,
+        "13": 2
+      }
+    },
+    {
+      "codename": "COS_T_DONKEY",
+      "refObjId": 2183,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 16,
+      "runSpeed": 30,
+      "glb": "/assets/cos/t_donkey.glb",
+      "bytes": 438200,
+      "bones": 41,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        15.072,
+        0.256
+      ]
+    },
+    {
+      "codename": "COS_T_HORSE1",
+      "refObjId": 2184,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 40,
+      "glb": "/assets/cos/t_horse1.glb",
+      "bytes": 439308,
+      "bones": 41,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        17.317,
+        0.272
+      ]
+    },
+    {
+      "codename": "COS_T_HORSE2",
+      "refObjId": 2185,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 40,
+      "glb": "/assets/cos/t_horse2.glb",
+      "bytes": 451592,
+      "bones": 41,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        17.317,
+        0.272
+      ]
+    },
+    {
+      "codename": "COS_T_HORSE3",
+      "refObjId": 2186,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 40,
+      "glb": "/assets/cos/t_horse3.glb",
+      "bytes": 462580,
+      "bones": 41,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        17.317,
+        0.272
+      ]
+    },
+    {
+      "codename": "COS_T_CAMEL1",
+      "refObjId": 2187,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 30,
+      "glb": "/assets/cos/t_camel1.glb",
+      "bytes": 464124,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        24.031,
+        -0.235
+      ]
+    },
+    {
+      "codename": "COS_T_CAMEL2",
+      "refObjId": 2188,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 30,
+      "glb": "/assets/cos/t_camel2.glb",
+      "bytes": 463828,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        24.031,
+        -0.235
+      ]
+    },
+    {
+      "codename": "COS_T_CAMEL3",
+      "refObjId": 2189,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 30,
+      "glb": "/assets/cos/t_camel3.glb",
+      "bytes": 466636,
+      "bones": 43,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 1,
+      "seat": [
+        0,
+        24.031,
+        -0.235
+      ]
+    },
+    {
+      "codename": "COS_T_DHORSE1",
+      "refObjId": 3912,
+      "region": "cos",
+      "isMount": true,
+      "walkSpeed": 20,
+      "runSpeed": 40,
+      "glb": "/assets/cos/t_dhorse1.glb",
+      "bytes": 706368,
+      "bones": 41,
+      "hasClip": true,
+      "clips": [
+        "walk",
+        "run",
+        "stand"
+      ],
+      "materials": 3,
+      "seat": [
+        0,
+        17.317,
+        0.272
+      ]
+    }
+  ],
+  "dress": {
+    "degreeLut": [
+      8,
+      16,
+      24,
+      32,
+      42,
+      52,
+      64,
+      76,
+      90,
+      104,
+      120,
+      141,
+      164
+    ],
+    "levelRange": {
+      "CH": 88,
+      "EU": 14
+    },
+    "armorTypes": [
+      "HEAVY",
+      "LIGHT",
+      "CLOTHES"
+    ],
+    "parts": [
+      "CA",
+      "HA",
+      "SA",
+      "BA",
+      "LA",
+      "AA",
+      "FA"
+    ],
+    "sets": {
+      "CH_M_HEAVY_01": {
+        "glb": "/assets/char/dress/ch_m_heavy_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_02": {
+        "glb": "/assets/char/dress/ch_m_heavy_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_03": {
+        "glb": "/assets/char/dress/ch_m_heavy_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_04": {
+        "glb": "/assets/char/dress/ch_m_heavy_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_05": {
+        "glb": "/assets/char/dress/ch_m_heavy_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_06": {
+        "glb": "/assets/char/dress/ch_m_heavy_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_07": {
+        "glb": "/assets/char/dress/ch_m_heavy_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_08": {
+        "glb": "/assets/char/dress/ch_m_heavy_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [
+            4
+          ],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_HEAVY_09": {
+        "glb": "/assets/char/dress/ch_m_heavy_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_01": {
+        "glb": "/assets/char/dress/ch_m_light_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_02": {
+        "glb": "/assets/char/dress/ch_m_light_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_03": {
+        "glb": "/assets/char/dress/ch_m_light_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_04": {
+        "glb": "/assets/char/dress/ch_m_light_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_05": {
+        "glb": "/assets/char/dress/ch_m_light_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_06": {
+        "glb": "/assets/char/dress/ch_m_light_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_07": {
+        "glb": "/assets/char/dress/ch_m_light_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_08": {
+        "glb": "/assets/char/dress/ch_m_light_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_LIGHT_09": {
+        "glb": "/assets/char/dress/ch_m_light_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_01": {
+        "glb": "/assets/char/dress/ch_m_clothes_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_02": {
+        "glb": "/assets/char/dress/ch_m_clothes_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_03": {
+        "glb": "/assets/char/dress/ch_m_clothes_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_04": {
+        "glb": "/assets/char/dress/ch_m_clothes_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_05": {
+        "glb": "/assets/char/dress/ch_m_clothes_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_06": {
+        "glb": "/assets/char/dress/ch_m_clothes_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_07": {
+        "glb": "/assets/char/dress/ch_m_clothes_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_08": {
+        "glb": "/assets/char/dress/ch_m_clothes_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_M_CLOTHES_09": {
+        "glb": "/assets/char/dress/ch_m_clothes_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_01": {
+        "glb": "/assets/char/dress/ch_w_heavy_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_02": {
+        "glb": "/assets/char/dress/ch_w_heavy_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_03": {
+        "glb": "/assets/char/dress/ch_w_heavy_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_04": {
+        "glb": "/assets/char/dress/ch_w_heavy_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_05": {
+        "glb": "/assets/char/dress/ch_w_heavy_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_06": {
+        "glb": "/assets/char/dress/ch_w_heavy_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_07": {
+        "glb": "/assets/char/dress/ch_w_heavy_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_08": {
+        "glb": "/assets/char/dress/ch_w_heavy_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_HEAVY_09": {
+        "glb": "/assets/char/dress/ch_w_heavy_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_01": {
+        "glb": "/assets/char/dress/ch_w_light_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_02": {
+        "glb": "/assets/char/dress/ch_w_light_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_03": {
+        "glb": "/assets/char/dress/ch_w_light_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_04": {
+        "glb": "/assets/char/dress/ch_w_light_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_05": {
+        "glb": "/assets/char/dress/ch_w_light_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_06": {
+        "glb": "/assets/char/dress/ch_w_light_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_07": {
+        "glb": "/assets/char/dress/ch_w_light_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_08": {
+        "glb": "/assets/char/dress/ch_w_light_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_LIGHT_09": {
+        "glb": "/assets/char/dress/ch_w_light_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_01": {
+        "glb": "/assets/char/dress/ch_w_clothes_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_02": {
+        "glb": "/assets/char/dress/ch_w_clothes_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_03": {
+        "glb": "/assets/char/dress/ch_w_clothes_03.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_04": {
+        "glb": "/assets/char/dress/ch_w_clothes_04.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_05": {
+        "glb": "/assets/char/dress/ch_w_clothes_05.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_06": {
+        "glb": "/assets/char/dress/ch_w_clothes_06.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_07": {
+        "glb": "/assets/char/dress/ch_w_clothes_07.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_08": {
+        "glb": "/assets/char/dress/ch_w_clothes_08.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "CH_W_CLOTHES_09": {
+        "glb": "/assets/char/dress/ch_w_clothes_09.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_HEAVY_01": {
+        "glb": "/assets/char/dress/eu_m_heavy_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_HEAVY_02": {
+        "glb": "/assets/char/dress/eu_m_heavy_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [
+            4
+          ],
+          "BA": [
+            2,
+            5,
+            3
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_LIGHT_01": {
+        "glb": "/assets/char/dress/eu_m_light_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_LIGHT_02": {
+        "glb": "/assets/char/dress/eu_m_light_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_CLOTHES_01": {
+        "glb": "/assets/char/dress/eu_m_clothes_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_M_CLOTHES_02": {
+        "glb": "/assets/char/dress/eu_m_clothes_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_HEAVY_01": {
+        "glb": "/assets/char/dress/eu_w_heavy_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_HEAVY_02": {
+        "glb": "/assets/char/dress/eu_w_heavy_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11,
+            12,
+            13
+          ],
+          "AA": [
+            6
+          ],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_LIGHT_01": {
+        "glb": "/assets/char/dress/eu_w_light_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [
+            4
+          ],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_LIGHT_02": {
+        "glb": "/assets/char/dress/eu_w_light_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            5
+          ],
+          "LA": [
+            11,
+            12
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_CLOTHES_01": {
+        "glb": "/assets/char/dress/eu_w_clothes_01.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      },
+      "EU_W_CLOTHES_02": {
+        "glb": "/assets/char/dress/eu_w_clothes_02.glb",
+        "parts": [
+          "HA",
+          "SA",
+          "BA",
+          "LA",
+          "AA",
+          "FA"
+        ],
+        "covers": {
+          "HA": [
+            0
+          ],
+          "SA": [],
+          "BA": [
+            2,
+            3,
+            5
+          ],
+          "LA": [
+            11
+          ],
+          "AA": [],
+          "FA": [
+            13
+          ]
+        }
+      }
+    },
+    "weaponKinds": {
+      "CH": [
+        "BLADE",
+        "SWORD",
+        "TBLADE",
+        "SPEAR",
+        "BOW"
+      ],
+      "EU": [
+        "SWORD",
+        "TSWORD",
+        "AXE",
+        "STAFF",
+        "TSTAFF",
+        "CROSSBOW",
+        "DAGGER",
+        "HARP"
+      ]
+    },
+    "shieldKinds": [
+      "CH_SWORD",
+      "CH_BLADE",
+      "EU_SWORD",
+      "EU_STAFF"
+    ],
+    "dualWieldKinds": [
+      "EU_AXE",
+      "EU_DAGGER"
+    ],
+    "weapons": {
+      "CH_M_BLADE_01": {
+        "glb": "/assets/char/weapon/ch_m_blade_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_01": {
+        "glb": "/assets/char/weapon/ch_w_blade_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_02": {
+        "glb": "/assets/char/weapon/ch_m_blade_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_02": {
+        "glb": "/assets/char/weapon/ch_w_blade_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_03": {
+        "glb": "/assets/char/weapon/ch_m_blade_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_03": {
+        "glb": "/assets/char/weapon/ch_w_blade_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_04": {
+        "glb": "/assets/char/weapon/ch_m_blade_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_04": {
+        "glb": "/assets/char/weapon/ch_w_blade_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_05": {
+        "glb": "/assets/char/weapon/ch_m_blade_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_05": {
+        "glb": "/assets/char/weapon/ch_w_blade_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_06": {
+        "glb": "/assets/char/weapon/ch_m_blade_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_06": {
+        "glb": "/assets/char/weapon/ch_w_blade_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_07": {
+        "glb": "/assets/char/weapon/ch_m_blade_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_07": {
+        "glb": "/assets/char/weapon/ch_w_blade_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_08": {
+        "glb": "/assets/char/weapon/ch_m_blade_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_08": {
+        "glb": "/assets/char/weapon/ch_w_blade_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BLADE_09": {
+        "glb": "/assets/char/weapon/ch_m_blade_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BLADE_09": {
+        "glb": "/assets/char/weapon/ch_w_blade_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_01": {
+        "glb": "/assets/char/weapon/ch_m_sword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_01": {
+        "glb": "/assets/char/weapon/ch_w_sword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_02": {
+        "glb": "/assets/char/weapon/ch_m_sword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_02": {
+        "glb": "/assets/char/weapon/ch_w_sword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_03": {
+        "glb": "/assets/char/weapon/ch_m_sword_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_03": {
+        "glb": "/assets/char/weapon/ch_w_sword_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_04": {
+        "glb": "/assets/char/weapon/ch_m_sword_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_04": {
+        "glb": "/assets/char/weapon/ch_w_sword_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_05": {
+        "glb": "/assets/char/weapon/ch_m_sword_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_05": {
+        "glb": "/assets/char/weapon/ch_w_sword_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_06": {
+        "glb": "/assets/char/weapon/ch_m_sword_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_06": {
+        "glb": "/assets/char/weapon/ch_w_sword_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_07": {
+        "glb": "/assets/char/weapon/ch_m_sword_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_07": {
+        "glb": "/assets/char/weapon/ch_w_sword_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_08": {
+        "glb": "/assets/char/weapon/ch_m_sword_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_08": {
+        "glb": "/assets/char/weapon/ch_w_sword_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SWORD_09": {
+        "glb": "/assets/char/weapon/ch_m_sword_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SWORD_09": {
+        "glb": "/assets/char/weapon/ch_w_sword_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_01": {
+        "glb": "/assets/char/weapon/ch_m_tblade_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_01": {
+        "glb": "/assets/char/weapon/ch_w_tblade_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_02": {
+        "glb": "/assets/char/weapon/ch_m_tblade_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_02": {
+        "glb": "/assets/char/weapon/ch_w_tblade_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_03": {
+        "glb": "/assets/char/weapon/ch_m_tblade_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_03": {
+        "glb": "/assets/char/weapon/ch_w_tblade_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_04": {
+        "glb": "/assets/char/weapon/ch_m_tblade_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_04": {
+        "glb": "/assets/char/weapon/ch_w_tblade_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_05": {
+        "glb": "/assets/char/weapon/ch_m_tblade_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_05": {
+        "glb": "/assets/char/weapon/ch_w_tblade_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_06": {
+        "glb": "/assets/char/weapon/ch_m_tblade_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_06": {
+        "glb": "/assets/char/weapon/ch_w_tblade_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_07": {
+        "glb": "/assets/char/weapon/ch_m_tblade_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_07": {
+        "glb": "/assets/char/weapon/ch_w_tblade_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_08": {
+        "glb": "/assets/char/weapon/ch_m_tblade_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_08": {
+        "glb": "/assets/char/weapon/ch_w_tblade_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_TBLADE_09": {
+        "glb": "/assets/char/weapon/ch_m_tblade_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_TBLADE_09": {
+        "glb": "/assets/char/weapon/ch_w_tblade_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_01": {
+        "glb": "/assets/char/weapon/ch_m_spear_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_01": {
+        "glb": "/assets/char/weapon/ch_w_spear_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_02": {
+        "glb": "/assets/char/weapon/ch_m_spear_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_02": {
+        "glb": "/assets/char/weapon/ch_w_spear_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_03": {
+        "glb": "/assets/char/weapon/ch_m_spear_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_03": {
+        "glb": "/assets/char/weapon/ch_w_spear_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_04": {
+        "glb": "/assets/char/weapon/ch_m_spear_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_04": {
+        "glb": "/assets/char/weapon/ch_w_spear_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_05": {
+        "glb": "/assets/char/weapon/ch_m_spear_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_05": {
+        "glb": "/assets/char/weapon/ch_w_spear_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_06": {
+        "glb": "/assets/char/weapon/ch_m_spear_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_06": {
+        "glb": "/assets/char/weapon/ch_w_spear_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_07": {
+        "glb": "/assets/char/weapon/ch_m_spear_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_07": {
+        "glb": "/assets/char/weapon/ch_w_spear_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_08": {
+        "glb": "/assets/char/weapon/ch_m_spear_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_08": {
+        "glb": "/assets/char/weapon/ch_w_spear_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SPEAR_09": {
+        "glb": "/assets/char/weapon/ch_m_spear_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SPEAR_09": {
+        "glb": "/assets/char/weapon/ch_w_spear_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_01": {
+        "glb": "/assets/char/weapon/ch_m_bow_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": [
+            7
+          ]
+        }
+      },
+      "CH_W_BOW_01": {
+        "glb": "/assets/char/weapon/ch_w_bow_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": [
+            7
+          ]
+        }
+      },
+      "CH_M_BOW_02": {
+        "glb": "/assets/char/weapon/ch_m_bow_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_02": {
+        "glb": "/assets/char/weapon/ch_w_bow_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_03": {
+        "glb": "/assets/char/weapon/ch_m_bow_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_03": {
+        "glb": "/assets/char/weapon/ch_w_bow_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_04": {
+        "glb": "/assets/char/weapon/ch_m_bow_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_04": {
+        "glb": "/assets/char/weapon/ch_w_bow_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_05": {
+        "glb": "/assets/char/weapon/ch_m_bow_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_05": {
+        "glb": "/assets/char/weapon/ch_w_bow_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_06": {
+        "glb": "/assets/char/weapon/ch_m_bow_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_06": {
+        "glb": "/assets/char/weapon/ch_w_bow_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_07": {
+        "glb": "/assets/char/weapon/ch_m_bow_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_07": {
+        "glb": "/assets/char/weapon/ch_w_bow_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_08": {
+        "glb": "/assets/char/weapon/ch_m_bow_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_08": {
+        "glb": "/assets/char/weapon/ch_w_bow_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_BOW_09": {
+        "glb": "/assets/char/weapon/ch_m_bow_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_BOW_09": {
+        "glb": "/assets/char/weapon/ch_w_bow_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_01": {
+        "glb": "/assets/char/weapon/ch_m_shield_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_01": {
+        "glb": "/assets/char/weapon/ch_w_shield_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_02": {
+        "glb": "/assets/char/weapon/ch_m_shield_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_02": {
+        "glb": "/assets/char/weapon/ch_w_shield_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_03": {
+        "glb": "/assets/char/weapon/ch_m_shield_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_03": {
+        "glb": "/assets/char/weapon/ch_w_shield_03.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_04": {
+        "glb": "/assets/char/weapon/ch_m_shield_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_04": {
+        "glb": "/assets/char/weapon/ch_w_shield_04.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_05": {
+        "glb": "/assets/char/weapon/ch_m_shield_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_05": {
+        "glb": "/assets/char/weapon/ch_w_shield_05.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_06": {
+        "glb": "/assets/char/weapon/ch_m_shield_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_06": {
+        "glb": "/assets/char/weapon/ch_w_shield_06.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_07": {
+        "glb": "/assets/char/weapon/ch_m_shield_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_07": {
+        "glb": "/assets/char/weapon/ch_w_shield_07.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_08": {
+        "glb": "/assets/char/weapon/ch_m_shield_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_08": {
+        "glb": "/assets/char/weapon/ch_w_shield_08.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_M_SHIELD_09": {
+        "glb": "/assets/char/weapon/ch_m_shield_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "CH_W_SHIELD_09": {
+        "glb": "/assets/char/weapon/ch_w_shield_09.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_SWORD_01": {
+        "glb": "/assets/char/weapon/eu_m_sword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_SWORD_01": {
+        "glb": "/assets/char/weapon/eu_w_sword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_SWORD_02": {
+        "glb": "/assets/char/weapon/eu_m_sword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_SWORD_02": {
+        "glb": "/assets/char/weapon/eu_w_sword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_TSWORD_01": {
+        "glb": "/assets/char/weapon/eu_m_tsword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_TSWORD_01": {
+        "glb": "/assets/char/weapon/eu_w_tsword_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_TSWORD_02": {
+        "glb": "/assets/char/weapon/eu_m_tsword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_TSWORD_02": {
+        "glb": "/assets/char/weapon/eu_w_tsword_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_AXE_01": {
+        "glb": "/assets/char/weapon/eu_m_axe_01.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_W_AXE_01": {
+        "glb": "/assets/char/weapon/eu_w_axe_01.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_M_AXE_02": {
+        "glb": "/assets/char/weapon/eu_m_axe_02.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_W_AXE_02": {
+        "glb": "/assets/char/weapon/eu_w_axe_02.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_M_STAFF_01": {
+        "glb": "/assets/char/weapon/eu_m_staff_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_STAFF_01": {
+        "glb": "/assets/char/weapon/eu_w_staff_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_STAFF_02": {
+        "glb": "/assets/char/weapon/eu_m_staff_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_STAFF_02": {
+        "glb": "/assets/char/weapon/eu_w_staff_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_TSTAFF_01": {
+        "glb": "/assets/char/weapon/eu_m_tstaff_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_TSTAFF_01": {
+        "glb": "/assets/char/weapon/eu_w_tstaff_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_TSTAFF_02": {
+        "glb": "/assets/char/weapon/eu_m_tstaff_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_TSTAFF_02": {
+        "glb": "/assets/char/weapon/eu_w_tstaff_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_CROSSBOW_01": {
+        "glb": "/assets/char/weapon/eu_m_crossbow_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_CROSSBOW_01": {
+        "glb": "/assets/char/weapon/eu_w_crossbow_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_CROSSBOW_02": {
+        "glb": "/assets/char/weapon/eu_m_crossbow_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_CROSSBOW_02": {
+        "glb": "/assets/char/weapon/eu_w_crossbow_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_DAGGER_01": {
+        "glb": "/assets/char/weapon/eu_m_dagger_01.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_W_DAGGER_01": {
+        "glb": "/assets/char/weapon/eu_w_dagger_01.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_M_DAGGER_02": {
+        "glb": "/assets/char/weapon/eu_m_dagger_02.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_W_DAGGER_02": {
+        "glb": "/assets/char/weapon/eu_w_dagger_02.glb",
+        "parts": [
+          "WA",
+          "WL"
+        ],
+        "covers": {
+          "WA": [],
+          "WL": []
+        }
+      },
+      "EU_M_HARP_01": {
+        "glb": "/assets/char/weapon/eu_m_harp_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_HARP_01": {
+        "glb": "/assets/char/weapon/eu_w_harp_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_HARP_02": {
+        "glb": "/assets/char/weapon/eu_m_harp_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_HARP_02": {
+        "glb": "/assets/char/weapon/eu_w_harp_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_SHIELD_01": {
+        "glb": "/assets/char/weapon/eu_m_shield_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_SHIELD_01": {
+        "glb": "/assets/char/weapon/eu_w_shield_01.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_M_SHIELD_02": {
+        "glb": "/assets/char/weapon/eu_m_shield_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      },
+      "EU_W_SHIELD_02": {
+        "glb": "/assets/char/weapon/eu_w_shield_02.glb",
+        "parts": [
+          "WA"
+        ],
+        "covers": {
+          "WA": []
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,2457 @@
+{
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "function": "0x00782AC0",
+  "scope": "character-prefix mode; cache/list/extent stubs; first glyph admitted even above budget",
+  "cases": [
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retained "
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained n"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distribute"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distributed "
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo Win"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Wind'"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "1234567"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "123456789"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retaine"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained "
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distribut"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distribute"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo Wi"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Win"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "123456"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "12345678"
+    },
+    {
+      "fontIndex": 0,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retained n"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained nu"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "Di"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distributed "
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distributed n"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo Wind'"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Wind's"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "123456789"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retained "
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained n"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distribute"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distributed"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo Wi"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Wind"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "1234567"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "123456789"
+    },
+    {
+      "fontIndex": 1,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retaine"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distribu"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distribut"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Wi"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "123456"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "1234567"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retain"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retaine"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distrib"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distribu"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "12345"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "123456"
+    },
+    {
+      "fontIndex": 2,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retaine"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retained "
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distribut"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distribute"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo Wi"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Win"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "123456"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "12345678"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retain"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retaine"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distrib"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distribut"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo Wi"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "123456"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "1234567"
+    },
+    {
+      "fontIndex": 3,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retai"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retain"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distri"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distrib"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "12345"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "12345"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 0,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 0,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 1,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 8,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 9,
+      "prefix": "R"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 55,
+      "prefix": "Retai"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 64,
+      "prefix": "Retain"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Retained number",
+      "budget": 202,
+      "prefix": "Retained number"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 0,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 1,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 8,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 9,
+      "prefix": "D"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 55,
+      "prefix": "Distri"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 64,
+      "prefix": "Distrib"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Distributed number",
+      "budget": 202,
+      "prefix": "Distributed number"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 0,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 1,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 8,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 9,
+      "prefix": "V"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 55,
+      "prefix": "Virgo"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 64,
+      "prefix": "Virgo "
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "Virgo Wind'sVane",
+      "budget": 202,
+      "prefix": "Virgo Wind'sVane"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 0,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 1,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 8,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 9,
+      "prefix": "W"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 55,
+      "prefix": "WW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 64,
+      "prefix": "WWW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "WWWWWWWWWW",
+      "budget": 202,
+      "prefix": "WWWWWWWWWW"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 0,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 1,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 8,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 9,
+      "prefix": "1"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 55,
+      "prefix": "1234"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 64,
+      "prefix": "12345"
+    },
+    {
+      "fontIndex": 4,
+      "fontStyle": 2,
+      "value": "1234567890",
+      "budget": 202,
+      "prefix": "1234567890"
+    }
+  ]
+}

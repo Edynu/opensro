@@ -1,0 +1,30 @@
+{
+  "shards": [
+    {
+      "id": "global-official",
+      "name": "GlobalOfficial",
+      "nativeServerId": 1,
+      "nativeFarmId": 0,
+      "capacity": 1000,
+      "default": true,
+      "test": false,
+      "enabled": true,
+      "controlUrl": "http://127.0.0.1:8791",
+      "transportUrl": "http://127.0.0.1:8788",
+      "publicTransportUrl": "/shards/global-official"
+    },
+    {
+      "id": "test",
+      "name": "Test",
+      "nativeServerId": 2,
+      "nativeFarmId": 0,
+      "capacity": 100,
+      "default": false,
+      "test": true,
+      "enabled": false,
+      "controlUrl": "http://127.0.0.1:8792",
+      "transportUrl": "http://127.0.0.1:8793",
+      "publicTransportUrl": "/shards/test"
+    }
+  ]
+}

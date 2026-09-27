@@ -1,0 +1,66 @@
+{
+  "comment": [
+    "GENERATED + PINNED by internal/game/action/skillcastfixture_test.go (TestSkillCastAcceptFixturePinned).",
+    "Authoritative v1.150 base attack evaluated by the pinned v1.188 CFormulae normal lane.",
+    "The real HandleTargetInteract path snapshots the player, derives equipped-item stats, resolves",
+    "the live monster, commits HP through MonsterState.ApplyDamage, and emits the committed result.",
+    "Immediate 0xB245 is [success prefix][steeringFlags=01][impact rows][target columns]; movement is not a facing hint.",
+    "For this single-target sword action: [impactCount=2][targetCount=1][target gid once][two ordered results].",
+    "then a simulation-tick 0xB505",
+    "mode-2 finalize [02][00][token] (6B) after the skill row's authored Action_CastingTime + Action_ActionDuration lifecycle, broadcast to the whole division.",
+    "No-target, ground-target, unknown, unlearned, out-of-range, and incomplete-stat casts fail",
+    "closed before a token is minted; there is no visual-only success fallback.",
+    "The sword-base fixture uses shipped v1.150 phases 0+1200ms; split-phase rows preserve both cells;",
+    "animation clips and network latency do not define the authoritative action window.",
+    "The gid slot is a",
+    "u32 GID (prereq Q3: integer mov to +0xcc, consumed by FindCharacterByGid), sent as 0, NEVER",
+    "a float duration. Consumed by the harness skillCastServerAcceptParity test through the REAL",
+    "776830/8e06e0/857830 enter + 7754f0/8e2c90/8dcf40 finalize chain.",
+    "Regenerate: UPDATE_SKILL_CAST_FIXTURE=1 go test ./internal/game/action -run TestSkillCastAcceptFixturePinned"
+  ],
+  "expect": {
+    "casterGid": 100003,
+    "btResult": 0,
+    "ownerOrTargetGid": 400001,
+    "steeringFlags": 1,
+    "facingRegionId": 25256,
+    "facingX": 963,
+    "facingY": 20,
+    "facingZ": 458,
+    "targetGid": 400001,
+    "resultFlags": 1,
+    "impactCount": 2,
+    "damage": 12,
+    "fatal": false,
+    "finalizeAfterMs": 1200
+  },
+  "scenarios": [
+    {
+      "name": "authoritative-sword-base-attack",
+      "skillId": 2,
+      "instanceToken": 1,
+      "request": {
+        "opcode": 29389,
+        "payloadHex": "01040200000001811a0600"
+      },
+      "frames": [
+        {
+          "opcode": 45637,
+          "payloadHex": "010002000000a386010001000000811a0600010201811a0600000106000000000000000106000000000000"
+        }
+      ],
+      "broadcast": [
+        {
+          "opcode": 45637,
+          "payloadHex": "010002000000a386010001000000811a0600010201811a0600000106000000000000000106000000000000"
+        }
+      ],
+      "finalizeBroadcast": [
+        {
+          "opcode": 46341,
+          "payloadHex": "020001000000"
+        }
+      ]
+    }
+  ]
+}

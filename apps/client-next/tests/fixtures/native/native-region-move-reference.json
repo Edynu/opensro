@@ -1,0 +1,445 @@
+{
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "generatorSha256": "f915b21449e6faa6172286e49df3e3fdfb7282496e445784de6cb2f6fabce815",
+  "scope": "retail region manager with scripted dependency, not whole navigation parity",
+  "rows": [
+    {
+      "name": "reflection",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 100,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 50.2,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          1,
+          {
+            "regionId": 257,
+            "x": 75,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 1,
+      "calls": 2,
+      "point": {
+        "regionId": 257,
+        "x": 75.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "near",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 14.99,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 14.8,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 16,
+      "calls": 1,
+      "point": {
+        "regionId": 257,
+        "x": 14.800000190734863,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "five-exact",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 15,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 14.9,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          0,
+          {
+            "regionId": 257,
+            "x": 15,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 0,
+      "calls": 2,
+      "point": {
+        "regionId": 257,
+        "x": 15.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "sixth-terminal",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 100,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          16,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          1,
+          {
+            "regionId": 257,
+            "x": 75,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 1,
+      "calls": 6,
+      "point": {
+        "regionId": 257,
+        "x": 75.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "sixth-continuation",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 100,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          4,
+          {
+            "regionId": 257,
+            "x": 10,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 268435456,
+      "calls": 6,
+      "point": null
+    },
+    {
+      "name": "non-continuation",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 100,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          32,
+          {
+            "regionId": 257,
+            "x": 80,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 32,
+      "calls": 1,
+      "point": {
+        "regionId": 257,
+        "x": 80.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "sector",
+      "start": {
+        "regionId": 257,
+        "x": 1900,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 258,
+        "x": 50,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [
+        [
+          16,
+          {
+            "regionId": 258,
+            "x": 0.1,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ],
+        [
+          0,
+          {
+            "regionId": 258,
+            "x": 50,
+            "y": 0,
+            "z": 10,
+            "angle": 0
+          }
+        ]
+      ],
+      "status": 0,
+      "calls": 2,
+      "point": {
+        "regionId": 258,
+        "x": 50.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    },
+    {
+      "name": "positive-limit",
+      "start": {
+        "regionId": 257,
+        "x": 0,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 1921,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [],
+      "status": 268435456,
+      "calls": 0,
+      "point": null
+    },
+    {
+      "name": "identical",
+      "start": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "target": {
+        "regionId": 257,
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "angle": 0
+      },
+      "steps": [],
+      "status": 0,
+      "calls": 0,
+      "point": {
+        "regionId": 257,
+        "x": 10.0,
+        "y": 0.0,
+        "z": 10.0,
+        "angle": 0
+      }
+    }
+  ]
+}

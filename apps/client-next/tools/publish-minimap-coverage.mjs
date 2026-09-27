@@ -1,0 +1,21 @@
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {withGeneratedAssetsLock} from '../../../scripts/rebuildLock.mjs';
+import {patchAssetPackGroupFromLooseFiles} from '../../../scripts/build/sparseAssetPackGroupRefresh.mjs';
+import {publishBytesAtomically} from '../../../scripts/build/shared/atomicPublish.mjs';
+import {buildWebAssetManifest} from '../../../scripts/build/webManifest.mjs';
+import {refreshGeneratedManifestSidecars} from '../../../scripts/build/generatedManifestSidecars.mjs';
+import {copyMissionMinimapTileImages} from '../../../scripts/build/world/assets/copyMissionMinimapTileImages.mjs';
+const publicRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../.generated/client-public');
+await withGeneratedAssetsLock('retail minimap coverage publication',async()=>{
+ const file=path.join(publicRoot,'assets/packs/manifest.json'),previous=JSON.parse(await readFile(file,'utf8'));
+ await copyMissionMinimapTileImages();
+ const catalog=JSON.parse(await readFile(path.join(publicRoot,'assets/data/mission-dungeon-minimap.json'),'utf8')),published=new Set(previous.assets.map(a=>a.path.toLowerCase()));
+ for(const tile of catalog.tilePaths)if(!published.has(tile.toLowerCase()))throw Error('Retail minimap tile missing from publication: '+tile);
+ const updated=await patchAssetPackGroupFromLooseFiles({publicRoot,outputRoot:path.join(publicRoot,'assets/packs/incremental/minimap-coverage'),previousIndex:previous,groupName:'game-data',looseFiles:['/assets/data/mission-dungeon-minimap.json']});
+ const merged={...previous,generatedAt:new Date().toISOString(),groups:[...previous.groups.filter(g=>g.name!=='game-data'),...updated.groups].sort((a,b)=>a.name.localeCompare(b.name)),assets:[...previous.assets.filter(a=>a.group!=='game-data'),...updated.assets].sort((a,b)=>a.path.localeCompare(b.path))};
+ await publishBytesAtomically(file,Buffer.from(JSON.stringify(merged)),{logLabel:'minimap-coverage'});
+ await buildWebAssetManifest();await refreshGeneratedManifestSidecars({publicRoot,onlyWhenStale:true,brotliQuality:4,gzipLevel:3,zstdLevel:3});
+ console.log('Retail minimap coverage published through the asset pack authority.');
+});

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Activated once per clone with `pnpm hooks:install`.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+exec pnpm check source

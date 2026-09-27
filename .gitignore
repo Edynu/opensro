@@ -1,0 +1,71 @@
+# Product repository: apps/ (client-next, server, server-observatory), docs/,
+# patches/, scripts/. Each app carries its own .gitignore for app-local output.
+
+# Dependencies and package-manager stores
+node_modules/
+.pnpm-store/
+
+# Generated game data, published client assets, intermediate images and
+# transport reference documents. All are rebuilt from a licensed client with
+# `pnpm assets build`; release packaging publishes them, git never does.
+/.generated/
+
+# Scratch output, soft-deleted files, local state and caches
+/temp/
+/.state/
+/.tools/
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Build output and compiler caches
+dist/
+.test-dist/
+*.tsbuildinfo
+.vite/
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Legacy scratch locations, superseded by temp/. Kept ignored so an old tool or
+# habit cannot publish them again.
+/.artifacts/
+/artifacts/
+/.work/
+/.runlogs/
+/.logs/
+/probe-out/
+/callgraph-out/
+/assets/
+
+# Logs and stray captures
+*.log
+/*.png
+/*.zip
+
+# Local environment overrides, keys and certificates
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Editor, agent and operating-system metadata
+.idea/
+.vscode/
+.claude/settings.local.json
+CLAUDE.local.md
+.cursor/mcp.json
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~

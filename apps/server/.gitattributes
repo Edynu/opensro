@@ -1,0 +1,31 @@
+# Line endings for the server module: LF everywhere, so gofmt stays clean on
+# Windows checkouts. This module is also built on its own, so the file is
+# self-contained.
+
+.gitattributes	text eol=lf
+.gitignore	text eol=lf
+*.go		text eol=lf
+go.mod		text eol=lf
+go.sum		text eol=lf
+*.md		text eol=lf
+*.yml		text eol=lf
+*.yaml		text eol=lf
+*.json		text eol=lf
+*.txt		text eol=lf
+*.tsv		text eol=lf
+*.py		text eol=lf
+*.mjs		text eol=lf
+*.hcl		text eol=lf
+*.hcl.example	text eol=lf
+*.toml		text eol=lf
+
+# PowerShell scripts stay CRLF (Windows-native tooling).
+*.ps1		text eol=crlf
+
+# Binaries and binary fixtures — never normalize.
+*.exe		binary
+*.dll		binary
+*.db		binary
+*.db-shm	binary
+*.db-wal	binary
+*.pem		text eol=lf

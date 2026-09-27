@@ -1,0 +1,144 @@
+/*
+===========================================================================
+
+skillarea_directional.go - area shapes 3 and 4: victims along a line
+
+TargetSelection_DirectionalRange (58B160, shape 3) and
+TargetSelection_DirectionalTarget (58B870, shape 4) gather everything
+within 300 units and keep what TargetSelection_InDirectionalShape (58AF60)
+accepts: within reach along a direction vector and within the efr width of
+its line. Shape 3 measures from the caster, along the unit vector to the
+primary scaled by the action range; shape 4 measures from the caster along
+the whole caster-to-primary vector, gathering around the primary.
+
+Only monsters exist to be selected here; the second pass over non-character
+objects (select bit 0x10, 58B794 and 58BE17) has nothing to find.
+
+===========================================================================
+*/
+
+package action
+
+import (
+	"math"
+	"sort"
+
+	worldgeom "opensro.online/server/internal/game/world"
+	"opensro.online/server/internal/game/world/instance"
+	"opensro.online/server/internal/game/world/monster"
+	"opensro.online/server/internal/game/world/simulation"
+)
+
+// directionalSearchRadius is the fixed gather around the search centre
+// (CWorldManager_CollectEntitiesInRadius, 300.0f at 58B31B and 58B988).
+const directionalSearchRadius = 300
+
+// vec3 holds float components the way the native stores them.
+type vec3 struct{ x, y, z float32 }
+
+// relative is Pos_GetRelative3DOrIncompatibleSentinel: to minus from,
+// across regions.
+func relative(from, to simulation.Spawn) vec3 {
+	dx, dz := worldgeom.Delta(
+		worldgeom.RegionXZ{RegionID: from.RegionID, X: from.X, Z: from.Z},
+		worldgeom.RegionXZ{RegionID: to.RegionID, X: to.X, Z: to.Z},
+	)
+	return vec3{float32(dx), float32(to.Y - from.Y), float32(dz)}
+}
+
+func (v vec3) length() float32 {
+	x, y, z := float64(v.x), float64(v.y), float64(v.z)
+	return float32(math.Sqrt(float64(float32(x*x + y*y + z*z))))
+}
+
+// normalized is Vec3_NormalizeInPlaceOrZero.
+func (v vec3) normalized() vec3 {
+	n := v.length()
+	if n == 0 {
+		return vec3{}
+	}
+	return vec3{v.x / n, v.y / n, v.z / n}
+}
+
+/*
+==================
+inDirectionalShape
+
+58AF60 for one candidate. rel is caster to candidate with its height
+dropped, dir the reach vector. The candidate must lie within the caster's
+radius plus the reach plus its own radius, and its distance from the line
+(sine of the angle times the distance) must stay below its radius plus
+the efr width. Nothing tests that it lies in front of the caster.
+==================
+*/
+func inDirectionalShape(rel, dir vec3, casterRadius, candidateRadius int32, width uint32) bool {
+	rel.y = 0
+	distance := rel.length()
+	reach := float64(casterRadius) + float64(dir.length())
+	if float64(candidateRadius)+reach < float64(distance) {
+		return false
+	}
+	d, r := dir.normalized(), rel.normalized()
+	cosine := float32(float64(d.x)*float64(r.x) + float64(d.y)*float64(r.y) + float64(d.z)*float64(r.z))
+	cosine = max(-1, min(1, cosine))
+	lateral := float32(math.Sin(math.Acos(float64(cosine))) * float64(distance))
+	return float64(lateral) < float64(uint32(candidateRadius)+width)
+}
+
+/*
+==================
+directionalVictims
+
+The primary first, then every living monster the shape accepts, in the
+port's GID order, up to MaxTargets. reach is the action's base range
+(58B29B: RefSkill +0x92, else the attack-range param at 58B2A9).
+==================
+*/
+func (rt *Runtime) directionalVictims(division string, lease instance.Lease, caster simulation.Spawn, casterRadius float64, primary monster.Instance, primaryAt simulation.Spawn, area areaShape, reach float32, nowMs int64) []monster.Instance {
+	out := []monster.Instance{primary}
+	if area.maxTargets <= 1 {
+		return out
+	}
+
+	toPrimary := relative(caster, primaryAt)
+	var dir vec3
+	center := primaryAt
+	if area.shape == 3 {
+		// 58B293: the height is dropped before the direction is normalised.
+		toPrimary.y = 0
+		unit := toPrimary.normalized()
+		dir = vec3{unit.x * reach, unit.y * reach, unit.z * reach}
+		center = caster
+	} else {
+		dir = toPrimary
+	}
+
+	candidates := rt.Monsters.CombatCandidatesInPopulation(division, lease, center, directionalSearchRadius, nowMs, true)
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].Gid < candidates[j].Gid })
+	for _, candidate := range candidates {
+		if candidate.Gid == primary.Gid || candidate.CurrentHP == 0 {
+			continue
+		}
+		mover, ok := rt.Monsters.Mover(division, candidate.Gid)
+		if !ok {
+			continue
+		}
+		pose := mover.LivePoseAt(nowMs, nil)
+		at := simulation.Spawn{RegionID: pose.RegionID, X: pose.X, Y: pose.Y, Z: pose.Z}
+		if !inDirectionalShape(relative(caster, at), dir, int32(casterRadius), int32(candidate.Ref.BodyRadius), area.width) {
+			continue
+		}
+		out = append(out, candidate)
+		if len(out) == int(area.maxTargets) {
+			break
+		}
+	}
+	return out
+}
+
+// areaShape is the part of efr kind 1 the directional selectors read.
+type areaShape struct {
+	shape      uint8
+	width      uint32 // efr +8
+	maxTargets uint8  // efr +0xC
+}

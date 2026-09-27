@@ -1,0 +1,181 @@
+{
+  "comment": [
+    "GENERATED + PINNED by internal/game/enterworld/monsterfixture_test.go (TestMonsterScopedFixturePinned).",
+    "Q2 scoped-emission scenarios for the harness (WIP seq395 S1-S4 + seq419 S5): ring login",
+    "bracket, eviction shapes (0x36AB single + byListSub=2 brackets at 1 and 2 rows - the exact",
+    "spans the sub_712620 bug dropped), 0xB738 goal + 0x30E3 glide for a scoped gid, same-gid",
+    "re-enter, and mid-motion scope-exit (goal in flight then despawn before arrival).",
+    "Live emitter shape: single for one exit, bracket for bulk (flagged in S2).",
+    "ROLE (binding, board seq437): monsters spawn at SHIPPED v1.150 npcpos COORDINATES, scoped",
+    "per-viewer by a POLICY ring; density/respawn/nest-ownership NOT modelled (tables absent).",
+    "Regenerate: UPDATE_MONSTER_SCOPED_FIXTURE=1 go test ./internal/game/enterworld -run TestMonsterScopedFixturePinned"
+  ],
+  "refObjSnapshot": [
+    {
+      "refObjId": 1933,
+      "tidWord": 198,
+      "codename": "MOB_CH_MANGNYANG",
+      "nameStrId": "SN_MOB_CH_MANGNYANG",
+      "name": "Mangyang",
+      "level": 1,
+      "maxHp": 54,
+      "kind": "monster"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "S1-ring-login-bracket",
+      "packets": [
+        {
+          "opcode": 12491,
+          "payloadHex": "010200"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "8d070000811a060010100000c842000020410000c84200000002000000000000000000410000b0410000c842000108004d616e6779616e6700"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "8d070000821a0600101000009643000020410000964300000002000000000000000000410000b0410000c842000108004d616e6779616e6700"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        }
+      ],
+      "expect": {
+        "gids": [
+          400001,
+          400002
+        ],
+        "regionId": 4112,
+        "rowCount": 2
+      }
+    },
+    {
+      "name": "S2-eviction-shapes",
+      "packets": [
+        {
+          "opcode": 13995,
+          "payloadHex": "811a0600"
+        },
+        {
+          "opcode": 12491,
+          "payloadHex": "020100"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "811a0600"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        },
+        {
+          "opcode": 12491,
+          "payloadHex": "020200"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "811a0600821a0600"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        }
+      ],
+      "expect": {
+        "bracket1": [
+          400001
+        ],
+        "bracket2": [
+          400001,
+          400002
+        ],
+        "emitterShape": "single for one exit; byListSub=2 bracket for bulk",
+        "single": 400001
+      }
+    },
+    {
+      "name": "S3-move-while-scoped",
+      "packets": [
+        {
+          "opcode": 46904,
+          "payloadHex": "811a060001101078000a008c00011010e80300002041e803"
+        },
+        {
+          "opcode": 12515,
+          "payloadHex": "10100000dc42000020410000f0420020811a0600"
+        }
+      ],
+      "expect": {
+        "destX": 120,
+        "destZ": 140,
+        "gid": 400001,
+        "runSpeed": 22,
+        "walkSpeed": 8
+      }
+    },
+    {
+      "name": "S4-same-gid-reenter",
+      "packets": [
+        {
+          "opcode": 12491,
+          "payloadHex": "010100"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "8d070000811a060010100000c842000020410000c84200000002000000000000000000410000b0410000c842000108004d616e6779616e6700"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        },
+        {
+          "opcode": 12491,
+          "payloadHex": "020200"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "811a0600821a0600"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        },
+        {
+          "opcode": 12491,
+          "payloadHex": "010100"
+        },
+        {
+          "opcode": 13335,
+          "payloadHex": "8d070000811a060010100000c842000020410000c84200000002000000000000000000410000b0410000c842000108004d616e6779616e6700"
+        },
+        {
+          "opcode": 13066,
+          "payloadHex": ""
+        }
+      ],
+      "expect": {
+        "gid": 400001
+      }
+    },
+    {
+      "name": "S5-mid-motion-scope-exit",
+      "packets": [
+        {
+          "opcode": 46904,
+          "payloadHex": "821a060001101040010a005401011010b80b00002041b80b"
+        },
+        {
+          "opcode": 13995,
+          "payloadHex": "821a0600"
+        }
+      ],
+      "expect": {
+        "despawnBeforeArrival": true,
+        "gid": 400002
+      }
+    }
+  ]
+}

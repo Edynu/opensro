@@ -1,0 +1,100 @@
+package simulation
+
+import "opensro.online/server/internal/game/item/wire"
+
+// PeerCOS is a detached publication from the pet simulation owner. It contains
+// no container, inventory, experience or other owner-private record fields.
+type PeerCOS struct {
+	Mounted          bool
+	NativeBodyStatus uint8
+	Row              wire.CosSpawnBand2
+	World            WorldState
+	Revision         uint64
+	Session          uint64
+	Generation       uint64
+}
+
+type shownCOS struct {
+	mounted    bool
+	ref        uint32
+	revision   uint64
+	session    uint64
+	generation uint64
+}
+
+func (p PeerCOS) frames(nowMs int64, spawn bool) []Frame {
+	pose := p.World.LiveSpawnAt(nowMs)
+	position := wire.Position{RegionID: pose.RegionID, X: float32(pose.X), Y: float32(pose.Y), Z: float32(pose.Z), Heading: pose.Angle}
+	var frames []Frame
+	if spawn {
+		row := p.Row
+		row.BodyStatus = p.NativeBodyStatus
+		row.Position = position
+		frames = append(frames, Frame{ScopeGID: row.Gid, ScopeVisible: true, Opcode: wire.OpSingleObjectSpawn, Payload: wire.EncodeCosSpawnBand2(row)})
+		if p.NativeBodyStatus != 0 {
+			frames = append(frames, Frame{Opcode: wire.OpObjectStateRefresh, Payload: (wire.ObjectStateRefresh{Gid: row.Gid, StateType: wire.StateChannelBody, Value: p.NativeBodyStatus}).Encode()})
+		}
+	}
+	if p.Mounted {
+		frames = append(frames, Frame{Opcode: wire.OpCosRideState, Payload: wire.EncodeCosRideState(p.Row.OwnerGid, true, p.Row.Gid)})
+	}
+	if p.World.MoveSegment.Valid() && nowMs < p.World.MoveSegment.ArrivesAtMs {
+		source := MovementSourceFromSpawn(pose)
+		goal := p.World.Spawn
+		state := wire.ObjectStateRefresh{Gid: p.Row.Gid, StateType: wire.StateChannelMove, Value: RunMode}
+		frames = append(frames, Frame{Opcode: wire.OpObjectStateRefresh, Payload: state.Encode()},
+			Frame{Opcode: OpMovementAck, Payload: BuildMovementAckPayload(p.Row.Gid, MovementRequest{Mode: MovementAckDestinationMode, RegionID: goal.RegionID, X: goal.X, Y: goal.Y, Z: goal.Z}, &source)})
+	} else if !spawn {
+		correction := wire.ObjectSourceCorrection{Gid: p.Row.Gid, Position: position}
+		frames = append(frames, Frame{Opcode: wire.OpObjectSourceCorrection, Payload: correction.Encode()})
+	}
+	return frames
+}
+
+func (t *Ticker) runPeerCOSVisibility(state *divisionTickState, nowMs int64, sessions []SessionSnapshot, live map[string]bool) {
+	index := buildPeerInterestIndex(sessions, nowMs, true)
+	var candidates []int
+	present := make(map[uint32]bool)
+	if state.shownCOS == nil {
+		state.shownCOS = make(map[string]map[uint32]shownCOS)
+	}
+	for _, viewer := range sessions {
+		shown := state.shownCOS[viewer.SessionID]
+		if shown == nil {
+			shown = make(map[uint32]shownCOS)
+			state.shownCOS[viewer.SessionID] = shown
+		}
+		clear(present)
+		candidates = index.candidates(&viewer, viewer.World.LiveSpawnAt(nowMs), candidates)
+		for _, ownerIndex := range candidates {
+			owner := &sessions[ownerIndex]
+			p := owner.COS
+			if owner.SessionID == viewer.SessionID {
+				continue
+			}
+			gid := p.Row.Gid
+			present[gid] = true
+			old, exists := shown[gid]
+			sameLife := exists && old.ref == p.Row.RefObjID && old.session == p.Session && old.generation == p.Generation
+			if sameLife && old.revision == p.Revision && old.mounted == p.Mounted {
+				continue
+			}
+			if exists && !sameLife {
+				t.Push.PushToSession(viewer.SessionID, []Frame{{ScopeGID: gid, Opcode: wire.OpObjectDespawn, Payload: (wire.ObjectDespawn{Gid: gid}).Encode()}})
+			}
+			t.Push.PushToSession(viewer.SessionID, p.frames(nowMs, !sameLife))
+			shown[gid] = shownCOS{mounted: p.Mounted, ref: p.Row.RefObjID, revision: p.Revision, session: p.Session, generation: p.Generation}
+		}
+		for gid := range shown {
+			if !present[gid] {
+				t.Push.PushToSession(viewer.SessionID, []Frame{{ScopeGID: gid, Opcode: wire.OpObjectDespawn, Payload: (wire.ObjectDespawn{Gid: gid}).Encode()}})
+				delete(shown, gid)
+			}
+		}
+	}
+	for id := range state.shownCOS {
+		if !live[id] {
+			delete(state.shownCOS, id)
+		}
+	}
+}

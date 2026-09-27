@@ -1,0 +1,1104 @@
+[
+  {
+    "name": "reinforce-win",
+    "mode": "reinforce",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 2,
+        "typeFlags": 3436,
+        "body": [
+          2,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        "plus": 0,
+        "quantity": 2
+      }
+    ],
+    "after": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 1,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 2,
+        "typeFlags": 3436,
+        "body": [
+          2,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          1,
+          0
+        ]
+      },
+      {
+        "opcode": 45939,
+        "payload": [
+          1,
+          1,
+          13,
+          1,
+          0,
+          0,
+          0,
+          1,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "success": true
+  },
+  {
+    "name": "reinforce-destroy",
+    "mode": "reinforce",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          5,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 5,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 2,
+        "typeFlags": 3436,
+        "body": [
+          2,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        "plus": 0,
+        "quantity": 2
+      }
+    ],
+    "after": [
+      {
+        "slot": 14,
+        "refObjId": 2,
+        "typeFlags": 3436,
+        "body": [
+          2,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          1,
+          0
+        ]
+      },
+      {
+        "opcode": 45939,
+        "payload": [
+          1,
+          0,
+          13,
+          1
+        ]
+      }
+    ],
+    "success": false
+  },
+  {
+    "name": "magic-win",
+    "mode": "magic",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 4,
+        "typeFlags": 3564,
+        "body": [
+          4,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "after": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          1,
+          11,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          0,
+          0
+        ]
+      },
+      {
+        "opcode": 46673,
+        "payload": [
+          1,
+          1,
+          13,
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          1,
+          11,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "success": true
+  },
+  {
+    "name": "magic-failure",
+    "mode": "magic",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 4,
+        "typeFlags": 3564,
+        "body": [
+          4,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "after": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          0,
+          0
+        ]
+      },
+      {
+        "opcode": 46673,
+        "payload": [
+          2,
+          35
+        ]
+      }
+    ],
+    "success": false
+  },
+  {
+    "name": "attribute-win",
+    "mode": "attribute",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 4,
+        "typeFlags": 5612,
+        "body": [
+          4,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "after": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          212,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          0,
+          0
+        ]
+      },
+      {
+        "opcode": 46673,
+        "payload": [
+          1,
+          1,
+          13,
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          212,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "success": true
+  },
+  {
+    "name": "tablet-manufacture",
+    "mode": "advanced",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 10,
+        "typeFlags": 7660,
+        "body": [
+          10,
+          0,
+          0,
+          0,
+          10,
+          0
+        ],
+        "plus": 0,
+        "quantity": 10
+      },
+      {
+        "slot": 14,
+        "refObjId": 11,
+        "typeFlags": 11756,
+        "body": [
+          11,
+          0,
+          0,
+          0,
+          10,
+          0
+        ],
+        "plus": 0,
+        "quantity": 10
+      },
+      {
+        "slot": 15,
+        "refObjId": 12,
+        "typeFlags": 11756,
+        "body": [
+          12,
+          0,
+          0,
+          0,
+          10,
+          0
+        ],
+        "plus": 0,
+        "quantity": 10
+      },
+      {
+        "slot": 16,
+        "refObjId": 13,
+        "typeFlags": 11756,
+        "body": [
+          13,
+          0,
+          0,
+          0,
+          10,
+          0
+        ],
+        "plus": 0,
+        "quantity": 10
+      },
+      {
+        "slot": 17,
+        "refObjId": 14,
+        "typeFlags": 11756,
+        "body": [
+          14,
+          0,
+          0,
+          0,
+          10,
+          0
+        ],
+        "plus": 0,
+        "quantity": 10
+      }
+    ],
+    "after": [
+      {
+        "slot": 13,
+        "refObjId": 10,
+        "typeFlags": 7660,
+        "body": [
+          10,
+          0,
+          0,
+          0,
+          9,
+          0
+        ],
+        "plus": 0,
+        "quantity": 9
+      },
+      {
+        "slot": 14,
+        "refObjId": 11,
+        "typeFlags": 11756,
+        "body": [
+          11,
+          0,
+          0,
+          0,
+          8,
+          0
+        ],
+        "plus": 0,
+        "quantity": 8
+      },
+      {
+        "slot": 15,
+        "refObjId": 12,
+        "typeFlags": 11756,
+        "body": [
+          12,
+          0,
+          0,
+          0,
+          7,
+          0
+        ],
+        "plus": 0,
+        "quantity": 7
+      },
+      {
+        "slot": 16,
+        "refObjId": 13,
+        "typeFlags": 11756,
+        "body": [
+          13,
+          0,
+          0,
+          0,
+          6,
+          0
+        ],
+        "plus": 0,
+        "quantity": 6
+      },
+      {
+        "slot": 17,
+        "refObjId": 14,
+        "typeFlags": 11756,
+        "body": [
+          14,
+          0,
+          0,
+          0,
+          5,
+          0
+        ],
+        "plus": 0,
+        "quantity": 5
+      },
+      {
+        "slot": 18,
+        "refObjId": 15,
+        "typeFlags": 3564,
+        "body": [
+          15,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ],
+        "plus": 30,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          13,
+          8,
+          9,
+          0
+        ]
+      },
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          8,
+          0
+        ]
+      },
+      {
+        "opcode": 13893,
+        "payload": [
+          15,
+          8,
+          7,
+          0
+        ]
+      },
+      {
+        "opcode": 13893,
+        "payload": [
+          16,
+          8,
+          6,
+          0
+        ]
+      },
+      {
+        "opcode": 13893,
+        "payload": [
+          17,
+          8,
+          5,
+          0
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          18,
+          15,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ]
+      },
+      {
+        "opcode": 45423,
+        "payload": [
+          1,
+          2,
+          1,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "success": true,
+    "slots": [
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
+  },
+  {
+    "name": "dissolve-inferred-rewards",
+    "mode": "dissolve",
+    "before": [
+      {
+        "slot": 13,
+        "refObjId": 1,
+        "typeFlags": 4908,
+        "body": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          16,
+          50,
+          84,
+          118,
+          152,
+          186,
+          220,
+          254,
+          87,
+          0,
+          0,
+          0,
+          1,
+          99,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "plus": 0,
+        "quantity": 1
+      },
+      {
+        "slot": 14,
+        "refObjId": 2000,
+        "typeFlags": 13804,
+        "body": [
+          208,
+          7,
+          0,
+          0,
+          100,
+          0
+        ],
+        "plus": 0,
+        "quantity": 100
+      }
+    ],
+    "after": [
+      {
+        "slot": 14,
+        "refObjId": 2000,
+        "typeFlags": 13804,
+        "body": [
+          208,
+          7,
+          0,
+          0,
+          49,
+          0
+        ],
+        "plus": 0,
+        "quantity": 49
+      },
+      {
+        "slot": 13,
+        "refObjId": 1004,
+        "typeFlags": 11756,
+        "body": [
+          236,
+          3,
+          0,
+          0,
+          7,
+          13
+        ],
+        "plus": 0,
+        "quantity": 3335
+      },
+      {
+        "slot": 15,
+        "refObjId": 1005,
+        "typeFlags": 11756,
+        "body": [
+          237,
+          3,
+          0,
+          0,
+          7,
+          13
+        ],
+        "plus": 0,
+        "quantity": 3335
+      },
+      {
+        "slot": 16,
+        "refObjId": 100,
+        "typeFlags": 5612,
+        "body": [
+          100,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ],
+        "plus": 30,
+        "quantity": 1
+      },
+      {
+        "slot": 17,
+        "refObjId": 100,
+        "typeFlags": 5612,
+        "body": [
+          100,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ],
+        "plus": 30,
+        "quantity": 1
+      },
+      {
+        "slot": 18,
+        "refObjId": 113,
+        "typeFlags": 3564,
+        "body": [
+          113,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ],
+        "plus": 30,
+        "quantity": 1
+      },
+      {
+        "slot": 19,
+        "refObjId": 113,
+        "typeFlags": 3564,
+        "body": [
+          113,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ],
+        "plus": 30,
+        "quantity": 1
+      }
+    ],
+    "frames": [
+      {
+        "opcode": 13893,
+        "payload": [
+          13,
+          8,
+          0,
+          0
+        ]
+      },
+      {
+        "opcode": 13893,
+        "payload": [
+          14,
+          8,
+          49,
+          0
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          13,
+          236,
+          3,
+          0,
+          0,
+          7,
+          13
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          15,
+          237,
+          3,
+          0,
+          0,
+          7,
+          13
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          16,
+          100,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          17,
+          100,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          18,
+          113,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ]
+      },
+      {
+        "opcode": 45165,
+        "payload": [
+          1,
+          6,
+          19,
+          113,
+          0,
+          0,
+          0,
+          1,
+          0,
+          30
+        ]
+      },
+      {
+        "opcode": 46409,
+        "payload": [
+          1
+        ]
+      }
+    ],
+    "success": true,
+    "slots": [
+      14,
+      13
+    ]
+  }
+]

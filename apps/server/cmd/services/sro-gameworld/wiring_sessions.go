@@ -1,0 +1,103 @@
+package main
+
+import (
+	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"opensro.online/server/internal/data/store"
+	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/game/social/community"
+	"opensro.online/server/internal/transport"
+)
+
+/*
+================================================================================
+World-session lifecycle
+
+Exclusive character binding is established before any session-scoped gameplay
+state. Close hooks release transient state but never delete durable authority.
+================================================================================
+*/
+
+func (game *gameplayPlane) installSessionLifecycle(hub *transport.Hub, authorityStore *store.Store) {
+	game.deps.OnWorldBound = func(
+		session *transport.Session,
+		divisionID string,
+		character *enterworld.Character,
+	) {
+		game.worldBound(hub, authorityStore, session, divisionID, character)
+	}
+	hub.OnSessionClose(func(session *transport.Session, _ error) {
+		game.sessionClosed(session)
+	})
+}
+
+func (game *gameplayPlane) worldBound(
+	hub *transport.Hub,
+	authorityStore *store.Store,
+	session *transport.Session,
+	divisionID string,
+	character *enterworld.Character,
+) {
+	key := divisionID + ":" + strings.ToLower(character.Name)
+	if previous, replaced := hub.BindExclusive(key, session); replaced {
+		previous.ClearGameplayContext()
+		log.Infof(
+			"transport: session %d replaced session %d as %s",
+			session.ID,
+			previous.ID,
+			key,
+		)
+	}
+	if session.Evicted() {
+		log.Infof(
+			"transport: session %d evicted during world bind of %s; skipping session state",
+			session.ID,
+			key,
+		)
+		return
+	}
+
+	// Delete reservation and world bind publish under different locks. Once
+	// the bind is visible, re-read durable state so at least one side observes
+	// the other and a delete-pending character can never remain playable.
+	deletePending := false
+	authorityStore.ReadState(func() {
+		deletePending = character.DeletePending
+	})
+	if deletePending {
+		session.ClearGameplayContext()
+		session.CloseWhenDrained(transport.ByeReasonNormal)
+		log.Warnf(
+			"transport: session %d bound delete-pending character %s; closing",
+			session.ID,
+			key,
+		)
+		return
+	}
+
+	game.items.BeginCommerceSession(divisionID, character, session.ID)
+	game.items.BindPetSession(divisionID, character, session.ID)
+	game.items.BindRecoverySession(divisionID, character, session.ID)
+	game.movement.WorldBound(session, divisionID, character)
+	community.FriendWorldBound(game.deps, game.presence, divisionID, character)
+	game.parties.WorldBound(divisionID, character)
+	game.matches.WorldBound(divisionID, character)
+	game.guildInvites.WorldBound(divisionID, character)
+	game.mentorInvites.WorldBound(session, divisionID, character)
+	game.siege.WorldBound(session)
+}
+
+func (game *gameplayPlane) sessionClosed(session *transport.Session) {
+	community.FriendSessionClosed(game.deps, game.presence, session)
+	game.parties.SessionClosed(session)
+	game.matches.SessionClosed(session)
+	game.guildInvites.SessionClosed(session)
+	game.mentorInvites.SessionClosed(session)
+
+	character, divisionID, bound := enterworld.SessionCharacter(game.deps, session)
+	if bound {
+		game.items.EndCommerceSession(divisionID, character, session.ID)
+		game.items.ForgetCharacterSession(divisionID, character.Name, session.ID)
+	}
+}

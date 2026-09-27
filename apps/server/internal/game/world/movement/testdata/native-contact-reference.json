@@ -1,0 +1,1061 @@
+{
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "generatorSha256": "32cc98120d42267dca3b2f7cad749ad2bfc9bea195d015b999413289e9f4798d",
+  "scope": "Complete 45c1b0, 428930 and 453fa0 execution on finite synthetic contact cases; synthetic vtable dispatches to original 428f40; no call substitution; no full-world equivalence",
+  "snap": [
+    {
+      "center": [
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "result": [
+        0.0,
+        0.0
+      ],
+      "resultBits": [
+        0,
+        0
+      ]
+    },
+    {
+      "center": [
+        0,
+        0
+      ],
+      "point": [
+        0.1,
+        0
+      ],
+      "result": [
+        0.0,
+        0.0
+      ],
+      "resultBits": [
+        0,
+        0
+      ]
+    },
+    {
+      "center": [
+        0,
+        0
+      ],
+      "point": [
+        0.2,
+        0
+      ],
+      "result": [
+        1.4901161193847656e-08,
+        0.0
+      ],
+      "resultBits": [
+        847249408,
+        0
+      ]
+    },
+    {
+      "center": [
+        0,
+        0
+      ],
+      "point": [
+        0.200001,
+        0
+      ],
+      "result": [
+        1.0132789611816406e-06,
+        0.0
+      ],
+      "resultBits": [
+        898105344,
+        0
+      ]
+    },
+    {
+      "center": [
+        0,
+        0
+      ],
+      "point": [
+        3,
+        4
+      ],
+      "result": [
+        2.880000114440918,
+        3.8399999141693115
+      ],
+      "resultBits": [
+        1077432812,
+        1081459343
+      ]
+    },
+    {
+      "center": [
+        33.333332,
+        33.333332
+      ],
+      "point": [
+        50,
+        50
+      ],
+      "result": [
+        49.858577728271484,
+        49.858577728271484
+      ],
+      "resultBits": [
+        1111977775,
+        1111977775
+      ]
+    },
+    {
+      "center": [
+        -1900,
+        1900
+      ],
+      "point": [
+        1900,
+        -1900
+      ],
+      "result": [
+        1899.8585205078125,
+        -1899.8585205078125
+      ],
+      "resultBits": [
+        1156414329,
+        3303897977
+      ]
+    }
+  ],
+  "walk": [
+    {
+      "flags": 0,
+      "blockThrough": false,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 0,
+      "blockThrough": false,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 0,
+      "blockThrough": false,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 0,
+      "blockThrough": true,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 0,
+      "blockThrough": true,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 0,
+      "blockThrough": true,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 2,
+      "blockThrough": false,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 2,
+      "blockThrough": false,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 2,
+      "blockThrough": false,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 2,
+      "blockThrough": true,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 2,
+      "blockThrough": true,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        49.858577728271484
+      ],
+      "pointBits": [
+        1111977775,
+        1111977775
+      ],
+      "status": 1,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 2,
+      "blockThrough": true,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        49.858577728271484
+      ],
+      "pointBits": [
+        1111977775,
+        1111977775
+      ],
+      "status": 1,
+      "remainingBudget": 2,
+      "cell": "original"
+    },
+    {
+      "flags": 8,
+      "blockThrough": false,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 8,
+      "blockThrough": false,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 18,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 8,
+      "blockThrough": false,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 18,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 8,
+      "blockThrough": true,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 8,
+      "blockThrough": true,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 18,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 8,
+      "blockThrough": true,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 18,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 18,
+      "blockThrough": false,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 18,
+      "blockThrough": false,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 0,
+      "cell": "none"
+    },
+    {
+      "flags": 18,
+      "blockThrough": false,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        50.141422271728516,
+        50.141422271728516
+      ],
+      "pointBits": [
+        1112051921,
+        1112051921
+      ],
+      "status": 16,
+      "remainingBudget": 2,
+      "cell": "none"
+    },
+    {
+      "flags": 18,
+      "blockThrough": true,
+      "budget": 0,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        80.0,
+        80.0
+      ],
+      "pointBits": [
+        1117782016,
+        1117782016
+      ],
+      "status": 32,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 18,
+      "blockThrough": true,
+      "budget": 1,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        49.858577728271484
+      ],
+      "pointBits": [
+        1111977775,
+        1111977775
+      ],
+      "status": 1,
+      "remainingBudget": 0,
+      "cell": "original"
+    },
+    {
+      "flags": 18,
+      "blockThrough": true,
+      "budget": 3,
+      "start": [
+        10,
+        10
+      ],
+      "requested": [
+        80,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        49.858577728271484
+      ],
+      "pointBits": [
+        1111977775,
+        1111977775
+      ],
+      "status": 1,
+      "remainingBudget": 2,
+      "cell": "original"
+    }
+  ],
+  "slide": [
+    {
+      "enabled": false,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        80,
+        0,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        0.0,
+        49.858577728271484
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": false,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        90,
+        0,
+        40
+      ],
+      "point": [
+        67.98200988769531,
+        0.0,
+        31.82686996459961
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": false,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        40,
+        0,
+        90
+      ],
+      "point": [
+        31.82686996459961,
+        0.0,
+        67.98200988769531
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        80,
+        0,
+        80
+      ],
+      "point": [
+        49.858577728271484,
+        0.0,
+        49.858577728271484
+      ],
+      "normal": [
+        0.7071068286895752,
+        0.0,
+        0.7071068286895752
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        90,
+        0,
+        40
+      ],
+      "point": [
+        67.98200988769531,
+        0.0,
+        31.82686996459961
+      ],
+      "normal": [
+        0.7071068286895752,
+        0.0,
+        0.7071068286895752
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        0,
+        0,
+        0
+      ],
+      "start": [
+        10,
+        0,
+        10
+      ],
+      "requested": [
+        40,
+        0,
+        90
+      ],
+      "point": [
+        31.82686996459961,
+        0.0,
+        67.98200988769531
+      ],
+      "normal": [
+        -0.7071068286895752,
+        0.0,
+        -0.7071068286895752
+      ],
+      "status": 1
+    },
+    {
+      "enabled": false,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        208,
+        7,
+        16
+      ],
+      "point": [
+        177.85858154296875,
+        7.0,
+        -14.141422271728516
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": false,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        218,
+        7,
+        -24
+      ],
+      "point": [
+        195.9820098876953,
+        7.0,
+        -32.17313003540039
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": false,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        168,
+        7,
+        26
+      ],
+      "point": [
+        159.82687377929688,
+        7.0,
+        3.9820098876953125
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        208,
+        7,
+        16
+      ],
+      "point": [
+        177.85858154296875,
+        7.0,
+        -14.141422271728516
+      ],
+      "normal": [
+        127.29289245605469,
+        7.0,
+        -64.70710754394531
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        218,
+        7,
+        -24
+      ],
+      "point": [
+        195.9820098876953,
+        7.0,
+        -32.17313003540039
+      ],
+      "normal": [
+        127.29289245605469,
+        7.0,
+        -64.70710754394531
+      ],
+      "status": 1
+    },
+    {
+      "enabled": true,
+      "placement": [
+        128,
+        7,
+        -64
+      ],
+      "start": [
+        138,
+        7,
+        -54
+      ],
+      "requested": [
+        168,
+        7,
+        26
+      ],
+      "point": [
+        159.82687377929688,
+        7.0,
+        3.9820098876953125
+      ],
+      "normal": [
+        127.29289245605469,
+        7.0,
+        -64.70710754394531
+      ],
+      "status": 1
+    }
+  ]
+}

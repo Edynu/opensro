@@ -1,0 +1,24 @@
+packages:
+  # Product applications only: client-next, server-observatory. The Go server
+  # (apps/server) is not a pnpm package. The native-reconstruction corpus,
+  # legacy client and its packages live in the sibling research/ repository.
+  - "apps/*"
+
+# One version of each shared tool across the workspace. A package that uses
+# one declares it as "catalog:" instead of relying on root hoisting.
+catalog:
+  # Classic tsc: the client tools use the compiler API, which the native
+  # TypeScript 7 port does not have, and it is also the stricter checker for
+  # the scripts' JSDoc (it reports strict-null errors TypeScript 7 misses).
+  typescript: 5.9.3
+
+# Dependency lifecycle scripts are denied unless explicitly reviewed here.
+allowBuilds:
+  # Reviewed: the postinstall only caches the platform binary; the bin shim
+  # resolves the @dprint/<platform> optional dependency without it.
+  dprint: false
+  esbuild: true
+
+# Pinned patch for the asset pipeline's Babylon-based crowd VAT bake.
+patchedDependencies:
+  '@babylonjs/core@9.18.1': patches/@babylonjs__core@9.18.1.patch

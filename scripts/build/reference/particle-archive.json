@@ -1,0 +1,16 @@
+{
+  "format": "sro-particle-archive-v1",
+  "archive": "Particles.pk2",
+  "sha256": "bd90c5b31d263f98eeaadd3c8ccbbb60b782dfae5c029c4d5bb1c00fc0fe5cf4",
+  "bytes": 68116480,
+  "directoryBlocks": 157,
+  "directoryHash": "483013dbef991ad249badf54ad8c871f637f3c970c5895c209187883e6bc52d3",
+  "files": 2788,
+  "verifiedExtractedEfp": 1636,
+  "absent": [
+    "monster/mco_sys_appear.efp",
+    "monster/mco_wrong_frostbite.efp",
+    "monster/msk_waterghost_gas.efp",
+    "monster/system_appear.efp"
+  ]
+}

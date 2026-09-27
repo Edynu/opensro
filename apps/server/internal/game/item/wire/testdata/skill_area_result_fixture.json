@@ -1,0 +1,10 @@
+{
+  "skillId": 116,
+  "casterGid": 100003,
+  "instanceToken": 2,
+  "targets": [
+    { "gid": 300001, "beforeHp": 54, "damage": 7, "fatal": false },
+    { "gid": 300002, "beforeHp": 54, "damage": 54, "fatal": true }
+  ],
+  "payloadHex": "010074000000a386010002000000e1930400010102e1930400000107000000000000e2930400800136000000000000"
+}

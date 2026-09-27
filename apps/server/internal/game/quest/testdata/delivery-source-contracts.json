@@ -1,0 +1,258 @@
+[
+  {
+    "Codename": "QNO_AM_FERRY1_2",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_AM_FERRY1",
+    "EndNpcCodename": "NPC_EU_GENERAL",
+    "OfferPromptSymbol": "SN_TALK_QNO_AM_FERRY1_2_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_AM_FERRY1_2_05",
+    "RewardExp": 5900,
+    "RewardGold": 2700,
+    "RewardSkillExp": 1050,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_AM_FERRY1_2_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_AM_FERRY1_2_03",
+    "RequiredQuests": [],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_AM_FERRY1_2_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_AM_FERRY1_2_07"
+  },
+  {
+    "Codename": "QNO_EU_GENERAL_3",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_EU_GENERAL",
+    "EndNpcCodename": "NPC_EU_PRIEST",
+    "OfferPromptSymbol": "SN_TALK_QNO_EU_GENERAL_3_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_EU_GENERAL_3_05",
+    "RewardExp": 3000,
+    "RewardGold": 800,
+    "RewardSkillExp": 500,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_EU_GENERAL_3_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_EU_GENERAL_3_03",
+    "RequiredQuests": [
+      "QNO_EU_GENERAL_2"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_EU_GENERAL_3_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_EU_GENERAL_3_07"
+  },
+  {
+    "Codename": "QNO_EU_GENERAL_5",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_EU_GENERAL",
+    "EndNpcCodename": "NPC_EU_WITCH",
+    "OfferPromptSymbol": "SN_TALK_QNO_EU_GENERAL_5_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_EU_GENERAL_5_06",
+    "RewardExp": 4700,
+    "RewardGold": 1300,
+    "RewardSkillExp": 800,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_EU_GENERAL_5_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_EU_GENERAL_5_03",
+    "RequiredQuests": [
+      "QNO_EU_GENERAL_4"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_EU_GENERAL_5_01",
+        "Count": 60
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_EU_GENERAL_5_05"
+  },
+  {
+    "Codename": "QNO_EU_HORSE_1",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_EU_HORSE",
+    "EndNpcCodename": "NPC_CA_HORSE",
+    "OfferPromptSymbol": "SN_TALK_QNO_EU_HORSE_1_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_EU_HORSE_1_05",
+    "RewardExp": 20000,
+    "RewardGold": 6000,
+    "RewardSkillExp": 2700,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_EU_HORSE_1_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_EU_HORSE_1_03",
+    "RequiredQuests": [],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_EU_HORSE_1_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_EU_HORSE_1_07",
+    "TravelBlockMask": 393216,
+    "AcceptanceUnavailable": "primary delivery travel restriction requires native transport integration"
+  },
+  {
+    "Codename": "QNO_CA_HUNTER_1",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_CA_HUNTER",
+    "EndNpcCodename": "NPC_EU_GENERAL",
+    "OfferPromptSymbol": "SN_TALK_QNO_CA_HUNTER_1_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_CA_HUNTER_1_06",
+    "RewardExp": 21000,
+    "RewardGold": 6000,
+    "RewardSkillExp": 2700,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_CA_HUNTER_1_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_CA_HUNTER_1_03",
+    "RequiredQuests": [
+      "QNO_EU_GENERAL_6"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_CA_HUNTER_1_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_CA_HUNTER_1_05",
+    "TravelBlockMask": 393216,
+    "AcceptanceUnavailable": "primary delivery travel restriction requires native transport integration"
+  },
+  {
+    "Codename": "QNO_RM_SLAVE1_4",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_RM_SLAVE1",
+    "EndNpcCodename": "NPC_RM_SLAVE2",
+    "OfferPromptSymbol": "SN_TALK_QNO_RM_SLAVE1_4_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_RM_SLAVE1_4_06",
+    "RewardExp": 36000,
+    "RewardGold": 0,
+    "RewardSkillExp": 0,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_RM_SLAVE1_4_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_RM_SLAVE1_4_03",
+    "RequiredQuests": [
+      "QNO_RM_SLAVE1_3"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_RM_SLAVE1_4_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_RM_SLAVE1_4_05"
+  },
+  {
+    "Codename": "QNO_CA_THIEF_1",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_CA_WAREHOUSE",
+    "EndNpcCodename": "NPC_CA_HUNTER",
+    "OfferPromptSymbol": "SN_TALK_QNO_CA_THIEF_1_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_CA_THIEF_1_06",
+    "RewardExp": 1300,
+    "RewardGold": 300,
+    "RewardSkillExp": 150,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_CA_THIEF_1_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_CA_THIEF_1_03",
+    "RequiredQuests": [],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_CA_THIEF_1_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_CA_THIEF_1_05"
+  },
+  {
+    "Codename": "QNO_CA_THIEF_6_1",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_CA_SPECIAL",
+    "EndNpcCodename": "NPC_CA_HUNTER",
+    "OfferPromptSymbol": "SN_TALK_QNO_CA_THIEF_6_1_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_CA_THIEF_6_1_06",
+    "RewardExp": 41400,
+    "RewardGold": 10300,
+    "RewardSkillExp": 4200,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_CA_THIEF_6_1_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_CA_THIEF_6_1_03",
+    "RequiredQuests": [
+      "QNO_CA_THIEF_5"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_CA_THIEF_2_01",
+        "Count": 10
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_CA_THIEF_6_1_05"
+  },
+  {
+    "Codename": "QNO_CA_THIEF_6_2",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_CA_SPECIAL",
+    "EndNpcCodename": "NPC_CA_HUNTER",
+    "OfferPromptSymbol": "SN_TALK_QNO_CA_THIEF_6_2_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_CA_THIEF_6_2_06",
+    "RewardExp": 41400,
+    "RewardGold": 10300,
+    "RewardSkillExp": 4200,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_CA_THIEF_6_2_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_CA_THIEF_6_2_03",
+    "RequiredQuests": [
+      "QNO_CA_THIEF_5"
+    ],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_CA_THIEF_5_01",
+        "Count": 10
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_CA_THIEF_6_2_05"
+  },
+  {
+    "Codename": "QNO_CA_GORIA_1",
+    "MaxCompletions": 1,
+    "KindByte": 1,
+    "StartNpcCodename": "NPC_CA_MERCHANT",
+    "EndNpcCodename": "NPC_CA_HUNTER",
+    "OfferPromptSymbol": "SN_TALK_QNO_CA_GORIA_1_01",
+    "CompletePromptSymbol": "SN_TALK_QNO_CA_GORIA_1_06",
+    "RewardExp": 2000,
+    "RewardGold": 370,
+    "RewardSkillExp": 150,
+    "RewardItems": [],
+    "AcceptResponseSymbol": "SN_TALK_QNO_CA_GORIA_1_02",
+    "DenyResponseSymbol": "SN_TALK_QNO_CA_GORIA_1_03",
+    "RequiredQuests": [],
+    "Objective": 4,
+    "DeliveryItems": [
+      {
+        "ItemCodename": "ITEM_QNO_CA_GORIA_1_01",
+        "Count": 1
+      }
+    ],
+    "InventoryFullSymbol": "SN_TALK_QNO_CA_GORIA_1_05"
+  }
+]

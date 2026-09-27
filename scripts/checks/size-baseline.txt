@@ -1,0 +1,21 @@
+# Files over 1000 lines once formatted to dprint.json, each as `path # reason`: debt waiting for a split,
+# or an exemption whose reason says why no responsibility boundary exists. This ledger may only shrink:
+# split a file (or let it fall under the limit), then delete its line. See scripts/checks/check_source_file_size.mjs.
+apps/client-next/src/engine/foundation/ui/skill-tooltip-params.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/characters/characters.ts # presentation owner with inline families (appearance, footprints, weather events, dock preview)
+apps/client-next/src/engine/runtime/characters/effects/effects.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/renderer/characters/characters.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/renderer/world/world.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/simulation/worker/session/world/gameplay/inventory/inventory.ts # not yet analysed; split on its responsibility boundaries when formatted
+apps/client-next/src/engine/runtime/ui/ui.ts # one closure holds state, input and rendering for every window; split per window
+apps/client-next/tests/runtime/character-animation-audio.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/character-effects.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/character-presentation.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/character-resources.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/gameplay.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/ui-behavior.test.mjs # test file covering every window; split per window
+apps/client-next/tests/runtime/world-renderer.test.mjs # test file; split by feature
+apps/client-next/tests/runtime/world.test.mjs # test file; split by feature
+apps/client-next/tools/profile-world.mjs # not yet analysed; split on its responsibility boundaries when formatted
+scripts/build/shared/cifRuntimeImageCatalog.mjs # not yet analysed; split on its responsibility boundaries when formatted

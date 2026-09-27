@@ -1,0 +1,2327 @@
+{
+ "liveSpawn": [
+  {
+   "name": "settledNoSegment",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1205,
+     "y": 80,
+     "z": 396,
+     "angle": 0
+    }
+   },
+   "nowMs": 1784000000000,
+   "expected": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   }
+  },
+  {
+   "name": "sameRegionStart",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000000000,
+   "expected": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionQuarter",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000000707,
+   "expected": {
+    "regionId": 27471,
+    "x": 1229.9911629551077,
+    "y": 80,
+    "z": 420.9911629551078,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionMid",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000001414,
+   "expected": {
+    "regionId": 27471,
+    "x": 1254.9823259102156,
+    "y": 80,
+    "z": 445.98232591021565,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionNearArrive",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000002828,
+   "expected": {
+    "regionId": 27471,
+    "x": 1304.9646518204313,
+    "y": 80,
+    "z": 495.96465182043124,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionArrived",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000002829,
+   "expected": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionPast",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1784000007829,
+   "expected": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "sameRegionBeforeStart",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 8192
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002829
+    }
+   },
+   "nowMs": 1783999999000,
+   "expected": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 8192
+   }
+  },
+  {
+   "name": "crossRegionEarly",
+   "world": {
+    "spawn": {
+     "regionId": 27728,
+     "x": 100,
+     "y": 82,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1900,
+      "y": 80,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000000200,
+   "expected": {
+    "regionId": 27471,
+    "x": 1908.6362000719682,
+    "y": 80.14393666786614,
+    "z": 1905.0377833753148,
+    "angle": 0
+   }
+  },
+  {
+   "name": "crossRegionMid",
+   "world": {
+    "spawn": {
+     "regionId": 27728,
+     "x": 100,
+     "y": 82,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1900,
+      "y": 80,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000001389,
+   "expected": {
+    "regionId": 27728,
+    "x": 39.978409499820145,
+    "y": 80.99964015833034,
+    "z": 14.987405541561657,
+    "angle": 0
+   }
+  },
+  {
+   "name": "crossRegionLate",
+   "world": {
+    "spawn": {
+     "regionId": 27728,
+     "x": 100,
+     "y": 82,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1900,
+      "y": 80,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000002769,
+   "expected": {
+    "regionId": 27728,
+    "x": 99.56818999640154,
+    "y": 81.99280316660669,
+    "z": 49.74811083123427,
+    "angle": 0
+   }
+  },
+  {
+   "name": "walkModeMid",
+   "world": {
+    "spawn": {
+     "regionId": 25256,
+     "x": 1010.418884,
+     "y": 20,
+     "z": 428.259766,
+     "angle": 4000
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 25256,
+      "x": 960.418884,
+      "y": 20,
+      "z": 458.259766,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002916
+    }
+   },
+   "nowMs": 1784000001458,
+   "expected": {
+    "regionId": 25256,
+    "x": 985.418884,
+    "y": 20,
+    "z": 443.259766,
+    "angle": 4000
+   }
+  },
+  {
+   "name": "malformedSegmentArrivesEqualsStarted",
+   "world": {
+    "spawn": {
+     "regionId": 27471,
+     "x": 1305,
+     "y": 80,
+     "z": 496,
+     "angle": 100
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000000000
+    }
+   },
+   "nowMs": 1783999999500,
+   "expected": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 100
+   }
+  },
+  {
+   "name": "dungeonSameRegionMid",
+   "world": {
+    "spawn": {
+     "regionId": 60239,
+     "x": 700,
+     "y": 0,
+     "z": 900,
+     "angle": 12000
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 60239,
+      "x": 500,
+      "y": 0,
+      "z": 500,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000008945
+    }
+   },
+   "nowMs": 1784000004472,
+   "expected": {
+    "regionId": 60239,
+    "x": 599.9888205701509,
+    "y": 0,
+    "z": 699.9776411403018,
+    "angle": 12000
+   }
+  },
+  {
+   "name": "dungeonSameRegionArrived",
+   "world": {
+    "spawn": {
+     "regionId": 60239,
+     "x": 700,
+     "y": 0,
+     "z": 900,
+     "angle": 12000
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 60239,
+      "x": 500,
+      "y": 0,
+      "z": 500,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000008945
+    }
+   },
+   "nowMs": 1784000008945,
+   "expected": {
+    "regionId": 60239,
+    "x": 700,
+    "y": 0,
+    "z": 900,
+    "angle": 12000
+   }
+  },
+  {
+   "name": "dungeonCrossRegionEarly",
+   "world": {
+    "spawn": {
+     "regionId": 60496,
+     "x": 100,
+     "y": 40,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 60239,
+      "x": 1900,
+      "y": 40,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000000200,
+   "expected": {
+    "regionId": 60239,
+    "x": 1908.6362000719682,
+    "y": 40,
+    "z": 1905.0377833753148,
+    "angle": 0
+   }
+  },
+  {
+   "name": "dungeonCrossRegionMid",
+   "world": {
+    "spawn": {
+     "regionId": 60496,
+     "x": 100,
+     "y": 40,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 60239,
+      "x": 1900,
+      "y": 40,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000001389,
+   "expected": {
+    "regionId": 60496,
+    "x": 39.978409499820145,
+    "y": 40,
+    "z": 14.987405541561657,
+    "angle": 0
+   }
+  },
+  {
+   "name": "dungeonCrossRegionLate",
+   "world": {
+    "spawn": {
+     "regionId": 60496,
+     "x": 100,
+     "y": 40,
+     "z": 50,
+     "angle": 0
+    },
+    "moveSegment": {
+     "from": {
+      "regionId": 60239,
+      "x": 1900,
+      "y": 40,
+      "z": 1900,
+      "angle": 0
+     },
+     "startedAtMs": 1784000000000,
+     "arrivesAtMs": 1784000002779
+    }
+   },
+   "nowMs": 1784000002769,
+   "expected": {
+    "regionId": 60496,
+    "x": 99.56818999640154,
+    "y": 40,
+    "z": 49.74811083123427,
+    "angle": 0
+   }
+  }
+ ],
+ "moveSegmentForTravel": [
+  {
+   "name": "runSameRegion",
+   "liveFrom": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 8192
+   },
+   "movementMode": 3,
+   "startedAtMs": 1784000000000,
+   "expected": {
+    "from": {
+     "regionId": 27471,
+     "x": 1205,
+     "y": 80,
+     "z": 396,
+     "angle": 0
+    },
+    "startedAtMs": 1784000000000,
+    "arrivesAtMs": 1784000002829
+   },
+   "distance": 141.4213562373095
+  },
+  {
+   "name": "walkSameRegion",
+   "liveFrom": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 8192
+   },
+   "movementMode": 2,
+   "startedAtMs": 1784000000000,
+   "expected": {
+    "from": {
+     "regionId": 27471,
+     "x": 1205,
+     "y": 80,
+     "z": 396,
+     "angle": 0
+    },
+    "startedAtMs": 1784000000000,
+    "arrivesAtMs": 1784000007072
+   },
+   "distance": 141.4213562373095
+  },
+  {
+   "name": "zeroLengthHop",
+   "liveFrom": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "movementMode": 3,
+   "startedAtMs": 1784000000000,
+   "expected": null,
+   "distance": 0
+  },
+  {
+   "name": "crossRegion",
+   "liveFrom": {
+    "regionId": 27471,
+    "x": 1900,
+    "y": 80,
+    "z": 1900,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 27728,
+    "x": 100,
+    "y": 82,
+    "z": 50,
+    "angle": 0
+   },
+   "movementMode": 3,
+   "startedAtMs": 1784000000000,
+   "expected": {
+    "from": {
+     "regionId": 27471,
+     "x": 1900,
+     "y": 80,
+     "z": 1900,
+     "angle": 0
+    },
+    "startedAtMs": 1784000000000,
+    "arrivesAtMs": 1784000002779
+   },
+   "distance": 138.92443989449805
+  },
+  {
+   "name": "dungeonBitPair",
+   "liveFrom": {
+    "regionId": 60239,
+    "x": 500,
+    "y": 0,
+    "z": 500,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 60239,
+    "x": 700,
+    "y": 0,
+    "z": 900,
+    "angle": 0
+   },
+   "movementMode": 3,
+   "startedAtMs": 1784000000000,
+   "expected": {
+    "from": {
+     "regionId": 60239,
+     "x": 500,
+     "y": 0,
+     "z": 500,
+     "angle": 0
+    },
+    "startedAtMs": 1784000000000,
+    "arrivesAtMs": 1784000008945
+   },
+   "distance": 447.21359549995793
+  },
+  {
+   "name": "yOnlyHopIs2DZero",
+   "liveFrom": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "nextSpawn": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 200,
+    "z": 396,
+    "angle": 0
+   },
+   "movementMode": 3,
+   "startedAtMs": 1784000000000,
+   "expected": null,
+   "distance": 0
+  }
+ ],
+ "heading": [
+  {
+   "name": "north(-z)",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 900,
+    "angle": 0
+   },
+   "expected": 49151
+  },
+  {
+   "name": "south(+z)",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1100,
+    "angle": 0
+   },
+   "expected": 16384
+  },
+  {
+   "name": "east(+x)",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1100,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": 0
+  },
+  {
+   "name": "west(-x)",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 900,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": 32768
+  },
+  {
+   "name": "diagonalNE",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1100,
+    "y": 80,
+    "z": 900,
+    "angle": 0
+   },
+   "expected": 57343
+  },
+  {
+   "name": "shallowAngle",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1103.7,
+    "y": 80,
+    "z": 998.2,
+    "angle": 0
+   },
+   "expected": 65354
+  },
+  {
+   "name": "crossRegionEast",
+   "from": {
+    "regionId": 27471,
+    "x": 1900,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27472,
+    "x": 20,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": 0
+  },
+  {
+   "name": "degenerateSamePoint",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": null
+  },
+  {
+   "name": "degenerateSubEpsilon",
+   "from": {
+    "regionId": 27471,
+    "x": 1000,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 27471,
+    "x": 1000.0000004,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": null
+  },
+  {
+   "name": "dungeonDiagonal",
+   "from": {
+    "regionId": 60239,
+    "x": 800,
+    "y": 0,
+    "z": 800,
+    "angle": 0
+   },
+   "to": {
+    "regionId": 60239,
+    "x": 950,
+    "y": 0,
+    "z": 650,
+    "angle": 0
+   },
+   "expected": 57343
+  }
+ ],
+ "worldDistance": [
+  {
+   "name": "sameRegion",
+   "a": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "b": {
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496,
+    "angle": 0
+   },
+   "expected": 141.4213562373095
+  },
+  {
+   "name": "crossRegionX",
+   "a": {
+    "regionId": 27471,
+    "x": 1900,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "b": {
+    "regionId": 27472,
+    "x": 20,
+    "y": 80,
+    "z": 1000,
+    "angle": 0
+   },
+   "expected": 40
+  },
+  {
+   "name": "dungeonBitBothSides",
+   "a": {
+    "regionId": 60239,
+    "x": 100,
+    "y": 0,
+    "z": 100,
+    "angle": 0
+   },
+   "b": {
+    "regionId": 60239,
+    "x": 300,
+    "y": 0,
+    "z": 500,
+    "angle": 0
+   },
+   "expected": 447.21359549995793
+  },
+  {
+   "name": "chinaToOffsetRegion",
+   "a": {
+    "regionId": 25256,
+    "x": 960.418884,
+    "y": 20,
+    "z": 458.259766,
+    "angle": 0
+   },
+   "b": {
+    "regionId": 25255,
+    "x": 1800,
+    "y": 20,
+    "z": 400,
+    "angle": 0
+   },
+   "expected": 1081.988523616654
+  }
+ ],
+ "movementAck": [
+  {
+   "name": "destinationOnly",
+   "objectId": 100001,
+   "movement": {
+    "mode": 1,
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496
+   },
+   "source": null,
+   "expectedBytes": [
+    161,
+    134,
+    1,
+    0,
+    1,
+    79,
+    107,
+    25,
+    5,
+    80,
+    0,
+    240,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "destinationFractional",
+   "objectId": 100001,
+   "movement": {
+    "mode": 1,
+    "regionId": 27471,
+    "x": 1305.6,
+    "y": 80.4,
+    "z": 495.5
+   },
+   "source": null,
+   "expectedBytes": [
+    161,
+    134,
+    1,
+    0,
+    1,
+    79,
+    107,
+    26,
+    5,
+    80,
+    0,
+    240,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "withSourceBlockTimesTen",
+   "objectId": 100001,
+   "movement": {
+    "mode": 1,
+    "regionId": 27471,
+    "x": 1305,
+    "y": 80,
+    "z": 496
+   },
+   "source": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396
+   },
+   "expectedBytes": [
+    161,
+    134,
+    1,
+    0,
+    1,
+    79,
+    107,
+    25,
+    5,
+    80,
+    0,
+    240,
+    1,
+    1,
+    79,
+    107,
+    18,
+    47,
+    0,
+    0,
+    160,
+    66,
+    120,
+    15
+   ]
+  },
+  {
+   "name": "withSourceFractional",
+   "objectId": 100042,
+   "movement": {
+    "mode": 1,
+    "regionId": 25256,
+    "x": 1010.25,
+    "y": 20,
+    "z": 400.75
+   },
+   "source": {
+    "regionId": 25256,
+    "x": 960.418884,
+    "y": 20,
+    "z": 458.259766
+   },
+   "expectedBytes": [
+    202,
+    134,
+    1,
+    0,
+    1,
+    168,
+    98,
+    242,
+    3,
+    20,
+    0,
+    145,
+    1,
+    1,
+    168,
+    98,
+    132,
+    37,
+    0,
+    0,
+    160,
+    65,
+    231,
+    17
+   ]
+  }
+ ],
+ "applyMove": {
+  "objectId": 100001,
+  "initialWorld": {
+   "spawn": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396,
+    "angle": 0
+   },
+   "movementMode": 3,
+   "spawnSet": false,
+   "movementSourceSeeded": false
+  },
+  "steps": [
+   {
+    "action": "move",
+    "name": "firstMove",
+    "atMs": 1784000000000,
+    "movement": {
+     "mode": 1,
+     "regionId": 27471,
+     "x": 1405,
+     "y": 80,
+     "z": 396
+    },
+    "movementMode": 3,
+    "expect": {
+     "ackBytes": [
+      161,
+      134,
+      1,
+      0,
+      1,
+      79,
+      107,
+      125,
+      5,
+      80,
+      0,
+      140,
+      1,
+      1,
+      79,
+      107,
+      18,
+      47,
+      0,
+      0,
+      160,
+      66,
+      120,
+      15
+     ],
+     "sourceIncluded": true,
+     "liveBefore": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "spawn": {
+      "regionId": 27471,
+      "x": 1405,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "segment": {
+      "from": {
+       "regionId": 27471,
+       "x": 1205,
+       "y": 80,
+       "z": 396,
+       "angle": 0
+      },
+      "startedAtMs": 1784000000000,
+      "arrivesAtMs": 1784000004000
+     }
+    }
+   },
+   {
+    "action": "probeLive",
+    "name": "bugDMidFlightDropPosition",
+    "atMs": 1784000001000,
+    "expect": {
+     "live": {
+      "regionId": 27471,
+      "x": 1255,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     }
+    }
+   },
+   {
+    "action": "move",
+    "name": "resteerMidFlight",
+    "atMs": 1784000001000,
+    "movement": {
+     "mode": 1,
+     "regionId": 27471,
+     "x": 1205,
+     "y": 80,
+     "z": 596
+    },
+    "movementMode": 3,
+    "expect": {
+     "ackBytes": [
+      161,
+      134,
+      1,
+      0,
+      1,
+      79,
+      107,
+      181,
+      4,
+      80,
+      0,
+      84,
+      2,
+      0
+     ],
+     "sourceIncluded": false,
+     "liveBefore": {
+      "regionId": 27471,
+      "x": 1255,
+      "y": 80,
+      "z": 396,
+      "angle": 0
+     },
+     "spawn": {
+      "regionId": 27471,
+      "x": 1205,
+      "y": 80,
+      "z": 596,
+      "angle": 18939
+     },
+     "segment": {
+      "from": {
+       "regionId": 27471,
+       "x": 1255,
+       "y": 80,
+       "z": 396,
+       "angle": 0
+      },
+      "startedAtMs": 1784000001000,
+      "arrivesAtMs": 1784000005124
+     }
+    }
+   },
+   {
+    "action": "probeLive",
+    "name": "secondSegmentMid",
+    "atMs": 1784000002500,
+    "expect": {
+     "live": {
+      "regionId": 27471,
+      "x": 1236.8137730358874,
+      "y": 80,
+      "z": 468.74490785645,
+      "angle": 18939
+     }
+    }
+   },
+   {
+    "action": "move",
+    "name": "walkResteer",
+    "atMs": 1784000002500,
+    "movement": {
+     "mode": 1,
+     "regionId": 27471,
+     "x": 1260,
+     "y": 80,
+     "z": 500
+    },
+    "movementMode": 2,
+    "expect": {
+     "ackBytes": [
+      161,
+      134,
+      1,
+      0,
+      1,
+      79,
+      107,
+      236,
+      4,
+      80,
+      0,
+      244,
+      1,
+      0
+     ],
+     "sourceIncluded": false,
+     "liveBefore": {
+      "regionId": 27471,
+      "x": 1236.8137730358874,
+      "y": 80,
+      "z": 468.74490785645,
+      "angle": 18939
+     },
+     "spawn": {
+      "regionId": 27471,
+      "x": 1260,
+      "y": 80,
+      "z": 500,
+      "angle": 9727
+     },
+     "segment": {
+      "from": {
+       "regionId": 27471,
+       "x": 1236.8137730358874,
+       "y": 80,
+       "z": 468.74490785645,
+       "angle": 18939
+      },
+      "startedAtMs": 1784000002500,
+      "arrivesAtMs": 1784000004446
+     }
+    }
+   },
+   {
+    "action": "probeLive",
+    "name": "walkMid",
+    "atMs": 1784000004000,
+    "expect": {
+     "live": {
+      "regionId": 27471,
+      "x": 1254.6859932034972,
+      "y": 80,
+      "z": 492.8367055005019,
+      "angle": 9727
+     }
+    }
+   },
+   {
+    "action": "probeLive",
+    "name": "afterArrival",
+    "atMs": 1784001000000,
+    "expect": {
+     "live": {
+      "regionId": 27471,
+      "x": 1260,
+      "y": 80,
+      "z": 500,
+      "angle": 9727
+     }
+    }
+   },
+   {
+    "action": "move",
+    "name": "zeroLengthHopClearsSegment",
+    "atMs": 1784001000000,
+    "movement": {
+     "mode": 1,
+     "regionId": 27471,
+     "x": 1260,
+     "y": 80,
+     "z": 500
+    },
+    "movementMode": 2,
+    "expect": {
+     "ackBytes": [
+      161,
+      134,
+      1,
+      0,
+      1,
+      79,
+      107,
+      236,
+      4,
+      80,
+      0,
+      244,
+      1,
+      0
+     ],
+     "sourceIncluded": false,
+     "liveBefore": {
+      "regionId": 27471,
+      "x": 1260,
+      "y": 80,
+      "z": 500,
+      "angle": 9727
+     },
+     "spawn": {
+      "regionId": 27471,
+      "x": 1260,
+      "y": 80,
+      "z": 500,
+      "angle": 9727
+     },
+     "segment": null
+    }
+   },
+   {
+    "action": "probeLive",
+    "name": "settledAfterZeroHop",
+    "atMs": 1784001000001,
+    "expect": {
+     "live": {
+      "regionId": 27471,
+      "x": 1260,
+      "y": 80,
+      "z": 500,
+      "angle": 9727
+     }
+    }
+   }
+  ]
+ },
+ "patrol": [
+  {
+   "anchorName": "shop",
+   "anchor": {
+    "regionId": 25511,
+    "x": 941.5,
+    "y": 7.2,
+    "z": 1417.2
+   },
+   "ticks": [
+    {
+     "tick": 0,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1422.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 1,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1427.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 2,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1432.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 3,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1437.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 4,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1442.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 5,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1437.2,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 6,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1432.2,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 7,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1427.2,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 8,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1422.2,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 9,
+     "expected": {
+      "regionId": 25511,
+      "x": 949.5,
+      "y": 7.2,
+      "z": 1427.2,
+      "headingWord": 16384
+     }
+    }
+   ]
+  },
+  {
+   "anchorName": "europeStart",
+   "anchor": {
+    "regionId": 27471,
+    "x": 1205,
+    "y": 80,
+    "z": 396
+   },
+   "ticks": [
+    {
+     "tick": 0,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 401,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 1,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 406,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 2,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 411,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 3,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 416,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 4,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 421,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 5,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 416,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 6,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 411,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 7,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 406,
+      "headingWord": 49151
+     }
+    },
+    {
+     "tick": 8,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 401,
+      "headingWord": 16384
+     }
+    },
+    {
+     "tick": 9,
+     "expected": {
+      "regionId": 27471,
+      "x": 1213,
+      "y": 80,
+      "z": 406,
+      "headingWord": 16384
+     }
+    }
+   ]
+  }
+ ],
+ "npcWire": {
+  "createRow": [
+   {
+    "npc": {
+     "objectId": 200001,
+     "refObjId": 7495,
+     "tidWord": 326,
+     "codename": "NPC_EU_SMITH",
+     "kind": "npc",
+     "name": "Weapon Trader Balbardo"
+    },
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     71,
+     29,
+     0,
+     0,
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     198,
+     177,
+     68,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     160,
+     65,
+     0,
+     0,
+     72,
+     66,
+     0,
+     0,
+     200,
+     66,
+     0,
+     1,
+     22,
+     0,
+     87,
+     101,
+     97,
+     112,
+     111,
+     110,
+     32,
+     84,
+     114,
+     97,
+     100,
+     101,
+     114,
+     32,
+     66,
+     97,
+     108,
+     98,
+     97,
+     114,
+     100,
+     111
+    ]
+   },
+   {
+    "npc": {
+     "objectId": 200003,
+     "refObjId": 7495,
+     "tidWord": 326,
+     "codename": "NPC_EU_SMITH",
+     "kind": "npc",
+     "name": "Weapon Trader Balbardo"
+    },
+    "anchor": {
+     "regionId": 27471,
+     "x": 1205,
+     "y": 80,
+     "z": 396
+    },
+    "expectedBytes": [
+     71,
+     29,
+     0,
+     0,
+     67,
+     13,
+     3,
+     0,
+     79,
+     107,
+     0,
+     160,
+     151,
+     68,
+     0,
+     0,
+     160,
+     66,
+     0,
+     128,
+     200,
+     67,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     160,
+     65,
+     0,
+     0,
+     72,
+     66,
+     0,
+     0,
+     200,
+     66,
+     0,
+     1,
+     22,
+     0,
+     87,
+     101,
+     97,
+     112,
+     111,
+     110,
+     32,
+     84,
+     114,
+     97,
+     100,
+     101,
+     114,
+     32,
+     66,
+     97,
+     108,
+     98,
+     97,
+     114,
+     100,
+     111
+    ]
+   }
+  ],
+  "movePayloads": [
+   {
+    "tick": 0,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     198,
+     177,
+     68,
+     0,
+     64,
+     65,
+     13,
+     3,
+     0
+    ]
+   },
+   {
+    "tick": 1,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     102,
+     178,
+     68,
+     0,
+     64,
+     65,
+     13,
+     3,
+     0
+    ]
+   },
+   {
+    "tick": 3,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     166,
+     179,
+     68,
+     0,
+     64,
+     65,
+     13,
+     3,
+     0
+    ]
+   },
+   {
+    "tick": 4,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     70,
+     180,
+     68,
+     0,
+     64,
+     65,
+     13,
+     3,
+     0
+    ]
+   },
+   {
+    "tick": 5,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     166,
+     179,
+     68,
+     255,
+     191,
+     65,
+     13,
+     3,
+     0
+    ]
+   },
+   {
+    "tick": 8,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     198,
+     177,
+     68,
+     0,
+     64,
+     65,
+     13,
+     3,
+     0
+    ]
+   }
+  ],
+  "correctionPayloads": [
+   {
+    "tick": 0,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     198,
+     177,
+     68,
+     0,
+     64
+    ]
+   },
+   {
+    "tick": 1,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     102,
+     178,
+     68,
+     0,
+     64
+    ]
+   },
+   {
+    "tick": 3,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     166,
+     179,
+     68,
+     0,
+     64
+    ]
+   },
+   {
+    "tick": 4,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     70,
+     180,
+     68,
+     0,
+     64
+    ]
+   },
+   {
+    "tick": 5,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     166,
+     179,
+     68,
+     255,
+     191
+    ]
+   },
+   {
+    "tick": 8,
+    "anchor": {
+     "regionId": 25511,
+     "x": 941.5,
+     "y": 7.2,
+     "z": 1417.2
+    },
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     167,
+     99,
+     0,
+     96,
+     109,
+     68,
+     102,
+     102,
+     230,
+     64,
+     102,
+     198,
+     177,
+     68,
+     0,
+     64
+    ]
+   }
+  ],
+  "statePayloads": [
+   {
+    "tick": 0,
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     1,
+     2
+    ]
+   },
+   {
+    "tick": 1,
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     1,
+     3
+    ]
+   }
+  ],
+  "lifePayloads": [
+   {
+    "tick": 0,
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     0,
+     2
+    ]
+   },
+   {
+    "tick": 1,
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0,
+     0,
+     1
+    ]
+   }
+  ],
+  "despawnPayloads": [
+   {
+    "index": 0,
+    "expectedBytes": [
+     65,
+     13,
+     3,
+     0
+    ]
+   }
+  ]
+ },
+ "gameReady": {
+  "gameTimeBytes": [
+   1,
+   0,
+   12,
+   0
+  ],
+  "vitals": [
+   {
+    "objectId": 100001,
+    "currentHp": 100,
+    "currentMp": 100,
+    "expectedBytes": [
+     161,
+     134,
+     1,
+     0,
+     0,
+     0,
+     3,
+     100,
+     0,
+     0,
+     0,
+     100,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "objectId": 100042,
+    "currentHp": 3210,
+    "currentMp": 12345,
+    "expectedBytes": [
+     202,
+     134,
+     1,
+     0,
+     0,
+     0,
+     3,
+     138,
+     12,
+     0,
+     0,
+     57,
+     48,
+     0,
+     0
+    ]
+   }
+  ]
+ }
+}

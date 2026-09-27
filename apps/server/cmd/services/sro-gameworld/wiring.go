@@ -1,0 +1,448 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+	"opensro.online/server/internal/agent/api"
+	"opensro.online/server/internal/cluster/shard"
+	"opensro.online/server/internal/data/store"
+	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/game/world/worldarea"
+	"opensro.online/server/internal/gamedata"
+	"opensro.online/server/internal/platform/readiness"
+	"opensro.online/server/internal/security/auth"
+	"opensro.online/server/internal/transport"
+)
+
+const (
+	networkDrainTimeout = 15 * time.Second
+	leaseReleaseTimeout = 3 * time.Second
+
+	envAgentURL        = "SRO_AGENT_URL"
+	envRequireAgentURL = "SRO_AGENT_URL_REQUIRE"
+	envAgentIdentity   = "SRO_AGENT_IDENTITY_FILE"
+	envSessionKeys     = "SRO_AGENT_SESSION_PUBLIC_KEYS_PATH"
+)
+
+/*
+================================================================================
+GameWorld application ownership
+
+The composition root owns every long-lived service. Construction publishes the
+shard lease before opening durable authority and rolls back in reverse order.
+Run cancels all background work on the first fatal error or process signal,
+closes admission immediately, drains both listeners concurrently, joins every
+writer, releases the lease, and closes durable authority last.
+================================================================================
+*/
+
+type gameWorldApplication struct {
+	skillCache      io.Closer
+	itemCache       io.Closer
+	populationCache io.Closer
+	heightCache     io.Closer
+	transport       *transport.Server
+	authority       *store.Store
+	controlAPI      *agentapi.API
+	controlErrors   <-chan error
+	reporter        *shard.Reporter
+	ticker          *simulation.Ticker
+	readiness       *readiness.Gate
+	leaseOwned      bool
+}
+
+func newGameWorldApplication(
+	startupContext context.Context,
+	ts *transport.Server,
+	ownedShard shard.Definition,
+) (application *gameWorldApplication, resultErr error) {
+	application = &gameWorldApplication{
+		transport: ts,
+		readiness: readiness.NewGate(),
+	}
+	ownedApplication := application
+	defer func() {
+		if resultErr != nil {
+			ownedApplication.rollback()
+		}
+	}()
+
+	dataPaths, err := gamedata.Resolve()
+	if err != nil {
+		return nil, fmt.Errorf("game data: %w", err)
+	}
+	log.Infof(
+		"game data: bundle=%q manifest=%s",
+		dataPaths.BundleRoot,
+		dataPaths.ManifestDigest,
+	)
+	authoredAreas, err := worldarea.LoadAuthority(dataPaths.WorldAuthorityDir)
+	if err != nil {
+		return nil, fmt.Errorf("authored world areas: %w", err)
+	}
+	devPaths := enterworld.DevPathsFromEnv(
+		dataPaths.CharacterAuthorityDir,
+		dataPaths.TextdataDir,
+	)
+	devPaths.AuthoredAreas = authoredAreas
+	characterRoster, err := enterworld.LoadRoster(devPaths.RosterPath)
+	if err != nil {
+		return nil, fmt.Errorf("character roster: %w", err)
+	}
+
+	agentURL, err := configuredAgentURL()
+	if err != nil {
+		return nil, err
+	}
+	application.reporter, err = shard.NewReporter(
+		agentURL,
+		os.Getenv(envAgentIdentity),
+		ownedShard.ID,
+		func() int { return ts.Hub.Population(ownedShard.ID) },
+	)
+	if err != nil {
+		return nil, fmt.Errorf("shard heartbeat: %w", err)
+	}
+	if err := application.reporter.Acquire(startupContext, shard.DefaultAcquireTimeout); err != nil {
+		return nil, fmt.Errorf(
+			"acquiring shard %q lease before authority startup: %w",
+			ownedShard.ID,
+			err,
+		)
+	}
+	application.leaseOwned = true
+
+	accountIDs, err := application.reporter.AccountIDs(startupContext)
+	if err != nil {
+		return nil, fmt.Errorf("agent account directory: %w", err)
+	}
+	sessionVerifier, err := auth.NewAgentSessionVerifier(
+		os.Getenv(envSessionKeys),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("agent session verifier: %w", err)
+	}
+	enterWorldSecret, err := auth.NewRandomSecret()
+	if err != nil {
+		return nil, fmt.Errorf("EnterWorld process key: %w", err)
+	}
+	authority, err := openAuthorityPlane(
+		ts,
+		ownedShard,
+		accountIDs,
+		application.readiness,
+		dataPaths.TextdataDir,
+		characterRoster,
+		sessionVerifier,
+		enterWorldSecret,
+		authoredAreas,
+	)
+	if err != nil {
+		return nil, err
+	}
+	application.authority = authority.store
+	application.controlAPI = authority.agentAPI
+	if err := authority.textdata.Skills.UseBoundedCache(512); err != nil {
+		return nil, fmt.Errorf("skill cache: %w", err)
+	}
+	application.skillCache = authority.textdata.Skills
+	if err := authority.textdata.Items.UseBoundedCache(512); err != nil {
+		return nil, fmt.Errorf("item cache: %w", err)
+	}
+	application.itemCache = authority.textdata.Items
+
+	gameplay, err := newGameplayPlane(
+		ts,
+		authority.store,
+		ownedShard,
+		devPaths,
+		characterRoster,
+		dataPaths.WorldAuthorityDir,
+		application.readiness,
+		authoredAreas,
+		authority.textdata,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("gameplay construction: %w", err)
+	}
+	gameplay.installSessionLifecycle(ts.Hub, authority.store)
+	if gameplay.deps.MonsterState != nil {
+		if err := gameplay.deps.MonsterState.EnableDormantStorage(); err != nil {
+			return nil, fmt.Errorf("dormant monster storage: %w", err)
+		}
+		application.populationCache = gameplay.deps.MonsterState
+	}
+	if err := gameplay.water.EnableBoundedHeightCache(2 << 20); err != nil {
+		return nil, fmt.Errorf("terrain height cache: %w", err)
+	}
+	application.heightCache = gameplay.water
+	references, err := enterworld.NewBrowserReferences(gameplay.deps.Skills, authority.textdata.Items)
+	if err != nil {
+		return nil, fmt.Errorf("browser references: %w", err)
+	}
+	gameplay.deps.BrowserReferences = references
+	ts.SetPublicReferences(references)
+	if err := gameplay.register(ts.Hub, authority.loadQuests); err != nil {
+		return nil, fmt.Errorf("gameplay wiring: %w", err)
+	}
+	if err := installEnterWorldVerifier(
+		ts.Hub,
+		ownedShard.ID,
+		enterWorldSecret,
+	); err != nil {
+		return nil, err
+	}
+	if err := installTransportAdmissionVerifier(
+		ts.Hub,
+		ownedShard.ID,
+		enterWorldSecret,
+	); err != nil {
+		return nil, err
+	}
+
+	controlAddr, err := controlListenAddress(ownedShard.ControlURL)
+	if err != nil {
+		return nil, err
+	}
+	application.ticker = gameplay.newMissionTicker()
+	gameplay.installFollowFixture(authority.agentAPI, application.ticker)
+	authority.agentAPI.InstallPassiveCriticalFixture(gameplay.passiveCriticalReader())
+	installMonsterQuery(authority.agentAPI, gameplay.deps.MonsterState, ownedShard.ID)
+	installObservatory(authority.agentAPI, gameplay.deps.MonsterState, ts.Hub, authority.store, ownedShard.ID)
+	application.controlErrors, err = authority.agentAPI.Start(controlAddr)
+	if err != nil {
+		return nil, fmt.Errorf("GameWorld control API: %w", err)
+	}
+	if err := ts.Start(); err != nil {
+		return nil, fmt.Errorf("transport: %w", err)
+	}
+
+	if err := startupContext.Err(); err != nil {
+		return nil, fmt.Errorf("startup cancelled: %w", err)
+	}
+	application.readiness.Open()
+	log.Infof(
+		"shard: GameWorld %q owns state and transport under its Agent lease",
+		ownedShard.ID,
+	)
+	return application, nil
+}
+
+func configuredAgentURL() (string, error) {
+	agentURL := strings.TrimSpace(os.Getenv(envAgentURL))
+	if agentURL != "" {
+		return agentURL, nil
+	}
+	if os.Getenv(envRequireAgentURL) == "1" {
+		return "", fmt.Errorf(
+			"%s is required for this GameWorld process",
+			envAgentURL,
+		)
+	}
+	return agentapi.DefaultAgentBaseURL, nil
+}
+
+func (application *gameWorldApplication) Run(ctx context.Context) error {
+	runContext, cancelRun := context.WithCancel(ctx)
+	group, groupContext := errgroup.WithContext(runContext)
+
+	group.Go(func() error {
+		if err := application.reporter.Run(groupContext); err != nil {
+			return fmt.Errorf("renewing Agent shard lease: %w", err)
+		}
+		return nil
+	})
+	group.Go(func() error {
+		application.ticker.Run(groupContext)
+		return nil
+	})
+	group.Go(func() error {
+		return waitForServeError(
+			groupContext,
+			"GameWorld control API",
+			application.controlErrors,
+		)
+	})
+	group.Go(func() error {
+		return waitForServeError(
+			groupContext,
+			"game transport",
+			application.transport.Err(),
+		)
+	})
+
+	<-groupContext.Done()
+	application.readiness.Close()
+	cancelRun()
+
+	drainErr := application.drainNetwork()
+	runErr := group.Wait()
+	for _, cache := range []io.Closer{application.skillCache, application.itemCache} {
+		if cache != nil {
+			drainErr = errors.Join(drainErr, cache.Close())
+		}
+	}
+	if application.populationCache != nil {
+		drainErr = errors.Join(drainErr, application.populationCache.Close())
+	}
+	if application.heightCache != nil {
+		drainErr = errors.Join(drainErr, application.heightCache.Close())
+	}
+	application.releaseLease()
+	if application.authority != nil {
+		log.Info("shutdown: closing the authority store")
+		application.authority.Close()
+	}
+	application.leaseOwned = false
+	log.Info("shutdown: complete")
+
+	return errors.Join(runErr, drainErr)
+}
+
+func waitForServeError(
+	ctx context.Context,
+	name string,
+	errors <-chan error,
+) error {
+	select {
+	case <-ctx.Done():
+		return nil
+	case err, open := <-errors:
+		if ctx.Err() != nil {
+			return nil //nolint:nilerr // shutdown already began; errors during it are expected
+		}
+		if !open || err == nil {
+			return fmt.Errorf("%s stopped unexpectedly", name)
+		}
+		return fmt.Errorf("%s stopped unexpectedly: %w", name, err)
+	}
+}
+
+func (application *gameWorldApplication) drainNetwork() error {
+	application.readiness.Close()
+	log.Info("shutdown: draining the game transport and control API")
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		networkDrainTimeout,
+	)
+	defer cancel()
+	var drains errgroup.Group
+	if application.transport != nil {
+		drains.Go(func() error {
+			if err := application.transport.Shutdown(ctx); err != nil {
+				return fmt.Errorf("transport drain: %w", err)
+			}
+			return nil
+		})
+	}
+	if application.controlAPI != nil {
+		drains.Go(func() error {
+			if err := application.controlAPI.Shutdown(ctx); err != nil {
+				return fmt.Errorf("control API drain: %w", err)
+			}
+			return nil
+		})
+	}
+	return drains.Wait()
+}
+
+func (application *gameWorldApplication) releaseLease() {
+	if !application.leaseOwned || application.reporter == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		leaseReleaseTimeout,
+	)
+	defer cancel()
+	if err := application.reporter.Release(ctx); err != nil {
+		log.Warnf("shutdown: releasing shard lease: %v", err)
+	}
+}
+
+func (application *gameWorldApplication) rollback() {
+	application.readiness.Close()
+	if err := application.drainNetwork(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
+		log.Warnf("startup rollback: %v", err)
+	}
+	for _, cache := range []io.Closer{application.skillCache, application.itemCache} {
+		if cache != nil {
+			if err := cache.Close(); err != nil {
+				log.Warnf("startup rollback reference cache: %v", err)
+			}
+		}
+	}
+	if application.populationCache != nil {
+		if err := application.populationCache.Close(); err != nil {
+			log.Warnf("startup rollback population cache: %v", err)
+		}
+	}
+	if application.heightCache != nil {
+		if err := application.heightCache.Close(); err != nil {
+			log.Warnf("startup rollback height cache: %v", err)
+		}
+	}
+	if application.authority != nil {
+		application.authority.Close()
+	}
+	application.releaseLease()
+	application.leaseOwned = false
+}
+
+func loadOwnedShard() (shard.Definition, error) {
+	catalog, catalogPath, err := shard.LoadFromEnv()
+	if err != nil {
+		return shard.Definition{}, fmt.Errorf("shard catalog %s: %w", catalogPath, err)
+	}
+	shardID := strings.TrimSpace(os.Getenv("SRO_SHARD_ID"))
+	if shardID == "" {
+		return shard.Definition{}, fmt.Errorf("SRO_SHARD_ID is required for a GameWorld process")
+	}
+	ownedShard, ok := catalog.Resolve(shardID)
+	if !ok || ownedShard.ID != shardID {
+		return shard.Definition{}, fmt.Errorf(
+			"GameWorld shard %q is absent from %s",
+			shardID,
+			catalogPath,
+		)
+	}
+	if !ownedShard.Enabled {
+		return shard.Definition{}, fmt.Errorf("GameWorld shard %q is disabled", shardID)
+	}
+	return ownedShard, nil
+}
+
+func controlListenAddress(rawURL string) (string, error) {
+	if override := strings.TrimSpace(os.Getenv("SRO_GAMEWORLD_CONTROL_ADDR")); override != "" {
+		if _, _, err := net.SplitHostPort(override); err != nil {
+			return "", fmt.Errorf(
+				"SRO_GAMEWORLD_CONTROL_ADDR %q must be host:port: %w",
+				override,
+				err,
+			)
+		}
+		return override, nil
+	}
+	endpoint, err := url.Parse(rawURL)
+	if err != nil || endpoint.Scheme != "http" || endpoint.Host == "" {
+		return "", fmt.Errorf("GameWorld control URL %q must be an absolute http URL", rawURL)
+	}
+	if endpoint.Path != "" && endpoint.Path != "/" {
+		return "", fmt.Errorf("GameWorld control URL %q must not contain a path", rawURL)
+	}
+	return endpoint.Host, nil
+}

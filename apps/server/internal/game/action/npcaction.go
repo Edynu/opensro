@@ -1,0 +1,147 @@
+package action
+
+import (
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/game/item/gacha"
+	"opensro.online/server/internal/game/item/wire"
+	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/transport"
+)
+
+// registerNpcAction owns the shared 0x7338 registration. Feature children
+// return frames through this dispatcher; none may overwrite the hub handler.
+func (rt *Runtime) registerNpcAction(hub *transport.Hub) {
+	hub.Handle(wire.OpNpcActionRequest, func(session *transport.Session, opcode uint16, payload []byte) {
+		character, divisionID, bound := enterworld.SessionCharacter(rt.deps, session)
+		if !bound {
+			log.Debugf("npcaction: 0x%04X from unbound session %d discarded", opcode, session.ID)
+			return
+		}
+		_, mask, err := wire.DecodeNpcActionRequest(payload)
+		if err != nil {
+			log.Debugf("npcaction: malformed 0x7338 from %s: %v", character.Name, err)
+			return
+		}
+		var frames []wire.Frame
+		var refusal string
+		if mask == gacha.InteractionFlagGacha {
+			if rt.GachaCatalog == nil {
+				refusal = "Gacha catalogue is unavailable"
+			} else {
+				frames, refusal = rt.HandleGachaNpcAction(divisionID, character, payload)
+			}
+		} else {
+			frames, refusal = rt.HandleNpcAction(divisionID, character, payload)
+		}
+		if refusal != "" {
+			log.Debugf("npcaction: 0x7338 mask 0x%X refused for %s: %s", mask, character.Name, refusal)
+			return
+		}
+		sendFrames(session, frames)
+	})
+}
+
+// HandleNpcAction applies the ordinary talk/shop subset whose server and
+// client contracts are both closed. Other masks fail closed; a visible menu
+// action is never acknowledged by an unrelated feature.
+func (rt *Runtime) HandleNpcAction(divisionID string, character *enterworld.Character, payload []byte) ([]wire.Frame, string) {
+	if character == nil {
+		return nil, "characterNotFound"
+	}
+	gid, mask, err := wire.DecodeNpcActionRequest(payload)
+	if err != nil {
+		return nil, err.Error()
+	}
+
+	unlock := rt.lockDivision(divisionID)
+	defer unlock()
+	// 510262: an NPC function request ends the requester's hide first,
+	// whatever becomes of the request.
+	rt.deps.Update(character, "npc-action-hide", func() bool {
+		return rt.retireHide(divisionID, character, rt.Now().UnixMilli())
+	})
+	if selected, ok := rt.Selected.Get(divisionID, character.Name); !ok || selected != gid {
+		return nil, "bound NPC is not the current selected object"
+	}
+	npc, ok := rt.npcForCurrentViewer(divisionID, character, gid)
+	if !ok {
+		return nil, fmt.Sprintf("gid %d is not a live in-scope NPC", gid)
+	}
+	capabilities := npc.TalkFlags
+	requiredCapability := mask
+	if mask == 0x800 {
+		requiredCapability = simulation.NpcTalkFlagShop
+	}
+	if capabilities&requiredCapability == 0 {
+		return nil, fmt.Sprintf("NPC %s does not grant action mask 0x%X", npc.Codename, mask)
+	}
+
+	switch mask {
+	case simulation.NpcTalkFlagTalk:
+		if npc.BaseSpeechSymbol == "" {
+			return nil, fmt.Sprintf("NPC %s has no npcchat base-speech symbol", npc.Codename)
+		}
+		if rt.NpcQuests.Options != nil {
+			options := rt.NpcQuests.Options(divisionID, character, npc.Codename)
+			if len(options) != 0 {
+				symbols := make([]string, 0, len(options))
+				for _, option := range options {
+					if option.Codename == "" || option.TitleSymbol == "" || option.PromptSymbol == "" {
+						return nil, fmt.Sprintf("NPC %s quest option has an incomplete symbol contract", npc.Codename)
+					}
+					symbols = append(symbols, option.TitleSymbol)
+				}
+				prompt := npc.QuestSpeechSymbol
+				if prompt == "" {
+					prompt = npc.BaseSpeechSymbol
+				}
+				rt.NpcDialogs.Put(divisionID, character.Name, npcDialogSession{
+					NpcGID: gid, NpcCode: npc.Codename, DefaultSymbol: npc.BaseSpeechSymbol,
+					Stage: npcDialogOptions, Options: options,
+				})
+				return []wire.Frame{{
+					Opcode: wire.OpNpcDialog, Payload: wire.EncodeNpcDialogOptions(prompt, symbols),
+				}}, ""
+			}
+		}
+		rt.NpcDialogs.Clear(divisionID, character.Name)
+		return []wire.Frame{{
+			Opcode:  wire.OpNpcDialog,
+			Payload: wire.EncodeNpcDialogSymbol(npc.BaseSpeechSymbol),
+		}}, ""
+	case simulation.NpcTalkFlagShop, 0x800:
+		if rt.Commerce != nil {
+			return []wire.Frame{rt.shopCatalog(divisionID, character, gid)}, ""
+		}
+		return []wire.Frame{{
+			Opcode:  wire.OpNpcInteractionAck,
+			Payload: wire.EncodeNpcInteractionAck(mask),
+		}}, ""
+	default:
+		return nil, fmt.Sprintf("action mask 0x%X has no reconstructed gameplay owner", mask)
+	}
+}
+
+func (rt *Runtime) npcForCurrentViewer(divisionID string, character *enterworld.Character, gid uint32) (simulation.NpcDef, bool) {
+	if character == nil || !rt.NpcSpawn.Enabled {
+		return simulation.NpcDef{}, false
+	}
+	world := rt.Worlds.Snapshot(
+		simulation.WorldKey(divisionID, character.Name),
+		func() simulation.WorldState { return simulation.SeedWorldState(character) },
+	)
+	viewer := world.LiveSpawnAt(rt.Now().UnixMilli())
+	for _, npc := range rt.NpcRoster {
+		if npc.ObjectID != gid {
+			continue
+		}
+		if !simulation.NpcVisibleAt(npc, viewer) {
+			return simulation.NpcDef{}, false
+		}
+		return npc, true
+	}
+	return simulation.NpcDef{}, false
+}

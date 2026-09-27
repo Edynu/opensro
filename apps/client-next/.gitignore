@@ -1,0 +1,40 @@
+# Self-contained so this package can be built or published on its own; the
+# monorepo root .gitignore covers much of this too.
+
+# Scratch output: builds (temp/artifacts/dist), captures, logs, profiles and
+# soft-deleted files. See README "Folder layout".
+/temp/
+# Legacy output location, superseded by temp/artifacts/.
+/.artifacts/
+
+# Package-manager dependencies and Vite caches.
+node_modules/
+.vite/
+dist/
+
+# Local environment overrides and development TLS material. .env.example stays
+# tracked; SRO_DEV_TLS_CERT/KEY conventionally live in .certs/.
+.env
+.env.*
+!.env.example
+/.certs/
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Stray diagnostics that tools and probes drop in the package root.
+*.log
+# Test/run logs cited by reports as retained evidence are content, not droppings
+# (this also overrides the monorepo root's *.log rule).
+!/docs/evidence/*.log
+/*.png
+/*.zip
+/mcp_log.txt
+/*_backup.json
+__pycache__/
+*.py[cod]
+
+# Workstation-local agent/editor configuration (machine paths, local MCP keys).
+/.claude/settings.local.json
+/.cursor/mcp.json

@@ -1,0 +1,125 @@
+package action
+
+import (
+	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/game/item/alchemy"
+	"opensro.online/server/internal/game/item/wire"
+	"os"
+	"reflect"
+	"sync"
+	"testing"
+)
+
+func TestAlchemyPublishedDissolveCommitsOnceThroughHandler(t *testing.T) {
+	dir := os.Getenv("SRO_ALCHEMY_TEXTDATA")
+	if dir == "" {
+		t.Skip("set SRO_ALCHEMY_TEXTDATA for published dissolution acceptance")
+	}
+	catalog, err := alchemy.LoadCatalog(dir, enterworld.NewTextdataItems(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt, c := alchemyRuntime()
+	rt.Alchemy = catalog
+	var weapon alchemy.Reference
+	for _, ref := range catalog.Items {
+		if ref.Flags&0x7fe == 0x32c && ref.Degree() == 1 && (weapon.ID == 0 || ref.ID < weapon.ID) {
+			weapon = ref
+		}
+	}
+	if weapon.ID == 0 {
+		t.Fatal("missing published weapon")
+	}
+	rondo := catalog.Items["ITEM_ETC_ARCHEMY_RONDO_02"]
+	c.MissionInventory = []enterworld.InventoryRow{
+		{Slot: 13, RefObjID: weapon.ID, Codename: weapon.Name, TypeFlags: weapon.Flags, StackCount: 1},
+		{Slot: 14, RefObjID: rondo.ID, Codename: rondo.Name, TypeFlags: rondo.Flags, StackCount: 5000},
+	}
+	results := make(chan []wire.Frame, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- rt.HandleAlchemyProcess(testDivision, c, alchemy.OpDissolve, []byte{2, 14, 13})
+		}()
+	}
+	wg.Wait()
+	close(results)
+	wins := 0
+	for frames := range results {
+		last := frames[len(frames)-1]
+		if last.Opcode != alchemy.OpDissolveResult {
+			t.Fatal(frames)
+		}
+		if reflect.DeepEqual(last.Payload, []byte{1}) {
+			wins++
+			if frames[0].Opcode != 0x3645 || !reflect.DeepEqual(frames[0].Payload, []byte{13, 8, 0, 0}) {
+				t.Fatal("equipment removal must precede rewards", frames)
+			}
+			grants := 0
+			for _, f := range frames {
+				if f.Opcode == 0xb06d {
+					grants++
+				}
+			}
+			if grants == 0 {
+				t.Fatal("success without rewards")
+			}
+		}
+	}
+	if wins != 1 {
+		t.Fatal("double consumption", wins)
+	}
+	for _, row := range c.MissionInventory {
+		if row.RefObjID == weapon.ID {
+			t.Fatal("equipment survived", row)
+		}
+		if row.RefObjID == rondo.ID && row.StackCount != int64(5000-(weapon.Price/20000+1)) {
+			t.Fatal("Rondo spent more than once", row)
+		}
+	}
+}
+
+func TestAlchemyCompoundConcurrentCommitAddsNewRowsOnce(t *testing.T) {
+	rt, c := alchemyRuntime()
+	rt.Alchemy.Items = map[string]alchemy.Reference{
+		"part":                      {ID: 10, Name: "part", Flags: 0x25ec, Stack: 250, Price: 1000, Params: [5]uint32{1, 1, 1, 1}, Descriptions: [5]string{"e", "w", "f", "a"}},
+		"ITEM_ETC_ARCHEMY_RONDO_01": {ID: 11, Name: "ITEM_ETC_ARCHEMY_RONDO_01", Flags: 0x35ec, Stack: 5000},
+	}
+	for k, name := range []string{"e", "w", "f", "a"} {
+		rt.Alchemy.Items[name] = alchemy.Reference{ID: uint32(20 + k), Name: name, Flags: 0x2dec, Stack: 5000}
+	}
+	c.MissionInventory = []enterworld.InventoryRow{{Slot: 13, RefObjID: 10, Codename: "part", TypeFlags: 0x25ec, StackCount: 1}, {Slot: 14, RefObjID: 11, Codename: "ITEM_ETC_ARCHEMY_RONDO_01", TypeFlags: 0x35ec, StackCount: 2}}
+	results := make(chan []wire.Frame, 2)
+	var wg sync.WaitGroup
+	for k := 0; k < 2; k++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- rt.HandleAlchemyProcess(testDivision, c, alchemy.OpCompound, []byte{2, 1, 1, 0, 0, 0, 1, 13})
+		}()
+	}
+	wg.Wait()
+	close(results)
+	wins := 0
+	for frames := range results {
+		last := frames[len(frames)-1]
+		if last.Opcode == alchemy.OpCompoundResult && last.Payload[0] == 1 {
+			wins++
+		}
+	}
+	if wins != 1 || len(c.MissionInventory) != 4 {
+		t.Fatal(wins, c.MissionInventory)
+	}
+	for _, row := range c.MissionInventory {
+		if row.RefObjID < 20 || row.RefObjID > 23 || row.StackCount != 1 {
+			t.Fatal(c.MissionInventory)
+		}
+	}
+	before := c.Snapshot()
+	rt.HandleAlchemyProcess(testDivision, c, alchemy.OpCompound, []byte{1})
+	if len(c.MissionInventory) != len(before.MissionInventory) {
+		t.Fatal("cancel rolled back committed rows")
+	}
+}

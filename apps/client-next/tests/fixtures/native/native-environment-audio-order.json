@@ -1,0 +1,885 @@
+{
+  "schema": "sro-native-frame-order-v1",
+  "policy": {
+    "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+    "debuggerSha256": "732f013d71aecb2e4cad3fe4dfe1c40c4690173fc5a08eb6fa6051b434f0ea76",
+    "harnessSha256": "6d6604abb5877022a8e7e2830887b96fcf78e3f852df6f365a18d8755821ad5f",
+    "points": [
+      "0xa0f430",
+      "0xa0f573",
+      "0xa0f593",
+      "0x9c477b"
+    ],
+    "frames": 8,
+    "maxHits": 20000,
+    "timeoutSeconds": 45,
+    "phasePoints": {
+      "timers": [
+        "0xa00ce0",
+        "0x8f7590"
+      ],
+      "update": [
+        "0x8ce9c0"
+      ],
+      "render": [
+        "0x8cb380",
+        "0x8cf730"
+      ]
+    },
+    "scope": "CRT rand and application/weather/sky boundaries in the captured interval; not every application callback"
+  },
+  "pid": 50248,
+  "complete": true,
+  "error": null,
+  "hits": 50,
+  "events": [
+    {
+      "index": 0,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 0,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        31,
+        0.03099999949336052,
+        551436694
+      ],
+      "nativeFrame": 754033,
+      "region": 27471,
+      "timeOfDay": 0.6245052218437195,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 1,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 0,
+      "kind": "timers-dispatch",
+      "clock": [
+        275,
+        0.2750000059604645,
+        551437153
+      ],
+      "nativeFrame": 754033,
+      "region": 27471,
+      "timeOfDay": 0.6245052218437195,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 2,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 0,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        275,
+        0.2750000059604645,
+        551437153
+      ],
+      "nativeFrame": 754033,
+      "region": 27471,
+      "timeOfDay": 0.6245052218437195,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 3,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 0,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        275,
+        0.2750000059604645,
+        551437153
+      ],
+      "nativeFrame": 754033,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 4,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 0,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        275,
+        0.2750000059604645,
+        551437153
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 5,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 1,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        275,
+        0.2750000059604645,
+        551437153
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 6,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 1,
+      "kind": "timers-dispatch",
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 7,
+      "thread": 50848,
+      "pc": "0x8f7590",
+      "frame": 1,
+      "kind": "environment-audio-timer",
+      "owner": "0x2fc93c0",
+      "timerId": 1,
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 8,
+      "thread": 50848,
+      "pc": "0x9c477b",
+      "frame": 1,
+      "kind": "rand",
+      "caller": "0x8f79f8",
+      "stateBefore": 4084575563,
+      "stateAfter": 1873707746,
+      "value": 28590,
+      "consumer": "CGEffSoundBody.environment-countdown",
+      "owner": "0x2fc93c0",
+      "layer": "0x164cbf98",
+      "countdown": [
+        20,
+        30,
+        1
+      ],
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ]
+    },
+    {
+      "index": 9,
+      "thread": 50848,
+      "pc": "0x9c477b",
+      "frame": 1,
+      "kind": "rand",
+      "caller": "0x8f79f8",
+      "stateBefore": 1873707746,
+      "stateAfter": 2491751965,
+      "value": 5253,
+      "consumer": "CGEffSoundBody.environment-countdown",
+      "owner": "0x2fc93c0",
+      "layer": "0x164cc01c",
+      "countdown": [
+        40,
+        50,
+        2
+      ],
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ]
+    },
+    {
+      "index": 10,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 1,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.624965250492096,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 11,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 1,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754034,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 12,
+      "thread": 50848,
+      "pc": "0x9c477b",
+      "frame": 1,
+      "kind": "rand",
+      "caller": "0x8e5bc6",
+      "stateBefore": 2491751965,
+      "stateAfter": 4176345196,
+      "value": 30957,
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ]
+    },
+    {
+      "index": 13,
+      "thread": 50848,
+      "pc": "0x9c477b",
+      "frame": 1,
+      "kind": "rand",
+      "caller": "0x85de34",
+      "stateBefore": 4176345196,
+      "stateAfter": 882730367,
+      "value": 13469,
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ]
+    },
+    {
+      "index": 14,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 1,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 15,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 2,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        1480,
+        1.4800000190734863,
+        551438633
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 16,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 2,
+      "kind": "timers-dispatch",
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 17,
+      "thread": 50848,
+      "pc": "0x8f7590",
+      "frame": 2,
+      "kind": "environment-audio-timer",
+      "owner": "0x2fc93c0",
+      "timerId": 1,
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 18,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 2,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.625963568687439,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 19,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 2,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754035,
+      "region": 27471,
+      "timeOfDay": 0.6271007061004639,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 20,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 2,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754036,
+      "region": 27471,
+      "timeOfDay": 0.6271007061004639,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 21,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 3,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        3000,
+        3.0,
+        551441672
+      ],
+      "nativeFrame": 754036,
+      "region": 27471,
+      "timeOfDay": 0.6271007061004639,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 22,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 3,
+      "kind": "timers-dispatch",
+      "clock": [
+        1904,
+        1.9040000438690186,
+        551443566
+      ],
+      "nativeFrame": 754036,
+      "region": 27471,
+      "timeOfDay": 0.6271007061004639,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 23,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 3,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1904,
+        1.9040000438690186,
+        551443566
+      ],
+      "nativeFrame": 754036,
+      "region": 27471,
+      "timeOfDay": 0.6271007061004639,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 24,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 3,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1904,
+        1.9040000438690186,
+        551443566
+      ],
+      "nativeFrame": 754036,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 25,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 3,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1904,
+        1.9040000438690186,
+        551443566
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 26,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 4,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        1904,
+        1.9040000438690186,
+        551443566
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 27,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 4,
+      "kind": "timers-dispatch",
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 28,
+      "thread": 50848,
+      "pc": "0x8f7590",
+      "frame": 4,
+      "kind": "environment-audio-timer",
+      "owner": "0x2fc93c0",
+      "timerId": 1,
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 29,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 4,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6277604103088379,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 30,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 4,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754037,
+      "region": 27471,
+      "timeOfDay": 0.6285590529441833,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 31,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 4,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754038,
+      "region": 27471,
+      "timeOfDay": 0.6285590529441833,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 32,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 5,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        1720,
+        1.7200000286102295,
+        551445113
+      ],
+      "nativeFrame": 754038,
+      "region": 27471,
+      "timeOfDay": 0.6285590529441833,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 33,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 5,
+      "kind": "timers-dispatch",
+      "clock": [
+        1689,
+        1.6890000104904175,
+        551446930
+      ],
+      "nativeFrame": 754038,
+      "region": 27471,
+      "timeOfDay": 0.6285590529441833,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 34,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 5,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1689,
+        1.6890000104904175,
+        551446930
+      ],
+      "nativeFrame": 754038,
+      "region": 27471,
+      "timeOfDay": 0.6285590529441833,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 35,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 5,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1689,
+        1.6890000104904175,
+        551446930
+      ],
+      "nativeFrame": 754038,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 36,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 5,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1689,
+        1.6890000104904175,
+        551446930
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 37,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 6,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        1689,
+        1.6890000104904175,
+        551446930
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 38,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 6,
+      "kind": "timers-dispatch",
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 39,
+      "thread": 50848,
+      "pc": "0x8f7590",
+      "frame": 6,
+      "kind": "environment-audio-timer",
+      "owner": "0x2fc93c0",
+      "timerId": 1,
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 40,
+      "thread": 50848,
+      "pc": "0x9c477b",
+      "frame": 6,
+      "kind": "rand",
+      "caller": "0x8f79f8",
+      "stateBefore": 882730367,
+      "stateAfter": 1640049222,
+      "value": 25025,
+      "consumer": "CGEffSoundBody.environment-countdown",
+      "owner": "0x2fc93c0",
+      "layer": "0x164cbff0",
+      "countdown": [
+        20,
+        30,
+        1
+      ],
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ]
+    },
+    {
+      "index": 41,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 6,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6291753649711609,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 42,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 6,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754039,
+      "region": 27471,
+      "timeOfDay": 0.6299566030502319,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 43,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 6,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754040,
+      "region": 27471,
+      "timeOfDay": 0.6299566030502319,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 44,
+      "thread": 50848,
+      "pc": "0xa0f430",
+      "frame": 7,
+      "kind": "frame-begin",
+      "application": "0xceba00",
+      "clock": [
+        1453,
+        1.4529999494552612,
+        551448238
+      ],
+      "nativeFrame": 754040,
+      "region": 27471,
+      "timeOfDay": 0.6299566030502319,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 45,
+      "thread": 50848,
+      "pc": "0xa00ce0",
+      "frame": 7,
+      "kind": "timers-dispatch",
+      "clock": [
+        1735,
+        1.7350000143051147,
+        551450173
+      ],
+      "nativeFrame": 754040,
+      "region": 27471,
+      "timeOfDay": 0.6299566030502319,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 46,
+      "thread": 50848,
+      "pc": "0xa0f573",
+      "frame": 7,
+      "kind": "update-dispatch",
+      "target": "0x721490",
+      "clock": [
+        1735,
+        1.7350000143051147,
+        551450173
+      ],
+      "nativeFrame": 754040,
+      "region": 27471,
+      "timeOfDay": 0.6299566030502319,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 47,
+      "thread": 50848,
+      "pc": "0x8ce9c0",
+      "frame": 7,
+      "kind": "weather-update",
+      "owner": "0x1542f2f4",
+      "clock": [
+        1735,
+        1.7350000143051147,
+        551450173
+      ],
+      "nativeFrame": 754040,
+      "region": 27471,
+      "timeOfDay": 0.6306076049804688,
+      "fpuControlWord": 127
+    },
+    {
+      "index": 48,
+      "thread": 50848,
+      "pc": "0xa0f593",
+      "frame": 7,
+      "kind": "render-dispatch",
+      "target": "0xa11650",
+      "clock": [
+        1735,
+        1.7350000143051147,
+        551450173
+      ],
+      "nativeFrame": 754041,
+      "region": 27471,
+      "timeOfDay": 0.6306076049804688,
+      "fpuControlWord": 127
+    }
+  ]
+}

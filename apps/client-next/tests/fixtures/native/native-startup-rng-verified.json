@@ -1,0 +1,65 @@
+{
+  "policy": {
+    "candidateSha256": "3481cd6186bef555e18b27ede5aa6447df45143f59bfd1f1fcdb3d6f989f8c6a",
+    "expectedStarSha256": "eebb17ee8ab15bb79ef4340e10022bf3dd482884ceea3a7979674dcae87173b1",
+    "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+    "entry": "0x8cbe10",
+    "firstRandState": "0x9c477b",
+    "return": "0x8cd1bf",
+    "expectedInput": 1,
+    "expectedOutput": 3749729837,
+    "expectedIntensities": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "scope": "Original startup boundary before WinMain; not later weather/animation interleaving parity",
+    "harnessSha256": "913d3a5218a377e1b4eec08ecebae1c78f32a631100b00c7df1dddccab03dbac"
+  },
+  "pid": 38208,
+  "events": [
+    {
+      "address": "0x8cbe10",
+      "caller": "0x8cd1bf"
+    }
+  ],
+  "pass": true,
+  "input": 1,
+  "sphere": {
+    "count": 1026,
+    "sha256": "6867d0feea029d291a26b202c076da5bf5882e17e5449fb2768db2af323ea23c"
+  },
+  "hemisphere": {
+    "count": 545,
+    "sha256": "2d2d22813f9689252a5751d6c279983d704a587d007ae043be3f0acda4d6bff8"
+  },
+  "triangles": {
+    "count": 1024,
+    "sha256": "5885f8521e5e55704854af66bc2b35fa4586f30e7ea6ba1eaf529b9ce91a58f6"
+  },
+  "stars": {
+    "count": 3000,
+    "sha256": "eebb17ee8ab15bb79ef4340e10022bf3dd482884ceea3a7979674dcae87173b1"
+  },
+  "output": 3749729837,
+  "intensities": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "hits": 3
+}

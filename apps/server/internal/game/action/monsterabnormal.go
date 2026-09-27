@@ -1,0 +1,364 @@
+/*
+===========================================================================
+
+monsterabnormal.go - abnormal states on monsters
+
+===========================================================================
+*/
+
+package action
+
+import (
+	"opensro.online/server/internal/game/abnormal"
+	"opensro.online/server/internal/game/combat"
+	"opensro.online/server/internal/game/enterworld"
+	"opensro.online/server/internal/game/item/wire"
+	"opensro.online/server/internal/game/paramkeeper"
+	"opensro.online/server/internal/game/world/monster"
+	"opensro.online/server/internal/game/world/simulation"
+)
+
+/*
+==================
+monsterAbnormalContext
+
+monsterAbnormalContext resolves what MonsterState cannot own for the
+abnormal engine: casters (by durable name, as ObjMgr_FindByID does by GID),
+per-actor probability streams and parameters that include self effects.
+==================
+*/
+type monsterAbnormalContext struct{ rt *Runtime }
+
+func (c monsterAbnormalContext) caster(division string, gid uint32, name string) *enterworld.Character {
+	if name == "" {
+		return nil
+	}
+	character := c.rt.findCharacter(division, name)
+	if character == nil || gid != 0 && enterworld.ObjectIDForCharacter(character) != gid {
+		return nil
+	}
+	return character
+}
+
+func (c monsterAbnormalContext) SourceExists(division string, gid uint32, name string) bool {
+	if character := c.caster(division, gid, name); character != nil {
+		return true
+	}
+	if name == "" && gid != 0 && c.rt.Monsters != nil {
+		_, ok := c.rt.Monsters.Get(division, gid)
+		return ok
+	}
+	return false
+}
+
+func (c monsterAbnormalContext) SourceDead(division string, gid uint32, name string) bool {
+	if character := c.caster(division, gid, name); character != nil {
+		snapshot := c.rt.characterSnapshot(division, character)
+		return snapshot == nil || !enterworld.CharacterAlive(snapshot)
+	}
+	if name == "" && gid != 0 && c.rt.Monsters != nil {
+		instance, ok := c.rt.Monsters.Get(division, gid)
+		return ok && instance.CurrentHP == 0
+	}
+	return false
+}
+
+func (c monsterAbnormalContext) Roll(division string, owner, key uint32, chance int32) bool {
+	if chance <= 0 {
+		return false
+	}
+	proc, err := c.rt.effectOutcome(criticalActor{division: division, monster: owner}, key, uint32(chance))
+	return err == nil && proc
+}
+
+// Param reads the monster's keeper value through the same projection combat
+// uses (RefObjChar base, self effects, abnormal writes).
+func (c monsterAbnormalContext) Param(instance monster.Instance, id uint16) float32 {
+	if id >= 5 && id <= 12 {
+		stats, err := combat.MonsterInstanceStats(instance)
+		if err != nil {
+			return 0
+		}
+		return float32([...]float64{stats.PhysicalDefense, stats.MagicalDefense, stats.ParryRate, stats.MagicalParry,
+			stats.EvasionRate, stats.BlockRate, stats.HitRate, stats.CriticalRate}[id-5])
+	}
+	var base float32
+	switch {
+	case id == 0x17:
+		return float32(instance.WalkSpeed())
+	case id == 0x18:
+		return float32(instance.RunSpeed())
+	case id == 0x8c:
+		base = 100
+	case id >= 0x1b && id <= 0x20:
+		base = float32(instance.Ref.ElementResist[[...]int{0, 1, 3, 2, 4, 5}[id-0x1b]])
+	}
+	if instance.Abnormal == nil {
+		return base
+	}
+	definition, ok := paramkeeper.NativeDefinition(id)
+	if !ok {
+		definition.Maximum = 9999999
+	}
+	value, err := instance.Abnormal.Evaluate(id, definition, base)
+	if err != nil {
+		return base
+	}
+	return value
+}
+
+// abnormalRandom is the caster's CZoeZoeRnd stream (keyed by ECX) and the
+// process rand() the time bomb draws.
+type abnormalRandom struct {
+	rt    *Runtime
+	actor criticalActor
+	err   error
+}
+
+func (r *abnormalRandom) Chance(key uint32, chance int32) bool {
+	if chance <= 0 || r.err != nil {
+		return false
+	}
+	proc, err := r.rt.effectOutcome(r.actor, key, uint32(chance))
+	if err != nil {
+		r.err = err
+	}
+	return proc
+}
+
+func (r *abnormalRandom) Rand() int32 {
+	if r.err != nil {
+		return 0
+	}
+	value, err := r.rt.CombatRoll()
+	if err != nil {
+		r.err = err
+		return 0
+	}
+	return int32(value & 0x7fff)
+}
+
+// rollPlayerOnMonster ports 590680 for a player's hit on a monster target.
+func (rt *Runtime) rollPlayerOnMonster(division string, c *enterworld.Character, params *abnormal.SkillParams, target monster.Instance, blocked bool) ([]abnormal.Record, error) {
+	if params == nil || !params.Present() {
+		return nil, nil
+	}
+	ctx := monsterAbnormalContext{rt}
+	stats, _, err := combat.PlayerStats(c, rt.statCatalogs())
+	if err != nil {
+		return nil, err
+	}
+	values := stats.SkillParameters
+	in := abnormal.RollInput{
+		Params:      params,
+		Blocked:     blocked,
+		TargetLevel: target.Ref.Level,
+		TargetBonus: ctx.Param(target, 0xa9),
+		CasterLevel: stats.Level,
+		// CSkillManager_GetSkillModifier: the caster's learned setv dictionary.
+		CasterModifier: func(key uint32) (uint32, bool) {
+			slot, known := enterworld.SkillParameterFromKey(key)
+			if !known {
+				return 0, false
+			}
+			return values[slot], values[slot] != 0
+		},
+		SourceGID:  enterworld.ObjectIDForCharacter(c),
+		TargetGID:  target.Gid,
+		SourceName: c.Name,
+	}
+	for i := range in.TargetResist {
+		in.TargetResist[i] = float32(target.Ref.ElementResist[i])
+	}
+	random := &abnormalRandom{rt: rt, actor: criticalActor{division: division, character: c.Name}}
+	records := abnormal.Roll(in, random)
+	return records, random.err
+}
+
+/*
+==================
+monsterAbnormalFrames
+
+monsterAbnormalFrames publishes the consequences of a committed impact or
+update: withdrawn casts (570), the B2F5 stop (4A9430), the 376F speed pair
+(4AA410) and the vitals mask (4A5C60 dirty bit 0x100).
+==================
+*/
+func (rt *Runtime) monsterAbnormalFrames(division string, instance monster.Instance, effects simulation.MonsterAbnormalEffects) []wire.Frame {
+	var frames []wire.Frame
+	if effects.CancelActions {
+		frames = append(frames, rt.interruptMonsterCast(division, instance.Gid)...)
+	}
+	if effects.Halted != nil {
+		frames = append(frames, wire.Frame{Opcode: 0xB2F5, Payload: simulation.MonsterCorrectionPayload(instance.Gid, *effects.Halted)})
+	}
+	if effects.SpeedChanged {
+		frames = append(frames, wire.Frame{Opcode: 0x376F, Payload: simulation.MonsterSpeedPayload(instance)})
+	}
+	if effects.MaskChanged {
+		frames = append(frames, wire.Frame{Opcode: simulation.OpVitalsUpdate, Payload: simulation.MonsterAbnormalPayload(instance)})
+	}
+	return frames
+}
+
+// advanceMonsterAbnormals runs 4A4390 for every monster with an active block:
+// expiry, damage-over-time ticks, time-bomb detonation and mask publication.
+func (rt *Runtime) advanceMonsterAbnormals(nowMs int64) []simulation.DivisionFrames {
+	if rt.Monsters == nil {
+		return nil
+	}
+	var out []simulation.DivisionFrames
+	for _, candidate := range rt.Monsters.AbnormalCandidates() {
+		out = append(out, rt.advanceMonsterAbnormal(candidate.DivisionID, candidate.Instance.Gid, nowMs)...)
+	}
+	return out
+}
+
+func (rt *Runtime) advanceMonsterAbnormal(division string, gid uint32, nowMs int64) []simulation.DivisionFrames {
+	unlock := rt.lockDivision(division)
+	defer unlock()
+	plan, ok := rt.Monsters.PlanAbnormalUpdate(division, gid, nowMs)
+	if !ok {
+		return nil
+	}
+	ctx := monsterAbnormalContext{rt}
+	// The first credited hit's caster owns the reward roster, as the burn
+	// and bleeding owners did; uncredited ticks settle without a killer.
+	var character *enterworld.Character
+	for _, hit := range plan.Effects.Hits {
+		if hit.Credited {
+			if character = ctx.caster(division, hit.SourceGID, hit.SourceName); character != nil {
+				break
+			}
+		}
+	}
+	roster := rt.monsterRewardRoster(division, character, nowMs)
+	var impact simulation.MonsterDamageResult
+	var settlement monsterSettlement
+	commit := func() bool {
+		var ok bool
+		impact, ok = rt.Monsters.CommitAbnormalUpdate(plan, nowMs)
+		if !ok {
+			return false
+		}
+		if impact.Fatal {
+			pose := monster.Pose{}
+			if mover, found := rt.Monsters.Mover(division, gid); found {
+				pose = mover.LivePoseAt(nowMs, nil)
+			}
+			settlement = rt.settleMonsterInsideDoor(division, character, roster, impact, pose, nowMs)
+		}
+		return true
+	}
+	var committed bool
+	if len(plan.Effects.Hits) == 0 || len(roster.characters) == 0 {
+		committed = commit()
+	} else {
+		committed = rt.deps.UpdateMany(roster.characters, "monster-abnormal", commit)
+	}
+	if !committed {
+		return nil
+	}
+	var public []wire.Frame
+	var private []privateFrames
+	send := func(id int64, frames ...wire.Frame) {
+		for i := range private {
+			if private[i].id == id {
+				private[i].frames = append(private[i].frames, frames...)
+				return
+			}
+		}
+		private = append(private, privateFrames{id, frames})
+	}
+	for _, hit := range plan.Effects.Hits {
+		// 52A33D emits 3058 privately to the credited source; v1.150's
+		// handler is 3128 -> 74FE80 (gid, raw damage). The detonation has its
+		// own public presentation below.
+		if source := ctx.caster(division, hit.SourceGID, hit.SourceName); source != nil && hit.Credited && hit.Reason == 2 {
+			send(source.ID, wire.Frame{Opcode: 0x3128, Payload: wire.NewWriter(8).U32(gid).U32(hit.Damage).Payload()})
+		}
+	}
+	for _, slot := range plan.Effects.Detonations {
+		public = append(public, timeBombFrame(gid, slot.Damage1C, impact.Fatal))
+	}
+	if len(plan.Effects.Hits) > 0 {
+		public = append(public, wire.Frame{Opcode: simulation.OpVitalsUpdate, Payload: simulation.HPRefreshPayload(gid, simulation.VitalsSourceFlags(2), impact.CurrentHP)})
+	}
+	var recipients []RecipientFrames
+	if impact.Fatal {
+		public = append(public, monsterLifeDeadFrame(gid))
+		public = append(public, rt.groundReferences(settlement.drops)...)
+		for _, drop := range settlement.drops {
+			public = append(public, wire.Frame{Opcode: wire.OpSingleObjectSpawn, Payload: drop.SpawnRow(true).Encode()})
+		}
+		public = append(public, settlement.public...)
+		if character != nil {
+			send(character.ID, wire.ProgressionPrivateFrames(settlement.actorFrames)...)
+		}
+		recipients = settlement.others
+		public = append(public, wire.Frame{Opcode: simulation.OpVitalsUpdate, Payload: simulation.MonsterAbnormalPayload(impact.Instance)})
+		rt.queueMonsterDefeat(division, gid, nowMs+monsterDeathPresentationRetention.Milliseconds())
+	} else {
+		public = append(public, rt.monsterAbnormalFrames(division, impact.Instance, plan.Effects)...)
+	}
+	var out []simulation.DivisionFrames
+	if len(public) > 0 {
+		batch := simulation.DivisionFrames{DivisionID: division}
+		for _, f := range public {
+			batch.Frames = append(batch.Frames, simulation.Frame{Opcode: f.Opcode, Payload: f.Payload, Current: f.Current, Scope: f.Scope})
+		}
+		out = append(out, batch)
+	}
+	for _, p := range private {
+		batch := simulation.DivisionFrames{DivisionID: division, OnlyCharacterID: p.id}
+		for _, f := range p.frames {
+			batch.Frames = append(batch.Frames, simulation.Frame{Opcode: f.Opcode, Payload: f.Payload, Current: f.Current, Scope: f.Scope})
+		}
+		out = append(out, batch)
+	}
+	return append(out, recipientDivisionFrames(division, recipients)...)
+}
+
+type privateFrames struct {
+	id     int64
+	frames []wire.Frame
+}
+
+// timeBombFrame is 59B300's detonation broadcast (research B0BC), v1.150
+// B3C6 type 4 (7756D0): flags (80 fatal), victim gid, u16 damage.
+func timeBombFrame(gid, damage uint32, fatal bool) wire.Frame {
+	flags := uint8(0)
+	if fatal {
+		flags = 0x80
+	}
+	return wire.Frame{Opcode: 0xB3C6, Payload: wire.NewWriter(8).U8(4).U8(flags).U32(gid).U16(uint16(damage)).Payload()}
+}
+
+/*
+==================
+monsterImpactAbnormalFrames
+
+monsterImpactAbnormalFrames follows committed direct impacts: withdrawn
+casts, the stop, the speed pair, and the HP+mask baseline (flags 5) while
+the survivor carries or has just changed a mask.
+==================
+*/
+func (rt *Runtime) monsterImpactAbnormalFrames(division string, gid uint32, impacts []simulation.MonsterDamageResult) []wire.Frame {
+	var effects simulation.MonsterAbnormalEffects
+	for _, impact := range impacts {
+		effects.Merge(impact.Abnormal)
+	}
+	instance, ok := rt.Monsters.Get(division, gid)
+	if !ok || instance.CurrentHP == 0 {
+		return nil
+	}
+	mask := effects.MaskChanged
+	effects.MaskChanged = false
+	frames := rt.monsterAbnormalFrames(division, instance, effects)
+	if mask || instance.AbnormalMask() != 0 {
+		abnormalPayload := simulation.MonsterAbnormalPayload(instance)
+		payload := wire.NewWriter(16).U32(gid).U16(0x100).U8(5).U32(instance.CurrentHP).Payload()
+		frames = append(frames, wire.Frame{Opcode: simulation.OpVitalsUpdate, Payload: append(payload, abnormalPayload[7:]...)})
+	}
+	return frames
+}

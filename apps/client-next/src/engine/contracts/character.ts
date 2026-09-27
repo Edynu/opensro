@@ -1,0 +1,108 @@
+import type { Geometry } from './geometry';
+export interface CharacterNode {
+    readonly name: string;
+    readonly parent: number;
+    readonly translation: readonly number[];
+    readonly rotation: readonly number[];
+    readonly scale: readonly number[];
+    readonly matrix?: readonly number[];
+}
+export interface CharacterChannel {
+    readonly node: number;
+    readonly path: 'translation' | 'rotation' | 'scale';
+    readonly interpolation: 'LINEAR' | 'STEP' | 'CUBICSPLINE';
+    readonly times: Float32Array;
+    readonly values: Float32Array;
+}
+export interface CharacterClip {
+    readonly name: string;
+    readonly duration: number;
+    readonly channels: readonly CharacterChannel[];
+}
+export interface CharacterPrimitive {
+    readonly modifierSource?:{readonly material:import('./scene').WorldMaterial;readonly index:number;readonly modifiers:import('@/engine/foundation/rendering/scenery-modifiers').SceneryModifiers};
+    readonly particleEmitter?:number;
+    readonly ribbon?:{readonly widths:Float32Array;readonly fps:number};
+    readonly emission?:{readonly capacity?:number;readonly loop?:boolean;readonly births:readonly number[];readonly lifetime:number;readonly follow?:boolean};
+    readonly particleProgram?:import("@/engine/foundation/animation/particle-program").ParticleProgram;
+    readonly billboard?: 'camera' | 'y' | 'v';
+    readonly materialFrames?: {
+        readonly sampling?:"step";
+        readonly fps: number;
+        readonly colors: Float32Array;
+        readonly windows: Float32Array;
+    };
+    readonly name: string;
+    readonly node: number;
+    readonly joints: readonly number[];
+    readonly inverseBind: Float32Array;
+    readonly geometry: Geometry;
+    readonly image: number;
+    readonly environmentImage?:number;
+    readonly equipmentGlow?:import("@/engine/foundation/rendering/equipment-glow").EquipmentGlow;
+}
+export interface CharacterModel {
+    readonly equipmentGlows?:Record<string,readonly import("@/engine/foundation/rendering/equipment-glow").EquipmentGlow[]>;
+    readonly particleGraph?:readonly import("@/engine/foundation/animation/particle-graph").ParticleEmitter[];
+    readonly nodes: readonly CharacterNode[];
+    readonly primitives: readonly CharacterPrimitive[];
+    readonly clips: readonly CharacterClip[];
+    readonly images: readonly {
+        readonly bytes: Uint8Array;
+        readonly mime: string;
+    }[];
+}
+export interface CharacterLayer {readonly rate?:number;readonly clip:string;readonly time:number;readonly loop:boolean;readonly weight:number;readonly lane:'event'|'timed';readonly activation?:import('@/engine/foundation/animation/animation-activation').AnimationActivation;}
+export interface CharacterPointLight {readonly pose:{readonly regionId:number;readonly x:number;readonly y:number;readonly z:number};readonly ambient:readonly [number,number,number];readonly diffuse:readonly [number,number,number];readonly attenuation:number;readonly range:number;}
+export interface CharacterActor {
+    /** Native reference field +0x110; absent for non-character effects/items. */
+    readonly shadowSize?:number;
+    readonly shadowAttachment?:boolean;
+    readonly modifierId?:number;
+    readonly modelAnimation?:import('@/engine/foundation/animation/model-animation').ModelAnimationFrame;
+    readonly animationLod?:{readonly fraction:number;readonly crowded:boolean};
+    readonly deferredParticle?:{readonly offset:number;readonly nightOnly?:boolean;readonly lodHidden?:boolean};
+    /** Retail CICMonster/CICUser class membership; retained through corpse departure. */
+    readonly blindable?:boolean;
+    /** CIItem labels anchor five world units above the ground, independent of model bounds. */
+    readonly groundItem?:boolean;
+    readonly pointLight?:CharacterPointLight;
+    readonly bloodEffects?:readonly [string|null,string|null];
+    /** Equipment-selected idle for the independently animated inventory model. */
+    readonly previewClip?:string;
+    readonly effectBasis?:readonly [number,number,number,number,number,number,number,number,number];
+    /** Keep the socket transform alive after stopping a projectile model. */
+    readonly drawGeometry?:boolean;
+    readonly materialTint?:readonly [number,number,number];
+    readonly heightFactor?:number;
+    readonly effectBaseScale?:number;
+    /** EFP size is absolute; the socket supplies position/orientation only. */
+    readonly absoluteEffectScale?:boolean;
+    /** Stop new particle births at this actor-local time; existing particles finish. */
+    readonly emissionEnd?:number;
+    readonly effectRotation?:{readonly axis:'x'|'y'|'z';readonly angle:number};
+    readonly effectAnchor?:{readonly bone:string|null;readonly offset:readonly [number,number,number]};
+    readonly height?:number;
+    readonly pickable?:boolean;
+    readonly bodyVolume?:{readonly index:number;readonly female:boolean};
+    readonly opacity?:number;
+    readonly layers?:readonly CharacterLayer[];
+    readonly attachment?:{readonly gid:number;readonly bone:string;readonly offset:readonly [number,number,number];readonly rootIfMissing?:boolean;readonly root?:boolean;readonly basis?:'native'|'bsr';readonly modelScale?:number;readonly rotation?:Float32Array};
+    readonly mountedOn?: number;
+    readonly gid: number;
+    readonly model: string;
+    readonly pose: Omit<import('./gameplay').Pose, 'angle'> & {
+        readonly yaw: import('@/engine/foundation/math/angles').Radians;
+    };
+    readonly clip: string;
+    readonly time: number;
+    readonly loop: boolean;
+    readonly scale: number;
+}
+export interface CharacterAttachment {
+    readonly branches?:{readonly slot:number;readonly entries:readonly import("@/engine/foundation/animation/equipment-sockets").EquipmentBranch[]};
+    readonly equipment?:{readonly refObjId:number;readonly plus:number};
+    readonly model: string;
+    readonly parts: readonly string[];
+    readonly covers: readonly number[];
+}

@@ -1,0 +1,29 @@
+# Every text file is stored and checked out as LF, on every platform, so the
+# bytes a test hashes on Windows are the bytes a clean CI checkout produces.
+# scripts/checks/check_source_encoding.mjs enforces UTF-8, no BOM and LF on
+# maintained source; apps/server/.gitattributes repeats these rules because
+# that module is also built on its own.
+* text=auto eol=lf
+
+# PowerShell is Windows-native tooling and stays CRLF (ASCII-only).
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+
+# Binary fixtures and assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.cur binary
+*.wav binary
+*.mp3 binary
+*.glb binary
+*.bin binary
+*.zst binary
+*.gz binary
+*.br binary
+*.exe binary
+*.dll binary
+*.wasm binary

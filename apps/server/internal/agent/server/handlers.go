@@ -1,0 +1,322 @@
+package agentserver
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+	"opensro.online/server/internal/cluster/shard"
+	"opensro.online/server/internal/security/auth"
+)
+
+type serverInfo struct {
+	ID             string `json:"id"`
+	NativeServerID uint16 `json:"nativeServerId"`
+	NativeFarmID   uint16 `json:"nativeFarmId"`
+	Name           string `json:"name"`
+	IsTest         bool   `json:"isTest"`
+	OnlinePlayers  int    `json:"onlinePlayers"`
+	Capacity       int    `json:"capacity"`
+	Operating      bool   `json:"operating"`
+	TransportURL   string `json:"transportUrl"`
+}
+
+func (server *Server) handleServers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	statuses := server.directory.Snapshot(server.now())
+	rows := make([]serverInfo, 0, len(statuses))
+	for _, status := range statuses {
+		rows = append(rows, serverInfo{
+			ID:             status.ID,
+			NativeServerID: status.NativeServerID,
+			NativeFarmID:   status.NativeFarmID,
+			Name:           status.Name,
+			IsTest:         status.Test,
+			OnlinePlayers:  status.OnlinePlayers,
+			Capacity:       status.Capacity,
+			Operating:      status.Operating,
+			TransportURL:   status.AdvertisedTransportURL(),
+		})
+	}
+	writeJSON(w, http.StatusOK, rows)
+}
+
+func (server *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var request struct {
+		ID         string `json:"id"`
+		Password   string `json:"password"`
+		ServerID   string `json:"serverId"`
+		DivisionID string `json:"divisionId"`
+		ChannelID  string `json:"channelId"`
+	}
+	refuse := func(nativeStatus int, code, message string) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok": false, "nativeTitleStatus": nativeStatus,
+			"code": code, "message": message,
+		})
+	}
+	passwordRefusal := func(failed bool) {
+		argument, admitted := server.passwordFailures.update(clientIP(r), request.ID, server.now(), failed, false)
+		if !admitted {
+			refuse(5, "RATE_LIMITED", "Credential failure tracking is at capacity.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "nativeTitleStatus": 2, "nativeTitleArgument": argument, "code": "INVALID_CREDENTIALS", "message": "The id or password is incorrect."})
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		refuse(5, "BAD_REQUEST", "Malformed login request.")
+		return
+	}
+	if !server.loginAttempts.Allow(clientIP(r)) {
+		w.Header().Set("Retry-After", "6")
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok": false, "nativeTitleStatus": 5,
+			"code": "RATE_LIMITED", "message": "Too many login attempts.",
+		})
+		return
+	}
+	definition, ok := server.catalog.Resolve(request.ServerID)
+	if !ok {
+		refuse(5, "UNKNOWN_SHARD", "Unknown server.")
+		return
+	}
+	if !definition.Enabled {
+		refuse(5, "SHARD_OFFLINE", "The selected server is not operating.")
+		return
+	}
+	var status shard.Status
+	for _, candidate := range server.directory.Snapshot(server.now()) {
+		if candidate.ID == definition.ID {
+			status = candidate
+			break
+		}
+	}
+	if !status.Operating {
+		refuse(5, "SHARD_OFFLINE", "The selected server is not operating.")
+		return
+	}
+	if status.OnlinePlayers >= status.Capacity {
+		refuse(5, "SHARD_FULL", "The selected server is full.")
+		return
+	}
+	if request.ID == "" || request.Password == "" ||
+		len(request.Password) > maxPasswordBytes {
+		passwordRefusal(true)
+		return
+	}
+	if argument, _ := server.passwordFailures.update(clientIP(r), request.ID, server.now(), false, false); argument&0xffff >= passwordFailureLimit {
+		w.Header().Set("Retry-After", "60")
+		passwordRefusal(false)
+		return
+	}
+
+	select {
+	case server.passwordSlots <- struct{}{}:
+		defer func() { <-server.passwordSlots }()
+	default:
+		w.Header().Set("Retry-After", "6")
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok": false, "nativeTitleStatus": 5,
+			"code": "RATE_LIMITED", "message": "Too many login attempts.",
+		})
+		return
+	}
+	hash, found := server.accounts.PasswordHash(request.ID)
+	if !found {
+		hash = server.dummyHash
+	}
+	if err := bcrypt.CompareHashAndPassword(hash, []byte(request.Password)); !found || err != nil {
+		passwordRefusal(true)
+		return
+	}
+	server.passwordFailures.update(clientIP(r), request.ID, server.now(), false, true)
+
+	token, err := server.sessionSigner.Mint(
+		request.ID,
+		definition.ID,
+		server.now().Add(auth.AgentSessionLifetime),
+	)
+	if err != nil {
+		refuse(5, "INTERNAL", "Token generation failed.")
+		return
+	}
+	server.setBrowserSession(w, r, token, false)
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":                true,
+		"nativeTitleStatus": 1,
+		"nativeServerId":    definition.NativeServerID,
+		"nativeServerName":  definition.Name,
+		"sessionToken":      token,
+		"divisionId":        definition.ID,
+		"transportUrl":      definition.AdvertisedTransportURL(),
+		"nextScene":         "character-select",
+	})
+}
+
+func (server *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	controlShardID, authorized := server.authorizedControlShard(r)
+	if !authorized {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var heartbeat shard.Heartbeat
+	if err := decodeJSON(r, &heartbeat); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "code": "BAD_REQUEST"})
+		return
+	}
+	if heartbeat.ShardID != controlShardID {
+		http.Error(w, "control shard mismatch", http.StatusForbidden)
+		return
+	}
+	if err := server.directory.Publish(heartbeat, server.now()); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"ok": false, "code": "LEASE_REFUSED", "message": err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (server *Server) handleAccountDirectory(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, authorized := server.authorizedControlShard(r); !authorized {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"accountIds": server.accounts.IDs(),
+	})
+}
+
+func (server *Server) handleLeaseRelease(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	controlShardID, authorized := server.authorizedControlShard(r)
+	if !authorized {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var release struct {
+		ShardID    string `json:"shardId"`
+		InstanceID string `json:"instanceId"`
+	}
+	if err := decodeJSON(r, &release); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"ok": false, "code": "BAD_REQUEST",
+		})
+		return
+	}
+	if release.ShardID != controlShardID {
+		http.Error(w, "control shard mismatch", http.StatusForbidden)
+		return
+	}
+	if err := server.directory.Release(release.ShardID, release.InstanceID); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"ok": false, "code": "LEASE_RELEASE_REFUSED", "message": err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (server *Server) handleShardRequest(w http.ResponseWriter, r *http.Request) {
+	claims, ok := server.bearerClaims(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	definition, ok := server.catalog.Resolve(claims.ShardID)
+	if !ok || !definition.Enabled {
+		http.Error(w, "shard unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	operating := false
+	for _, status := range server.directory.Snapshot(server.now()) {
+		if status.ID == claims.ShardID {
+			operating = status.Operating
+			break
+		}
+	}
+	if !operating {
+		http.Error(w, "shard unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	target, err := shardRequestURL(definition.ControlURL, r)
+	if err != nil {
+		http.Error(w, "shard route invalid", http.StatusBadGateway)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBytes+1))
+	if err != nil || int64(len(body)) > maxRequestBytes {
+		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	request, err := http.NewRequestWithContext(
+		r.Context(),
+		r.Method,
+		target,
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		http.Error(w, "shard request failed", http.StatusBadGateway)
+		return
+	}
+	request.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if contentType := r.Header.Get("Content-Type"); contentType != "" {
+		request.Header.Set("Content-Type", contentType)
+	}
+	response, err := server.client.Do(request)
+	if err != nil {
+		http.Error(w, "shard unavailable", http.StatusBadGateway)
+		return
+	}
+	defer response.Body.Close()
+	responseBody, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
+	if err != nil || int64(len(responseBody)) > maxResponseBytes {
+		http.Error(w, "invalid shard response", http.StatusBadGateway)
+		return
+	}
+	if contentType := response.Header.Get("Content-Type"); contentType != "" {
+		w.Header().Set("Content-Type", contentType)
+	}
+	server.rememberBrowserCharacter(w, r, body, responseBody, response.StatusCode)
+	w.WriteHeader(response.StatusCode)
+	_, _ = w.Write(responseBody)
+}
+
+func shardRequestURL(controlURL string, request *http.Request) (string, error) {
+	if strings.Contains(request.URL.Path, "..") {
+		return "", fmt.Errorf("unsafe route path")
+	}
+	base := strings.TrimSuffix(controlURL, "/")
+	target := base + request.URL.EscapedPath()
+	if request.URL.RawQuery != "" {
+		target += "?" + request.URL.RawQuery
+	}
+	return target, nil
+}

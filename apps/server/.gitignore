@@ -1,0 +1,88 @@
+# This module is also built and deployed on its own (cloud build context), so
+# this file is self-contained rather than relying on the monorepo root ignore.
+
+# Scratch output: build binaries, test/run logs, profiles, verification
+# artifacts, and GOTMPDIR all go to temp/. It carries its own throwaway go.mod
+# so `go build ./...` never compiles copies placed there, and the source gates
+# skip it.
+/temp/
+
+# Legacy hidden scratch locations, superseded by temp/. Kept ignored so an old
+# script or habit cannot publish them.
+/.artifacts/
+/.runlogs/
+/.gotmp/
+/hangdemo_tmp/
+
+# Go and native build outputs.
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.obj
+*.pdb
+
+# Test binaries built with `go test -c`.
+*.test
+
+# Go coverage and profiling output.
+*.out
+*.pprof
+*.prof
+
+# Release bundles and captured test streams dropped at the module root.
+/*.zip
+/*.jsonl
+
+# Local IDE and database-tool metadata.
+/.idea/
+/.vscode/
+*.iml
+*.mwb.bak
+/logs.txt
+
+# Runtime log output from local gateway runs.
+*.log
+/gw_out.txt
+/gw_err.txt
+*.pid
+/logs/
+
+# Live authority databases, Nomad client state, and authentication
+# secrets are runtime data and must never enter source control.
+/.state/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Key material and environment overrides. Development certificates are
+# generated under .state/cluster/dev-certs; production secrets come from Nomad
+# Variables (ops/docs/DEPLOYMENT.md), never from files in the tree.
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+.env
+.env.*
+
+# Optional workstation-only Viper configuration. The gateway reads
+# config.{yaml|yml|json|toml} from the working directory; the shipped catalog
+# lives in config/ and is not matched by these root-anchored patterns.
+/config.json
+/config.yaml
+/config.yml
+/config.toml
+
+# Generated Python interpreter caches.
+__pycache__/
+*.py[cod]
+
+# Operating-system metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini

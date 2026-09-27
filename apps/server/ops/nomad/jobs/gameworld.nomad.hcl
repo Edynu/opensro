@@ -1,0 +1,313 @@
+variable "datacenters" {
+  type    = list(string)
+  default = ["dc1"]
+}
+
+variable "nomad_namespace" {
+  type = string
+}
+
+variable "shard_id" {
+  type = string
+}
+
+variable "binary_path" {
+  type = string
+}
+
+variable "catalog_path" {
+  type = string
+}
+
+variable "authority_dir" {
+  type = string
+}
+
+variable "server_game_data_root" {
+  type = string
+}
+
+variable "server_game_data_manifest_digest" {
+  type = string
+}
+
+variable "cert_dir" {
+  type = string
+}
+
+variable "transport_cert_file" {
+  type    = string
+  default = ""
+}
+
+variable "transport_key_file" {
+  type    = string
+  default = ""
+}
+
+variable "transport_tls_id" {
+  type = string
+}
+
+variable "host_network" {
+  type    = string
+  default = "loopback"
+}
+
+variable "control_port" {
+  type = number
+}
+
+variable "transport_port" {
+  type = number
+}
+
+variable "release_id" {
+  type = string
+}
+
+variable "private_network" {
+  type    = string
+  default = "0"
+}
+
+variable "allowed_origins" {
+  type = string
+}
+
+variable "gm_characters" {
+  type    = string
+  default = ""
+}
+
+variable "move_path_guard" {
+  type    = string
+  default = "enforce"
+}
+
+variable "move_client_clip" {
+  type    = string
+  default = "apply"
+}
+
+variable "cpu" {
+  type    = number
+  default = 2000
+}
+
+variable "memory_mb" {
+  type    = number
+  default = 1024
+}
+
+# sro-nomad replaces __SHARD_ID__ with the validated catalog ID before
+# submitting this template. Nomad job IDs are block labels, not HCL values,
+# so they cannot reference an input variable directly.
+job "sro-gameworld-__SHARD_ID__" {
+  namespace   = var.nomad_namespace
+  datacenters = var.datacenters
+  type        = "service"
+
+  meta {
+    sro_release_id       = var.release_id
+    sro_transport_tls_id = var.transport_tls_id
+  }
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "windows"
+  }
+
+  # A shard is stateful. Only a node whose operator-owned metadata explicitly
+  # claims this shard may run its sole writer.
+  constraint {
+    attribute = "${meta.sro_shards}"
+    operator  = "set_contains"
+    value     = var.shard_id
+  }
+
+  update {
+    max_parallel      = 1
+    min_healthy_time  = "10s"
+    healthy_deadline  = "3m"
+    progress_deadline = "5m"
+    auto_revert       = true
+  }
+
+  group "gameworld" {
+    count = 1
+
+    ephemeral_disk {
+      size = 2048
+    }
+
+    network {
+      mode = "host"
+
+      port "control" {
+        static       = var.control_port
+        host_network = var.host_network
+      }
+
+      # One number is reserved for both the TCP WebSocket/HTTP listener and
+      # the UDP WebTransport listener. raw_exec uses host networking, so no
+      # port translation is involved.
+      port "transport" {
+        static       = var.transport_port
+        host_network = var.host_network
+      }
+    }
+
+    restart {
+      attempts = 5
+      interval = "1m"
+      # A crashed process cannot release its 10-second Agent ownership lease.
+      # Wait beyond that lease before starting a fresh process identity so one
+      # crash consumes one restart attempt rather than several refused boots.
+      delay = "12s"
+      mode  = "fail"
+    }
+
+    reschedule {
+      attempts       = 10
+      interval       = "1h"
+      delay          = "5s"
+      delay_function = "exponential"
+      max_delay      = "2m"
+      unlimited      = false
+    }
+
+    task "gameworld" {
+      driver = "raw_exec"
+
+      config {
+        command = var.binary_path
+        # Keep host-level control-plane and cloud credentials out of this
+        # unisolated native process. Nomad's allocation variables remain.
+        denied_envvars = [
+          "NOMAD_TOKEN",
+          "NOMAD_LICENSE",
+          "NOMAD_LICENSE_PATH",
+          "CONSUL_*",
+          "VAULT_*",
+          "AWS_*",
+          "AZURE_*",
+          "ARM_*",
+          "GOOGLE_*",
+          "GITHUB_*",
+          "GITLAB_*",
+        ]
+      }
+
+      env {
+        # Soft Go-runtime budget; this is not a hard total-process RAM cap.
+        GOMEMLIMIT = "128MiB"
+        SRO_SHARD_CATALOG_PATH             = var.catalog_path
+        SRO_SHARD_ID                       = var.shard_id
+        SRO_AGENT_URL_REQUIRE              = "1"
+        SRO_AGENT_IDENTITY_FILE            = "${NOMAD_SECRETS_DIR}/nomad_sro_agent.jwt"
+        SRO_AGENT_SESSION_PUBLIC_KEYS_PATH = "${NOMAD_SECRETS_DIR}/agent-session-public-keys.json"
+        SRO_AUTHORITY_STATE_DIR            = var.authority_dir
+        SRO_AUTHORITY_REQUIRE              = "1"
+        SRO_GM_CHARACTERS                  = var.gm_characters
+        SRO_SERVER_GAME_DATA_ROOT          = var.server_game_data_root
+        SRO_SERVER_GAME_DATA_MANIFEST_DIGEST = var.server_game_data_manifest_digest
+        SRO_GAMEWORLD_CONTROL_ADDR         = "${NOMAD_IP_control}:${NOMAD_PORT_control}"
+        SRO_GAMEWORLD_PRIVATE_NETWORK      = var.private_network
+        SRO_BENCHMARK_FIXTURE_CONTROL       = var.host_network == "loopback" ? "1" : "0"
+        SRO_MOVE_PATH_GUARD                = var.move_path_guard
+        SRO_MOVE_CLIENT_CLIP               = var.move_client_clip
+        TRANSPORT_WT_ADDR                  = "${NOMAD_IP_transport}:${NOMAD_PORT_transport}"
+        TRANSPORT_WS_ADDR                  = "${NOMAD_IP_transport}:${NOMAD_PORT_transport}"
+        TRANSPORT_CERT_DIR                 = var.cert_dir
+        TRANSPORT_CERT_FILE                = var.transport_cert_file
+        TRANSPORT_KEY_FILE                 = var.transport_key_file
+        TRANSPORT_ALLOWED_ORIGINS          = var.allowed_origins
+        SRO_TRANSPORT_TLS_ID               = var.transport_tls_id
+        SRO_RELEASE_ID                     = var.release_id
+      }
+
+      template {
+        data = <<EOH
+{{ with nomadVar "nomad/jobs/sro-gameworld-__SHARD_ID__/gameworld/gameworld" }}
+{{ .agent_session_public_keys }}
+{{ end }}
+EOH
+
+        destination = "secrets/agent-session-public-keys.json"
+        change_mode = "noop"
+        perms       = "0600"
+      }
+
+      identity {
+        name        = "sro_agent"
+        aud         = ["sro-agent"]
+        file        = true
+        ttl         = "5m"
+        change_mode = "noop"
+      }
+
+      # Resolve Agent through Nomad native service discovery. An empty
+      # snapshot renders no URL and remains watched. The application-level
+      # SRO_AGENT_URL_REQUIRE gate then refuses startup without falling back
+      # to loopback; a later registration change restarts the task.
+      template {
+        data = <<EOH
+{{ range nomadService 1 (env "NOMAD_ALLOC_ID") "sro-agent" }}
+SRO_AGENT_URL=http://{{ .Address }}:{{ .Port }}
+{{ end }}
+EOH
+
+        destination = "local/agent.env"
+        env         = true
+        change_mode = "restart"
+        perms       = "0600"
+      }
+
+      service {
+        provider = "nomad"
+        name     = "sro-gameworld-${var.shard_id}"
+        port     = "transport"
+        tags     = ["shard:${var.shard_id}"]
+
+        check {
+          name     = "liveness"
+          type     = "http"
+          path     = "/transport/healthz"
+          interval = "10s"
+          timeout  = "2s"
+
+          check_restart {
+            limit = 3
+            grace = "30s"
+          }
+        }
+
+        # Readiness is intentionally not a restart trigger. Dependency or
+        # authority degradation removes the shard from service without
+        # turning a shared outage into a fleet-wide restart storm.
+        check {
+          name      = "readiness"
+          type      = "http"
+          path      = "/transport/readyz"
+          interval  = "5s"
+          timeout   = "2s"
+          on_update = "require_healthy"
+        }
+      }
+
+      resources {
+        cpu    = var.cpu
+        memory = var.memory_mb
+      }
+
+      logs {
+        max_files     = 10
+        max_file_size = 100
+      }
+
+      shutdown_delay = "5s"
+      kill_timeout   = "60s"
+    }
+  }
+}

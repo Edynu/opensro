@@ -1,0 +1,65 @@
+{
+  "questId": 2,
+  "frames": [
+    {
+      "stage": 0,
+      "progress": 0,
+      "op": 1,
+      "description": "SN_CON_QTUTORIAL_CH_01",
+      "payloadHex": "0102000000110018010101011600534e5f434f4e5f515455544f5249414c5f43485f3031ff"
+    },
+    {
+      "stage": 1,
+      "progress": 0,
+      "op": 2,
+      "description": "SN_CON_QTUTORIAL_CH_02",
+      "payloadHex": "0202000000110018010101011600534e5f434f4e5f515455544f5249414c5f43485f3032ff"
+    },
+    {
+      "stage": 3,
+      "progress": 0,
+      "op": 2,
+      "description": "SN_CON_QTUTORIAL_CH_03",
+      "payloadHex": "0202000000110018010101011600534e5f434f4e5f515455544f5249414c5f43485f3033ff"
+    },
+    {
+      "stage": 6,
+      "progress": 0,
+      "op": 2,
+      "description": "SN_CON_QTUTORIAL_CH_04",
+      "payloadHex": "0202000000110018010101011600534e5f434f4e5f515455544f5249414c5f43485f3034ff"
+    },
+    {
+      "stage": 8,
+      "progress": 29,
+      "op": 2,
+      "description": "SN_CON_QTUTORIAL_CH_05",
+      "payloadHex": "0202000000110018010101011600534e5f434f4e5f515455544f5249414c5f43485f3035011d000000"
+    },
+    {
+      "stage": 8,
+      "progress": 30,
+      "op": 2,
+      "description": "SN_CON_QTUTORIAL_CH_05",
+      "payloadHex": "0202000000110018010101001600534e5f434f4e5f515455544f5249414c5f43485f3035011e000000"
+    },
+    {
+      "stage": 8,
+      "progress": 30,
+      "op": 3,
+      "payloadHex": "0302000000"
+    }
+  ],
+  "text": {
+    "SN_CON_QTUTORIAL_CH_01": "Talk to Sonhyeon",
+    "SN_CON_QTUTORIAL_CH_02": "Talk to Mrs Jang, protector dealer",
+    "SN_CON_QTUTORIAL_CH_03": "Request of Jinjin, general store shop clerk",
+    "SN_CON_QTUTORIAL_CH_04": "Purchase 1 HP recovery herb",
+    "SN_CON_QTUTORIAL_CH_05": "Hunt 30 Mangyang (%d)"
+  },
+  "primaryFileHashes": {
+    "textquest.txt": "b93badf317846a98c9101930d91eee8e914c32ff0d64ec9cd900e70c307c1eab",
+    "questdata.txt": "d0f1b697b0429ac714a348688d29fdee991d0fb5a702633d612968e4fcdc736f",
+    "questcontentsdata.txt": "aedb815498200929715dcc0e29757e77f2d15cdf5d6e52f390122b0fe9674b0e"
+  }
+}

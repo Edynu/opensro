@@ -1,0 +1,38 @@
+{
+  "name": "@sro/client-next",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5180 --strictPort",
+    "dev:https": "vite --mode https --host --port 5180 --strictPort",
+    "check": "pnpm typecheck && pnpm verify:test-types && pnpm verify:ownership && pnpm verify:capabilities && pnpm verify:execution && pnpm verify:layout && pnpm verify:retail-panels && pnpm verify:delivery && pnpm verify:item-sounds && pnpm audit:audio && pnpm test",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "verify:test-types": "node tools/verify-test-types.mjs",
+    "verify:ownership": "node tools/verify-ownership.mjs",
+    "verify:capabilities": "node tools/verify-capabilities.mjs",
+    "verify:execution": "node tools/generate-execution-map.mjs",
+    "verify:layout": "node tools/verify-layout.mjs",
+    "verify:retail-panels": "node tools/audit-retail-panels.mjs",
+    "verify:delivery": "node ../../scripts/checks/check_asset_delivery.mjs",
+    "verify:item-sounds": "node tools/generate-item-sounds.mjs",
+    "audit:audio": "node tools/audit-audio-parity.mjs",
+    "audit:bsr": "node tools/audit-bsr-parity.mjs",
+    "audit:vfx": "node tools/audit-effect-coverage.mjs",
+    "test": "node --test tests/architecture/*.test.mjs tests/runtime/*.test.mjs",
+    "test:browser": "node --test tests/browser/*.test.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4180 --strictPort",
+    "build:beta": "pnpm check && node tools/beta/build.mjs",
+    "verify:beta": "node tools/beta/verify.mjs",
+    "serve:beta": "node tools/beta/serve.mjs",
+    "symbolicate:beta": "node tools/beta/symbolicate.mjs",
+    "test:beta": "node --test tests/runtime/beta-release.test.mjs"
+  },
+  "devDependencies": {
+    "@babylonjs/core": "9.18.1",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "typescript": "catalog:"
+  }
+}

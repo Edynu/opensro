@@ -1,0 +1,51 @@
+{
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "qualification": "Night producer only stores a flag. Instance activation/render branches are captured in bsr-route-native.json.",
+  "functions": [
+    {
+      "va": 10663152,
+      "blocks": [
+        {
+          "start": 10663152,
+          "end": 10663162,
+          "bytes": "b9c800f100e9d62f0000",
+          "instructions": [
+            {
+              "va": 10663152,
+              "asm": "mov     ecx, 0xf100c8"
+            },
+            {
+              "va": 10663157,
+              "asm": "jmp     0xa2e4d0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "va": 10675408,
+      "blocks": [
+        {
+          "start": 10675408,
+          "end": 10675421,
+          "bytes": "8b4424048981a8010000c20400",
+          "instructions": [
+            {
+              "va": 10675408,
+              "asm": "mov     eax, dword [esp+0x4]"
+            },
+            {
+              "va": 10675412,
+              "asm": "mov     dword [ecx+0x1a8], eax"
+            },
+            {
+              "va": 10675418,
+              "asm": "retn    0x4"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "vtables": []
+}

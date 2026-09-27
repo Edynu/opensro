@@ -1,0 +1,51 @@
+{
+  "comment": [
+    "GENERATED + PINNED by internal/game/item/wire/actionresultfixture_test.go.",
+    "MonsterState.ApplyDamage owns the sole monster CurrentHP mutation; its committed Applied/Fatal result",
+    "is serialized by SkillCastSingleTargetResult as one B245 impact row by one target column.",
+    "The same live target pose is appended as the B245 bit-3 steering point, which owns local holder facing.",
+    "The browser verifier consumes these exact bytes through the real 776830/8e0440/8e0190/8e1710/8db770/8d5440 chain.",
+    "Live equipped-weapon base attacks emit this shape after the pinned v1.188 CFormulae normal lane."
+  ],
+  "expect": {
+    "skillId": 1,
+    "casterGid": 100003,
+    "targetGid": 400001,
+    "initialHp": 54,
+    "maxWireDamage": 16777215,
+    "ownerOrTargetGid": 400001,
+    "facingRegionId": 25258,
+    "facingX": 812,
+    "facingY": 75,
+    "facingZ": 392,
+    "impactCount": 1,
+    "targetCount": 1,
+    "resultKind": 0,
+    "secondaryAmount": 0,
+    "nonFatalResultFlags": 0
+  },
+  "scenarios": [
+    {
+      "name": "non-fatal-hit",
+      "requestedDamage": 7,
+      "beforeHp": 54,
+      "appliedDamage": 7,
+      "currentHp": 47,
+      "fatal": false,
+      "instanceToken": 1,
+      "opcode": 45637,
+      "payloadHex": "010001000000a386010001000000811a0600090101811a0600000007000000000000aa622c034b008801"
+    },
+    {
+      "name": "fatal-overkill",
+      "requestedDamage": 1000,
+      "beforeHp": 47,
+      "appliedDamage": 47,
+      "currentHp": 0,
+      "fatal": true,
+      "instanceToken": 2,
+      "opcode": 45637,
+      "payloadHex": "010001000000a386010002000000811a0600090101811a060080002f000000000000aa622c034b008801"
+    }
+  ]
+}

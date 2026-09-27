@@ -1,0 +1,49 @@
+{
+  "comment": [
+    "GENERATED + PINNED by internal/game/enterworld/monsterfixture_test.go (TestMonsterSpawnFixturePinned).",
+    "The normal region-scoped population object-list bracket for one authored",
+    "MOB_CH_MANGNYANG: 0x30CB {byListSub=1, u16 count} start, 0x3417 create row(s)",
+    "(shared bionic tail + rarity u8, NO HP), empty 0x330A finalize. Consumed by the",
+    "harness monsterServerRowsParity test through the REAL 77bd30/77bdc0/77bfb0/777370 chain.",
+    "refObjSnapshot here carries the fixture row only: the full 178-type roster (A8 CLOSED by",
+    "RZ seq234) joins the fixture when scoped population emission lands with Q2.",
+    "Regenerate: UPDATE_MONSTER_SPAWN_FIXTURE=1 go test ./internal/game/enterworld -run TestMonsterSpawnFixturePinned"
+  ],
+  "refObjSnapshot": [
+    {
+      "refObjId": 1933,
+      "tidWord": 198,
+      "codename": "MOB_CH_MANGNYANG",
+      "nameStrId": "SN_MOB_CH_MANGNYANG",
+      "name": "Mangyang",
+      "level": 1,
+      "maxHp": 54,
+      "kind": "monster"
+    }
+  ],
+  "packets": [
+    {
+      "opcode": 12491,
+      "payloadHex": "010100"
+    },
+    {
+      "opcode": 13335,
+      "payloadHex": "8d070000811a0600a862000073440000a0410080e04300000002000000000000000000410000b0410000c842000108004d616e6779616e6700"
+    },
+    {
+      "opcode": 13066,
+      "payloadHex": ""
+    }
+  ],
+  "expect": {
+    "gid": 400001,
+    "refObjId": 1933,
+    "regionId": 25256,
+    "x": 972,
+    "y": 20,
+    "z": 449,
+    "walkSpeed": 8,
+    "runSpeed": 22,
+    "name": "Mangyang"
+  }
+}

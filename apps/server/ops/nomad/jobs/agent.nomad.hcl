@@ -1,0 +1,222 @@
+variable "datacenters" {
+  type    = list(string)
+  default = ["dc1"]
+}
+
+variable "nomad_namespace" {
+  type = string
+}
+
+variable "binary_path" {
+  type = string
+}
+
+variable "catalog_path" {
+  type = string
+}
+
+variable "directory_state_path" {
+  type = string
+}
+
+variable "host_network" {
+  type    = string
+  default = "loopback"
+}
+
+variable "agent_port" {
+  type    = number
+  default = 8787
+}
+
+variable "release_id" {
+  type = string
+}
+
+variable "private_network" {
+  type    = string
+  default = "0"
+}
+
+variable "allowed_origins" {
+  type = string
+}
+
+variable "identity_issuer" {
+  type = string
+}
+
+variable "identity_jwks_url" {
+  type = string
+}
+
+variable "cpu" {
+  type    = number
+  default = 500
+}
+
+variable "memory_mb" {
+  type    = number
+  default = 256
+}
+
+job "sro-agent" {
+  namespace   = var.nomad_namespace
+  datacenters = var.datacenters
+  type        = "service"
+
+  meta {
+    sro_release_id = var.release_id
+  }
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "windows"
+  }
+
+  constraint {
+    attribute = "${meta.sro_agent}"
+    value     = "true"
+  }
+
+  update {
+    max_parallel      = 1
+    min_healthy_time  = "10s"
+    healthy_deadline  = "2m"
+    progress_deadline = "5m"
+    auto_revert       = true
+  }
+
+  group "agent" {
+    count = 1
+
+    ephemeral_disk {
+      size = 1024
+    }
+
+    network {
+      mode = "host"
+
+      port "http" {
+        static       = var.agent_port
+        host_network = var.host_network
+      }
+    }
+
+    restart {
+      attempts = 5
+      interval = "1m"
+      delay    = "2s"
+      mode     = "fail"
+    }
+
+    reschedule {
+      attempts       = 10
+      interval       = "1h"
+      delay          = "5s"
+      delay_function = "exponential"
+      max_delay      = "2m"
+      unlimited      = false
+    }
+
+    task "agent" {
+      driver = "raw_exec"
+
+      config {
+        command = var.binary_path
+        # raw_exec inherits the Nomad client's host environment. Never let
+        # control-plane or cloud credentials cross into the game process.
+        denied_envvars = [
+          "NOMAD_TOKEN",
+          "NOMAD_LICENSE",
+          "NOMAD_LICENSE_PATH",
+          "CONSUL_*",
+          "VAULT_*",
+          "AWS_*",
+          "AZURE_*",
+          "ARM_*",
+          "GOOGLE_*",
+          "GITHUB_*",
+          "GITLAB_*",
+        ]
+      }
+
+      env {
+        SRO_SHARD_CATALOG_PATH         = var.catalog_path
+        SRO_AGENT_ACCOUNTS_PATH        = "${NOMAD_SECRETS_DIR}/accounts.json"
+        SRO_AGENT_API_ADDR             = "${NOMAD_IP_http}:${NOMAD_PORT_http}"
+        SRO_AGENT_DIRECTORY_STATE_PATH = var.directory_state_path
+        SRO_AGENT_PRIVATE_NETWORK      = var.private_network
+        SRO_AGENT_ALLOWED_ORIGINS      = var.allowed_origins
+        SRO_NOMAD_IDENTITY_ISSUER      = var.identity_issuer
+        SRO_NOMAD_JWKS_URL             = var.identity_jwks_url
+        SRO_NOMAD_NAMESPACE            = var.nomad_namespace
+        SRO_AGENT_SESSION_KEYRING_PATH = "${NOMAD_SECRETS_DIR}/agent-session-keys.json"
+        SRO_RELEASE_ID                 = var.release_id
+      }
+
+      template {
+        data = <<EOH
+{{ with nomadVar "nomad/jobs/sro-agent/agent/agent" }}
+{{ .agent_session_keyring }}
+{{ end }}
+EOH
+
+        destination = "secrets/agent-session-keys.json"
+        change_mode = "noop"
+        perms       = "0600"
+      }
+
+      template {
+        data = <<EOH
+__ACCOUNT_VARIABLES__
+EOH
+
+        destination = "secrets/accounts.json"
+        change_mode = "restart"
+        perms       = "0600"
+      }
+
+      service {
+        provider = "nomad"
+        name     = "sro-agent"
+        port     = "http"
+
+        check {
+          name     = "liveness"
+          type     = "http"
+          path     = "/healthz"
+          interval = "10s"
+          timeout  = "2s"
+
+          check_restart {
+            limit = 3
+            grace = "20s"
+          }
+        }
+
+        check {
+          name      = "readiness"
+          type      = "http"
+          path      = "/readyz"
+          interval  = "5s"
+          timeout   = "2s"
+          on_update = "require_healthy"
+        }
+      }
+
+      resources {
+        cpu    = var.cpu
+        memory = var.memory_mb
+      }
+
+      logs {
+        max_files     = 10
+        max_file_size = 50
+      }
+
+      shutdown_delay = "5s"
+      kill_timeout   = "20s"
+    }
+  }
+}

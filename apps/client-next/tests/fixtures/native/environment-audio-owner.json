@@ -1,0 +1,58 @@
+{
+  "schema": "sro-native-environment-audio-research-v1",
+  "status": "extracted",
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "owner": {
+    "rtti": ".?AVCGEffSoundBody@@",
+    "typeDescriptorVa": "0xccd5fc",
+    "completeObjectLocatorVa": "0xc54688",
+    "constructorVa": "0x8fc340"
+  },
+  "vtableEntry": {
+    "tableVa": "0xc15e0c",
+    "slotIndex": 5,
+    "slotOffset": 20,
+    "entryVa": "0xc15e20",
+    "targetVa": "0x8f7590"
+  },
+  "blocks": [
+    {
+      "label": "register",
+      "startVa": "0x8fc44e",
+      "endVa": "0x8fc491",
+      "bytes": "68d00700006a018bcec644244c07899ee4000000899ee8000000899ef0000000899e48010000889e4c010000899ed8000000899edc000000899ee0000000e89f461000",
+      "sha256": "a97ba7225184e084194ff12d34e81a67a5a6900814089674b1f006736c65aa78"
+    },
+    {
+      "label": "due",
+      "startVa": "0x8f79b9",
+      "endVa": "0x8f7a06",
+      "bytes": "833e000f843f0200008b460883f8020f872d0200008b4e288b018b93dc0000008b401c52ffd08b4e288b118b420c6a006a006a006a00ffd08b3ee87ecd0c008b4e042bcf33d2f7f103d7895608",
+      "sha256": "54c87459a628d262153bd1ea8dbebe2e02c57097d476cfbee3be01613a7f996c"
+    },
+    {
+      "label": "decrement",
+      "startVa": "0x8f7bfb",
+      "endVa": "0x8f7c01",
+      "bytes": "83c0fe894608",
+      "sha256": "4701932d614ff9d3dbff3f0b0314170f3f8408b8c52da61ad328c46ed17058ed"
+    },
+    {
+      "label": "timer-dispatch",
+      "startVa": "0xa00c18",
+      "endVa": "0xa00c47",
+      "bytes": "a118c9f0002b47083b4704722283470c01893d20c9f0008b0f8b02518bca8b5014ffd2a118c9f0008b54240c894708",
+      "sha256": "635a84dc40d8002425581f06930ddf7f61628ff282037f648888fa3bf85caeab"
+    }
+  ],
+  "claims": {
+    "timerId": 1,
+    "periodMs": 2000,
+    "counterStep": 2,
+    "initialCounter": "authored lower bound; no RNG",
+    "randomWhen": "lower > 0 and remaining <= 2",
+    "nextCounter": "lower + CRT_rand() % (upper - lower)",
+    "stall": "at most one invocation per timer dispatch; timestamp resets to now",
+    "order": "application timer dispatch precedes application update; rows traverse authored order"
+  }
+}

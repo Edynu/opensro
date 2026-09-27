@@ -1,0 +1,128 @@
+package simulation
+
+import (
+	"math"
+	"sort"
+
+	worldgeom "opensro.online/server/internal/game/world"
+	"opensro.online/server/internal/game/world/monster"
+)
+
+// ordinaryPlayerAcquisition is the outdoor, player-only projection of selector
+// 2 (5464E0) in the v1.188 research server. Special tactics selectors and dungeon
+// cell enumeration remain outside this projection. The independent observer
+// and hostility checks precede ranking; companion selection remains open.
+func ordinaryPlayerAcquisition(actor monster.Instance, from monster.Pose, players []playerPose, sightRange float64) (playerPose, bool) {
+	if len(players) == 0 {
+		return playerPose{}, false
+	}
+	sightFloat := float32(sightRange) // tactics+15C, then truncating conversion
+	if math.IsNaN(float64(sightFloat)) || sightFloat < 0 || sightFloat > 1920 {
+		return playerPose{}, false // outside the native query's admitted range
+	}
+	sight := uint32(sightFloat)
+	blocks := acquisitionBlocks(from, sight)
+	type candidate struct {
+		player playerPose
+		block  int
+	}
+	ordered := make([]candidate, 0, len(players))
+	for _, player := range players {
+		block := worldgeom.InterestBlockAt(worldgeom.RegionXZ{
+			RegionID: player.Pose.RegionID, X: float64(float32(player.Pose.X)), Z: float64(float32(player.Pose.Z)),
+		})
+		if order, exists := blocks.order(block); exists && player.Gid != 0 &&
+			monster.AllowsTargetStatus(actor.Ref.TidWord, actor.Nest.NativeTacticsFlags, player.NativeBodyStatus) &&
+			ordinaryPlayerHostility(actor, player) {
+			ordered = append(ordered, candidate{player: player, block: order})
+		}
+	}
+	// 53AE20 visits rows, then columns. 534740/5405B0 traverse each block's
+	// player tree; 534118 passes object+8 (GID) to its insertion at 41BBA0.
+	// Sort a detached projection; never reorder the shared session snapshot.
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].block != ordered[j].block {
+			return ordered[i].block < ordered[j].block
+		}
+		return ordered[i].player.Gid < ordered[j].player.Gid
+	})
+	var best playerPose
+	var bestDistance uint32
+	for _, candidate := range ordered {
+		distance := acquisitionDistance(from, candidate.player.Pose)
+		if acquisitionRankAccepts(best.Gid, bestDistance, distance, sight) {
+			best, bestDistance = candidate.player, uint32(distance)
+		}
+	}
+	return best, best.Gid != 0
+}
+
+// The current ordinary player projection has no producers for native bound-
+// target, excluded-GID, C44, or level/rarity protection state. Do not derive
+// those fields from movement, GM privilege, presentation effects, or names.
+// This adapter closes only its existing authoritative body-status input.
+// Remembered-opponent lookup deliberately does not call it (547E04/547E0F).
+func ordinaryPlayerHostility(actor monster.Instance, player playerPose) bool {
+	return monster.AllowsHostility(monster.HostilityObserver{
+		TID: actor.Ref.TidWord, ReferenceFlags: actor.Nest.NativeTacticsFlags, Mode: 1,
+	}, monster.HostilityTarget{GID: player.Gid, BodyStatus: player.NativeBodyStatus, Player: true})
+}
+
+// 546687..546758: comparisons use the exact integer, not float32(integer).
+// Finite world positions are the adapter's input domain. A zero accumulator
+// intentionally allows replacement even by a farther in-range candidate.
+func acquisitionRankAccepts(target, best uint32, distance float32, sight uint32) bool {
+	d := float64(distance)
+	return !math.IsNaN(d) && d >= 0 && d <= float64(sight) &&
+		(target == 0 || best == 0 || d < float64(best))
+}
+
+// 531180 clamps query extent to 1..320; CRgnTerrain::query (53AE20)
+// further clamps to 1..310 and samples (x-r,x,x+r) in each of three z rows.
+// Repeated blocks are omitted. This is broad-phase selection, not the sight
+// predicate: a player elsewhere in a sampled block still reaches ranking.
+type acquisitionBlockSet struct {
+	blocks [9]worldgeom.InterestBlock
+	count  int
+}
+
+func (s acquisitionBlockSet) order(block worldgeom.InterestBlock) (int, bool) {
+	for i := 0; i < s.count; i++ {
+		if s.blocks[i] == block {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func acquisitionBlocks(from monster.Pose, sight uint32) acquisitionBlockSet {
+	radius := float32(sight)
+	if radius < 1 {
+		radius = 1
+	}
+	if radius > 310 {
+		radius = 310
+	}
+	x0, z0 := float32(from.X)-radius, float32(from.Z)-radius
+	var blocks acquisitionBlockSet
+	for z := 0; z < 3; z++ {
+		for x := 0; x < 3; x++ {
+			block := worldgeom.InterestBlockAt(worldgeom.RegionXZ{
+				RegionID: from.RegionID,
+				X:        float64(float32(float64(x0) + float64(x)*float64(radius))),
+				Z:        float64(float32(float64(z0) + float64(z)*float64(radius))),
+			})
+			if _, exists := blocks.order(block); !exists {
+				blocks.blocks[blocks.count] = block
+				blocks.count++
+			}
+		}
+	}
+	return blocks
+}
+
+// 430BA0 stores each region-relative displacement as float32. 53D7A0
+// squares those values, rounds their sum to float32, then takes its square root.
+func acquisitionDistance(from monster.Pose, to Spawn) float32 {
+	return monster.NativeActorDistance(from, monster.Pose{RegionID: to.RegionID, X: to.X, Y: to.Y, Z: to.Z})
+}

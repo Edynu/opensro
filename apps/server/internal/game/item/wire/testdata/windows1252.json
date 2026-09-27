@@ -1,0 +1,10 @@
+{
+  "api": "WideCharToMultiByte",
+  "codePage": 1252,
+  "flags": 0,
+  "input": "each UTF-16 code unit 0..65535, explicit length 1",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "activeCodePage": 1252,
+  "supplementaryScalarsVerifiedAsTwoDefaultBytes": 1048576,
+  "sha256": "543f5814d476da3e989c26bd886f73c874126d5e14657bd78f761ed575658ab4"
+}

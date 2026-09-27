@@ -1,0 +1,29 @@
+{
+  "schema": "sro-flare-pixel-policy-v9",
+  "acceptance": "Zero RGB differences across four complete 512x384 images. Opaque canvas alpha excluded. No tolerance increase after comparison.",
+  "scope": "D3D9 HAL instruction-derived chain with constant textures. Not an original-client whole-scene capture.",
+  "sha256": {
+    "src/engine/runtime/renderer/device/flares.ts": "53ba86b04f951ba2f063578b68678761523f8709ed03b447911616f62f73aecc",
+    "src/engine/runtime/renderer/device/images.ts": "f5cbf8b7afb7caee8ef857b95ccbe84a062ba2d449ced83faa3f43b45f6db975",
+    "src/engine/runtime/renderer/device/pipelines.ts": "66318bba0e4c2a5400574d575359444634d1bdda8ba5b4796fbf93750dc1923a",
+    "tools/native-flare-reference.cpp": "a42ac6a730b8b7ab3034d5de5b87ae986d51d0deaafe03dc04d8ad2e84e21c80",
+    "tools/build-native-flare-reference.ps1": "83144eb272f6a1d4dceffed761861c034cd96cc72dc474a7bd8c9d9dbc88cbd1",
+    "tests/browser/native-flares.test.mjs": "3714e68a86c2afdcc710783949747cf47444fc341d5bffc764f04d02e6fce6de",
+    "src/engine/foundation/assets/native-texture.ts": "42c7069a0267d9fc82fe1b068659f151a5b6813bd7004015758463e5ecbdd214",
+    "src/engine/runtime/renderer/device/device.ts": "8ce7f40681819f71fc3d12aeb8acb18e9a109b73e77a2a5693e6b1b764e8577f",
+    "tools/native-lens-resources.cpp": "28c58bd861ebcf3edf4c10d6c38ac13cedd4bbcad089f4996a683d91992227aa",
+    "docs/evidence/native-lens-resources.json": "3ef560285e2005e2acfd07d5bd916340ef57518016f8310d3684681f1c7891d6",
+    "../client/public/assets/images/Map_extracted/sun/lens1.texture": "50e3795d0ad64c9f123e1dc59f069a0b4c0e1b4c640b12144ecfb45380809922",
+    "../client/public/assets/images/Map_extracted/sun/lens2.texture": "93b9d512d989c13656f6b60f6207eeeeb3afa9e4ccdbaa198852dcfb2dd98c07",
+    "../client/public/assets/images/Map_extracted/sun/lens3.texture": "7e767851182690178cba8a724b045576c3eed13b02408d07474177d23877f2ae",
+    "../client/public/assets/images/Map_extracted/sun/lens4.texture": "dddb64f5e7f71dc59dd3de0f59622a17a5f2c54a5d88577be99ad5019eb179b8",
+    "../client/public/assets/images/Map_extracted/sun/lens5.texture": "fa9126569c0464e37c6652ec2f20b162277c8626f0cf6468b3c79b138ab38bcf",
+    "../client/public/assets/images/Map_extracted/sun/lens6.texture": "f1788316d6c0d9397696f80645d4775fd8a4d56dcd270ab6deef990eb2be0078",
+    "../client/public/assets/images/Map_extracted/sun/lens7.texture": "f8ee57b3b26477d695f227bbf6b201b70137ca75288551c8918d95166fb1a41f",
+    "../client/public/assets/images/Map_extracted/sun/lens8.texture": "878dc1d6d57eded8798725565892bf6df809f255f128dd4a676d8a3c83dc4019"
+  },
+  "change": "Prospective input freeze after per-block fog and factor-alpha material integration; flare shader, images, native fixture, comparator and zero-difference acceptance unchanged.",
+  "previousPolicySha256": "f81c9f0302a435eab40720f950995fe891f2113e9f32670919450d1cc36bad87",
+  "candidateChange": "Preserve original texture format and SDK D3DX resource mips. Comparator, shader and zero RGB tolerance unchanged.",
+  "revisionReason": "Prospective re-freeze after current shared geometry pipeline changes; unchanged native fixture, comparator and zero RGB acceptance. Results must be rerun."
+}

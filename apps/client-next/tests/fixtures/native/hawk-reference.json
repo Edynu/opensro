@@ -1,0 +1,2644 @@
+{
+  "format": "sro-native-hawk-v1",
+  "binarySha256": "375e868234437e815af8ce9289ddea7ec9144430f4ea24e32988a6d6c9dd108a",
+  "proposalSha256": "2627ea752d3ff62f0eedee9da69348a053ff9c58b9f279510f7274d8d66f2137",
+  "floatingControlWord": "0x027f",
+  "intervals": [
+    "8e3730..8e375a",
+    "8e3800..8e3963",
+    "8e39e0..8e40e5",
+    "8e3610..8e36f9",
+    "8e32c0..8e3350",
+    "8e3350..8e343b",
+    "8e3440..8e3602"
+  ],
+  "scope": "Validate the frozen hawk proposal with original v1.150 x86 instructions.\nAnimation/registry/model services are captured; motion and mode arithmetic execute.\nThis is a bounded behavioral reference, not a whole-scene pixel certificate.\n",
+  "cases": [
+    {
+      "name": "near",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "far",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            900,
+            15,
+            90
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "arrive",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 0,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            0,
+            0,
+            10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "large-frame",
+      "before": {
+        "mode": 0,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 1000,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            30,
+            6,
+            -20
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.699999988079071,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "timeout",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "dead",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": true
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "absent",
+      "before": {
+        "mode": 0,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": null
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          6.0,
+          28.0,
+          8.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.699999988079071
+      },
+      "calls": []
+    },
+    {
+      "name": "near",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 1,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": []
+    },
+    {
+      "name": "far",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            900,
+            15,
+            90
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          890.0496215820312,
+          44.0,
+          89.00495910644531
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.670465111732483
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "arrive",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 0,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            0,
+            0,
+            10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "large-frame",
+      "before": {
+        "mode": 1,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 1000,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            30,
+            6,
+            -20
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          22.03308868408203,
+          35.0,
+          -13.956135749816895
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.9218007922172546,
+        "targetYaw": 0.9218007922172546
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "timeout",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 1,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": []
+    },
+    {
+      "name": "dead",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": true
+        }
+      },
+      "after": {
+        "mode": 1,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": []
+    },
+    {
+      "name": "absent",
+      "before": {
+        "mode": 1,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": null
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "near",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "far",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            900,
+            15,
+            90
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "arrive",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 0,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            0,
+            0,
+            10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "large-frame",
+      "before": {
+        "mode": 2,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 1000,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            30,
+            6,
+            -20
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.30000001192092896,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "timeout",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "dead",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": true
+        }
+      },
+      "after": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": []
+    },
+    {
+      "name": "absent",
+      "before": {
+        "mode": 2,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": null
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "near",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 3,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 4984,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": []
+    },
+    {
+      "name": "far",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            900,
+            15,
+            90
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 3,
+        "position": [
+          1.5915335416793823,
+          21.041128158569336,
+          0.15915334224700928
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 4984,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.670465111732483
+      },
+      "calls": []
+    },
+    {
+      "name": "arrive",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 0,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            0,
+            0,
+            10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 3,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 3.1415927410125732
+      },
+      "calls": []
+    },
+    {
+      "name": "large-frame",
+      "before": {
+        "mode": 3,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 1000,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            30,
+            6,
+            -20
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 3,
+        "position": [
+          22.03308868408203,
+          35.0,
+          -13.956135749816895
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 4000,
+        "yaw": 0.9218007922172546,
+        "targetYaw": 0.9218007922172546
+      },
+      "calls": []
+    },
+    {
+      "name": "timeout",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": -15,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": [
+        [
+          "stop",
+          0
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "dead",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": true
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          1.201410174369812,
+          21.869348526000977,
+          -0.600705087184906
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 4984,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 1.1071487665176392
+      },
+      "calls": [
+        [
+          "stop",
+          0
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "absent",
+      "before": {
+        "mode": 3,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": null
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "calls": [
+        [
+          "stop",
+          0
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "near",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "name": "far",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            900,
+            15,
+            90
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "name": "arrive",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 0,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            0,
+            0,
+            10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.0,
+          29.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "name": "large-frame",
+      "before": {
+        "mode": 4,
+        "position": [
+          1.0,
+          10.0,
+          2.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 1000,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            30,
+            6,
+            -20
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 0,
+        "position": [
+          3.0,
+          25.0,
+          5.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 2.5535900592803955,
+        "targetYaw": 2.5535900592803955
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "timeout",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": false
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 1,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "name": "dead",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": {
+          "position": [
+            20,
+            0,
+            -10
+          ],
+          "heightFactor": 1,
+          "dead": true
+        }
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "name": "absent",
+      "before": {
+        "mode": 4,
+        "position": [
+          0.0,
+          21.0,
+          0.0
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.10000000149011612,
+        "targetYaw": 0.30000001192092896
+      },
+      "frame": {
+        "deltaMs": 16,
+        "holder": [
+          3,
+          4,
+          5
+        ],
+        "displayedHolder": [
+          6,
+          7,
+          8
+        ],
+        "holderYaw": 0.699999988079071,
+        "holderHeightFactor": 1,
+        "target": null
+      },
+      "after": {
+        "mode": 4,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    }
+  ],
+  "commands": [
+    {
+      "beforeMode": 0,
+      "after": {
+        "mode": 1,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 73,
+        "damage": 33059,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          0
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "beforeMode": 1,
+      "after": {
+        "mode": 1,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 73,
+        "damage": 33059,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "beforeMode": 2,
+      "after": {
+        "mode": 1,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 73,
+        "damage": 33059,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "beforeMode": 3,
+      "after": {
+        "mode": 1,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 73,
+        "damage": 33059,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          0
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    },
+    {
+      "beforeMode": 4,
+      "after": {
+        "mode": 1,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 73,
+        "damage": 33059,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "play",
+          7
+        ],
+        [
+          "play",
+          7
+        ]
+      ]
+    }
+  ],
+  "callbacks": [
+    {
+      "event": 1,
+      "damage": 0,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 0,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 1,
+      "damage": 0,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "hit",
+          536870912,
+          536883200,
+          5678,
+          [
+            0,
+            0,
+            1,
+            0
+          ],
+          0,
+          1234
+        ],
+        [
+          "own-hit",
+          536883200,
+          536915968
+        ]
+      ]
+    },
+    {
+      "event": 1,
+      "damage": 123,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 0,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 1,
+      "damage": 123,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "hit",
+          536870912,
+          536883200,
+          5678,
+          [
+            0,
+            0,
+            1,
+            0
+          ],
+          123,
+          1234
+        ],
+        [
+          "own-hit",
+          536883200,
+          536915968
+        ]
+      ]
+    },
+    {
+      "event": 1,
+      "damage": 32891,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 0,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 1,
+      "damage": 32891,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "hit",
+          536870912,
+          536883200,
+          5678,
+          [
+            1,
+            0,
+            1,
+            0
+          ],
+          123,
+          1234
+        ],
+        [
+          "own-hit",
+          536883200,
+          536915968
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 0,
+      "targetExists": false,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 0,
+      "targetExists": true,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 123,
+      "targetExists": false,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 123,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 123,
+      "targetExists": true,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 123,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 32891,
+      "targetExists": false,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 100,
+      "damage": 32891,
+      "targetExists": true,
+      "after": {
+        "mode": 3,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": [
+        [
+          "stop",
+          2
+        ],
+        [
+          "play",
+          0
+        ]
+      ]
+    },
+    {
+      "event": 2,
+      "damage": 0,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 2,
+      "damage": 0,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 0,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 2,
+      "damage": 123,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 123,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 2,
+      "damage": 123,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 123,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 2,
+      "damage": 32891,
+      "targetExists": false,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    },
+    {
+      "event": 2,
+      "damage": 32891,
+      "targetExists": true,
+      "after": {
+        "mode": 2,
+        "position": [
+          0.6788225173950195,
+          21.90509605407715,
+          1.1313709020614624
+        ],
+        "target": 7,
+        "damage": 32891,
+        "remainingMs": 5000,
+        "yaw": 0.18000000715255737,
+        "targetYaw": 2.601173162460327
+      },
+      "calls": []
+    }
+  ],
+  "directions": [
+    {
+      "vector": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "yaw": 0.0
+    },
+    {
+      "vector": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "yaw": 3.1415927410125732
+    },
+    {
+      "vector": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "yaw": 0.0
+    },
+    {
+      "vector": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "yaw": 1.5707963705062866
+    },
+    {
+      "vector": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "yaw": 4.71238899230957
+    },
+    {
+      "vector": [
+        1.0,
+        0.0,
+        1.0
+      ],
+      "yaw": 2.356194496154785
+    },
+    {
+      "vector": [
+        -1.0,
+        0.0,
+        1.0
+      ],
+      "yaw": 3.9269909858703613
+    },
+    {
+      "vector": [
+        1.0,
+        0.0,
+        -1.0
+      ],
+      "yaw": 0.7853981852531433
+    },
+    {
+      "vector": [
+        -1.0,
+        0.0,
+        -1.0
+      ],
+      "yaw": 5.4977874755859375
+    },
+    {
+      "vector": [
+        0.30000001192092896,
+        0.0,
+        0.699999988079071
+      ],
+      "yaw": 2.736701011657715
+    },
+    {
+      "vector": [
+        -0.30000001192092896,
+        0.0,
+        0.699999988079071
+      ],
+      "yaw": 3.5464844703674316
+    },
+    {
+      "vector": [
+        0.30000001192092896,
+        0.0,
+        -0.699999988079071
+      ],
+      "yaw": 0.40489181876182556
+    },
+    {
+      "vector": [
+        -0.30000001192092896,
+        0.0,
+        -0.699999988079071
+      ],
+      "yaw": 5.878293514251709
+    },
+    {
+      "vector": [
+        900.0,
+        0.0,
+        -15.0
+      ],
+      "yaw": 1.5541311502456665
+    }
+  ]
+}

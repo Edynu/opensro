@@ -1,0 +1,126 @@
+/*
+===========================================================================
+
+monsterstate_impact.go - knockdown plans against monsters
+
+===========================================================================
+*/
+
+package simulation
+
+import (
+	"math"
+	"opensro.online/server/internal/game/abnormal"
+	"opensro.online/server/internal/game/internal/vitals"
+	"opensro.online/server/internal/game/world/monster"
+)
+
+// MonsterKnockdownPlan is the displacement and motion-timer consequence of
+// one successful KO roll. HP, pose and timer commit under the same owner lock.
+type MonsterKnockdownPlan struct {
+	Pose    monster.Pose
+	UntilMs int64
+}
+
+func validKnockdownPlan(plan *MonsterKnockdownPlan) bool {
+	if plan == nil {
+		return true
+	}
+	finite := func(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
+	return plan.UntilMs > 0 && finite(plan.Pose.X) && finite(plan.Pose.Y) && finite(plan.Pose.Z)
+}
+
+// ApplyDamageSequence validates the original victim once, then commits every
+// authored impact atomically. The first fatal impact ends the sequence.
+func (s *MonsterState) ApplyDamageSequence(division string, gid, expectedHP uint32, plans []MonsterDamagePlan) []MonsterDamageResult {
+	if len(plans) == 0 || len(plans) > 255 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state := s.populationForObject(division, gid)
+	instance, ok := state.instances.lookup(gid)
+	if !ok || instance.CurrentHP == 0 || instance.CurrentHP != expectedHP {
+		return nil
+	}
+	for _, p := range plans {
+		if p.GID != gid || !validImpactDisplacement(p.Knockdown, p.Knockback) {
+			return nil
+		}
+	}
+	out := make([]MonsterDamageResult, 0, len(plans))
+	for _, p := range plans {
+		result := s.applyDamageLocked(division, state, gid, p.Damage, p.CreditGID, p.Knockdown, p.Knockback, p.Abnormal)
+		out = append(out, result)
+		if result.Fatal {
+			break
+		}
+	}
+	return out
+}
+
+func (s *MonsterState) applyDamageLocked(division string, state *divisionMonsterState, gid, damage, creditGID uint32, knockdown, knockback *MonsterKnockdownPlan, records []abnormal.Record) MonsterDamageResult {
+	nowMs := s.nowMillis()
+	instance := finishSummonAction(state.instances.get(gid), nowMs)
+	before := instance.CurrentHP
+	if before > 0 {
+		state.recordContribution(gid, creditGID, damage)
+	}
+	applied := vitals.HitDebit(before, damage)
+	instance.CurrentHP -= applied
+	instance.DamageSinceSummon += applied
+	var committed *MonsterKnockdownPlan
+	displacement := knockdown
+	motion := uint8(8)
+	if knockback != nil {
+		displacement = knockback
+		motion = 16
+	}
+	if instance.CurrentHP == 0 {
+		if before > 0 {
+			state.settleCorpseLocked(&instance, nowMs)
+		}
+	} else if displacement != nil {
+		delete(state.pendingSummons, gid)
+		if instance.SummonActionUntilMs != 0 {
+			instance.SummonActionUntilMs = 0
+			// Command completion already cleared the selected skill. The
+			// 562540 null-active branch does not consume subsequent damage
+			// when a later impact cancels the pending summon execution.
+		}
+		mover, ok := state.movers.lookup(gid)
+		if !ok {
+			mover = monster.NewSpawnMover(instance, s.nowMillis())
+		}
+		if err := mover.Transition(monster.MoverEventDisplaced, mover.TargetGID()); err != nil {
+			panic(err)
+		}
+		mover.Pose = displacement.Pose
+		mover.From, mover.To = displacement.Pose, displacement.Pose
+		if state.movers == nil {
+			state.movers = moverStorage{}
+		}
+		state.movers.set(gid, mover)
+		state.behavior.set(gid, 0)
+		instance.Motion = monster.MotionHold{State: motion, UntilMs: displacement.UntilMs}
+		value := *displacement
+		committed = &value
+	}
+	// 593BEF: a damaging result breaks root/sleep/stun, then 593F0C applies
+	// the statuses this hit rolled, both only on a surviving actor.
+	effects := s.applyAbnormalLocked(division, state, &instance, damage > 0, records, nowMs)
+	state.instances.set(gid, instance)
+	result := MonsterDamageResult{Population: state.lease, Instance: instance, BeforeHP: before, CurrentHP: instance.CurrentHP, Applied: applied, Fatal: before > 0 && instance.CurrentHP == 0, Knockdown: committed, Abnormal: effects}
+	if knockback != nil {
+		result.Knockback = committed
+		result.Knockdown = nil
+	}
+	if result.Fatal {
+		result.Contributions = state.contributionSnapshot(gid)
+	}
+	return result
+}
+
+func validImpactDisplacement(ko, kb *MonsterKnockdownPlan) bool {
+	return !(ko != nil && kb != nil) && validKnockdownPlan(ko) && validKnockdownPlan(kb)
+}

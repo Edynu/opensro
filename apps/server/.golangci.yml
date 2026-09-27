@@ -1,0 +1,110 @@
+# ===========================================================================
+#
+# .golangci.yml - static analysis for the Go server (golangci-lint v2 schema)
+#
+# The linter is pinned as a Go tool in its own module,
+# tools/golangci-lint/go.mod, so it is always compiled by the repository's Go
+# toolchain (a PATH binary built by an older Go cannot load a newer standard
+# library) and its large dependency tree stays out of the server's go.mod.
+#
+#   go tool -modfile=tools/golangci-lint/go.mod golangci-lint run ./...
+#
+# scripts/checks/check_go_server.mjs runs it after `go vet`, so `pnpm check
+# source` - the pre-push hook and CI - fails on any finding. The backlog is
+# zero; keep it there.
+#
+# Philosophy: every enabled linter finds defects, not taste. bodyclose and
+# rowserrcheck are on because this codebase has leaked sql.Rows and HTTP
+# bodies before.
+#
+# Deliberately ABSENT, with the reason measured on 2026-09-27:
+#   - formatters (gofmt/gofumpt/goimports): gofmt is enforced by
+#     internal/gates/gofmt_gate_test.go and check_go_server.mjs.
+#   - lll, funlen, gocognit: style nags; layout is gofmt's and file size is
+#     the source-size gate's.
+#   - misspell: the "misspellings" are faithful quotes of native client
+#     strings (UIIT_MSG_..._EQUIPED_..., TC_MACHING_...).
+#   - makezero: every hit builds a fixed column prefix and appends the tail.
+#   - exhaustive: switches deliberately mirror native tables, with defaults.
+#   - gosec (1000+ hits), noctx (100+): not signal for this codebase today.
+#   - staticcheck QF* quick-fixes: editor refactoring suggestions, not
+#     defects. QF1001 (De Morgan) would also rewrite predicates written to
+#     mirror the native "not in the accepted set" form.
+#
+# ===========================================================================
+version: "2"
+
+run:
+  timeout: 10m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - bodyclose
+    - rowserrcheck
+    # Error identity must survive wrapping: errors.Is / errors.As.
+    - errorlint
+    # Returning nil next to a non-nil error hides failures.
+    - nilerr
+    # Go 1.22 made per-iteration loop variables; `v := v` copies are noise.
+    - copyloopvar
+    # Tests never sleep: they wait through internal/testsupport/wait
+    # (Eventually / Consistently), drive time with the simulation tick or an
+    # injected clock, or carry a reasoned //nolint for real-time fault
+    # injection and stress runs.
+    - forbidigo
+    # Every //nolint names its linter and says why.
+    - nolintlint
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        - -QF*
+    errorlint:
+      # `fmt.Errorf("%w: %v", sentinel, cause)` deliberately exposes only the
+      # sentinel as the error's identity; do not force %w on every operand.
+      errorf: false
+      comparison: true
+      asserts: true
+    forbidigo:
+      forbid:
+        - pattern: ^time\.Sleep$
+          msg: wait with internal/testsupport/wait, or drive time with the simulation tick or an injected clock
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - std-error-handling
+    paths:
+      # Scratch output and GOTMPDIR (see .gitignore) - never lint it.
+      - ^temp/
+    rules:
+      # Test files: teardown/fixture error returns are routinely and
+      # legitimately ignored; keep the signal linters, drop the noisiest.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - bodyclose
+      # The time.Sleep ban is for tests only; production backoff may sleep.
+      - path-except: _test\.go
+        linters:
+          - forbidigo
+
+issues:
+  # Report everything - no caps that could hide a regression.
+  max-issues-per-linter: 0
+  max-same-issues: 0
