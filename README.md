@@ -1,5 +1,9 @@
 # OpenSRO
 
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/RUua9HY657)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/skillman1337)
+
 A Silkroad Online v1.150 (Legend III) server written in Go and a WebGPU browser
 client, plus the asset pipeline that turns a licensed client installation into
 browser- and server-ready data.
