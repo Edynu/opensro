@@ -1,6 +1,6 @@
 # OpenSRO
 
-[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/RUua9HY657)
+[![Discord](https://img.shields.io/discord/1521398829260210337?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/RUua9HY657)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/skillman1337)
 
