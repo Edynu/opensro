@@ -3,11 +3,13 @@ package quest
 import (
 	"encoding/hex"
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"testing"
 )
 
 func TestTutorialWireFixtureMatchesAuthorityStages(t *testing.T) {
+	licensed.RequireGameData(t)
 	data, err := os.ReadFile("tutorial_wire_fixture.json")
 	if err != nil {
 		t.Fatal(err)

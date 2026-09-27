@@ -3,6 +3,7 @@ package quest
 import (
 	"bytes"
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -19,6 +20,7 @@ import (
 // must run its lifecycle here without maintaining a second list of test IDs.
 // Unknown mechanics fail explicitly instead of silently taking the talk branch.
 func TestEveryLoadedQuestSurvivesRestartAndCompletesOnce(t *testing.T) {
+	licensed.RequireGameData(t)
 	textdata := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	items := enterworld.NewTextdataItems(textdata)
 	defs, err := LoadDefinitions(NewCatalog(textdata), items)
@@ -331,6 +333,7 @@ func TestEveryLoadedQuestSurvivesRestartAndCompletesOnce(t *testing.T) {
 }
 
 func TestQuestWireCapacityRefusesBeforeMutation(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt := testRuntime(t)
 	c := questCharacter()
 	for i := 0; i < 255; i++ {
@@ -371,6 +374,7 @@ func TestQuestWireCapacityRefusesBeforeMutation(t *testing.T) {
 }
 
 func TestUnimplementedCatalogQuestsArePreservedThroughLogin(t *testing.T) {
+	licensed.RequireGameData(t)
 	textdata := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	catalog := NewCatalog(textdata)
 	defs, err := LoadDefinitions(catalog, enterworld.NewTextdataItems(textdata))

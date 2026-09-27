@@ -5,11 +5,13 @@ import (
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/game/world/simulation"
+	"opensro.online/server/internal/testsupport/licensed"
 	"path/filepath"
 	"testing"
 )
 
 func TestMarkerStatesFollowAuthoritativeQuestLifecycle(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt, err := NewRuntime(&enterworld.Deps{}, loadTestDefinitions(t), func(*enterworld.Character, int64, int64, uint32) ([]wire.Frame, bool) { return nil, true })
 	if err != nil {
 		t.Fatal(err)
@@ -64,6 +66,7 @@ func TestMarkerPublicationReplacementRemovalAndReconnect(t *testing.T) {
 }
 
 func TestUnfinishedQuestConversationIsInformational(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := filepath.Join("..", "..", "..", "..", "..", ".generated", "game-data", "1.150", "server", "textdata")
 	defs, err := LoadDefinitions(NewCatalog(dir), enterworld.NewTextdataItems(dir))
 	if err != nil {
@@ -98,6 +101,7 @@ func TestUnfinishedQuestConversationIsInformational(t *testing.T) {
 }
 
 func TestMarkerGoingStateHonorsEquippedStagePrerequisite(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt, err := NewRuntime(&enterworld.Deps{}, loadTestDefinitions(t), func(*enterworld.Character, int64, int64, uint32) ([]wire.Frame, bool) { return nil, true })
 	if err != nil {
 		t.Fatal(err)

@@ -3,6 +3,7 @@ package quest
 import (
 	"bytes"
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"reflect"
 	"testing"
 
@@ -69,6 +70,7 @@ func TestIdenticalMissionCaptionsKeepNativeTagsAcrossReload(t *testing.T) {
 }
 
 func TestMixedMissionsPreserveIndependentCountersAndEnvelope(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt := testRuntime(t)
 	c := questCharacter()
 	root, _ := rt.Defs.ByCodename("QNO_CH_CHEF_1")
@@ -139,6 +141,7 @@ func TestMixedMissionsPreserveIndependentCountersAndEnvelope(t *testing.T) {
 }
 
 func TestRepeatOfferUsesPersistedCompletionAndStopsAtLimit(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt := testRuntime(t)
 	c := questCharacter()
 	d, _ := rt.Defs.ByCodename("QNO_CH_CHEF_1")

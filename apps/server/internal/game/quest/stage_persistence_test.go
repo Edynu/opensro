@@ -5,10 +5,12 @@ import (
 	"opensro.online/server/internal/game/action"
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/wire"
+	"opensro.online/server/internal/testsupport/licensed"
 	"testing"
 )
 
 func TestPaidTutorialStageSurvivesAuthorityReopen(t *testing.T) {
+	licensed.RequireGameData(t)
 	dir := t.TempDir()
 	open := func() *store.Store {
 		s, err := store.Open(dir, store.Options{DefaultSkills: rewardTestSkillSeeder})

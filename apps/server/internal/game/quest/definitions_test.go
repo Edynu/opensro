@@ -2,6 +2,7 @@ package quest
 
 import (
 	"fmt"
+	"opensro.online/server/internal/testsupport/licensed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,6 +107,7 @@ func loadTestDefinitions(t *testing.T) *Definitions {
 }
 
 func TestLoadDefinitionsResolvesTheCuratedTable(t *testing.T) {
+	licensed.RequireGameData(t)
 	t.Parallel()
 	defs := loadTestDefinitions(t)
 	if defs.Len() != len(curatedQuestSpecs) {

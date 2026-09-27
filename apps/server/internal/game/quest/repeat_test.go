@@ -2,12 +2,14 @@ package quest
 
 import (
 	"encoding/json"
+	"opensro.online/server/internal/testsupport/licensed"
 	"testing"
 
 	"opensro.online/server/internal/game/enterworld"
 )
 
 func TestFiniteRepeatLimitSurvivesRestartAndLegacyCompletion(t *testing.T) {
+	licensed.RequireGameData(t)
 	rt := testRuntime(t)
 	// Isolated definition: production specifications are immutable.
 	root, _ := rt.Defs.ByCodename("QNO_CH_SOLDIER_EA1_1")
