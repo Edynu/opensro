@@ -89,7 +89,18 @@ export const CHECK_TASKS = [
 		requires: [],
 		timeoutClass: "long",
 		command: "pnpm",
-		args: [ "exec", "tsc", "--noEmit", "-p", "tsconfig.scripts.json", "--pretty", "false" ]
+		args: [
+			"exec",
+			"tsc",
+			"--noEmit",
+			"-p",
+			"tsconfig.scripts.json",
+			"--pretty",
+			"false",
+			"--incremental",
+			"--tsBuildInfoFile",
+			".state/tsc/scripts.tsbuildinfo"
+		]
 	} ),
 	commandTask( {
 		name: "check:scripts-tests",
@@ -99,7 +110,18 @@ export const CHECK_TASKS = [
 		requires: [],
 		timeoutClass: "long",
 		command: "pnpm",
-		args: [ "exec", "tsc", "--noEmit", "-p", "tsconfig.scripts.tests.json", "--pretty", "false" ]
+		args: [
+			"exec",
+			"tsc",
+			"--noEmit",
+			"-p",
+			"tsconfig.scripts.tests.json",
+			"--pretty",
+			"false",
+			"--incremental",
+			"--tsBuildInfoFile",
+			".state/tsc/scripts-tests.tsbuildinfo"
+		]
 	} ),
 	commandTask( {
 		name: "check:server",
@@ -109,7 +131,19 @@ export const CHECK_TASKS = [
 		requires: [ "go" ],
 		timeoutClass: "long",
 		command: "node",
-		args: [ "scripts/checks/check_go_server.mjs" ]
+		// Skipped when nothing it reads changed since its last pass (run_if_changed.mjs).
+		args: [
+			"scripts/checks/run_if_changed.mjs",
+			"server",
+			"apps/server",
+			"scripts/checks/check_go_server.mjs",
+			"@go,version",
+			"!.generated/game-data/1.150/manifest.json",
+			"!.generated/client-public/assets/packs/manifest.json",
+			"--",
+			"node",
+			"scripts/checks/check_go_server.mjs"
+		]
 	} ),
 	commandTask( {
 		name: "typecheck",
@@ -145,10 +179,12 @@ const sourceTasks = [
 ];
 
 export const CHECK_PIPELINES = Object.freeze( {
-	source: sourceTasks.map( ( task, index ) => ({
+	// The source gates are independent, so they all start at once; the Go
+	// gate is the critical path and the rest finish inside it.
+	source: sourceTasks.map( ( task ) => ({
 		id: task.replaceAll( ":", "-" ),
 		task,
-		after: index === 0 ? [] : [ sourceTasks[index - 1].replaceAll( ":", "-" ) ]
+		after: []
 	}) ),
 	tests: [
 		{ id: "build-resources", task: "assets:build:full", after: [] },

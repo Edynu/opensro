@@ -51,6 +51,7 @@
 		"scripts/checks/check_formatting.mjs",
 		"scripts/checks/check_source_encoding.mjs",
 		"scripts/checks/check_shared_fixtures.mjs",
+		"scripts/checks/run_if_changed.mjs",
 		"scripts/checks/check_precompressed_freshness.mjs",
 		"scripts/checks/check_source_file_size.mjs",
 		"scripts/checks/lib/methodBlock.mjs",

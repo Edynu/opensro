@@ -165,6 +165,13 @@ Run the checks for what you touched, and report what actually ran:
 | Client | `pnpm --filter @sro/client-next check` |
 | Everything, including assets | `pnpm check` (the full asset build takes about 42 minutes) |
 
+Speed: the gates run concurrently, and the two heavy ones (the Go server
+gate and the client check) are skipped when nothing they read changed since
+one of their recent passes (`scripts/checks/run_if_changed.mjs`; stamps live
+in the ignored `.state/check-stamps/`). A skipped gate prints "up to date".
+Set `SRO_CHECK_FORCE=1` to run everything regardless; CI and fresh clones
+have no stamps and always run everything.
+
 Reporting rules:
 
 - Quote the failing output. Do not write "all green" unless every listed

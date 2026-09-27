@@ -1,11 +1,73 @@
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import { root, ts } from './project.mjs';
 
+/*
+================
+executionFlow
+
+The resolved execution graph for a client tree. For the real client (the
+common case: `verify:execution` and the architecture tests both ask for it)
+the graph is cached under temp/cache/execution-flow, keyed by a hash of
+everything it is computed from: the TypeScript version, tsconfig.json, the
+ownership manifest, these analysis tools and every source file. Any change to
+an input changes the key, so a stale graph can never be returned.
+================
+*/
+export function executionFlow(base = root) {
+    if (path.resolve(base) !== path.resolve(root)) return computeExecutionFlow(base);
+    const key = executionFlowKey(base);
+    const cacheFile = path.join(base, 'temp', 'cache', 'execution-flow', `${key}.json`);
+    if (fs.existsSync(cacheFile)) return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+    const graph = computeExecutionFlow(base);
+    const directory = path.dirname(cacheFile);
+    fs.mkdirSync(directory, { recursive: true });
+    // Only the current tree's graph is worth keeping; drop superseded ones.
+    for (const stale of fs.readdirSync(directory)) {
+        if (!stale.startsWith(key)) fs.rmSync(path.join(directory, stale), { force: true });
+    }
+    // Write then rename: concurrent checks may compute the same graph at once,
+    // and a reader must never see a half-written file.
+    const temporary = `${cacheFile}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(graph));
+    fs.renameSync(temporary, cacheFile);
+    return graph;
+}
+
+/*
+================
+executionFlowKey
+================
+*/
+function executionFlowKey(base) {
+    const hash = createHash('sha256');
+    hash.update(ts.version);
+    const add = file => {
+        hash.update(path.relative(base, file).replaceAll('\\', '/'));
+        hash.update('\0');
+        hash.update(fs.readFileSync(file));
+        hash.update('\0');
+    };
+    for (const file of ['tsconfig.json', 'src/engine/ownership.json']) add(path.join(base, file));
+    const tools = path.dirname(fileURLToPath(import.meta.url));
+    for (const file of ['execution-flow.mjs', 'project.mjs']) add(path.join(tools, file));
+    const walk = directory => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+            const full = path.join(directory, entry.name);
+            if (entry.isDirectory()) walk(full);
+            else add(full);
+        }
+    };
+    walk(path.join(base, 'src'));
+    return hash.digest('hex');
+}
+
 // Inclusion-based value flow. Function values, returned objects, aliases and
 // parent-issued callbacks propagate to a fixed point. This is conservative:
 // branches are unioned, never assumed unreachable to make a gate pass.
-export function executionFlow(base = root) {
+function computeExecutionFlow(base) {
     const config = ts.readConfigFile(path.join(base, 'tsconfig.json'), ts.sys.readFile);
     if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
     const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, base);

@@ -17,6 +17,7 @@
 		"allowJs": true,
 		"checkJs": true,
 		"noEmit": true,
+		"tsBuildInfoFile": "./temp/cache/tsc/tests.tsbuildinfo",
 		"allowImportingTsExtensions": true,
 		"noImplicitAny": false,
 		"noUncheckedIndexedAccess": false,

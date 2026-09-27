@@ -9,6 +9,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./temp/cache/tsc/client.tsbuildinfo",
     "skipLibCheck": true,
     "lib": [
       "ES2022",

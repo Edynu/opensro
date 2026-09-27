@@ -1,0 +1,10 @@
+# Reviewed gitleaks false positives (native text keys and a hive hash key).
+# History fingerprints (gitleaks git) and working-tree fingerprints (gitleaks dir) for the same four lines.
+fe3dd72ef26489375be4a82a831531f8fe34f3ac:apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:313
+fe3dd72ef26489375be4a82a831531f8fe34f3ac:apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:315
+fe3dd72ef26489375be4a82a831531f8fe34f3ac:apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:459
+fe3dd72ef26489375be4a82a831531f8fe34f3ac:apps/server/internal/game/world/simulation/testdata/earth-ghost-v1150.json:generic-api-key:115
+apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:313
+apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:315
+apps/client-next/src/engine/foundation/gameplay/native-notice-data.ts:generic-api-key:459
+apps/server/internal/game/world/simulation/testdata/earth-ghost-v1150.json:generic-api-key:115

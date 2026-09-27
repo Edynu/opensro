@@ -3,16 +3,23 @@
 
 Go Server Verification Gate
 
-Module hygiene (`go mod tidy -diff`, gofmt, `go vet`), golangci-lint
-(.golangci.yml; pinned in its own tool module, tools/golangci-lint/go.mod, so
-the repository's Go toolchain builds it), then every package returned by
-`go list ./...` in bounded sequential shards, the race detector on the
-concurrency-owning packages, and govulncheck (pinned in go.mod as a tool).
+Module hygiene (`go mod tidy -diff` for the module and the lint tool module,
+gofmt, `go vet`, golangci-lint), every package's tests, the race detector on
+the concurrency-owning packages, and govulncheck (pinned in go.mod as a
+tool). golangci-lint is pinned in its own tool module,
+tools/golangci-lint/go.mod, so the repository's Go toolchain builds it.
 
-Tests run in shards because on Windows a monolithic `go test ./...`
-oversubscribes archive-backed integration suites and can thrash for many
-minutes; eight-package shards preserve the complete dynamic package set while bounding compiler,
-filesystem, and database concurrency.
+Speed. The steps are independent, so they all run concurrently: hygiene,
+the tests, the race run and govulncheck. Each step's output is printed as
+one block when it finishes; any failure fails the gate. Tests run as one
+`go test ./...` with SRO_GO_TEST_PARALLELISM package workers (default: half
+the cores), so one slow package no longer stalls a whole shard (measured
+2026-09-27: 40s with 8 workers against 61s for eight-package shards at 2).
+
+Go's test cache stays off (-count=1). The integration tests read the large
+game-data projection, and validating a cached result re-hashes every file a
+test opened: a fully cached re-run measured 74s, slower than running the
+tests. SRO_GO_TEST_CACHE=on enables it for trees where that is not true.
 
 On Windows every Go command runs with the C compiler's own directory first
 on PATH. Git for Windows ships older copies of the MinGW runtime DLLs in
@@ -26,15 +33,19 @@ makes the race step independent of how the gate was launched.
 ===========================================================================
 */
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname( fileURLToPath( import.meta.url ) );
 const rebuildRoot = path.resolve( scriptDirectory, "..", ".." );
 const serverRoot = path.join( rebuildRoot, "apps", "server" );
-const batchSize = positiveInteger( process.env.SRO_GO_TEST_BATCH_SIZE, 8 );
-const packageParallelism = positiveInteger( process.env.SRO_GO_TEST_PARALLELISM, 2 );
+const packageParallelism = positiveInteger(
+	process.env.SRO_GO_TEST_PARALLELISM,
+	Math.max( 2, Math.floor( os.availableParallelism() / 2 ) )
+);
+const testCache = process.env.SRO_GO_TEST_CACHE === "on";
 const startedAt = performance.now();
 const lintModfile = "tools/golangci-lint/go.mod";
 const goEnvironment = compilerFirstEnvironment();
@@ -48,92 +59,85 @@ const racePackages = [
 	"./internal/transport"
 ];
 
-runGo( [ "mod", "tidy", "-diff" ], true );
-runGo( [ "-C", path.dirname( lintModfile ), "mod", "tidy", "-diff" ], true );
-const unformatted = run( "gofmt", [ "-l", "cmd", "internal" ], true ).stdout.trim();
-if ( unformatted ) {
-	throw new Error( `gofmt: unformatted files:\n${unformatted}` );
-}
-runGo( [ "vet", "./..." ], false );
-runGo( [ "tool", `-modfile=${lintModfile}`, "golangci-lint", "run", "./..." ], false );
-console.log( "server hygiene: tidy, gofmt, vet and golangci-lint passed" );
-
-const listed = runGo( [ "list", "./..." ], true );
-const packages = listed.stdout.trim().split( /\r?\n/ ).filter( Boolean );
-
-if ( packages.length === 0 ) {
-	throw new Error( "Go server package discovery returned no packages" );
-}
-
-for ( let offset = 0; offset < packages.length; offset += batchSize ) {
-	const batch = packages.slice( offset, offset + batchSize );
-	const first = offset + 1;
-	const last = offset + batch.length;
-	const batchStartedAt = performance.now();
-
-	// These integration tests open the verified game-data projection. Go's
-	// result-cache validation re-stats/re-hashes that large input set and is
-	// slower than executing the tests; -count=1 keeps build caching but makes
-	// every assertion run instead of paying to replay a stale result.
-	runGo( [ "test", "-count=1", `-p=${packageParallelism}`, ...batch ], false );
-	console.log(
-		`server tests: packages ${first}-${last}/${packages.length} passed ` +
-			`in ${formatSeconds( performance.now() - batchStartedAt )}s`
-	);
-}
-
-runGo( [ "test", "-race", "-count=1", ...racePackages ], false );
-console.log( "server race tests: passed" );
-runGo( [ "tool", "govulncheck", "./..." ], false );
+const testArgs = [ "test", `-p=${packageParallelism}`, ...(testCache ? [] : [ "-count=1" ]), "./..." ];
+await wave( "all", [
+	[ "tidy", "go", [ "mod", "tidy", "-diff" ] ],
+	[ "tidy (lint tool)", "go", [ "-C", path.dirname( lintModfile ), "mod", "tidy", "-diff" ] ],
+	[ "gofmt", "gofmt", [ "-l", "cmd", "internal" ], ( output ) => output.trim().length === 0 ],
+	[ "vet", "go", [ "vet", "./..." ] ],
+	[ "golangci-lint", "go", [ "tool", `-modfile=${lintModfile}`, "golangci-lint", "run", "./..." ] ],
+	[ "tests", "go", testArgs ],
+	[ "race", "go", [ "test", "-race", ...(testCache ? [] : [ "-count=1" ]), ...racePackages ] ],
+	[ "govulncheck", "go", [ "tool", "govulncheck", "./..." ] ]
+] );
 
 console.log(
-	`server gates: PASS (${packages.length} packages, ${batchSize}/shard, ` +
-		`${packageParallelism} package workers, ${formatSeconds( performance.now() - startedAt )}s)`
+	`server gates: PASS (${packageParallelism} package workers, test cache ${testCache ? "on" : "off"}, ` +
+		`${formatSeconds( performance.now() - startedAt )}s)`
 );
 
 /*
 ================
-runGo
+wave
+
+Runs the steps concurrently. Each step's output is captured and printed as
+one block when it finishes, so concurrent steps never interleave. A step
+fails on a non-zero exit, or when its accept() predicate rejects the output.
 ================
 */
 /**
- * @param {string[]} args
- * @param {boolean} capture
- * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ * @param {string} name
+ * @param {Array<[string, string, string[], ((output: string) => boolean)?]>} steps
  */
-function runGo( args, capture ) {
-	return run( "go", args, capture );
+async function wave( name, steps ) {
+	const waveStarted = performance.now();
+	const results = await Promise.all(
+		steps.map( ( [label, command, args, accept] ) => runStep( label, command, args, accept ) )
+	);
+	const failed = results.filter( ( result ) => !result.ok );
+	if ( failed.length > 0 ) {
+		for ( const result of failed ) {
+			process.stderr.write( `\n--- ${result.label} FAILED ---\n${result.output}\n` );
+		}
+		throw new Error( `server ${name}: ${failed.map( ( result ) => result.label ).join( ", " )} failed` );
+	}
+	console.log(
+		`server ${name}: ${results.map( ( result ) => `${result.label} ${result.seconds}s` ).join( ", " )} ` +
+			`(wave ${formatSeconds( performance.now() - waveStarted )}s)`
+	);
 }
 
 /*
 ================
-run
+runStep
 ================
 */
 /**
+ * @param {string} label
  * @param {string} command
  * @param {string[]} args
- * @param {boolean} capture
- * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ * @param {((output: string) => boolean) | undefined} accept
+ * @returns {Promise<{ label: string, ok: boolean, output: string, seconds: string }>}
  */
-function run( command, args, capture ) {
-	const result = spawnSync( command, args, {
-		cwd: serverRoot,
-		encoding: "utf8",
-		env: goEnvironment,
-		stdio: capture ? "pipe" : "inherit"
+function runStep( label, command, args, accept ) {
+	const stepStarted = performance.now();
+	return new Promise( ( resolve ) => {
+		const child = spawn( command, args, { cwd: serverRoot, env: goEnvironment } );
+		let output = "";
+		child.stdout.on( "data", ( chunk ) => {
+			output += chunk;
+		} );
+		child.stderr.on( "data", ( chunk ) => {
+			output += chunk;
+		} );
+		child.on( "error", ( error ) => {
+			output += String( error );
+		} );
+		child.on( "close", ( code ) => {
+			const ok = code === 0 && (accept === undefined || accept( output ));
+			resolve( { label, ok, output, seconds: formatSeconds( performance.now() - stepStarted ) } );
+		} );
 	} );
-	if ( result.error ) {
-		throw result.error;
-	}
-	if ( result.status !== 0 ) {
-		if ( capture ) {
-			process.stdout.write( result.stdout ?? "" );
-			process.stderr.write( result.stderr ?? "" );
-		}
-		throw new Error( `${command} ${args.join( " " )} exited ${result.status}` );
-	}
-	return result;
 }
 
 /*
