@@ -123,7 +123,13 @@ type SkillAttack struct {
 	AtcaPercent uint32
 }
 
-// SkillRow is one skilldata record's learn-plane fields.
+/*
+================
+SkillRow
+
+SkillRow is one skilldata record's learn-plane fields.
+================
+*/
 type SkillRow struct {
 	// Validated replacement inputs, independent from executable admission.
 	// A refusal is retained instead of treating a malformed program as neutral.
@@ -424,8 +430,14 @@ type TextdataSkills struct {
 // sharedSkillParses deduplicates identical skill projections per process.
 var sharedSkillParses sharedParses[TextdataSkills]
 
-// NewTextdataSkills returns a lazy loader over dir (skilldata.txt index +
-// shards + skilldata_virtual.txt).
+/*
+================
+NewTextdataSkills
+
+NewTextdataSkills returns a lazy loader over dir (skilldata.txt index +
+shards + skilldata_virtual.txt).
+================
+*/
 func NewTextdataSkills(dir string) *TextdataSkills {
 	return &TextdataSkills{dir: dir}
 }
@@ -444,7 +456,13 @@ func (t *TextdataSkills) Load() error {
 	return t.loadErr
 }
 
-// SkillByID implements SkillDataSource.
+/*
+================
+SkillByID
+
+SkillByID implements SkillDataSource.
+================
+*/
 func (t *TextdataSkills) SkillByID(id uint32) (SkillRow, bool) {
 	t.once.Do(t.load)
 	row, ok := t.rows.lookup(id)
@@ -469,7 +487,13 @@ func (t *TextdataSkills) SkillByCodename(codename string) (SkillRow, bool) {
 	return t.rows.get(id), true
 }
 
-// Len reports how many skill rows loaded (0 = textdata absent).
+/*
+================
+Len
+
+Len reports how many skill rows loaded (0 = textdata absent).
+================
+*/
 func (t *TextdataSkills) Len() int {
 	t.once.Do(t.load)
 	return t.rows.len()
@@ -513,12 +537,19 @@ func skillShards(dir string) []string {
 	shards := []string{}
 	for _, fields := range readTextdataFile(filepath.Join(dir, "skilldata.txt")) {
 		if len(fields) == 1 && fields[0] != "" {
-			shards = append(shards, fields[0])
+			// The server projection canonicalizes textdata filenames to lowercase;
+			// the authored index retains Windows casing (SkillData_5000.txt).
+			shards = append(shards, strings.ToLower(fields[0]))
 		}
 	}
 	return append(shards, "skilldata_virtual.txt")
 }
 
+/*
+================
+parse
+================
+*/
 func (t *TextdataSkills) parse(shards []string) {
 	t.rows = skillStorage{}
 	t.byCodename = map[string]uint32{}
@@ -759,8 +790,14 @@ func (t *TextdataSkills) parse(shards []string) {
 	log.Infof("bootstrap: skilldata loaded from %s (%d skill row(s))", t.dir, t.rows.len())
 }
 
-// SkillUiRow is a read-only projection of the same table used by training and combat.
-// The client never supplies prices or prerequisites back to the authority.
+/*
+================
+SkillUiRow
+
+SkillUiRow is a read-only projection of the same table used by training and combat.
+The client never supplies prices or prerequisites back to the authority.
+================
+*/
 type SkillUiRow struct {
 	BuffCancel         string              `json:"buffCancel,omitempty"`
 	BuffCancelInstance bool                `json:"buffCancelInstance,omitempty"`
@@ -785,17 +822,34 @@ type SkillUiRow struct {
 	Prerequisites      [3]SkillRequirement `json:"prerequisites"`
 }
 
-// SkillUiSpeedBuff is the buff-viewer speed stacking marker (6DE630).
+/*
+================
+SkillUiSpeedBuff
+
+SkillUiSpeedBuff is the buff-viewer speed stacking marker (6DE630).
+================
+*/
 type SkillUiSpeedBuff struct {
 	Active bool `json:"active"`
 }
 
-// SkillUiStatusLevel is a [mask, level] pair read by 8608A0 / 85CE40.
+/*
+================
+SkillUiStatusLevel
+
+SkillUiStatusLevel is a [mask, level] pair read by 8608A0 / 85CE40.
+================
+*/
 type SkillUiStatusLevel struct {
 	Mask  uint32 `json:"mask"`
 	Level uint32 `json:"level"`
 }
 
+/*
+================
+skillUiStatusLevel
+================
+*/
 func skillUiStatusLevel(value SkillStatusLevel) *SkillUiStatusLevel {
 	if !value.Present {
 		return nil
@@ -803,6 +857,11 @@ func skillUiStatusLevel(value SkillStatusLevel) *SkillUiStatusLevel {
 	return &SkillUiStatusLevel{Mask: value.Mask, Level: value.Level}
 }
 
+/*
+================
+SpawnSkillRow
+================
+*/
 type SpawnSkillRow struct {
 	LinkedSkillID        uint32      `json:"linkedSkillId,omitempty"`
 	CancellationDeferred bool        `json:"cancellationDeferred,omitempty"`
@@ -822,6 +881,11 @@ type SpawnSkillRow struct {
 	StealthDuration      bool        `json:"stealthDuration,omitempty"`
 }
 
+/*
+================
+SpawnSkillRows
+================
+*/
 func (t *TextdataSkills) SpawnSkillRows() []SpawnSkillRow {
 	t.once.Do(t.load)
 	rows := make([]SpawnSkillRow, 0, t.rows.len())
@@ -850,6 +914,12 @@ func (t *TextdataSkills) SpawnSkillRows() []SpawnSkillRow {
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
 	return rows
 }
+
+/*
+================
+spawnSkillSnapshot
+================
+*/
 func spawnSkillSnapshot(source SkillDataSource) []SpawnSkillRow {
 	if source, ok := source.(interface{ SpawnSkillRows() []SpawnSkillRow }); ok {
 		return source.SpawnSkillRows()
