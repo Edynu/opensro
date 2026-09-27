@@ -8,20 +8,24 @@ jobs:
   source-check:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      # The standalone pnpm the packageManager field in package.json names (the
+      # one place its version is pinned). pnpm/action-setup bootstraps through
+      # npm and switches versions, which a frozen pnpm 12 install rejects.
+      - uses: pnpm/setup@v3
         with:
-          version: 11.17.0
+          install: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
       # check:server runs the Go gates: tidy, gofmt, vet, tests, race subset, govulncheck.
-      - uses: actions/setup-go@v5
+      # go.mod names the exact release (no toolchain line), so this installs it directly.
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
