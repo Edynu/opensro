@@ -154,6 +154,16 @@ export const ASSET_TASKS = [
     args: ["scripts/refresh_world_map_marker_asset_packs.mjs"]
   }),
   commandTask({
+    name: "assets:gc",
+    description: "Soft-archive asset-pack outputs the published index no longer uses (--apply)",
+    kind: "assets",
+    ci: false,
+    requires: ["generated-assets"],
+    timeoutClass: "short",
+    command: "node",
+    args: ["scripts/gc_asset_packs.mjs"]
+  }),
+  commandTask({
     name: "assets:lock",
     description: "Show the generated-asset rebuild lock owner",
     kind: "assets",

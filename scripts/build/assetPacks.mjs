@@ -21,6 +21,7 @@ import { openFileHashCache } from "./shared/fileHashCache.mjs";
 import { listFiles } from "./shared/fsUtils.mjs";
 import { sha256Hex } from "./shared/hash.mjs";
 import { archiveGeneratedArtifact } from "./artifacts/generatedArtifactArchive.mjs";
+import { livePackFiles } from "./assetPackLiveSet.mjs";
 import { readJsonOrUndefined } from "./shared/jsonOut.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -401,19 +402,9 @@ async function publishIndex(indexPath, bytes) {
 
 /** Soft-archive files under the packs root that the freshly published manifest does not reference. */
 async function archiveStaleOutputs(publicRoot, outputRoot, index, indexPath) {
-  // Keep the JSON optimizer's precompressed sidecars for the index itself; deleting them
+  // The live set includes the index's precompressed sidecars; deleting them
   // forced a pointless brotli/gzip/zstd recompression of the manifest every build.
-  const keep = new Set(
-    [indexPath, path.join(outputRoot,"delivery.json"), `${indexPath}.br`, `${indexPath}.gz`, `${indexPath}.zst`]
-      .map((filename) => path.resolve(filename).toLowerCase())
-  );
-  for(const entry of index.assets)if(entry.transport)keep.add(resolvePublicAssetFile(publicRoot,entry.transport.path).toLowerCase());
-  for (const group of index.groups) {
-    for (const pack of group.packs) {
-      keep.add(resolvePublicAssetFile(publicRoot, pack.path).toLowerCase());
-      if (pack.zstdPath) keep.add(resolvePublicAssetFile(publicRoot, pack.zstdPath).toLowerCase());
-    }
-  }
+  const keep = livePackFiles(publicRoot, indexPath, index);
 
   for (const filename of await listFiles(outputRoot)) {
     if (keep.has(path.resolve(filename).toLowerCase())) continue;

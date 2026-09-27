@@ -743,7 +743,6 @@ scripts/build/assetDelivery.mjs
 scripts/build/assetPackGroups.mjs
 scripts/build/assetPackIndexValidation.mjs
 scripts/build/assetPackOwnership.mjs
-scripts/build/assetPackPublication.mjs
 scripts/build/assetPacks.mjs
 scripts/build/char/animationUtils.mjs
 scripts/build/char/attachedMotionClips.mjs

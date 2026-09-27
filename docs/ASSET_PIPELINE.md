@@ -28,6 +28,7 @@ and so on). Python 3.12 is used for image and font conversion.
 | `pnpm assets refresh <family>` | Re-publish one family into an existing tree (`pnpm task list --kind assets` lists them) |
 | `pnpm assets refresh delivery` | Regenerate the web manifest and stale precompressed sidecars |
 | `pnpm assets repack` | Rebuild every pack from the published loose tree |
+| `pnpm assets gc` | Report asset-pack outputs the published index no longer uses; `-- --apply` soft-archives them to `temp/archives/` (publishers also do this after every index publish) |
 | `pnpm assets compact` | Release profile: keep compressed packs, drop loose duplicates |
 | `pnpm assets check integrity` | Verify pack manifests and artifacts |
 | `pnpm assets check compact` | Verify the compact release set is lossless |
