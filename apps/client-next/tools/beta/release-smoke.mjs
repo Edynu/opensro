@@ -121,6 +121,7 @@ async function exercise( page, result, credentials ) {
 		credentials.character,
 		{ timeout: CONTROL_BUDGET_MS }
 	);
+	await page.locator( "#startup-loading" ).waitFor( { state: "hidden" } );
 	recordPhase( result, "world" );
 	result.navigation = "world";
 	await page.keyboard.press( "i" );
@@ -142,6 +143,7 @@ async function exercise( page, result, credentials ) {
 		credentials.character,
 		{ timeout: CONTROL_BUDGET_MS }
 	);
+	await page.locator( "#startup-loading" ).waitFor( { state: "hidden" } );
 	await page.keyboard.press( "i" );
 	await control( "inventory-gold" ).waitFor();
 	await page.keyboard.press( "i" );
@@ -271,7 +273,20 @@ async function main() {
 		} );
 	} );
 	const progress = setInterval( async () => {
-		console.log( "Release smoke:", await page.locator( "output" ).textContent().catch( () => "loading" ) );
+		const status = await page.locator( "output" ).textContent().catch( () => "loading" );
+		// The static button exists before its listener. Wait for a real runtime
+		// report before using the player's control, including after document reload.
+		if ( status?.startsWith( "Replacement runtime:" ) ) {
+			const toggle = page.locator( "#fps-toggle" );
+			if ( await toggle.getAttribute( "aria-expanded" ).catch( () => null ) === "false" ) {
+				await toggle.click().catch( () => {} );
+			}
+		}
+		console.log( "Release smoke:", status );
+		console.log(
+			"Release frame timing:",
+			await page.locator( "#fps-readout" ).textContent().catch( () => "loading" )
+		);
 	}, CONTROL_BUDGET_MS );
 	try {
 		await page.addInitScript( observeWorld );
@@ -295,6 +310,7 @@ async function main() {
 		result.requestFailures = requestFailures;
 		result.finishedAt = Date.now();
 		result.frontend = await page.locator( "output" ).textContent().catch( () => "unavailable" );
+		result.frameTiming = await page.locator( "#fps-readout" ).textContent().catch( () => "unavailable" );
 		result.workerResources = [ ...(result.workerResources ?? []), ...await collectWorkerResources( page ) ];
 		await page.screenshot( { path: path.join( destination, "browser.png" ) } ).catch( () => {} );
 		await writeFile( path.join( destination, "report.json" ), JSON.stringify( result, null, 2 ) );
