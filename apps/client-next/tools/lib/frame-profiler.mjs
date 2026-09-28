@@ -7,7 +7,7 @@ createFrameProfiler records per-frame stage timings and draw counts into a
 bounded numeric buffer the probe exports after a capture window.
 instrumentFrameProfiler patches profiler calls into a fixed set of served
 client sources at probe time. That patching is legacy (AGENTS.md: tools do
-not patch source text); runtime.ts already calls the profiler through
+not patch source text); runtime.ts, ui.ts and the character renderer call the profiler through
 explicit hooks (frameProbe) and is not patched.
 
 ===========================================================================
@@ -85,6 +85,11 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 		renderName = "",
 		characterActive = false;
 	return {
+		/*
+		================
+		start
+		================
+		*/
 		start() {
 			count = dropped = 0;
 			at = -1;
@@ -92,6 +97,11 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 			drawSamples.length = 0;
 			nextDrawSample = 0;
 		},
+		/*
+		================
+		begin
+		================
+		*/
 		begin( frameId ) {
 			if ( !active ) return;
 			if ( count === capacity ) {
@@ -106,6 +116,11 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 			data[at + indices.get( "animation-replay" )] = globalThis.__worldProbeAnimationCeiling?.frame() ?? 0;
 			data[at + indices.get( "world-replay" )] = globalThis.__worldProbeAnimationCeiling?.worldMode?.() ?? 0;
 		},
+		/*
+		================
+		mark
+		================
+		*/
 		mark( name ) {
 			if ( !active || at < 0 ) return;
 			const index = indices.get( name );
@@ -114,9 +129,19 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 			data[at + index] += end - stageAt;
 			stageAt = end;
 		},
+		/*
+		================
+		renderBegin
+		================
+		*/
 		renderBegin() {
 			if ( active && at >= 0 ) renderAt = now();
 		},
+		/*
+		================
+		renderMark
+		================
+		*/
 		renderMark( name ) {
 			if ( !active || at < 0 ) return;
 			const index = indices.get( name );
@@ -126,36 +151,76 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 			renderAt = end;
 			renderName = name;
 		},
+		/*
+		================
+		worldBegin
+		================
+		*/
 		worldBegin() {
 			if ( active && at >= 0 ) worldAt = now();
 		},
+		/*
+		================
+		worldMark
+		================
+		*/
 		worldMark( name ) {
 			if ( !active || at < 0 ) return;
 			const end = now();
 			data[at + indices.get( name )] += end - worldAt;
 			worldAt = end;
 		},
+		/*
+		================
+		characterBegin
+		================
+		*/
 		characterBegin() {
 			characterActive = active && at >= 0 && renderName === "world-prepare";
 			if ( characterActive ) characterAt = now();
 		},
+		/*
+		================
+		characterMark
+		================
+		*/
 		characterMark( name ) {
 			if ( !characterActive || !active || at < 0 ) return;
 			const end = now();
 			data[at + indices.get( name )] += end - characterAt;
 			characterAt = end;
 		},
+		/*
+		================
+		characterCount
+		================
+		*/
 		characterCount( name, value = 1 ) {
 			if ( characterActive && active && at >= 0 ) data[at + indices.get( name )] += value;
 		},
+		/*
+		================
+		sampleDetails
+		================
+		*/
 		sampleDetails() {
 			if ( !active || at < 0 || count % 32 !== 0 ) return false;
 			data[at + indices.get( "world-detail-sampled" )] = 1;
 			return true;
 		},
+		/*
+		================
+		detailBegin
+		================
+		*/
 		detailBegin( name ) {
 			if ( active && at >= 0 ) detailStarts.set( name, now() );
 		},
+		/*
+		================
+		detailEnd
+		================
+		*/
 		detailEnd( name ) {
 			if ( !active || at < 0 ) return;
 			const start = detailStarts.get( name ), index = indices.get( name );
@@ -163,6 +228,11 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 			data[at + index] += now() - start;
 			detailStarts.delete( name );
 		},
+		/*
+		================
+		end
+		================
+		*/
 		end() {
 			if ( !active || at < 0 ) return;
 			data[at + 2] = now() - data[at + 1];
@@ -171,13 +241,28 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 		},
 		// Count submitted primitives, not visible pixels or occluded fragments. The
 		// sample cadence bounds diagnostic work; none of this ships in normal builds.
+		/*
+		================
+		draw
+		================
+		*/
 		draw( frameId, image, geometry, world, ui, preview, flares, thunder, portrait, doll, partyPortraits ) {
 			if ( !active ) return;
 			const sampledAt = now();
 			if ( sampledAt < nextDrawSample || drawSamples.length >= 1024 ) return;
 			nextDrawSample = sampledAt + 500;
+			/*
+			================
+			tally
+			================
+			*/
 			const tally = () => ({ draws: 0, instances: 0, triangles: 0, zeroDraws: 0, duplicateReferences: 0 });
 			const main = tally(), overlay = tally(), portraits = tally(), seen = new Set();
+			/*
+			================
+			add
+			================
+			*/
 			function add( row, draw ) {
 				row.draws++;
 				row.instances += draw.instanceCount;
@@ -223,9 +308,19 @@ export function createFrameProfiler( now = () => performance.now(), capacity = 3
 				computePasses: Number( !!flares )
 			} );
 		},
+		/*
+		================
+		pause
+		================
+		*/
 		pause() {
 			active = false;
 		},
+		/*
+		================
+		stop
+		================
+		*/
 		stop() {
 			active = false;
 			return {
@@ -249,15 +344,16 @@ instrumentFrameProfiler
 export function instrumentFrameProfiler( source, file ) {
 	if (
 		![
-			"src/engine/runtime/characters/characters.ts",
-			"src/engine/runtime/ui/ui.ts",
 			"src/engine/runtime/renderer/frame/frame.ts",
-			"src/engine/runtime/renderer/renderer.ts",
-			"src/engine/runtime/renderer/world/world.ts",
-			"src/engine/runtime/renderer/characters/characters.ts"
+			"src/engine/runtime/renderer/world/world.ts"
 		].includes( file )
 	) return source;
 	source = source.replace( /\r\n/g, "\n" );
+	/*
+	================
+	insert
+	================
+	*/
 	function insert( marker, text, after = true ) {
 		const count = source.split( marker ).length - 1;
 		if ( count !== 1 ) throw Error( `Frame instrumentation expected one ${marker} in ${file}, found ${count}` );
@@ -271,26 +367,13 @@ export function instrumentFrameProfiler( source, file ) {
 			"globalThis.__worldProbeFrameProfiler?.draw(frameId,image,geometry,world,ui,preview,flares,thunder,portrait,doll,partyPortraits);"
 		);
 	}
-	if ( file === "src/engine/runtime/renderer/renderer.ts" ) {
-		insert( "frame(viewport,timeSeconds=0,frameId) {", "globalThis.__worldProbeFrameProfiler?.renderBegin();" );
-		insert(
-			"const scene=world.prepare",
-			'globalThis.__worldProbeFrameProfiler?.renderMark("renderer-setup");',
-			false
-		);
-		insert( "pickView=scene.matrix;", 'globalThis.__worldProbeFrameProfiler?.renderMark("world-prepare");', false );
-		insert(
-			"const uiScene=uiProduct?.scene",
-			'globalThis.__worldProbeFrameProfiler?.renderMark("character-prepare");',
-			false
-		);
-		insert( "const deferredPlan=", 'globalThis.__worldProbeFrameProfiler?.renderMark("labels-portraits");', false );
-		insert(
-			"partyDraws,frameId,deferredPass,device.bloom(viewport.width,viewport.height,!preview&&video.records[video.active][11]===1));",
-			'globalThis.__worldProbeFrameProfiler?.renderMark("submit");'
-		);
-	}
+
 	if ( file === "src/engine/runtime/renderer/world/world.ts" ) {
+		/*
+		================
+		detail
+		================
+		*/
 		const detail = ( name, begin, end ) => {
 			insert( begin, `globalThis.__worldProbeFrameProfiler?.detailBegin("${name}");`, false );
 			insert( end, `globalThis.__worldProbeFrameProfiler?.detailEnd("${name}");`, false );
@@ -368,114 +451,6 @@ export function instrumentFrameProfiler( source, file ) {
 			'globalThis.__worldProbeFrameProfiler?.worldMark("world-finalize");'
 		);
 	}
-	if ( file === "src/engine/runtime/characters/characters.ts" ) {
-		insert(
-			"const anchor = gameplay?.pose;",
-			"const __sampleActorDetails=globalThis.__worldProbeFrameProfiler?.sampleDetails();",
-			false
-		);
-		insert(
-			"                    const nativePose = entity.gid",
-			'if(__sampleActorDetails)globalThis.__worldProbeFrameProfiler?.detailBegin("actor-motion");',
-			false
-		);
-		insert(
-			"                    const metadata=resource.animationStates??animationStates.get(resource.codename);",
-			'if(__sampleActorDetails){globalThis.__worldProbeFrameProfiler?.detailEnd("actor-motion");globalThis.__worldProbeFrameProfiler?.detailBegin("actor-sounds");}',
-			false
-		);
-		insert(
-			"                    displayedDependencies.set(entity.gid, dependencies);",
-			'if(__sampleActorDetails){globalThis.__worldProbeFrameProfiler?.detailEnd("actor-sounds");globalThis.__worldProbeFrameProfiler?.detailBegin("actor-record");}',
-			false
-		);
-		insert(
-			"scale: Math.fround(baseScale*appearance.scale) });",
-			'if(__sampleActorDetails)globalThis.__worldProbeFrameProfiler?.detailEnd("actor-record");'
-		);
-		const boundaries = [
-			[ "presentation-selection", "const anchor = gameplay?.pose;" ],
-			[
-				"presentation-events",
-				"const {castByActor,castTokens,vitalsByGid,entitiesByGid}=stateIndex.update(entities,gameplay);"
-			],
-			[
-				"presentation-state",
-				"            for(const entity of entities){\n                if(entity.groundItem)continue;"
-			],
-			[ "presentation-actors", "const appearanceActive=new Set(selected.map(entity=>entity.gid));" ],
-			[ "presentation-finalize", "            for (const gid of states.keys())" ]
-		];
-		for ( let i = 0; i < boundaries.length; i++ ) {
-			const [name, marker] = boundaries[i];
-			insert(
-				marker,
-				(i ? `globalThis.__worldProbeFrameProfiler?.detailEnd("${boundaries[i - 1][0]}");` : "") +
-					`globalThis.__worldProbeFrameProfiler?.detailBegin("${name}");`,
-				false
-			);
-		}
-		insert(
-			"resources.retainWanted([...next.values()].map(actor => actor.model));",
-			'globalThis.__worldProbeFrameProfiler?.detailEnd("presentation-finalize");'
-		);
-	}
-	if ( file === "src/engine/runtime/ui/ui.ts" ) {
-		insert( "nextPoll=now+100;view=next;", 'globalThis.__worldProbeFrameProfiler?.detailBegin("ui-assembly");' );
-		insert(
-			"  const semantics={",
-			'globalThis.__worldProbeFrameProfiler?.detailEnd("ui-assembly");globalThis.__worldProbeFrameProfiler?.detailBegin("ui-finalize");',
-			false
-		);
-		insert(
-			"  if(lastProduct&&",
-			'globalThis.__worldProbeFrameProfiler?.detailEnd("ui-finalize");globalThis.__worldProbeFrameProfiler?.detailBegin("ui-compare");',
-			false
-		);
-		const equality =
-			"if(lastProduct&&lastProduct.width===w&&lastProduct.height===h&&sameUiQuads(lastProduct.quads,quads)&&sameUiSemantics(lastProduct.semantics,semantics))return null;";
-		if ( source.split( equality ).length !== 2 ) throw Error( "UI equality instrumentation boundary changed" );
-		source = source.replace(
-			equality,
-			'const __uiSame=lastProduct&&lastProduct.width===w&&lastProduct.height===h&&sameUiQuads(lastProduct.quads,quads)&&sameUiSemantics(lastProduct.semantics,semantics);globalThis.__worldProbeFrameProfiler?.detailEnd("ui-compare");if(__uiSame)return null;globalThis.__worldProbeFrameProfiler?.detailBegin("ui-publish");'
-		);
-		insert(
-			"publish({revision:++revision,width:w,height:h,quads});",
-			'globalThis.__worldProbeFrameProfiler?.detailEnd("ui-publish");'
-		);
-	}
-	if ( file === "src/engine/runtime/renderer/characters/characters.ts" ) {
-		insert( "poseCreations++;", 'globalThis.__worldProbeFrameProfiler?.characterCount("pose-created");' );
-		if ( source.split( "if(!needed.has(gid))ownedPoses.delete(gid);" ).length !== 2 ) {
-			throw Error( "Pose retirement boundary changed" );
-		}
-		source = source.replace(
-			"if(!needed.has(gid))ownedPoses.delete(gid);",
-			'if(!needed.has(gid)){ownedPoses.delete(gid);globalThis.__worldProbeFrameProfiler?.characterCount("pose-retired");}'
-		);
-		insert(
-			"frameGroups=grouped.size;",
-			'globalThis.__worldProbeFrameProfiler?.characterCount("pose-evaluations",poseEvaluations);'
-		);
-		insert(
-			"poseRequests=poseEvaluations=poseSharingHits=poseCreations=boneUploadBytes=visibleActors=frameGroups=0;",
-			"globalThis.__worldProbeFrameProfiler?.characterBegin();"
-		);
-		insert(
-			"for (const actor of frameActors) {",
-			'globalThis.__worldProbeFrameProfiler?.characterMark("character-plan");',
-			false
-		);
-		insert(
-			"function actorTransform(actor:CharacterActor)",
-			'globalThis.__worldProbeFrameProfiler?.characterMark("character-poses");',
-			false
-		);
-		insert(
-			"frameGroups=grouped.size;",
-			'globalThis.__worldProbeFrameProfiler?.characterMark("character-upload");',
-			false
-		);
-	}
+
 	return source;
 }
