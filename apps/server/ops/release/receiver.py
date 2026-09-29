@@ -24,7 +24,9 @@ import time
 
 from bundle import unpack as unpack_server
 from client_deploy import promote, record_smoke, stage
-from deploy import deploy_approved, receive
+import client_data
+import coordinated
+from deploy import publish_server, receive
 from release_state import admit, identity, read_state, write_state
 from rollback import prepare as prepare_rollback
 
@@ -50,13 +52,14 @@ def candidate_status(config):
 		plans.append(plan)
 		current = state[plan["component"]]
 		phase = "awaiting-tests"
-		if (record / "smoke.json").exists():
+		# A coordinated client takes its browser evidence after the switch.
+		if (record / "smoke.json").exists() or (plan.get("coordinated") and plan["component"] == "client"):
 			phase = "ready-for-approval"
 		if current["release"] == plan["release"]:
 			phase = "live"
 		elif current["generation"] != plan["baseGeneration"]:
 			phase = "superseded"
-		rows.append({
+		row = {
 			"candidate": record.name,
 			"component": plan["component"],
 			"release": plan["release"],
@@ -65,8 +68,15 @@ def candidate_status(config):
 			"phase": phase,
 			"mode": plan["mode"],
 			"createdAt": record.stat().st_mtime,
-			"restartRequired": plan["component"] == "server",
-		})
+			"coordinated": bool(plan.get("coordinated")),
+			"restartRequired": plan["component"] == "server" or bool(plan.get("coordinated")),
+		}
+		# The browser smoke checks the served entry against this digest; the
+		# host checks the evidence against the staged file itself.
+		entry = Path(config["client_candidates"]) / record.name / "index.html"
+		if plan["component"] == "client" and entry.is_file():
+			row["entrySha256"] = hashlib.sha256(entry.read_bytes()).hexdigest()
+		rows.append(row)
 	for row in rows:
 		if row["phase"] == "live" or row["mode"] == "rollback":
 			continue
@@ -110,27 +120,25 @@ def stage_server(config, archive, scratch):
 
 
 # ================
-# publish_server
+# stage_upload
 #
-# Reverify the retained archive and current production generation under the
-# receiver lock. Nomad deployment and its health checks remain server-owned.
+# A stage-role archive is one of four kinds, named by its declaration member:
+# a batch of data payloads for the store, a data candidate, an application
+# candidate or a server candidate.
 # ================
-def publish_server(config, candidate_id, scratch):
-	candidate_id = identity(candidate_id)
-	record = Path(config["candidate_records"]) / candidate_id
-	archive = record / "server.tar"
-	with archive.open("rb") as stream:
-		if hashlib.file_digest(stream, "sha256").hexdigest() != candidate_id:
-			raise ValueError("server archive changed after approval preparation")
-	manifest = unpack_server(archive, scratch / "server")
-	evidence = json.loads((record / "smoke.json").read_text())
-	if evidence.get("candidate") != candidate_id or evidence.get("release") != manifest["commit"]:
-		raise ValueError("server evidence identifies a different artifact")
-	retained = manifest["plan"]["mode"] == "rollback" and evidence.get("verification") == "retained-production"
-	if evidence.get("verdict") != "PASS" or not (evidence.get("linuxTests") is True or retained):
-		raise ValueError("server candidate has not passed Linux verification")
-	deploy_approved(config, scratch / "server", manifest)
-	return read_state(config["production_state"])
+def stage_upload(config, archive, scratch):
+	with tarfile.open(archive, "r:") as package:
+		names = package.getnames()
+		declaration = None
+		if "candidate.json" in names:
+			declaration = json.load(package.extractfile("candidate.json")).get("format")
+	if names and names[0] == "payload.json":
+		return client_data.store_payload(config, archive)
+	if declaration == client_data.FORMAT:
+		return client_data.stage(config, archive)
+	if "candidate.json" in names:
+		return stage(config, archive)
+	return stage_server(config, archive, scratch)
 
 
 # ================
@@ -162,6 +170,12 @@ def request(config, role, value, scratch):
 		return promote(config, value["candidate"])
 	if role == "publish" and operation == "publish-server":
 		return publish_server(config, value["candidate"], scratch)
+	if role == "publish" and operation == "publish-coordinated":
+		return coordinated.publish(config, value, scratch)
+	if role == "publish" and operation == "confirm-coordinated":
+		return coordinated.confirm(config)
+	if role == "publish" and operation == "revert-coordinated":
+		return coordinated.revert(config, value.get("reason"))
 	raise ValueError("operation is not allowed for this release key")
 
 
@@ -197,9 +211,7 @@ def main():
 			else:
 				if arguments.role != "stage":
 					raise ValueError("production key accepts only an approved candidate identity")
-				with tarfile.open(archive, "r:") as package:
-					is_client = "candidate.json" in package.getnames()
-				result = stage(config, archive) if is_client else stage_server(config, archive, scratch)
+				result = stage_upload(config, archive, scratch)
 			candidate_status(config)
 			print(json.dumps(result, sort_keys=True))
 

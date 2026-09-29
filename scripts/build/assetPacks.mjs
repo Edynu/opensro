@@ -16,6 +16,7 @@ up between full builds.
 ===========================================================================
 */
 
+import { ASSET_SCHEMA } from "./assetSchema.mjs";
 import { prepareAssetDelivery } from "./assetDelivery.mjs";
 import { validatePackedFontAtlases } from "./assetPackPublication.mjs";
 import { validateAssetPackIndex } from "./assetPackIndexValidation.mjs";
@@ -129,10 +130,12 @@ export async function buildAssetPacks( options = {} ) {
 	const hashCache = await openFileHashCache( options.hashCachePath );
 	const counters = { built: 0, reused: 0 };
 
-	/** @type {{ format: string, version: number, generatedAt: string, targetPackBytes: number, groups: AssetPackGroupIndex[], assets: AssetPackAssetRow[] }} */
+	/** @type {{ format: string, version: number, assetSchema: number, generatedAt: string, targetPackBytes: number, groups: AssetPackGroupIndex[], assets: AssetPackAssetRow[] }} */
 	const index = {
 		format: "sro-asset-pack-index",
 		version: 1,
+		// The format of the data this index serves (assetSchema.mjs).
+		assetSchema: ASSET_SCHEMA,
 		generatedAt: new Date().toISOString(),
 		targetPackBytes: defaultTargetBytes,
 		groups: [],

@@ -10,12 +10,12 @@ asset release exactly. An application update cannot quietly change game data.
 ===========================================================================
 """
 
+import argparse
 import hashlib
 import io
 import json
 from pathlib import Path, PurePosixPath
 import re
-import sys
 import tarfile
 
 from plan import build_plan
@@ -96,17 +96,19 @@ def validate_base(base, manifest):
 
 
 # ================
-# require_declared_protocol
+# require_declared_contract
 #
-# The build reports the release protocol compiled into it; the approval plan
-# carries the declared one. They must be the same, as a server's compiled
-# report must match its declaration (verify_contract.py).
+# The build reports the release protocol compiled into it and the asset
+# schema of the data it packaged; the approval plan carries the declared
+# ones. They must be the same, as a server's compiled report must match its
+# declaration (verify_contract.py).
 # ================
-def require_declared_protocol(manifest, plan):
-	built = manifest.get("protocol")
-	declared = plan.get("compatibility", {}).get("protocol")
-	if type(built) is not int or built != declared:
-		raise ValueError(f"client build speaks release protocol {built!r}, its declaration says {declared!r}")
+def require_declared_contract(manifest, plan):
+	declared = plan.get("compatibility", {})
+	for field, name in (("protocol", "release protocol"), ("assetSchema", "asset schema")):
+		built = manifest.get(field)
+		if type(built) is not int or built != declared.get(field):
+			raise ValueError(f"client build has {name} {built!r}, its declaration says {declared.get(field)!r}")
 
 
 # ================
@@ -127,14 +129,14 @@ def add_bytes(archive, name, data):
 # Bind the application artifact and production generation into one archive.
 # Private source maps and source snapshots are deliberately not members.
 # ================
-def bundle(package, destination, state):
+def bundle(package, destination, state, intent=None):
 	raw = (package / "release.json").read_bytes()
 	if len(raw) > MAX_MANIFEST_BYTES:
 		raise ValueError("client manifest exceeds limit")
 	manifest = json.loads(raw)
 	files = application_files(manifest)
-	plan = build_plan("client", manifest["releaseId"], state)
-	require_declared_protocol(manifest, plan)
+	plan = build_plan("client", manifest["releaseId"], state, intent)
+	require_declared_contract(manifest, plan)
 	candidate = {
 		"format": FORMAT,
 		"manifestSha256": hashlib.sha256(raw).hexdigest(),
@@ -188,7 +190,7 @@ def unpack(source):
 		identity(plan.get("commit"))
 		if plan.get("baseRelease") != candidate.get("baseRelease"):
 			raise ValueError("candidate and approval identify different bases")
-		require_declared_protocol(manifest, plan)
+		require_declared_contract(manifest, plan)
 		if names != set(files) | {"candidate.json", "release.json"}:
 			raise ValueError("unlisted or missing application member")
 		payloads = {}
@@ -206,9 +208,13 @@ def unpack(source):
 # Candidate generation is build-time work; this command never contacts a host.
 # ================
 def main():
-	if len(sys.argv) != 4:
-		raise ValueError("Usage: client_bundle.py PACKAGE OUTPUT_TAR PRODUCTION_STATE_JSON")
-	bundle(Path(sys.argv[1]), Path(sys.argv[2]), read_state(sys.argv[3]))
+	parser = argparse.ArgumentParser()
+	parser.add_argument("package", type=Path)
+	parser.add_argument("archive", type=Path)
+	parser.add_argument("state")
+	parser.add_argument("--coordinated", action="store_true", help="publish only together with a server candidate")
+	arguments = parser.parse_args()
+	bundle(arguments.package, arguments.archive, read_state(arguments.state), {"coordinated": arguments.coordinated})
 
 
 if __name__ == "__main__":
