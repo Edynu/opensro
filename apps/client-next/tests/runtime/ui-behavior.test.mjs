@@ -1939,6 +1939,80 @@ test("GPU shop gates merchant capability, affordability and exact sale confirmat
 	}
 });
 
+/*
+================
+merchantQuantityLimit
+
+Exercise the real editor and confirmation path. An oversized draft must be
+corrected visibly before the command is composed, using the offer's limit.
+================
+*/
+test("merchant amount editor clamps to the authored limit before purchase", () => {
+	const sent = [], f = uiFixture( command => sent.push( command.command ) );
+	try {
+		const game = f.state.gameplay;
+		game.target = 17;
+		game.targetCapabilities = 1;
+		game.inventorySlotCount = 45;
+		game.equipmentSlotCount = 13;
+		game.progression = { gold: "10000", masteries: [] };
+		f.state.entities.push( { ...f.state.entities[0], gid: 17, kind: "npc", name: "Merchant" } );
+		let now = 0;
+		/*
+================
+draw
+================
+		*/
+		function draw() {
+			return f.ui.step( f.state, now += 100 );
+		}
+		draw();
+		f.ui.event( { kind: "activate", id: "shop-open" } );
+		draw();
+		sent.length = 0;
+		game.shop = {
+			npc: 17,
+			name: "Merchant",
+			offers: [
+				{ tab: 0, slot: 0, refObjId: 62, name: "Arrow", price: "2", maxStack: 250, purchaseLimit: 250 },
+				{ tab: 0, slot: 1, refObjId: 3630, name: "Potion", price: "60", maxStack: 50, purchaseLimit: 50 },
+				{ tab: 0, slot: 2, refObjId: 100, name: "Package", price: "100", maxStack: 250, purchaseLimit: 5 }
+			]
+		};
+		game.shopCompletionRevision = 1;
+		draw();
+		for ( const [index, maximum] of [ [ 0, 250 ], [ 1, 50 ], [ 2, 5 ] ] ) {
+			f.ui.event( { kind: "activate", id: "shop-offer:" + index } );
+			draw();
+			f.ui.event( { kind: "edit", id: "shop-quantity", value: "1000" } );
+			const output = draw();
+			assert.equal( output.controls.find( control => control.id === "shop-quantity" ).value, String( maximum ) );
+			assert.equal( output.controls.find( control => control.id === "shop-trade" ).disabled, false );
+			f.ui.event( { kind: "activate", id: "shop-trade" } );
+			draw();
+			assert.deepEqual( sent.pop(), { kind: "shop-buy", tab: 0, slot: index, quantity: maximum } );
+		}
+		f.ui.event( { kind: "activate", id: "shop-offer:0" } );
+		draw();
+		for ( const value of [ "", "0", "99", "250" ] ) {
+			f.ui.event( { kind: "edit", id: "shop-quantity", value } );
+			const output = draw();
+			assert.equal( output.controls.find( control => control.id === "shop-quantity" ).value, value );
+			assert.equal( output.controls.find( control => control.id === "shop-trade" ).disabled, !Number( value ) );
+		}
+		game.progression.gold = "499";
+		f.ui.event( { kind: "edit", id: "shop-quantity", value: "1000" } );
+		const unaffordable = draw();
+		assert.equal( unaffordable.controls.find( control => control.id === "shop-quantity" ).value, "250" );
+		assert.equal( unaffordable.controls.find( control => control.id === "shop-trade" ).disabled, true );
+		f.ui.event( { kind: "activate", id: "shop-trade" } );
+		draw();
+		assert.equal( sent.length, 0, "normalization must not bypass the gold check" );
+	} finally {
+		f.dispose();
+	}
+});
+
 test("merchant wheel scrolling follows the dragged window and ignores its old location", () => {
 	const f = uiFixture();
 	try {
@@ -3168,7 +3242,16 @@ test("GPU merchant menu branches retain all tabs, sparse pages and native purcha
 test("native window sisters retain drag placement, close on ESC and reject retired captures", () => {
 	const f = uiFixture();
 	f.state.gameplay.academy = { rows: [], member: null, request: null };
+	// The pet window follows native admission: a living owned COS must exist.
+	f.state.gameplay.cosRecords = [ { gid: 7, refObjId: 100, band: 4, hp: 100, mp: 0, status: 0, dead: false } ];
 	/** @type {import("../../src/engine/contracts/ui.ts").UiSemantics | null | undefined} */ let semantics;
+	/*
+================
+settle
+
+Drain dependent window resources before asserting placement or capture state.
+================
+	*/
 	const settle = () => {
 		for ( let i = 0; i < 50; i++ ) semantics = f.ui.step( f.state, 1000 + i ) ?? semantics;
 	};
@@ -4161,6 +4244,37 @@ test("quick party portrait stays requested after the peer leaves world visibilit
 		const semantic = f.ui.step( f.state, 2100 );
 		assert.ok( f.scenes.at( -1 ).quads.some( quad => quad.portraitGid === gid ) );
 		assert.equal( semantic.controls.some( control => control.id === "party-target:22" ), false );
+	} finally {
+		f.dispose();
+	}
+});
+
+test("selecting a quick party member keeps its name and gauges above the opaque selection backing", () => {
+	const f = uiFixture();
+	try {
+		f.state.gameplay.social = {
+			localName: "Player",
+			self: 11,
+			leader: 11,
+			options: 3,
+			members: [ { id: 11, name: "Player", model: 1 }, { id: 22, name: "Peer", model: 2, status: 255 } ]
+		};
+		f.state.entities.push( { ...f.state.entities[0], gid: 22, kind: "player", name: "Peer" } );
+		f.state.gameplay.target = 22;
+		for ( let i = 0; i < 30; i++ ) f.ui.step( f.state, i * 100 );
+		const quads = f.scenes.at( -1 ).quads;
+		const selection = quads.findIndex( quad => quad.texture.endsWith( "/qpt_grope_select.png" ) );
+		assert.ok( selection >= 0, "selected row draws the shipped selection texture" );
+		const backing = quads[selection].rect;
+		const content = quads.map( ( quad, index ) => ({ quad, index }) ).filter( ( { quad } ) =>
+			quad.rect[0] >= backing[0] && quad.rect[0] < backing[0] + backing[2] &&
+			quad.rect[1] >= backing[1] && quad.rect[1] < backing[1] + backing[3] &&
+			(quad.texture === fontAtlas.image || /\/qpt_(hp|mp)\.png$/.test( quad.texture ))
+		);
+		assert.ok( f.hasText( "Peer" ), "selection preserves the member name" );
+		assert.ok( content.some( ( { quad } ) => quad.texture === fontAtlas.image ) );
+		assert.ok( content.some( ( { quad } ) => quad.texture.endsWith( "/qpt_hp.png" ) ) );
+		assert.ok( content.every( ( { index } ) => index > selection ), "opaque backing cannot occlude row content" );
 	} finally {
 		f.dispose();
 	}

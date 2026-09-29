@@ -3,6 +3,10 @@
 
 wiring_gameplay.go - gameplay authorities and production runtime composition.
 
+Constructs one shard's owners and connects their transaction-safe entry
+points before transport registration. Runtime callbacks capture this shard
+identity rather than resolving characters while another owner holds a lock.
+
 ===========================================================================
 */
 package main
@@ -36,21 +40,22 @@ import (
 )
 
 /*
-================================================================================
-Gameplay composition
+================
+gameplayPlane
 
 The composition root joins concrete authorities to consumer-owned gameplay
 ports. Runtimes retain only the capabilities declared by their packages.
-================================================================================
+================
 */
-
 type gameplayPlane struct {
+	divisionID    string
 	hub           *transport.Hub
 	deps          *enterworld.Deps
 	items         *action.Runtime
 	movement      *movement.Runtime
 	water         *movement.WaterValidator
 	presence      *livepresence.Directory
+	chat          *chat.Runtime
 	parties       *party.Runtime
 	guildInvites  *guild.InviteRuntime
 	mentorInvites *mentor.InviteRuntime
@@ -62,6 +67,9 @@ type gameplayPlane struct {
 /*
 ================
 newGameplayPlane
+
+Builds the shard's shared authorities before any gameplay handler is exposed.
+All effect-aware projections refer to the same action runtime.
 ================
 */
 func newGameplayPlane(
@@ -223,6 +231,7 @@ func newGameplayPlane(
 	}
 
 	return &gameplayPlane{
+		divisionID:    ownedShard.ID,
 		hub:           ts.Hub,
 		deps:          deps,
 		items:         items,
@@ -240,6 +249,9 @@ func newGameplayPlane(
 /*
 ================
 appendGroundObjectRows
+
+Adds live ground objects after authored NPC rows while retaining the existing
+bootstrap producer and its visibility decisions.
 ================
 */
 func appendGroundObjectRows(deps *enterworld.Deps, items *action.Runtime) {
@@ -253,13 +265,17 @@ func appendGroundObjectRows(deps *enterworld.Deps, items *action.Runtime) {
 		if npcRows != nil {
 			rows = npcRows(divisionID, character, entry)
 		}
-		return append(rows, enterworld.GroundObjectListRows(items.CharacterGroundItems(divisionID, character))...)
+		rows = append(rows, enterworld.GroundObjectListRows(items.CharacterGroundItems(divisionID, character))...)
+		return append(rows, items.SkillObjectRows(divisionID, character, entry)...)
 	}
 }
 
 /*
 ================
 connectInvitationLanes
+
+Shares the single outstanding-consent rule across party, guild, mentor,
+and resurrection invitations without moving their state ownership.
 ================
 */
 func connectInvitationLanes(
@@ -297,6 +313,10 @@ func connectInvitationLanes(
 /*
 ================
 register
+
+Installs validated cross-owner callbacks before registering transport
+handlers. Progression callbacks operate on the caller's candidate and must
+never acquire another character transaction.
 ================
 */
 func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefinitionLoader) error {
@@ -315,7 +335,11 @@ func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefiniti
 		return fmt.Errorf("quest definitions: %w", err)
 	}
 	stats := progression.NewRuntime(game.deps)
+	stats.Withdrawal = game.items.WithdrawalHooks()
 	stats.BaseStats = game.deps.PlayerBaseStats
+	stats.RecoverLevelVitals = func(character *enterworld.Character) error {
+		return game.items.RecoverLevelVitals(game.divisionID, character)
+	}
 	quests, err := quest.NewRuntime(
 		game.deps,
 		definitions,
@@ -330,16 +354,30 @@ func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefiniti
 		return err
 	}
 	quests.PlanInventory = game.items.PlanQuestInventory
+	quests.SpawnCaptureGuardian = func(character *enterworld.Character) bool {
+		return game.items.SpawnQuestGuardian(game.divisionID, character)
+	}
+	game.items.CanPlaceQuestTrap = quests.CanPlaceTrap
+	game.items.CaptureQuestTrap = quests.CaptureQuestTrap
 	game.items.UpdateQuestInventory = quests.InventoryUpdater()
 	game.items.UpdateQuestKill = quests.KillUpdater()
 	game.items.QuestTravelBlocks = quests.TravelBlocks
 	game.items.AdvanceQuestMinute = quests.AdvanceMinute
+	game.items.AdvanceQuestItem = quests.AdvanceItemUse
+	game.items.ForgetQuestItem = quests.ForgetItemUse
+	game.items.UseQuestItem = quests.BeginItemUse
+	game.items.ReleaseQuestCapturesOnDeath = quests.ReleaseCapturesOnDeath
 	game.items.AdvanceQuestCalendar = quests.AdvanceCalendar
 	game.items.QuestMonsterDrops = quests.MonsterDrops
 	game.items.NpcQuests = action.NpcQuestHooks{
+		Prepare: quests.PrepareNpcQuest,
 		Options: func(divisionID string, character *enterworld.Character, npcCodename string) []action.NpcQuestOption {
 			var rows []quest.NpcOption
-			game.deps.Read(divisionID, func() { rows = quests.OptionsForNpc(character, npcCodename) })
+			var resuscitation bool
+			game.deps.Read(divisionID, func() {
+				rows = quests.OptionsForNpc(character, npcCodename)
+				resuscitation = quest.ResuscitationAvailable(character, npcCodename)
+			})
 			out := make([]action.NpcQuestOption, 0, len(rows))
 			for _, row := range rows {
 				out = append(out, action.NpcQuestOption{
@@ -349,6 +387,12 @@ func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefiniti
 					Informational: row.Informational,
 				})
 			}
+			if resuscitation {
+				out = append(out, action.NpcQuestOption{
+					Codename: quest.ResuscitationService, TitleSymbol: "SN_TALK_QSP_ALL_POTION_1_07",
+					PromptSymbol: "SN_TALK_QSP_ALL_POTION_1_00", Immediate: true,
+				})
+			}
 			return out
 		},
 		Accept: func(character *enterworld.Character, codename string) ([]wire.Frame, error) {
@@ -356,6 +400,10 @@ func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefiniti
 			return result.Frames, err
 		},
 		Finish: func(character *enterworld.Character, codename, npcCodename string) ([]wire.Frame, error) {
+			if codename == quest.ResuscitationService {
+				result, err := quests.OpenResuscitation(character, npcCodename)
+				return result.Frames, err
+			}
 			result, err := quests.AdvanceNpcQuest(character, codename, npcCodename)
 			return result.Frames, err
 		},
@@ -419,7 +467,7 @@ func (game *gameplayPlane) register(hub *transport.Hub, loadQuests questDefiniti
 	community.Register(hub, game.deps)
 	community.RegisterFriend(hub, game.deps, game.presence)
 	community.RegisterLetter(hub, game.deps, game.presence)
-	chat.Register(hub, game.deps, game.presence, game.parties.Registry())
+	game.chat = chat.Register(hub, game.deps, game.presence, game.parties.Registry())
 	gmcommand.Register(hub, game.deps, game.presence, game.items)
 	game.matches.Register(hub)
 	game.parties.Register(hub)

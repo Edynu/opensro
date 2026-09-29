@@ -32,6 +32,17 @@ import {
 } from "@/engine/foundation/ui/minimap-markers";
 import { createMinimapResources } from "./hud/minimap";
 import { createSkillTrainingCache } from "./hud/skill-training";
+import {
+	createWithdrawalDialog,
+	WITHDRAWAL_CONFIRM_SIZE,
+	WITHDRAWAL_CONFIRM_BUTTON_Y,
+	WITHDRAWAL_CONFIRM_FILL_HEIGHT,
+	RESUSCITATION_CONFIRM_SIZE,
+	RESUSCITATION_CONFIRM_BUTTON_Y,
+	RESUSCITATION_CONFIRM_FILL_HEIGHT,
+	WITHDRAWAL_SKILL_FRAME_HEIGHT
+} from "./hud/withdrawal";
+import { isRestorationPotion } from "@/engine/foundation/gameplay/withdrawal";
 import { SkillSlot_Resolve } from "./hud/skill-slot";
 import { academyRank } from "@/engine/foundation/gameplay/academy";
 import { createWindowPlacement } from "./hud/window-placement";
@@ -90,6 +101,9 @@ import { buffTooltip } from "@/engine/foundation/ui/buff-tooltip";
 import { masteryTooltip } from "@/engine/foundation/ui/mastery-tooltip";
 import { tooltipItems, actionTooltipKey } from "@/engine/foundation/ui/tooltip-target";
 import { itemTooltip } from "@/engine/foundation/ui/item-tooltip";
+import { commerceTooltip } from "@/engine/foundation/ui/commerce-tooltip";
+import { effectivePartyOptions } from "@/engine/foundation/ui/party-options";
+import { monsterPartyNameplate } from "@/engine/foundation/ui/monster-nameplate";
 import { skillTooltip } from "@/engine/foundation/ui/skill-tooltip";
 import { tooltipColor, type TooltipRow } from "@/engine/foundation/ui/tooltip-rows";
 import { latticeCells } from "@/engine/foundation/ui/inventory-layout";
@@ -199,7 +213,8 @@ import {
 	hotbarSlot,
 	extendedSlot,
 	quickSlotDrag,
-	quickSlotDrop
+	quickSlotDrop,
+	TRACE_ACTION_ID
 } from "@/engine/foundation/gameplay/quickslots";
 import { itemActivation } from "@/engine/foundation/gameplay/item-activation";
 import { iconPath } from "@/engine/foundation/ui/icon";
@@ -241,6 +256,7 @@ import type { UiView, UiEvent, UiRect, UiQuad, UiControl, UiSemantics, UiScene }
 const ROOT = "/assets/images/Media_extracted/", BUTTON = ROOT + "interface/ifcommon/com_button.png";
 const PARTS = frameParts();
 const FRAME = ROOT + "interface/frame/mframe_wnd_";
+const PARTY_MATCH_RANGE_SEPARATOR_ID = 43;
 const BUTTON_FOCUS = BUTTON.replace( ".png", "_focus.png" ),
 	BUTTON_PRESS = BUTTON.replace( ".png", "_press.png" ),
 	BUTTON_DISABLE = BUTTON.replace( ".png", "_disable.png" );
@@ -426,6 +442,7 @@ export function createUi(
 		questTimers = createQuestTimers();
 	const spGauge = createSkillGauge();
 	const skillTraining = createSkillTrainingCache();
+	const withdrawal = createWithdrawalDialog();
 	const gauges = createGaugePresentation();
 	const regionBanner = createRegionBanner();
 	const hudMessages = createHudMessages( chooseTip );
@@ -698,6 +715,17 @@ export function createUi(
 	}
 	/*
 	================
+	hudCopy
+
+	Input notifications and rendered dialogs share the system-text catalogue.
+	The display-name catalogue cannot resolve UI messages (native 68D430).
+	================
+	*/
+	function hudCopy( key: string ) {
+		return hud.data()?.strings[key] ?? "";
+	}
+	/*
+	================
 	setPanel
 	================
 	*/
@@ -705,6 +733,11 @@ export function createUi(
 		if ( intent === "toggle" && panel === next ) next = "";
 		if ( panel === next ) return false;
 		if ( !canLeavePanel() ) return false;
+		// Native 6A2350 resolves an owned COS before 69D920 creates its window.
+		// Apply the same admission to hotkeys, menu links and contextual opens.
+		if ( next === "COS inventory" && !view?.gameplay?.cosRecords?.some( r => !r.dead && r.hp > 0 ) ) {
+			return false;
+		}
 		shopOpenRequest = null;
 		// Leave hooks run only after admission. Never restore drafts or close a
 		// server workflow for a rejected switch or a repeated open/select action.
@@ -795,7 +828,13 @@ export function createUi(
 			return;
 		}
 		if ( id === 1007 ) {
-			if ( game.target ) sendGameplay( { kind: "party-invite", gid: game.target, options: partyOptions } );
+			if ( game.target ) {
+				sendGameplay( {
+					kind: "party-invite",
+					gid: game.target,
+					options: effectivePartyOptions( game.social, partyOptions )
+				} );
+			}
 			return;
 		}
 		if ( id === 1008 ) {
@@ -813,7 +852,7 @@ export function createUi(
 			if ( game.target ) sendGameplay( { kind: "attack", gid: game.target } );
 			return;
 		}
-		if ( id === 1000 || id === 1001 || id === 5000 || id >= 4000 && id <= 4006 ) {
+		if ( id === 1000 || id === 1001 || id === TRACE_ACTION_ID || id === 5000 || id >= 4000 && id <= 4006 ) {
 			sendGameplay( { kind: "action-command", id } );
 		}
 	}
@@ -823,6 +862,7 @@ export function createUi(
 	================
 	*/
 	function resetPanel() {
+		withdrawal.close();
 		blockDialog = null;
 		blockSelected = "";
 		blockInput = "";
@@ -908,6 +948,14 @@ export function createUi(
 	================
 	*/
 	function sendGameplay( command: Extract<SessionCommand, { kind: "gameplay"; }>["command"] ) {
+		if ( command.kind === "item-use" ) {
+			const item = view?.gameplay?.inventory.find( row => row.slot === command.slot );
+			if ( item && isRestorationPotion( item ) ) {
+				withdrawal.open( item.refObjId );
+				dirty = true;
+				return;
+			}
+		}
 		commands( { kind: "gameplay", command } );
 	}
 	/*
@@ -1036,6 +1084,10 @@ export function createUi(
 			sendGameplay( { kind: "return-cancel" } );
 			return;
 		}
+		if ( id === "gathering-cancel" ) {
+			sendGameplay( { kind: "gathering-cancel" } );
+			return;
+		}
 		if ( !view ) return;
 		if ( groundDrop ) {
 			if ( id === "ground-drop-cancel" ) {
@@ -1049,6 +1101,30 @@ export function createUi(
 			}
 			return;
 		}
+		if ( id.startsWith( "withdrawal-" ) ) {
+			if ( id === "withdrawal-close" ) {
+				if ( withdrawal.boundToNpc() ) sendGameplay( { kind: "npc-close" } );
+				withdrawal.close();
+			} else if ( id === "withdrawal-cancel" ) withdrawal.select( "" );
+			else if ( id === "withdrawal-decrease" ) withdrawal.adjust( 1 );
+			else if ( id === "withdrawal-recover" ) withdrawal.adjust( -1 );
+			else if ( id.startsWith( "withdrawal-choice:" ) ) {
+				withdrawal.select( id.slice( "withdrawal-choice:".length ) );
+			} else if ( id === "withdrawal-confirm" && view.gameplay ) {
+				const state = withdrawal.read(
+					view.gameplay,
+					hud.data()?.masteryCosts ?? {},
+					hud.data()?.withdrawalGoldPrices
+				);
+				if ( state.command ) {
+					sendGameplay( state.command );
+					withdrawal.select( "" );
+				}
+			}
+			dirty = true;
+			return;
+		}
+		if ( withdrawal.confirming() ) return;
 		if ( skillConfirm && !id.startsWith( "skill-confirm-" ) ) return;
 		if ( confirmAbandon && !id.startsWith( "quest-abandon-" ) ) return;
 		const phase = view.session?.phase ?? "signed-out";
@@ -1392,7 +1468,11 @@ export function createUi(
 		else if ( id === "invite-accept" || id === "invite-refuse" ) {
 			sendGameplay( { kind: "social-consent", accept: id === "invite-accept" } );
 		} else if ( id === "party-invite" && view.gameplay?.target ) {
-			sendGameplay( { kind: "party-invite", gid: view.gameplay.target, options: partyOptions } );
+			sendGameplay( {
+				kind: "party-invite",
+				gid: view.gameplay.target,
+				options: effectivePartyOptions( view.gameplay.social, partyOptions )
+			} );
 		} else if ( id === "party-settings" ) {
 			partySettings = true;
 			partyDraft = partyOptions;
@@ -1524,7 +1604,7 @@ export function createUi(
 						partyMatchDescending
 					),
 					type = (partyAuto.exp === 0 ? 1 : 0) | (partyAuto.item === 0 ? 2 : 0) |
-						((game?.social?.options ?? partyOptions) & 4),
+						(effectivePartyOptions( game?.social, partyOptions ) & 4),
 					ids = partyAutoCandidates(
 						rows,
 						partyAuto.purpose,
@@ -1544,7 +1624,7 @@ export function createUi(
 						kind: partyDialog === "modify" ? "party-match-modify" : "party-match-register",
 						registration: {
 							party: 0,
-							type: view.gameplay?.social?.options ?? partyOptions,
+							type: effectivePartyOptions( view.gameplay?.social, partyOptions ),
 							purpose: partyForm.purpose,
 							min,
 							max,
@@ -2603,6 +2683,19 @@ export function createUi(
 				dirty = true;
 				return;
 			}
+			if (
+				event.kind === "key" && withdrawal.active() &&
+				(withdrawal.confirming() || event.code === "Escape")
+			) {
+				if ( event.code === "Escape" ) {
+					if ( withdrawal.confirming() ) withdrawal.select( "" );
+					else activate( "withdrawal-close" );
+					dirty = true;
+				} else if ( event.code === "Enter" ) {
+					activate( "withdrawal-confirm" );
+				}
+				return;
+			}
 			if ( event.kind === "key" && skillConfirm ) {
 				if ( event.code === "Escape" ) skillConfirm = 0;
 				else if ( event.code === "Enter" ) activate( "skill-confirm-ok" );
@@ -2874,13 +2967,10 @@ export function createUi(
 						if ( item.slot >= equipmentEnd ) {
 							groundDrop = { slot: item.slot, refObjId: item.refObjId };
 							for ( const key of [ "UIIT_MSG_DROP_WARNING_1", "UIIT_MSG_DROP_WARNING_2" ] ) {
-								hudMessages.append( localization.text( key, key ) );
+								hudMessages.append( hudCopy( key ) );
 							}
 						} else {hudMessages.append(
-								localization.text(
-									"UIIT_MSG_STRGERR_CANT_DROP_EQUIPED_ITEM_DIRECTLY",
-									"UIIT_MSG_STRGERR_CANT_DROP_EQUIPED_ITEM_DIRECTLY"
-								)
+								hudCopy( "UIIT_MSG_STRGERR_CANT_DROP_EQUIPED_ITEM_DIRECTLY" )
 							);}
 						dirty = true;
 						return;
@@ -3424,7 +3514,19 @@ export function createUi(
 				} else if ( event.id === "academy-name" ) academyName = event.value;
 				else if ( event.id === "alchemy-quantity" ) alchemyQuantity = event.value;
 				else if ( event.id === "shop-quantity" ) {
-					shopQuantity = event.value.replace( /[^0-9]/g, "" ).slice( 0, 5 );
+					const game = view?.gameplay;
+					const quote = merchantQuote(
+						shopChoice,
+						game?.shop,
+						game?.inventory ?? [],
+						event.value,
+						game?.progression?.gold
+					);
+					// 6C0540 installs the offer limit; 521A85..521AD1 replaces an
+					// oversized numeric draft with that limit before notifying the
+					// dialog. Keep the displayed amount and the submitted quote equal.
+					const digits = event.value.replace( /[^0-9]/g, "" );
+					if ( quote ) shopQuantity = digits ? String( Math.min( quote.maximum, Number( digits ) ) ) : "";
 				} else if ( event.id === "split-amount" && splitStack ) {
 					const raw = event.value.replace( /[^0-9]/g, "" ).slice( 0, 5 );
 					splitAmount = raw ? String( Math.min( splitStack.quantity - 1, Number( raw ) ) ) : "";
@@ -3545,6 +3647,10 @@ export function createUi(
 		step( next: UiView, now = 0, probe?: UiFrameProbe ): UiSemantics | null {
 			quickslotTime = next.simulationTimeMs ?? now;
 			if ( disposed ) return null;
+			if ( panel === "COS inventory" && !next.gameplay?.cosRecords?.some( r => !r.dead && r.hp > 0 ) ) {
+				setPanel( "" );
+				dirty = true;
+			}
 			if ( shopOpenRequest ) {
 				const request = shopOpenRequest, game = next.gameplay;
 				if ( next.session?.phase !== "world" || game?.target !== request.gid ) shopOpenRequest = null;
@@ -3572,12 +3678,6 @@ export function createUi(
 			if ( consolePhase === 1 || consolePhase === 2 ) dirty = true;
 			// Gameplay durations use the worker's fixed clock, not the main thread's
 			// performance origin. Advance retained gauges even with no new packets.
-			/*
-			================
-			hudCopy
-			================
-			*/
-			const hudCopy = ( key: string ) => hud.data()?.strings[key] ?? "";
 			const nextBuffTick = next.session?.phase === "world" &&
 					next.gameplay?.buffSlots?.some( s =>
 						s.state === "departing" || s.effect.remainingMs !== undefined
@@ -3585,7 +3685,7 @@ export function createUi(
 				Math.floor( (next.simulationTimeMs ?? 0) / 100 ) :
 				-1;
 			const slotTick = (next.gameplay?.skillCooldowns?.length || next.gameplay?.itemCooldowns?.length ||
-					next.gameplay?.returnScroll) ?
+					next.gameplay?.returnScroll || next.gameplay?.questGathering) ?
 				Math.floor( quickslotTime / 16 ) :
 				-1;
 			if ( slotTick !== quickslotTick ) {
@@ -3635,6 +3735,9 @@ export function createUi(
 			const guideNeeded = next.session?.phase === "world";
 			if ( guideResources.step( guideNeeded ) ) dirty = true;
 			if ( npcPanel.observe( next.session?.phase === "world" ? next.gameplay?.npcConversation : undefined ) ) {
+				dirty = true;
+			}
+			if ( withdrawal.observe( next.session?.phase === "world" ? next.gameplay?.restorationRevision ?? 0 : 0 ) ) {
 				dirty = true;
 			}
 			if ( trackedQuest && !next.gameplay?.quests?.some( q => q.refId === trackedQuest ) ) {
@@ -5227,6 +5330,9 @@ export function createUi(
 							x,
 							y
 						);
+						// The authored selection image has an opaque interior. Treat it
+						// as row backing so selecting a member cannot cover their data.
+						if ( row.entity && row.entity.gid === game.target ) authoredImage( slot.GDR_QPS_SELECT!, x, y );
 						authoredText( slot.GDR_QPS_TXT_ID!, x, y, row.member.name );
 						authoredGauge(
 							"quick-party-hp:" + row.member.id,
@@ -5272,7 +5378,6 @@ export function createUi(
 								selected: row.entity.gid === game.target
 							} );
 							blocks.push( r );
-							if ( row.entity.gid === game.target ) authoredImage( slot.GDR_QPS_SELECT!, x, y );
 						}
 						// 5BA840 passes no character, so party abnormal cells carry no grade.
 						const buff = authoredRect( slot.GDR_QPS_PARTY_BUFF!, x, y ),
@@ -7090,7 +7195,7 @@ export function createUi(
 					const leader = social?.members.find( m => m.id === social.leader ),
 						members = social?.members.filter( m => m.id !== social.leader ) ?? [],
 						hasParty = !!social?.leader,
-						displayOptions = hasParty ? social!.options : partyOptions;
+						displayOptions = effectivePartyOptions( social, partyOptions );
 					for ( const node of authoredPaintOrder( layout ) ) {
 						if ( !hasParty && [ 14, 15, 41, 43, 44 ].includes( node.id ) ) continue;
 						if ( !hasParty && (node.id === 52 || node.id === 53) ) {
@@ -7550,19 +7655,70 @@ export function createUi(
 					}
 					endWindow( admission );
 				}
-				if ( panel === "Skills" && hudData ) {
+				if ( (panel === "Skills" || withdrawal.active()) && hudData ) {
 					const admission = beginWindow(),
 						popup = mainPopupGeometry( "Skills", hudData.windows.ifmainpopup!, w, h, popupPosition ),
-						[px, py] = popup.frame,
-						[ox, oy] = popup.pane;
-					mainPopup( "Skills", popup );
-					const page = hudData.windows.ifskill!,
+						restoring = withdrawal.active(),
+						root = hudData.root.GDR_SKILLWITHDRAWAL!,
+						withdrawalFrame = restoring ?
+							windowOrigin( "withdrawal", [
+								Math.max( 0, (w - root.rect[2]) / 2 ),
+								Math.max( 0, (h - root.rect[3]) / 2 ),
+								root.rect[2],
+								root.rect[3]
+							] ) :
+							popup.frame,
+						[px, py] = withdrawalFrame,
+						child = hudData.windows.ifskillwithdrawal!.GDR_SKILL!,
+						[ox, oy] = restoring ? [ px + child.rect[0], py + child.rect[1] ] : popup.pane,
+						withdrawalState = restoring && game ?
+							withdrawal.read( game, hudData.masteryCosts, hudData.withdrawalGoldPrices ) :
+							null;
+					if ( restoring ) {
+						blocks.push( withdrawalFrame );
+						quads.push(
+							...frameRing(
+								withdrawalFrame,
+								FRAME,
+								PARTS.map( p => resources.size( FRAME + p + ".png" ) ),
+								full
+							)
+						);
+						quads.push(
+							...text.quads(
+								hudCopy( root.text ),
+								[ px + 10, py + 12, root.rect[2] - 21, 12 ],
+								full,
+								white,
+								{ hAlign: 1, vAlign: 0 }
+							)
+						);
+						closeButton( px + root.rect[2] - 26, py + 10, "withdrawal-close" );
+					} else mainPopup( "Skills", popup );
+					const page = restoring ? hudData.withdrawalPage : hudData.windows.ifskill!,
 						board = hudData.windows.ifskillboard!,
 						catalog = hudData.skillUi,
 						learned = training,
 						masteries = game?.progression?.masteries ?? [];
+					if ( restoring ) {
+						// Create and Withdrawal both call a different control GDR_SKILL_BG.
+						// Native keeps both IDs (6 and 19); preserve the tab backing too.
+						authoredChrome( hudData.windows.ifskill!.GDR_SKILL_BG!, ox, oy );
+					}
 					for ( const node of authoredPaintOrder( page ) ) {
-						if ( node.name !== "GDR_SKILL_BOARD" && !node.text ) authoredChrome( node, ox, oy );
+						if ( node.name === "GDR_SKILL_BOARD" || node.text ) continue;
+						const chrome = restoring && node.id === 5 ?
+							{
+								...node,
+								rect: [
+									node.rect[0],
+									node.rect[1],
+									node.rect[2],
+									WITHDRAWAL_SKILL_FRAME_HEIGHT
+								] as UiRect
+							} :
+							node;
+						authoredChrome( chrome, ox, oy );
 					}
 					const available = catalog.masteries.filter( m => masteries.some( a => a.id === m.id ) ),
 						tabs = [ ...new Set( available.map( m => m.tab ) ) ];
@@ -7597,7 +7753,14 @@ export function createUi(
 							selected: m.id === selectedMastery
 						} );
 					}
-					authoredChrome( { ...page.GDR_SKILL_BOARD!, type: "CIFFrame" }, ox, oy );
+					authoredChrome(
+						{
+							...page.GDR_SKILL_BOARD!,
+							type: "CIFFrame"
+						},
+						ox,
+						oy
+					);
 					const bx = ox + 6,
 						by = oy + 29,
 						mastery = available.find( m => m.id === selectedMastery ),
@@ -7622,7 +7785,23 @@ export function createUi(
 								kind: "region"
 							} );
 						}
-						if (
+						const removable = withdrawalState?.rows.find( row =>
+							row.kind === "mastery-withdraw" && row.id === mastery.id
+						);
+						if ( restoring && removable && !removable.blocked ) {
+							authoredButton(
+								{
+									...board.GDR_SKILLBOARD_BTNLEVUP!,
+									texture: ROOT + "interface/recycle/rec_setup_button.png"
+								},
+								bx,
+								by,
+								"withdrawal-choice:mastery-withdraw:" + mastery.id,
+								hudCopy( "UIIT_STT_CIRCULATION_WITHDRAW_MASTERY_WND" ),
+								!withdrawalState?.quantity || !!game?.trainingPending
+							);
+						} else if (
+							!restoring &&
 							game?.progression &&
 							!masteryTrainingReason( mastery.id, game.progression, hudData.masteryCosts )
 						) {
@@ -7693,7 +7872,23 @@ export function createUi(
 								}
 							}
 							if ( !entry ) continue;
-							if ( slot.button.kind === "learn" ) {
+							const removable = owned &&
+								withdrawalState?.rows.find( row =>
+									row.kind === "skill-withdraw" && row.id === owned.id
+								);
+							if ( restoring && removable && !removable.blocked ) {
+								authoredButton(
+									{
+										...hudData.windows.ifskill_slot!.GDR_STMS_BTN_LEVELUP!,
+										texture: ROOT + "interface/recycle/rec_set_button.png"
+									},
+									r[0],
+									r[1],
+									"withdrawal-choice:skill-withdraw:" + removable.id,
+									hudCopy( "UIIT_STT_CIRCULATION_WITHDRAW_SKILL" ),
+									!withdrawalState?.quantity || !!game?.trainingPending
+								);
+							} else if ( !restoring && slot.button.kind === "learn" ) {
 								const ref = slot.button.skill,
 									node = {
 										...hudData.windows.ifskill_slot!.GDR_STMS_BTN_LEVELUP!,
@@ -7707,7 +7902,7 @@ export function createUi(
 									"skill-learn:" + ref.id,
 									localization.text( ref.nameSymbol, ref.name )
 								);
-							} else if ( slot.button.kind === "max" ) {
+							} else if ( !restoring && slot.button.kind === "max" ) {
 								const node = {
 									...hudData.windows.ifskill_slot!.GDR_STMS_BTN_LEVELUP!,
 									texture: ROOT + "interface/skill/skl_level_max.png"
@@ -7758,6 +7953,17 @@ export function createUi(
 					for ( const node of Object.values( page ) ) {
 						if ( node.text ) authoredText( node, ox, oy, hudCopy( node.text ) );
 					}
+					if ( restoring && withdrawalState ) {
+						const item = withdrawalState.potion, icon = iconPath( item?.icon );
+						if ( icon ) image( authoredRect( page.GDR_SKILL_ICON_QSP_ALL_POTION!, ox, oy ), icon );
+						authoredText( page.GDR_SKILL_TEXT_QSP_ITEM_NAME!, ox, oy, item?.name ?? "" );
+						authoredText(
+							page.GDR_SKILL_TEXT_QSP_ITEM_NUM!,
+							ox,
+							oy,
+							`${withdrawalState.quantity} ${hudCopy( "UIIT_STT_UNIT" )}`
+						);
+					}
 					authoredText( page.GDR_SKILL_TEXT_SP_NUM!, ox, oy, String( game?.progression?.skillPoints ?? 0 ) );
 					const model = next.entities.find( e => e.gid === game?.localGid )?.refObjId,
 						country = model === undefined ? game?.guide?.country : hudData.countries[model],
@@ -7772,7 +7978,9 @@ export function createUi(
 						oy,
 						masteries.reduce( ( n, m ) => n + m.level, 0 ) + "/" + cap
 					);
-					endWindow( admission );
+					// Restoration coexists with inventory; its cold-resource cache must
+					// never replay the primary popup's controls into this second window.
+					endWindow( admission, restoring ? "withdrawal" : "primary" );
 				}
 				if ( panel === "Quests" && hudData ) {
 					const admission = beginWindow(),
@@ -8324,12 +8532,7 @@ export function createUi(
 					const match = game?.partyMatching,
 						slot = hudData.windows.ifpartymatchslot!,
 						canRegister = !game?.social?.leader || game.social.leader === game.social.self;
-					for (
-						const node of authoredPaintOrder( page ).sort( ( a, b ) =>
-							Number( [ "CIFFrame", "CIFNormalTile", "CIFStretchWnd" ].includes( b.type ) ) -
-							Number( [ "CIFFrame", "CIFNormalTile", "CIFStretchWnd" ].includes( a.type ) )
-						)
-					) {
+					for ( const node of authoredPaintOrder( page ) ) {
 						if ( node.type === "CIFButton" ) {
 							const row = match?.rows.find( r => r.id === partyMatchSelection ),
 								enabled = node.id === 56 || node.id === 55 || node.id >= 60 && node.id <= 67 ||
@@ -8364,6 +8567,9 @@ export function createUi(
 								partySearchDraft[key],
 								key === "name" ? 13 : 3
 							);
+						} else if ( node.id === PARTY_MATCH_RANGE_SEPARATOR_ID ) {
+							// 6374CF installs this caption after creating SearchInfo.
+							authoredText( node, px, py, "~" );
 						} else if ( !node.name.endsWith( "DUMY" ) ) authoredChrome( node, px, py );
 					}
 					const filtered = partyMatchRows(
@@ -9333,6 +9539,24 @@ export function createUi(
 						next.blindHeld && blindableCharacter( entity, game?.localGid )
 					) continue;
 					const hovered = entity.gid === next.hoveredEntity, selected = entity.gid === game?.target;
+					const partyMark = monsterPartyNameplate( entity, [
+						text.run( entity.name ?? "", selected ? 2 : 0 ).width,
+						text.boardHeight()
+					] );
+					if ( partyMark ) {
+						paths.push( partyMark.path );
+						if ( resources.has( partyMark.path ) ) {
+							quads.push( {
+								characterAnchor: entity.gid,
+								rect: partyMark.rect,
+								clip: full,
+								uv: [ 0, 0, 1, 1 ],
+								texture: partyMark.path,
+								color: white,
+								alphaCutoff: 128 / 255
+							} );
+						}
+					}
 					if (
 						!hiddenSilkCos( entity, options.hideSilkCos ) && options.ownName &&
 						[ "local-player", "player" ].includes( entity.kind ) && ((entity.visualFlags ?? 0) & 1)
@@ -10219,7 +10443,7 @@ export function createUi(
 								paths.push( ...out.paths );
 							} else authoredText( node, px, py, value );
 						} else if ( !request && (node.id === 45 || node.id === 47) ) {
-							const opts = game?.social?.options ?? partyOptions;
+							const opts = effectivePartyOptions( game?.social, partyOptions );
 							authoredText(
 								node,
 								px,
@@ -10721,18 +10945,42 @@ export function createUi(
 				);
 				button( "ground-drop-cancel", hudCopy( "UIIT_CTL_NO" ), x + (dw >> 1) + 5, y + dh - 37, 76 );
 			}
-			if ( worldVisible && game?.returnScroll ) {
+			const gathering = game?.questGathering;
+			const delayRows = [
+				...(game?.returnScroll ?
+					[ {
+						cast: game.returnScroll,
+						name: game.returnScroll.name,
+						id: "return-cancel",
+						collection: false
+					} ] :
+					[]),
+				...(gathering &&
+						(gathering.durationMs === 0 || quickslotTime < gathering.startedAtMs + gathering.durationMs) ?
+					[ {
+						cast: gathering,
+						name: guideResources.data()?.questPresentation.records[gathering.refId]?.title ?? "",
+						id: "gathering-cancel",
+						collection: true
+					} ] :
+					[])
+			];
+			for ( const [row, delay] of (worldVisible ? delayRows : []).entries() ) {
 				const bar = returnScrollBar(
-					game.returnScroll,
+					delay.cast,
 					w,
 					h,
-					quickslotTime,
-					pressed === "return-cancel",
-					hover === "return-cancel"
+					{
+						now: quickslotTime,
+						row,
+						collection: delay.collection,
+						pressed: pressed === delay.id,
+						focused: hover === delay.id
+					}
 				);
 				blocks.push( bar.frame );
 				controls.push( {
-					id: "return-cancel",
+					id: delay.id,
 					label: hudCopy( "UIIT_CTL_CANCEL" ),
 					kind: "button",
 					rect: bar.cancel
@@ -10741,7 +10989,7 @@ export function createUi(
 					paths.push( q.texture );
 					if ( resources.has( q.texture ) ) quads.push( q );
 				}
-				quads.push( ...text.quads( game.returnScroll.name, bar.name, full, white, { hAlign: 1, vAlign: 0 } ) );
+				quads.push( ...text.quads( delay.name, bar.name, full, white, { hAlign: 1, vAlign: 0 } ) );
 			}
 			if ( worldVisible && splitStack && [ "Inventory", "Shop", "COS inventory" ].includes( panel ) ) {
 				// Native 529E90, MsgBoxDivideCount authored 300x183; edit stays 42x24.
@@ -11195,6 +11443,125 @@ export function createUi(
 					6
 				);
 			}
+			if ( worldVisible && game && withdrawal.confirming() && hud.data() ) {
+				const state = withdrawal.read( game, hud.data()?.masteryCosts ?? {}, hud.data()?.withdrawalGoldPrices );
+				const page = hud.data()!.windows.ifskillremovalbox!, row = state.choice;
+				const [width, height] = state.resuscitation ? RESUSCITATION_CONFIRM_SIZE : WITHDRAWAL_CONFIRM_SIZE;
+				const fillHeight = state.resuscitation ?
+					RESUSCITATION_CONFIRM_FILL_HEIGHT :
+					WITHDRAWAL_CONFIRM_FILL_HEIGHT;
+				const buttonY = state.resuscitation ? RESUSCITATION_CONFIRM_BUTTON_Y : WITHDRAWAL_CONFIRM_BUTTON_Y;
+				const px = Math.floor( (w - width) / 2 ), py = Math.floor( (h - height) / 2 );
+				const prefix = ROOT + "interface/messagebox/msgbox2_window_";
+				controls = [];
+				const admission = beginWindow();
+				blocks.push( full );
+				paths.push( ...PARTS.map( part => prefix + part + ".png" ) );
+				quads.push(
+					...frameRing(
+						[ px, py, width, height ],
+						prefix,
+						PARTS.map( part => resources.size( prefix + part + ".png" ) ),
+						full
+					)
+				);
+				for ( const node of authoredPaintOrder( page ) ) {
+					// Mode 3 hides native controls 12/13 and 32..35: gold has no role.
+					if (
+						node.type === "CIFButton" ||
+						!state.resuscitation && (node.id === 12 || node.id === 13 || node.id >= 32 && node.id <= 35)
+					) continue;
+					if ( node.id === 5 ) {
+						authoredChrome(
+							{
+								...node,
+								rect: [ node.rect[0], node.rect[1], node.rect[2], fillHeight ]
+							},
+							px,
+							py
+						);
+					} else authoredChrome( node, px, py );
+					if ( node.text ) authoredText( node, px, py, hudCopy( node.text ) );
+				}
+				if ( row ) {
+					const mastery = row.kind === "mastery-withdraw" ?
+						hud.data()!.skillUi.masteries.find( m => m.id === row.id ) :
+						undefined;
+					const skill = game.skillCatalog?.find( s => s.id === row.id );
+					const caption = row.kind === "mastery-withdraw" ?
+						"UIIT_STT_CIRCULATION_WITHDRAW_MASTERY_WND" :
+						"UIIT_STT_CIRCULATION_WITHDRAW_SKILL_WND";
+					quads.push(
+						...text.quads(
+							hudCopy( caption ),
+							messageBox( w, h, width, height, [ px, py ] ).title,
+							full,
+							white,
+							{ hAlign: 1, vAlign: 0 }
+						)
+					);
+					authoredText(
+						page.GDR_SKLRB_SKILLNAME!,
+						px,
+						py,
+						mastery ? hudCopy( mastery.name ) : localization.text( row.nameSymbol, row.name )
+					);
+					authoredText( page.GDR_SKLRB_CURRENTLEVEL!, px, py, `Lv ${row.level}` );
+					authoredText( page.GDR_SKLRB_TARGETLEVEL!, px, py, `Lv ${row.rank}` );
+					authoredText( page.GDR_SKLRB_WITHDRAWED_LEVEL!, px, py, String( state.amount ) );
+					authoredText( page.GDR_SKLRB_TOTALPOINT!, px, py, String( row.refund ) );
+					if ( state.resuscitation ) {
+						authoredText(
+							page.GDR_SKLRB_CURRENTMONEY!,
+							px,
+							py,
+							BigInt( game.progression?.gold ?? "0" ).toLocaleString( "en-US" )
+						);
+						authoredText( page.GDR_SKLRB_NEEDMONEY!, px, py, state.gold.toLocaleString( "en-US" ) );
+					}
+					authoredText(
+						page.GDR_SKLRB_WITHDRAW_POTION!,
+						px,
+						py,
+						`${state.potion?.name ?? ""} ${state.quantity} ${hudCopy( "UIIT_STT_UNIT" )}`
+					);
+					const icon = iconPath( mastery?.icon ?? skill?.icon ), potionIcon = iconPath( state.potion?.icon );
+					if ( icon ) image( authoredRect( page.GDR_SKLRB_SKILLICON!, px, py ), icon );
+					if ( potionIcon ) image( authoredRect( page.GDR_SKLRB_WITHDRAWICON!, px, py ), potionIcon );
+				}
+				authoredButton(
+					page.GDR_SKLRB_BTN_DOWNGRADE!,
+					px,
+					py,
+					"withdrawal-decrease",
+					hudCopy( "UIIT_STT_CIRCULATION_WITHDRAW_LEV" ),
+					state.amount >= state.maximum
+				);
+				authoredButton(
+					page.GDR_SKLRB_BTN_RECOVER!,
+					px,
+					py,
+					"withdrawal-recover",
+					hudCopy( "UIIT_STT_CIRCULATION_CANCEL_WITHDRAW" ),
+					state.amount === 0
+				);
+				for (
+					const [node, id] of [ [ page.GDR_SKLRB_BTN_OK!, "withdrawal-confirm" ], [
+						page.GDR_SKLRB_BTN_CANCEL!,
+						"withdrawal-cancel"
+					] ] as const
+				) {
+					authoredLabeledButton(
+						{ ...node, rect: [ node.rect[0], buttonY, node.rect[2], node.rect[3] ] },
+						px,
+						py,
+						id,
+						hudCopy( node.text ),
+						id === "withdrawal-confirm" && !state.command
+					);
+				}
+				endWindow( admission, "withdrawal-confirm" );
+			}
 			if ( worldVisible && carriedShortcut && game ) {
 				const binding = quickSlotDrag( carriedShortcut.id, 0, game ),
 					skill = binding?.kind === 0x49 ?
@@ -11306,6 +11673,17 @@ export function createUi(
 							tooltip = items.flatMap( item =>
 								itemTooltip( item, game.progression ?? { masteries: [] }, lookup, { country, sex } )
 							);
+						}
+						// Price belongs to the current offer, outside the item-property memo.
+						// A package gets one total even when several item details precede it.
+						if ( item ) {
+							tooltip = [
+								...tooltip,
+								...commerceTooltip( id, game, {
+									price: lookup( "UIIT_STT_PRICE" ),
+									gold: lookup( "UIIT_STT_GOLD" )
+								} )
+							];
 						}
 					}
 				}

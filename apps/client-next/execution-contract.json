@@ -1381,6 +1381,14 @@
 			]
 		},
 		{
+			"consumer": "src/engine/runtime/characters/skill-objects.ts",
+			"provider": "src/engine/runtime/characters/resources/resources.ts",
+			"functions": [
+				"ready",
+				"plan"
+			]
+		},
+		{
 			"consumer": "src/engine/foundation/rendering/scenery-particles.ts",
 			"provider": "src/engine/runtime/assets/worker/world/world.ts",
 			"functions": [
@@ -1472,6 +1480,13 @@
 			"provider": "src/engine/runtime/simulation/worker/session/world/core.ts",
 			"functions": [
 				"callback:createGameplay:2",
+				"callback:createGameplay:3"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
+			"provider": "src/engine/runtime/simulation/worker/session/world/core.ts",
+			"functions": [
 				"callback:createGameplay:3"
 			]
 		},
