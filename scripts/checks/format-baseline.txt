@@ -529,7 +529,6 @@ apps/client-next/tests/browser/ui-specialized.test.mjs
 apps/client-next/tests/browser/ui.test.mjs
 apps/client-next/tests/browser/window-chrome-live.test.mjs
 apps/client-next/tests/browser/world-admission.test.mjs
-apps/client-next/tests/browser/world-audio.test.mjs
 apps/client-next/tests/browser/world-character-lighting.test.mjs
 apps/client-next/tests/browser/world-chat.test.mjs
 apps/client-next/tests/browser/world-cursor.test.mjs
@@ -572,7 +571,6 @@ apps/client-next/tests/runtime/world-admission.test.mjs
 apps/client-next/tests/runtime/world-replay.test.mjs
 apps/client-next/tools/audit-bsr-parity.mjs
 apps/client-next/tools/audit-effect-coverage.mjs
-apps/client-next/tools/audit-retail-panels.mjs
 apps/client-next/tools/beta/archive.mjs
 apps/client-next/tools/beta/compression.mjs
 apps/client-next/tools/beta/serve.mjs
@@ -599,13 +597,6 @@ apps/client-next/tools/lib/status-notice-probe.mjs
 apps/client-next/tools/lib/ui-product-probe.mjs
 apps/client-next/tools/lib/ui-window-probe.mjs
 apps/client-next/tools/profile-world.mjs
-apps/client-next/tools/publish-dungeon-worlds.mjs
-apps/client-next/tools/publish-flares.mjs
-apps/client-next/tools/publish-minimap-coverage.mjs
-apps/client-next/tools/publish-monster-materials.mjs
-apps/client-next/tools/publish-skill-ui.mjs
-apps/client-next/tools/publish-star-rng.mjs
-apps/client-next/tools/publish-weather-assets.mjs
 apps/client-next/tools/published-assets.mjs
 apps/client-next/tools/published-delivery.mjs
 apps/client-next/tools/published-pack.mjs
@@ -626,7 +617,6 @@ apps/server-observatory/public/items.js
 apps/server-observatory/public/model.js
 apps/server-observatory/public/operations.js
 apps/server-observatory/public/view.js
-apps/server-observatory/server/items.mjs
 apps/server-observatory/server/main.mjs
 apps/server-observatory/server/security.mjs
 apps/server-observatory/server/source.mjs
@@ -635,7 +625,6 @@ apps/server-observatory/tests/model.test.mjs
 apps/server-observatory/tests/operations.test.mjs
 apps/server-observatory/tests/security.test.mjs
 apps/server-observatory/tools/browser-probe.mjs
-apps/server-observatory/tools/item-catalog.mjs
 apps/server-observatory/tools/items-browser-probe.mjs
 apps/server/internal/game/world/simulation/testdata/gen_parity_vectors.mjs
 scripts/build/artifacts/generatedArtifactArchive.mjs
@@ -676,7 +665,6 @@ scripts/build/data/buildSiegeFortressDataAsset.mjs
 scripts/build/data/buildSkillDataAsset.mjs
 scripts/build/data/buildSkillMasteryDataAsset.mjs
 scripts/build/data/buildTeleportDataAsset.mjs
-scripts/build/effects/buildEffectPrograms.mjs
 scripts/build/effects/parseJmxVisualEffect.mjs
 scripts/build/jsonAssetCompression.mjs
 scripts/build/server/serverGameDataArchive.mjs
@@ -700,7 +688,6 @@ scripts/build/shared/fileHashCache.mjs
 scripts/build/shared/fontResources.mjs
 scripts/build/shared/fsUtils.mjs
 scripts/build/shared/guideImageReferences.mjs
-scripts/build/shared/hash.mjs
 scripts/build/shared/itemNameCoverage.mjs
 scripts/build/shared/itemTextCompletions.mjs
 scripts/build/shared/jmxAssetIO.mjs
@@ -762,7 +749,6 @@ scripts/build/world/objects/compound.mjs
 scripts/build/world/objects/formats.mjs
 scripts/build/world/sworld/deriveTitleTerrainSectorCoverage.mjs
 scripts/build/world/sworld/prepareCellTerrainTexture.mjs
-scripts/build_outdoor_world_resources.mjs
 scripts/checks/check_asset_delivery.mjs
 scripts/checks/check_asset_pack_integrity.mjs
 scripts/checks/check_precompressed_freshness.mjs
@@ -780,27 +766,8 @@ scripts/lib/publishedAsset.mjs
 scripts/rebuildLock.mjs
 scripts/rebuild_asset_packs_from_public.mjs
 scripts/refresh_asset_delivery.mjs
-scripts/refresh_character_info_asset_packs.mjs
-scripts/refresh_effect_asset_packs.mjs
-scripts/refresh_entity_bsr_asset_packs.mjs
-scripts/refresh_footprint_asset_packs.mjs
-scripts/refresh_guide_asset_packs.mjs
-scripts/refresh_native_audio_asset_packs.mjs
-scripts/refresh_native_font_asset_packs.mjs
-scripts/refresh_native_window_asset_packs.mjs
-scripts/refresh_outdoor_asset_packs.mjs
-scripts/refresh_overlay_asset_packs.mjs
-scripts/refresh_quick_status_asset_packs.mjs
-scripts/refresh_quickslot_asset_packs.mjs
-scripts/refresh_restriction_text_asset_packs.mjs
-scripts/refresh_return_scroll_asset_packs.mjs
-scripts/refresh_title_crowd_asset_packs.mjs
-scripts/refresh_world_map_asset_packs.mjs
-scripts/refresh_world_map_marker_asset_packs.mjs
 scripts/setup_git_hooks.mjs
 scripts/task.mjs
-scripts/tasks/assets.mjs
-scripts/tasks/build.mjs
 scripts/tasks/define.mjs
 scripts/tasks/misc.mjs
 scripts/tasks/processCommand.mjs
@@ -822,7 +789,6 @@ scripts/test/assets/pythonRun.test.mjs
 scripts/test/assets/rebuildLockInterop.test.mjs
 scripts/test/assets/skillPaneImageReferences.test.mjs
 scripts/test/assets/vatPipeline.test.mjs
-scripts/test/cif/cifResourceContract.test.mjs
 scripts/test/helpers/outdoorRegionPayloadCheck.mjs
 scripts/test/lib/generatedAssetTestMode.mjs
 scripts/test/mission/effectProgramClosure.test.mjs
@@ -833,6 +799,5 @@ scripts/test/suites/index.mjs
 scripts/test/suites/region.mjs
 scripts/test/suites/world.mjs
 scripts/test/world/authoredWorldRegionResources.test.mjs
-scripts/test/world/outdoorWorldRegionResources.test.mjs
 scripts/test/world/worldMapImageReferences.test.mjs
 scripts/tools/localization/englishGaps.mjs
