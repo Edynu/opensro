@@ -5,7 +5,6 @@ apps/client-next/src/engine/contracts/camera-script.ts
 apps/client-next/src/engine/contracts/combat-feedback.ts
 apps/client-next/src/engine/contracts/damage-text.ts
 apps/client-next/src/engine/contracts/effective-hp.ts
-apps/client-next/src/engine/contracts/effects.ts
 apps/client-next/src/engine/contracts/footprint.ts
 apps/client-next/src/engine/contracts/frontend.ts
 apps/client-next/src/engine/contracts/geometry.ts
@@ -254,7 +253,6 @@ apps/client-next/src/engine/foundation/ui/minimap-tiles.ts
 apps/client-next/src/engine/foundation/ui/minimap-zoom.ts
 apps/client-next/src/engine/foundation/ui/mission-loading.ts
 apps/client-next/src/engine/foundation/ui/money-presentation.ts
-apps/client-next/src/engine/foundation/ui/name-visibility.ts
 apps/client-next/src/engine/foundation/ui/normal-tile.ts
 apps/client-next/src/engine/foundation/ui/notice-dialog.ts
 apps/client-next/src/engine/foundation/ui/notice-text.ts
@@ -306,9 +304,7 @@ apps/client-next/src/engine/runtime/assets/worker/world/world.ts
 apps/client-next/src/engine/runtime/assets/world-lease.ts
 apps/client-next/src/engine/runtime/audio/music/music.ts
 apps/client-next/src/engine/runtime/characters/damage-feedback.ts
-apps/client-next/src/engine/runtime/characters/effects/effects.ts
 apps/client-next/src/engine/runtime/characters/orbs/orbs.ts
-apps/client-next/src/engine/runtime/characters/pose-presentation.ts
 apps/client-next/src/engine/runtime/characters/sounds/sounds.ts
 apps/client-next/src/engine/runtime/characters/state-index.ts
 apps/client-next/src/engine/runtime/frontend/camera/camera.ts
@@ -342,7 +338,6 @@ apps/client-next/src/engine/runtime/renderer/surface/surface.ts
 apps/client-next/src/engine/runtime/renderer/weather/weather.ts
 apps/client-next/src/engine/runtime/renderer/world/world.ts
 apps/client-next/src/engine/runtime/runtime-errors.ts
-apps/client-next/src/engine/runtime/simulation/worker/clock/clock.ts
 apps/client-next/src/engine/runtime/simulation/worker/entry.ts
 apps/client-next/src/engine/runtime/simulation/worker/input/input.ts
 apps/client-next/src/engine/runtime/simulation/worker/network/codec/codec.ts
