@@ -20,7 +20,7 @@ import { sampleWorldClock } from "@/engine/foundation/gameplay/world-clock";
 import { createWorldDoubleClick } from "@/engine/foundation/gameplay/world-double-click";
 import { createNavigationStream } from "./navigation/navigation";
 import { createFrontend } from "./frontend/frontend";
-import { createUi, type UiFrameProbe } from "./ui/ui";
+import { createUi } from "./ui/ui";
 import { createAudio } from "./audio/audio";
 import { createCharacterPresentation } from "./characters/characters";
 import { createWorldStream } from "./world/world";
@@ -32,7 +32,7 @@ import { createInput } from "./input/input";
 import { createPlatform } from "./platform/platform";
 import { createBugReport } from "./bug-report/bug-report";
 import type { BugReportField } from "@/engine/contracts/bug-report";
-import type { RenderFrameProbe } from "@/engine/contracts/runtime";
+import { animationProbe, frameProbe } from "./frame-probes";
 import { createRenderer } from "./renderer/renderer";
 import { createSimulationHost } from "./simulation/host";
 import type { RuntimeControl } from "@/engine/contracts/runtime";
@@ -43,52 +43,6 @@ const BACKGROUND_INSTALL_LIST = "/assets/delivery/background-install.json";
 // The live page a release check compares against (release-watch.ts).
 const RELEASE_PAGE = "/play";
 
-/*
-================
-FrameProbe
-
-Development frame timing, including detail spans reported by UI owners.
-================
-*/
-interface FrameProbe extends UiFrameProbe, RenderFrameProbe {
-	sampleDetails(): boolean;
-	begin( frameId: number ): void;
-	mark( stage: string ): void;
-	end(): void;
-}
-
-/*
-================
-frameProbe
-
-The world probe's frame profiler (tools/lib/frame-profiler.mjs), installed
-on globalThis by probe runs only; production leaves it undefined. The frame
-calls it explicitly instead of letting the profiler patch this source.
-================
-*/
-function frameProbe(): FrameProbe | undefined {
-	if ( !import.meta.env.DEV ) return undefined;
-	return (globalThis as { __worldProbeFrameProfiler?: FrameProbe; }).__worldProbeFrameProfiler;
-}
-/*
-================
-animationProbe
-
-Capture owners are installed before startup. Pass their observers through
-renderer construction so profiling never replaces the pose implementation.
-================
-*/
-function animationProbe(): import("@/engine/foundation/animation/animation-pose").AnimationPoseProbe | undefined {
-	if ( !import.meta.env.DEV ) return undefined;
-	const captures = globalThis as {
-		__worldProbeAnimationCeiling?:
-			import("@/engine/foundation/animation/animation-pose").AnimationPoseProbe["ceiling"];
-		__worldProbeAnimationPhases?:
-			import("@/engine/foundation/animation/animation-pose").AnimationPoseProbe["phases"];
-	};
-	if ( !captures.__worldProbeAnimationCeiling && !captures.__worldProbeAnimationPhases ) return undefined;
-	return { ceiling: captures.__worldProbeAnimationCeiling, phases: captures.__worldProbeAnimationPhases };
-}
 // Frame-timing window for the FPS chip. Two seconds at 60 Hz keeps the readout
 // responsive without letting one stall dominate the published percentile.
 const TELEMETRY_SAMPLES = 120, TELEMETRY_INTERVAL_MS = 500;
