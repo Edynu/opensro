@@ -37,6 +37,8 @@ func merchantFixture(t *testing.T) (*Runtime, *enterworld.Character) {
 	rt.NpcSpawn.Enabled = true
 	rt.NpcRoster = []simulation.NpcDef{{ObjectID: 17, RefObjID: 100, TalkFlags: simulation.NpcTalkFlagShop, AuthoredSpawn: true, Spawn: spawn, NpcTalkStoreGroups: []simulation.NpcTalkStoreGroup{{StoreGroupID: 100, Tabs: []simulation.NpcTalkStoreTab{{TabID: 1}}}}}}
 	rt.Selected.Set(testDivision, c.Name, 17)
+	// An in-range shop request opened the merchant (npcrange.go).
+	rt.Selected.OpenFunction(testDivision, c.Name, 17)
 	rt.Commerce = &commerce.Catalog{Tabs: map[int32][]commerce.Offer{1: {{Slot: 2, Ref: ref, Price: 60, Stack: 50}}}}
 	return rt, c
 }
@@ -118,5 +120,34 @@ func TestPackagePurchaseLimitPreservesAuthoredData(t *testing.T) {
 	rt.Commerce.Tabs[1][0].Contents = append(rt.Commerce.Tabs[1][0].Contents, commerce.Content{Ref: o.Ref, Stack: o.Stack})
 	if got := read(); got != 5 {
 		t.Fatalf("multi-item package: %d", got)
+	}
+}
+
+/*
+================
+TestShopPurchaseRefusalsNameTheirCause
+
+A refused purchase answers the native code the client turns into a notice:
+0x0F without the gold, 0xD4 for an honor package (no Training Camp honor).
+================
+*/
+func TestShopPurchaseRefusalsNameTheirCause(t *testing.T) {
+	rt, c := merchantFixture(t)
+	setGold(c, 0)
+	rows := len(c.MissionInventory)
+	q := wire.ItemMoveRequest{MovementType: 8, NpcGID: 17, ShopSlot: 2, Quantity: 1}
+	r := trade(t, rt, c, q)
+	if len(r.Frames) != 1 || !reflect.DeepEqual(r.Frames[0].Payload, wire.EncodeItemMoveError(wire.ErrCodeNotEnoughGold)) {
+		t.Fatalf("gold refusal: %+v", r)
+	}
+	offer := rt.Commerce.Tabs[1][0]
+	offer.Currency = commerce.PaymentHonor
+	rt.Commerce.Tabs[1] = []commerce.Offer{offer}
+	r = trade(t, rt, c, q)
+	if len(r.Frames) != 1 || !reflect.DeepEqual(r.Frames[0].Payload, wire.EncodeItemMoveError(wire.ErrCodeNotEnoughHonor)) {
+		t.Fatalf("honor refusal: %+v", r)
+	}
+	if goldOf(c) != 0 || len(c.MissionInventory) != rows {
+		t.Fatalf("a refused purchase changed the character: gold %d rows %d", goldOf(c), len(c.MissionInventory))
 	}
 }

@@ -972,7 +972,19 @@ receive
 				return true;
 			}
 			if ( op === 0xb06d && p[0] === 2 && mall.reject( p ) ) return true;
-			if ( op === 0xb338 ) return gacha.opened( p );
+			if ( op === 0xb338 ) {
+				// 75AE50 kind 2: the NPC refused the function request (category 13,
+				// e.g. code 4 too far). No catalogue follows a refused shop open, so
+				// release it now; gameplay owns the notice.
+				if ( p[0] === 2 && pending?.opcode === 11 ) {
+					pending = null;
+					shop = undefined;
+					shopCompletionRevision++;
+					error = null;
+					return true;
+				}
+				return gacha.opened( p );
+			}
 			if ( op === 0xb053 ) {
 				for ( const cue of gacha.result( p, slots.get( gacha.state().slot ?? -1 ) ) ) play( cue );
 				return true;

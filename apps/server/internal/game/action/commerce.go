@@ -69,7 +69,9 @@ type shopOffer struct {
 	Ref           uint32             `json:"refObjId"`
 	Name          string             `json:"name"`
 	Price         string             `json:"price"`
-	Stack         uint16             `json:"maxStack"`
+	// Currency is the refpricepolicyofitem payment type: 1 gold, 32 honor.
+	Currency uint8  `json:"currency"`
+	Stack    uint16 `json:"maxStack"`
 }
 
 /*
@@ -101,24 +103,25 @@ type shopProjection struct {
 /*
 ================
 commerceNpc
+
+The merchant a trade may use: the selected, live, authored shop NPC whose
+shop function an in-range request opened (npcrange.go). Native trades check
+that function state (CGObjPC +0xC+6 == 5), never distance, so a shop that
+opened validly keeps trading until the selection is released or replaced.
 ================
 */
 func (rt *Runtime) commerceNpc(division string, c *enterworld.Character, gid uint32) (simulation.NpcDef, bool) {
 	if c == nil || rt.Commerce == nil {
 		return simulation.NpcDef{}, false
 	}
-	selected, ok := rt.Selected.Get(division, c.Name)
-	if !ok || selected != gid {
+	if !rt.Selected.FunctionOpen(division, c.Name, gid) {
 		return simulation.NpcDef{}, false
 	}
 	npc, ok := rt.npcForCurrentViewer(division, c, gid)
 	if !ok || npc.TalkFlags&simulation.NpcTalkFlagShop == 0 || !npc.AuthoredSpawn || npc.Patrol {
 		return npc, false
 	}
-	live := rt.liveSpawn(simulation.WorldKey(division, c.Name), c, rt.Now().UnixMilli())
-	distance := simulation.WorldDistance2D(live, npc.Spawn)
-	// Explicit rebuild service policy, not an original-server distance proof.
-	return npc, !math.IsNaN(distance) && !math.IsInf(distance, 0) && distance <= 150
+	return npc, true
 }
 
 /*
@@ -165,7 +168,7 @@ func (rt *Runtime) shopCatalog(division string, c *enterworld.Character, gid uin
 		p.SaleQuotes = rt.shopSaleQuotes(division, snapshot, npc.RefObjID)
 		tax := rt.commerceTax(division, npc.RefObjID, snapshot)
 		rt.eachShopOffer(npc, func(tab uint8, o commerce.Offer) {
-			price, valid := commerce.AdjustPrice(o.Price, tax, true)
+			price, valid := offerUnitPrice(o, tax)
 			if !valid {
 				return
 			}
@@ -193,7 +196,7 @@ func (rt *Runtime) shopCatalog(division string, c *enterworld.Character, gid uin
 			if len(templates) == 1 && inventory.IsEtcStackableTypeFlags(templates[0].Ref.TypeFlags()) && templates[0].Data == 0 {
 				purchaseLimit = templates[0].Stack
 			}
-			p.Offers = append(p.Offers, shopOffer{PurchaseLimit: purchaseLimit, Previews: previews, Contents: contents, Tab: tab, Slot: o.Slot, Ref: o.Ref.RefObjID, Name: o.Ref.Name, Price: strconv.FormatUint(price, 10), Stack: o.Stack})
+			p.Offers = append(p.Offers, shopOffer{PurchaseLimit: purchaseLimit, Previews: previews, Contents: contents, Tab: tab, Slot: o.Slot, Ref: o.Ref.RefObjID, Name: o.Ref.Name, Price: strconv.FormatUint(price, 10), Currency: o.Currency, Stack: o.Stack})
 		})
 	}
 	b, _ := json.Marshal(p)
@@ -221,6 +224,9 @@ func (rt *Runtime) applyCommerce(division string, c *enterworld.Character, q wir
 		}
 	}
 	result := failureResult(wire.ErrCodeInvalidRequest)
+	// refusal names the native cause of an uncommitted trade; the silent
+	// generic code covers requests the retail client cannot compose.
+	refusal := wire.ErrCodeInvalidRequest
 	committed := rt.deps.Update(c, "shop-transaction", func() bool {
 		if c.DeletePending {
 			return false
@@ -252,13 +258,20 @@ func (rt *Runtime) applyCommerce(division string, c *enterworld.Character, q wir
 			if offer == nil || q.Quantity == 0 {
 				return false
 			}
-			unit, valid := commerce.AdjustPrice(offer.Price, rt.commerceTax(division, npc.RefObjID, c), true)
+			unit, valid := offerUnitPrice(*offer, rt.commerceTax(division, npc.RefObjID, c))
 			if !valid || unit > math.MaxInt64/uint64(q.Quantity) {
 				return false
 			}
 			cost := unit * uint64(q.Quantity)
-			if cost > balance {
-				result = failureResult(wire.ErrCodeNotEnoughGold)
+			if offer.Currency == commerce.PaymentHonor {
+				if cost > honorPoints(c) {
+					refusal = wire.ErrCodeNotEnoughHonor
+					return false
+				}
+				// Paid in honor: the gold balance is untouched.
+				cost = 0
+			} else if cost > balance {
+				refusal = wire.ErrCodeNotEnoughGold
 				return false
 			}
 			contents := offer.Contents
@@ -271,7 +284,7 @@ func (rt *Runtime) applyCommerce(division string, c *enterworld.Character, q wir
 			}
 			dest, grantErr := commerce.GrantPackage(inv, contents, q.Quantity, capacity)
 			if grantErr != nil {
-				result = commerceFailure(grantErr)
+				refusal = commerceFailureCode(grantErr)
 				return false
 			}
 			balance -= cost
@@ -305,7 +318,7 @@ func (rt *Runtime) applyCommerce(division string, c *enterworld.Character, q wir
 				return false
 			}
 			if _, fault := inv.DropQuantity(q.SourceSlot, q.Quantity); fault != nil {
-				result = commerceFailure(fault)
+				refusal = commerceFailureCode(fault)
 				return false
 			}
 			if !commerceNoBuyback(item.TypeFlags, item.Codename) {
@@ -349,9 +362,37 @@ func (rt *Runtime) applyCommerce(division string, c *enterworld.Character, q wir
 		return true
 	})
 	if !committed {
-		return failureResult(wire.ErrCodeInvalidRequest)
+		return failureResult(refusal)
 	}
 	return result
+}
+
+/*
+================
+offerUnitPrice
+
+Gold prices carry the town tax; honor prices are the authored points.
+================
+*/
+func offerUnitPrice(o commerce.Offer, tax commerce.Tax) (uint64, bool) {
+	if o.Currency == commerce.PaymentHonor {
+		return o.Price, o.Price > 0
+	}
+	return commerce.AdjustPrice(o.Price, tax, true)
+}
+
+/*
+================
+honorPoints
+
+Training Camp honor is the only source of honor points (client
+UIIT_STT_TC_HONOR_POINT). INFERENCE: the server has no Training Camp
+authority, so no character has earned any and every honor package refuses
+with the native lack-of-honor notice instead of trading.
+================
+*/
+func honorPoints(c *enterworld.Character) uint64 {
+	return 0
 }
 
 /*
@@ -430,13 +471,24 @@ Other failures disclose no storage details to the requesting client.
 ================
 */
 func commerceFailure(err error) OpResult {
+	return failureResult(commerceFailureCode(err))
+}
+
+/*
+================
+commerceFailureCode
+
+The native refusal code commerceFailure answers with.
+================
+*/
+func commerceFailureCode(err error) uint8 {
 	var fault *inventory.Fault
 	if errors.As(err, &fault) {
-		return failureResult(fault.Code)
+		return fault.Code
 	}
 	var insufficient domain.MallInsufficientCurrency
 	if errors.As(err, &insufficient) {
-		return failureResult(wire.ErrCodeMallInsufficientCurrency)
+		return wire.ErrCodeMallInsufficientCurrency
 	}
-	return failureResult(wire.ErrCodeInvalidRequest)
+	return wire.ErrCodeInvalidRequest
 }
