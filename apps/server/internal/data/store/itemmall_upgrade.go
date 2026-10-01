@@ -4,7 +4,8 @@
 itemmall_upgrade.go - offline, preserving layout 4 to 5 authority upgrade
 
 Takes the same exclusive authority lock as the game server. Validates every
-existing record, keeps an independent backup and adds only the currency table.
+existing record, keeps an independent backup and adds only the two account
+tables layout 5 introduces: the mall currency and the NPC warehouse.
 This operation is never called by server startup or a network request.
 
 ===========================================================================
@@ -58,12 +59,14 @@ func UpgradeMallAuthority(dir string, commit bool) (string, error) {
 	if _, err := loadDB(db, CurrentVersion, preMallLayoutVersion); err != nil {
 		return "", fmt.Errorf("authority upgrade: source validation: %w", err)
 	}
-	var existing int
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_schema WHERE name = ?", "mall_accounts").Scan(&existing); err != nil {
-		return "", err
-	}
-	if existing != 0 {
-		return "", fmt.Errorf("authority upgrade: layout 4 unexpectedly contains mall_accounts")
+	for _, table := range []string{"mall_accounts", "account_storage"} {
+		var existing int
+		if err := db.QueryRow("SELECT count(*) FROM sqlite_schema WHERE name = ?", table).Scan(&existing); err != nil {
+			return "", err
+		}
+		if existing != 0 {
+			return "", fmt.Errorf("authority upgrade: layout 4 unexpectedly contains %s", table)
+		}
 	}
 	if !commit {
 		return "", nil
@@ -103,7 +106,7 @@ func UpgradeMallAuthority(dir string, commit bool) (string, error) {
 		return backupPath, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.Exec(mallAccountsSchema); err != nil {
+	if _, err := tx.Exec(mallAccountsSchema + accountStorageSchema); err != nil {
 		return backupPath, err
 	}
 	if err := upsertMetaTx(tx, metaKeyLayoutVersion, fmt.Sprint(CurrentLayoutVersion)); err != nil {
