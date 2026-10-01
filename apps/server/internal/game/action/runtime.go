@@ -155,6 +155,12 @@ type Runtime struct {
 	// exact sequences; production uses an independent cryptographic draw.
 	CombatRoll combat.Roll32767
 
+	// CompanionRoll supplies the shared native spawn-position sampler without
+	// consuming a combat or loot test sequence during actor admission.
+	CompanionRoll           combat.Roll32767
+	SpawnRegionAvailable    func(uint16) bool
+	ConstrainCompanionSpawn func(simulation.Spawn, simulation.Spawn) simulation.Spawn
+
 	// DropRoll is independent from combat formula randomness. Reference-drop
 	// generation and the post-generation player/level admission gate consume
 	// this native rand() domain in order.
@@ -463,7 +469,7 @@ func invItemsFromRowsWithin(rows []enterworld.InventoryRow, slotEnd int64) []inv
 			Durability:        uint32(clampInt64(row.Durability, 0, 0xFFFFFFFF)),
 			Quantity:          uint16(quantity),
 			MagicOptions:      append([]uint64(nil), row.MagicOptions...),
-			TransformRefObjID: row.TransformRefObjID,
+			TransformRefObjID: row.TransformRefObjID, Summon: domain.CloneCOS(row.Summon),
 		})
 	}
 
@@ -493,7 +499,7 @@ func rowsFromInvItems(items []inventory.Item) []enterworld.InventoryRow {
 			Durability:        int64(item.Durability),
 			StackCount:        int64(item.Quantity),
 			MagicOptions:      append([]uint64(nil), item.MagicOptions...),
-			TransformRefObjID: item.TransformRefObjID,
+			TransformRefObjID: item.TransformRefObjID, Summon: domain.CloneCOS(item.Summon),
 		})
 	}
 

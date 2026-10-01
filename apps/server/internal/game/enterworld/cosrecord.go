@@ -1,3 +1,13 @@
+/*
+===========================================================================
+
+cosrecord.go - owner-private companion records
+
+Character references select the native wire grammar. Riding horses omit the
+persistent death word; pet records additionally carry progression and slot.
+
+===========================================================================
+*/
 package enterworld
 
 import (
@@ -6,14 +16,20 @@ import (
 	"strconv"
 )
 
-// BuildCOSRecord publishes the same durable COS owner that behavior and
-// storage commands mutate. Native 830EC0 selects the grammar from characterdata.
+/*
+================
+BuildCOSRecord
+
+830EC0 selects the grammar from characterdata. The record and world actor
+must describe the same canonical companion before either is published.
+================
+*/
 func BuildCOSRecord(cos *CharacterCOS, ref *CharacterRef, items ItemRefSource) ([]byte, error) {
 	if cos == nil || ref == nil || cos.RefObjID != ref.RefObjID || cos.GID == 0 || ref.TidWord&0x7fe != 0x1c6 {
 		return nil, fmt.Errorf("invalid COS record identity")
 	}
 	band := ref.TidWord >> 11
-	if band < 2 || band > 4 || len([]byte(cos.Name)) > 65535 {
+	if band < 1 || band > 4 || len([]byte(cos.Name)) > 65535 {
 		return nil, fmt.Errorf("unsupported COS record family or name")
 	}
 	w := wire.NewWriter(64).U32(cos.GID).U32(cos.RefObjID).U32(cos.CurrentHP).U32(cos.CurrentMP)
@@ -41,9 +57,8 @@ func BuildCOSRecord(cos *CharacterCOS, ref *CharacterRef, items ItemRefSource) (
 			if !ok || r == nil || r.RefObjID != row.RefObjID || r.TypeFlags() != row.TypeFlags || row.Slot < 0 || row.Slot >= int64(bag.Capacity) || seen[row.Slot] || row.StackCount < 1 || row.StackCount > 65535 || len(row.MagicOptions) > 12 || row.Plus < 0 || row.Plus > 255 || row.Durability < 0 || row.Durability > 0xffffffff || varianceErr != nil && row.VarianceBits != "" {
 				return nil, fmt.Errorf("invalid COS container row")
 			}
-			// The current durable InventoryRow represents equipment and plain
-			// expendables; do not silently encode a summon record as equipment.
-			if row.TypeFlags&0x60 != 0x20 && row.TypeFlags&0x60 != 0x60 {
+			// Every container shares the reference-selected persistent item grammar.
+			if row.TypeFlags&0x60 != 0x20 && row.TypeFlags&0x60 != 0x60 && !wire.IsCosSummoner(row.TypeFlags) && !wire.IsMonsterCapsule(row.TypeFlags) {
 				return nil, fmt.Errorf("unsupported COS item body")
 			}
 			group := row.TypeFlags & 0x780
@@ -51,14 +66,20 @@ func BuildCOSRecord(cos *CharacterCOS, ref *CharacterRef, items ItemRefSource) (
 				return nil, fmt.Errorf("COS item requires a wider or labeled durable body")
 			}
 			seen[row.Slot] = true
-			w.U8(uint8(row.Slot)).Bytes(BuildItemBody(InventoryWireItems([]InventoryRow{row})[0]))
+			body := BuildItemBody(InventoryWireItems([]InventoryRow{row})[0])
+			if len(body) == 0 {
+				return nil, fmt.Errorf("invalid COS summoner body")
+			}
+			w.U8(uint8(row.Slot)).Bytes(body)
 		}
 	}
 	dead := uint32(0)
 	if cos.CurrentHP == 0 {
 		dead = 1
 	}
-	w.U32(dead)
+	if band != 1 {
+		w.U32(dead)
+	}
 	if band == 3 || band == 4 {
 		w.U8(cos.InventorySlot)
 	}

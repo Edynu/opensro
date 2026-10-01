@@ -1,3 +1,10 @@
+/*
+===========================================================================
+
+gmwarp.go - owns gmwarp behavior and its authority boundary
+
+===========================================================================
+*/
 package action
 
 import (
@@ -9,6 +16,11 @@ import (
 
 // WarpGM owns relocation, transient action cleanup and ordered world re-entry.
 // The GM dispatcher supplies decoded values, never writes character state.
+/*
+================
+WarpGM
+================
+*/
 func (rt *Runtime) WarpGM(division, name string, p wire.Position) bool {
 	if rt == nil || rt.deps == nil || rt.PushCharacterFrames == nil {
 		return false
@@ -59,6 +71,7 @@ func (rt *Runtime) WarpGM(division, name string, p wire.Position) bool {
 		return false
 	}
 	rt.endTransformForLoading(division, c)
+	previousPets := rt.relocateReturningPet(division, c, destination)
 	packets, ok := rt.deps.ReentryPackets(division, name)
 	if ok && len(packets) > 0 && packets[0].NativeOpcode == enterworld.OpcodeResetClient {
 		rt.bindResidentRegion(simulation.WorldKey(division, name), rt.Now().UnixMilli())
@@ -69,6 +82,7 @@ func (rt *Runtime) WarpGM(division, name string, p wire.Position) bool {
 		}
 		rt.PushCharacterFrames(division, name, frames)
 	} else {
+		rt.restoreCompanionRelocation(previousPets)
 		// No partial reset may escape. Restore movement if entry construction
 		// refuses; never leave the actor staring at an unfinished loading screen.
 		rt.deps.Update(c, "gm-warp-rollback", func() bool {

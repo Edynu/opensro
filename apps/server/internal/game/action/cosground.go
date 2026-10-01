@@ -1,3 +1,13 @@
+/*
+===========================================================================
+
+cosground.go - pet inventory pickup and drop transactions
+
+The pet's live position and persisted container own every grant. Both manual
+inventory operations and native automatic pickup commands enter this owner.
+
+===========================================================================
+*/
 package action
 
 import (
@@ -12,15 +22,52 @@ import (
 	"opensro.online/server/internal/game/item/wire"
 )
 
-// Caller holds the division action lock. A follower's live plane is mandatory:
-// the player's pose is never substituted for a moving pet's position.
-func (rt *Runtime) applyCosGround(division string, c *enterworld.Character, q wire.ItemMoveRequest) OpResult {
-	return rt.applyCosGroundAt(division, c, q, rt.Now(), true)
+const cosPickupApproachTimeoutMs = 9000
+
+/*
+================
+cosGroundAttempt
+================
+*/
+type cosGroundAttempt struct {
+	now           time.Time
+	allowApproach bool
 }
 
-func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q wire.ItemMoveRequest, now time.Time, allowApproach bool) OpResult {
+/*
+================
+applyCosGround
+
+Caller holds the division action lock. Replacing an approach retires its
+command acknowledgement before the next request acquires the pending slot.
+================
+*/
+func (rt *Runtime) applyCosGround(division string, c *enterworld.Character, q wire.ItemMoveRequest) OpResult {
 	rt.petMu.Lock()
-	session := rt.petSessions[petOwnerKey{division, strings.ToLower(c.Name)}]
+	session := rt.petSessions[petOwnerKey{division: division, name: strings.ToLower(c.Name), gid: q.CosGID}]
+	rt.petMu.Unlock()
+	var retired []wire.Frame
+	if session != nil && session.character == c && session.pickup != nil {
+		result := finishPendingCosPickup(session, failureResult(wire.ErrCodeInvalidRequest))
+		retired = result.Frames
+	}
+	result := rt.applyCosGroundAt(division, c, q, cosGroundAttempt{now: rt.Now(), allowApproach: true})
+	result.Frames = append(retired, result.Frames...)
+	return result
+}
+
+/*
+================
+applyCosGroundAt
+
+A follower's live plane is mandatory; the player's pose is never substituted
+for a moving pet's position. Revalidate reservation and capacity at arrival.
+================
+*/
+func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q wire.ItemMoveRequest, attempt cosGroundAttempt) OpResult {
+	now, allowApproach := attempt.now, attempt.allowApproach
+	rt.petMu.Lock()
+	session := rt.petSessions[petOwnerKey{division: division, name: strings.ToLower(c.Name), gid: q.CosGID}]
 	rt.petMu.Unlock()
 	if session == nil || session.character != c || session.follower == nil || session.follower.GID() != q.CosGID {
 		return failureResult(wire.ErrCodeInvalidRequest)
@@ -28,6 +75,7 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 
 	if allowApproach {
 		session.pickup = nil
+		session.pickupCommand = false
 	}
 	at := session.follower.Position(now.UnixMilli())
 	var sharedOwner uint32
@@ -37,7 +85,7 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 	result := failureResult(wire.ErrCodeInvalidRequest)
 	rt.deps.Update(c, "cos-ground-item", func() bool {
 		bag, inv, valid := rt.ownedCOSContainer(c, q.CosGID)
-		if !valid || c.ActiveCOS.Mounted || enterworld.CurrentHP(c) == 0 {
+		if !valid || c.CompanionByGID(q.CosGID).Mounted || enterworld.CurrentHP(c) == 0 {
 			return false
 		}
 		if q.MovementType == wire.MoveTypeCosDrop {
@@ -58,6 +106,7 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 		if !found || item.OwnerJID != 0 && item.OwnerJID != enterworld.ObjectIDForCharacter(c) && item.OwnerJID != sharedOwner {
 			return false
 		}
+		item.Summon.RefreshRentalTimes(now.Unix())
 		from := grounditem.Point{RegionID: at.RegionID, X: float32(at.X), Z: float32(at.Z)}
 		distance := grounditem.Distance2D(from, item.Position)
 		if !grounditem.SameWorld(from, item.Position) || math.IsNaN(distance) {
@@ -67,7 +116,7 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 			if allowApproach {
 				copy := q
 				session.pickup = &copy
-				session.pickupDeadline = now.UnixMilli() + 9000
+				session.pickupDeadline = now.UnixMilli() + cosPickupApproachTimeoutMs
 				result = OpResult{}
 			}
 			return false
@@ -91,11 +140,12 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 			if count == 0 {
 				count = 1
 			}
-			grant, fault := inv.GrantStack(inventory.Item{RecordID: item.RecordID, RefObjID: item.RefObjID, Codename: item.Codename, TypeFlags: item.TypeFlags, Quantity: count, Plus: item.Plus, VarianceBits: item.VarianceBits, Durability: item.Durability, MagicOptions: item.MagicOptions, TransformRefObjID: item.TransformRefObjID}, rt.maxStackFor(item.TypeFlags, item.Codename))
+			grant, fault := inv.GrantStack(inventory.Item{RecordID: item.RecordID, RefObjID: item.RefObjID, Codename: item.Codename, TypeFlags: item.TypeFlags, Quantity: count, Plus: item.Plus, VarianceBits: item.VarianceBits, Durability: item.Durability, MagicOptions: item.MagicOptions, TransformRefObjID: item.TransformRefObjID, Summon: domain.CloneCOS(item.Summon)}, rt.maxStackFor(item.TypeFlags, item.Codename))
 			if fault != nil {
+				result = failureResult(fault.Code)
 				return false
 			}
-			candidate := *c.ActiveCOS
+			candidate := *c.CompanionByGID(q.CosGID)
 			candidate.Container = &domain.COSContainer{Capacity: bag.Capacity, Rows: rowsFromInvItems(inv.Items())}
 			refs := rt.deps.ItemReferences().(enterworld.CharacterRefSource)
 			ref, ok := refs.CharacterRefByCodename(candidate.Codename)
@@ -109,7 +159,7 @@ func (rt *Runtime) applyCosGroundAt(division string, c *enterworld.Character, q 
 			if !ok {
 				return false
 			}
-			body := wire.ItemBody{TypeFlags: granted.TypeFlags, RefObjID: granted.RefObjID, Quantity: granted.Quantity, Plus: granted.Plus, VarianceBits: granted.VarianceBits, Durability: granted.Durability, MagicOptions: granted.MagicOptions, TransformRefObjID: granted.TransformRefObjID}
+			body := wire.ItemBody{TypeFlags: granted.TypeFlags, RefObjID: granted.RefObjID, Quantity: granted.Quantity, Plus: granted.Plus, VarianceBits: granted.VarianceBits, Durability: granted.Durability, MagicOptions: granted.MagicOptions, TransformRefObjID: granted.TransformRefObjID, Summon: domain.CloneCOS(granted.Summon)}
 			plain := wire.EncodePickupItemResult(grant.DestSlot, body)
 			receipt = wire.NewWriter(len(plain) + 4).U8(1).U8(wire.MoveTypeCosPickup).U32(q.CosGID).Bytes(plain[2:]).Payload()
 			remainder = grant.GroundRemainder
