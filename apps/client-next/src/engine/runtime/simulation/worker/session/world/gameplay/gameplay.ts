@@ -1109,6 +1109,8 @@ state here before a command can claim a native wire conversation.
 			if ( command.kind === "inventory-move" ) {
 				return inventory.move( command.source, command.destination, command.quantity, now );
 			}
+			if ( command.kind === "mall-open" ) return inventory.openMall( now );
+			if ( command.kind === "mall-buy" ) return inventory.purchaseMall( command.request, now );
 			if ( command.kind === "shop-open" ) {
 				if (
 					entity?.kind !== "npc" || targeting.state().target !== command.gid ||
@@ -1860,6 +1862,7 @@ Packet handling must not depend on which HUD panel is currently open.
 					inventory.state().inventory.find( i => i.slot === frame.payload[1] ) :
 					undefined;
 				const cast = used ? returnScrollCast( used, now ) : undefined;
+				const mallRequest = inventory.state().itemMall?.pending === true;
 				const item = inventory.receive( frame.opcode, frame.payload, now, {
 						country: localCountry,
 						abnormal: potionFacts.abnormal
@@ -1894,7 +1897,7 @@ Packet handling must not depend on which HUD panel is currently open.
 				}
 				const refusal = recallAppointmentNotice( frame.opcode, frame.payload ) ??
 					targetNotice( frame.opcode, frame.payload ) ?? portalNotice( frame.opcode, frame.payload ) ??
-					inventoryNotice( frame.opcode, frame.payload, localCountry ) ??
+					inventoryNotice( frame.opcode, frame.payload, localCountry, mallRequest ) ??
 					skillNotice( frame.opcode, frame.payload, localCountry, fortressActive( fortress ) );
 				if ( refusal ) notices = [ ...notices.slice( -99 ), { ...refusal, sequence: ++noticeSequence } ];
 				if ( target ) {
