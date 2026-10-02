@@ -1033,12 +1033,16 @@ export function createCharacterEffects(
 								byGid.get( cast.caster )?.kind !== "player"
 							) cameraEvents.push( { ...script, atMs: Math.trunc( now * 1000 ) } );
 							const returning = stage.action === "AT_SOURCE" && stage.move !== "MOV_NONE";
-							const targetLocal = stage.action === "AT_TARGET";
+							// 8DE7A4 gives AT_TARGET_F's EFP to the target's decoration
+							// owner. It ignores mover fields and survives caster cleanup.
+							const targetFollow = stage.action === "AT_TARGET_F";
+							if ( targetFollow && !stage.resource?.endsWith( ".efp" ) ) continue;
+							const targetLocal = stage.action === "AT_TARGET" || stage.action === "AT_TARGET_F";
 							const radial = stage.action === "AT_MOV_OPTION",
 								chain = stage.action === "AT_MOV_SPLASH" && stage.move !== "MOV_HWAN";
 							const distributed = stage.action === "AT_MOV_1TAR" || stage.action === "AT_MOV_SPLASH";
 							const flying = distributed || radial || returning ||
-								targetLocal && stage.move !== "MOV_NONE";
+								!targetFollow && targetLocal && stage.move !== "MOV_NONE";
 							const resultStage = impactIndex( cast.skill, trigger.phase, trigger.event );
 							const resultTargets = cast.results?.filter( row =>
 								resultStage < 0 || castResultAt( row.impacts, resultStage )
@@ -1159,9 +1163,16 @@ export function createCharacterEffects(
 								if (
 									!model ||
 									(!supportedFlight &&
-										(![ "AT_DMG_POS", "AT_ONE_FOLLOW", "AT_LOOP", "AT_STOP", "AT_TARGET" ].includes(
+										(![
+											"AT_DMG_POS",
+											"AT_ONE_FOLLOW",
+											"AT_LOOP",
+											"AT_STOP",
+											"AT_TARGET",
+											"AT_TARGET_F"
+										].includes(
 											stage.action
-										) || stage.move !== "MOV_NONE" ||
+										) || !targetFollow && stage.move !== "MOV_NONE" ||
 											(stage.bone &&
 												![ "AT_ONE_FOLLOW", "AT_LOOP", "AT_STOP" ].includes( stage.action ) &&
 												!targetLocal))) ||
@@ -1191,7 +1202,7 @@ export function createCharacterEffects(
 									);
 									continue;
 								}
-								const instances = distributed || radial ? 1 : stage.count;
+								const instances = distributed || radial || targetFollow ? 1 : stage.count;
 								if ( active.size + instances > 128 ) {
 									failure = "Effect population exceeds budget";
 									break;
@@ -1215,7 +1226,7 @@ export function createCharacterEffects(
 											z: pose.z + stage.offset[2],
 											yaw: victimFacing ?? nativeHeadingYaw( pose.angle )
 										};
-									if ( targetLocal && !flying ) {
+									if ( targetLocal && !flying && !targetFollow ) {
 										const anchor = stage.targetBone ?
 											socket?.( entity.gid, stage.targetBone, [
 												targetOffset[0],
@@ -1380,7 +1391,7 @@ export function createCharacterEffects(
 											index: resultIndex,
 											allTargets: dispatch.all,
 											secondary: record.secondaryEffect ?? false,
-											atTarget: stage.action === "AT_TARGET",
+											atTarget: targetLocal,
 											soundSkill:
 												impactSource( cast.caster, 0, gameplay?.attachedEffects ?? [], skill =>
 													catalog?.[String( skill )]?.attachedAction, cast ).skill
@@ -1471,23 +1482,24 @@ export function createCharacterEffects(
 										camera: flight && script.kind === "camera" && script.arrival ?
 											{ target: cast.caster, script } :
 											undefined,
-										independent: !!flight,
+										independent: !!flight || targetFollow,
 										impact,
 										flight,
 										owner: entity.gid,
 										token: cast.token,
-										life: route ?
+										life: route || targetFollow ?
 											0 :
 											targetLocal && !flight ?
 											(stage.movement?.delayMs ?? 0) / 1000 :
 											stage.life,
-										attachment: [ "AT_ONE_FOLLOW", "AT_LOOP" ].includes( stage.action ) ?
-											{
-												kind: "entity",
-												offset: [ ...stage.offset ],
-												...(victimFacing !== undefined ? { facing: victimFacing } : {})
-											} :
-											{ kind: "world" },
+										attachment:
+											targetFollow || [ "AT_ONE_FOLLOW", "AT_LOOP" ].includes( stage.action ) ?
+												{
+													kind: "entity",
+													offset: [ ...(targetFollow ? targetOffset : stage.offset) ],
+													...(victimFacing !== undefined ? { facing: victimFacing } : {})
+												} :
+												{ kind: "world" },
 										actor: {
 											gid,
 											effectBasis: flight && resource?.endsWith( ".bsr" ) ?
@@ -1495,8 +1507,16 @@ export function createCharacterEffects(
 												undefined,
 											effectRotation,
 											pickable: false,
-											attachment: (stage.bone ||
-													[ "AT_ONE_FOLLOW", "AT_LOOP" ].includes( stage.action )) &&
+											attachment: targetFollow ?
+												{
+													gid: entity.gid,
+													bone: stage.targetBone ?? "",
+													root: !stage.targetBone,
+													basis: stageAttachmentBasis( stage.resource ),
+													offset: [ targetOffset[0], targetOffset[1], -targetOffset[2] ]
+												} :
+												(stage.bone ||
+														[ "AT_ONE_FOLLOW", "AT_LOOP" ].includes( stage.action )) &&
 													!supportedFlight && !targetLocal ?
 												{
 													gid: entity.gid,

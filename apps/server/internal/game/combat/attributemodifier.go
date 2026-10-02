@@ -31,6 +31,7 @@ const (
 AttributeEffectWrites
 
 595481 installs hpi; 595C4E installs apau; 5961E3 installs pmdg mode two.
+59613F installs pmhp's percentage on maximum HP through channel 1.
 Convert the unsigned operand before negation, matching the x87 path.
 ================
 */
@@ -51,6 +52,12 @@ func AttributeEffectWrites(a enterworld.SkillAttributeBoost) []paramkeeper.Write
 		} {
 			writes = append(writes, paramkeeper.Write{Parameter: lane.parameter, Channel: paramkeeper.Flat, Value: float32(lane.value)})
 		}
+	}
+	if a.MaxHPPenalty {
+		// 59615D pushes channel 1, not pmdg's channel 2. Other HP
+		// percentage bonuses must add to this penalty before multiplication.
+		writes = append(writes,
+			paramkeeper.Write{Parameter: attributeMaxHP, Channel: paramkeeper.PercentSum, Value: float32(-float64(a.HPPenaltyPercent))})
 	}
 	if a.DamagePenalty {
 		writes = append(writes,

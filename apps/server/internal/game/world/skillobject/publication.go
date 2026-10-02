@@ -31,6 +31,8 @@ type Viewer struct {
 	Population instance.Lease
 	Position   worldgeom.RegionXZ
 	Published  []uint32
+	// CharacterGID identifies the viewer; concealment does not remove replication.
+	CharacterGID uint32
 }
 
 /*
@@ -38,6 +40,8 @@ type Viewer struct {
 Visible
 
 World generation participates in visibility as well as capture admission.
+86C1F0 hides the model using detection levels; hidden traps must still exist
+in the client object registry when their mode-3 result arrives.
 ================
 */
 func Visible(object Object, viewer Viewer) bool {

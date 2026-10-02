@@ -37,6 +37,13 @@ type Program struct {
 	ScanMs     uint32
 	Radius     uint32
 	Targets    [3]uint32
+	// Combat marks a planted hostile trap: any living monster in Radius
+	// triggers it. Hidden traps remain replicated; the native client owns concealment;
+	// OwnerDistance retires the trap once its planter walks beyond it.
+	Combat        bool
+	Hidden        bool
+	OwnerDistance uint32
+	LinkGroup     uint32
 }
 
 /*
@@ -56,6 +63,9 @@ type Object struct {
 	Spawn      wire.SkillObjectSpawn
 	CreatedMs  int64
 	NextScanMs int64
+	// OwnerEffect is the planter's buff-board instance that mirrors a combat
+	// trap's life (lnks board word); zero for quest traps.
+	OwnerEffect uint32
 }
 
 /*
@@ -112,6 +122,10 @@ func (r *Registry) Create(object Object) (Object, error) {
 	}
 	r.nextGID++
 	object.Spawn.GID = r.nextGID
+	if object.Program.Combat {
+		// 86C70F identifies the planter's decoration by this same object ID.
+		object.OwnerEffect = object.Spawn.GID
+	}
 	object.Spawn.SkillID = object.Program.SkillID
 	object.NextScanMs = object.CreatedMs + int64(object.Program.ScanMs)
 	if r.objects == nil {
@@ -201,12 +215,16 @@ three-dimensional, with region-local coordinates re-expressed first.
 ================
 */
 func Matches(object Object, target Target) bool {
-	if !target.Alive || target.GID == 0 || target.OwnerGID != 0 && target.OwnerGID != object.OwnerGID ||
+	// A quest trap needs the owner's own fight; a combat trap any victim.
+	if !target.Alive || target.GID == 0 || !object.Program.Combat && target.OwnerGID != 0 && target.OwnerGID != object.OwnerGID ||
 		!worldgeom.SamePlane(object.Spawn.Region, target.Region) {
 		return false
 	}
-	matched := false
+	matched := object.Program.Combat
 	for _, ref := range object.Program.Targets {
+		if matched {
+			break
+		}
 		if ref == 0 {
 			break
 		}

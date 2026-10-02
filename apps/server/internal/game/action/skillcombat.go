@@ -36,6 +36,8 @@ type pendingSkillFinalize struct {
 	characterName string
 	dueAtMs       int64
 	frame         wire.Frame
+	// Presentation-only closes retain session ownership without blocking commands.
+	presentationOnly bool
 	// chainBracket marks the mode-2 close of a chain ROOT. The v1.150 client
 	// (85CB60) appends every linked stage's B245 to that root's deco, which
 	// carries the one authored clip for the whole chain; closing it before
@@ -203,7 +205,7 @@ func (rt *Runtime) acceptSkillStagePhaseAt(divisionID string, character, snapsho
 		}
 	}
 	actionLifecycleMs, actionLifecyclePinned := skill.ActionLifecycleMs()
-	if !known || ((!skill.CombatPinned || !skill.Attack.Present) && !skill.TimedEffect.Periodic.Pinned && !skill.Threat.Only) ||
+	if !known || ((!skill.CombatPinned || !skill.Attack.Present) && !skill.TimedEffect.Periodic.Pinned && !skill.Threat.Only && !skill.StatusCast) ||
 		!actionLifecyclePinned || actionLifecycleMs == 0 && !skill.PositionEffect.Charge ||
 		!skill.TargetRequired || (!basic && !advanced) {
 		return OpResult{}, skillCastRefused
@@ -667,6 +669,28 @@ func (rt *Runtime) queueSkillCastClose(divisionID, characterName string, sourceG
 
 /*
 ==================
+queueDetachedCastClose
+
+The closing B505 of a released action that no longer owns its caster
+(self effects, planted traps). It routes through the caster's scope but is
+marked as presentation-only, so hasOpenSkillCast stays false. Keep the real
+session owner so disconnect and world re-entry retire the queued packet.
+==================
+*/
+func (rt *Runtime) queueDetachedCastClose(divisionID, characterName string, sourceGID, token uint32, closeAtMs int64) {
+	if sourceGID == 0 {
+		panic("action: detached cast close has no source")
+	}
+	rt.pendingSkillFinalizesMu.Lock()
+	rt.pendingSkillFinalizes = append(rt.pendingSkillFinalizes, pendingSkillFinalize{
+		divisionID: divisionID, characterName: characterName, sourceGID: sourceGID,
+		dueAtMs: closeAtMs, frame: wire.SkillCastFinalizeFrame(token), presentationOnly: true,
+	})
+	rt.pendingSkillFinalizesMu.Unlock()
+}
+
+/*
+==================
 extendChainBracket
 
 extendChainBracket keeps the root deco alive through the stage that was
@@ -753,7 +777,7 @@ func (rt *Runtime) hasOpenSkillCast(divisionID, characterName string) bool {
 		return true
 	}
 	for _, pending := range rt.pendingSkillFinalizes {
-		if simulation.WorldKey(pending.divisionID, pending.characterName) == ownerKey {
+		if !pending.presentationOnly && simulation.WorldKey(pending.divisionID, pending.characterName) == ownerKey {
 			return true
 		}
 	}
@@ -824,7 +848,9 @@ func (rt *Runtime) openSkillCastOwnerSnapshot() map[string]bool {
 
 	owners := make(map[string]bool, len(rt.pendingSkillFinalizes))
 	for _, pending := range rt.pendingSkillFinalizes {
-		owners[simulation.WorldKey(pending.divisionID, pending.characterName)] = false
+		if !pending.presentationOnly {
+			owners[simulation.WorldKey(pending.divisionID, pending.characterName)] = false
+		}
 	}
 	for owner := range rt.currentSkillCommands {
 		owners[owner] = true
