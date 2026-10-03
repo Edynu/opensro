@@ -13,9 +13,38 @@ import { packTextureStage } from "@/engine/foundation/rendering/texture-stage";
 import { createCharacterShadows } from "./character-shadows";
 import type { createParticlePresentation } from "./particles";
 import type { createGpuAnimationResources } from "./animation";
+import { DEFAULT_BLEND, type GeometryPipelineState } from "./pipelines";
+import { D3DBLEND_SRCCOLOR, D3DBLEND_ZERO, type BlendPair } from "@/engine/foundation/rendering/blend-state";
 import type { Geometry } from "@/engine/contracts/geometry";
 import { packGeometryVertices } from "@/engine/foundation/rendering/geometry-vertices";
 import type { GeometryCommands, GeometryDraw, ImageDraw } from "@/engine/runtime/renderer/internal/gpu-contract";
+/*
+================
+geometryPipelineState
+
+The pipeline state a material draws with. Blending follows the material's
+D3D pair (SRCALPHA/INVSRCALPHA when it names none); a lightmap multiplies
+(ZERO/SRCCOLOR). Depth writes follow the material, else a blended draw
+writes depth only as a fading object or a decal, as the old pipeline
+classes did. Sky, deferred particles and ground decals draw without the
+depth test (the second sky, culled, keeps it).
+================
+*/
+export function geometryPipelineState( mat: Geometry["material"] ): GeometryPipelineState {
+	const cull = !!mat && !mat.doubleSided;
+	if ( mat?.groundDecal ) return { blend: DEFAULT_BLEND, cull, depthWrite: false, depthCompare: "always" };
+	const fade = !!(mat?.objectFade || mat?.instanceFade);
+	const blend: BlendPair | null = mat?.lightmap ?
+		{ source: D3DBLEND_ZERO, destination: D3DBLEND_SRCCOLOR } :
+		mat?.blend || fade || mat?.decal || mat?.sky ?
+		mat.blendPair ?? DEFAULT_BLEND :
+		null;
+	const writes = mat?.depthWrite ?? ((!blend || fade || !!mat?.decal) && !mat?.sky && !mat?.lightmap);
+	if ( mat?.deferredParticle ) return { blend, cull, depthWrite: false, depthCompare: "always" };
+	const untested = !!mat?.sky && !(mat.sky === 2 && cull);
+	return { blend, cull, depthWrite: writes, depthCompare: untested ? "always" : "less-equal" };
+}
+
 /*
 ================
 DeviceDraw
@@ -107,7 +136,7 @@ export function createGeometryResources(
 	created: GPUDevice,
 	current: () => GPUDevice,
 	fail: ( error: unknown ) => void,
-	pipelines: () => GPURenderPipeline[],
+	pipelines: ( state: GeometryPipelineState ) => GPURenderPipeline,
 	texture: ( image: ImageDraw ) => GPUTexture,
 	worldSampler: GPUSampler,
 	lightmapSampler: GPUSampler,
@@ -230,6 +259,7 @@ export function createGeometryResources(
 		storage: GPUBuffer,
 		material: GPUBuffer,
 		pipeline: GPURenderPipeline,
+		clampedSampling: boolean,
 		image?: ImageDraw,
 		skin = defaultSkin,
 		bones = defaultBones,
@@ -242,10 +272,7 @@ export function createGeometryResources(
 			{ binding: 2, resource: { buffer: material } },
 			{
 				binding: 3,
-				resource: pipeline === pipelines()[6] || pipeline === pipelines()[7] || pipeline === pipelines()[14] ||
-						pipeline === pipelines()[15] ?
-					lightmapSampler :
-					worldSampler
+				resource: clampedSampling ? lightmapSampler : worldSampler
 			},
 			{ binding: 4, resource: (image ? texture( image ) : white).createView( { dimension: "2d-array" } ) },
 			{ binding: 5, resource: { buffer: environment } },
@@ -273,6 +300,10 @@ export function createGeometryResources(
 		indexBytes: number;
 		palette?: SharedPalette;
 		jointMaximum: number;
+		// Lightmaps and decals sample with clamped addressing.
+		clampedSampling: boolean;
+		// The material uniform's TEXTUREFACTOR offset in bytes (its last vec4).
+		textureFactorOffset: number;
 		// The draw handle itself, which this owner updates in place.
 		selection: DeviceDraw;
 	}>();
@@ -550,6 +581,7 @@ export function createGeometryResources(
 								storage,
 								meta.material,
 								draw.pipeline,
+								meta.clampedSampling,
 								meta.image,
 								meta.skin,
 								meta.bones,
@@ -574,6 +606,22 @@ export function createGeometryResources(
 					}
 				} ).catch( fail );
 			}
+		},
+		/*
+		================
+		updateTextureFactor
+
+		The draw's D3DRS_TEXTUREFACTOR (rgba in [0, 1]), as a material
+		modifier's pulse sets it each tick.
+		================
+		*/
+		updateTextureFactor( draw: GeometryDraw, rgba: Float32Array ) {
+			const meta = metadata.get( draw );
+			if ( !meta ) throw Error( "Unknown geometry draw" );
+			if ( rgba.length !== 4 || !rgba.every( v => Number.isFinite( v ) && v >= 0 && v <= 1 ) ) {
+				throw Error( "Invalid texture factor" );
+			}
+			current().queue.writeBuffer( meta.material, meta.textureFactorOffset, rgba as Float32Array<ArrayBuffer> );
 		},
 		/*
 		================
@@ -716,8 +764,7 @@ export function createGeometryResources(
 				if ( mat?.environmentReflection && !environmentImage ) {
 					throw Error( "Reflective material requires its owned environment texture" );
 				}
-				const material = buffer(
-					new Float32Array( [
+				const materialData = new Float32Array( [
 						...(mat?.color ?? [ 0.75, 0.78, 0.82, 1 ]),
 						mat?.alphaCutoff ?? 0,
 						mat?.unlit === false ? 0 : 1,
@@ -767,7 +814,6 @@ export function createGeometryResources(
 						0,
 						mat?.environmentReflection ? 1 : 0,
 						mat?.alphaCompare ?? 7,
-						mat?.textureAlphaSquared ? 1 : 0,
 						0,
 						0,
 						0,
@@ -777,43 +823,25 @@ export function createGeometryResources(
 						0,
 						0,
 						0,
-						...packTextureStage( mat?.textureStage )
+						0,
+						...packTextureStage( mat?.textureStage ),
+						// The stage policy: x, DIFFUSE is the BSR shader's oD0.
+						mat?.shaderDiffuse ? 1 : 0,
+						0,
+						0,
+						0,
+						// D3DRS_TEXTUREFACTOR, read by a stage's TFACTOR argument.
+						...(mat?.textureFactor ?? [ 1, 1, 1, 1 ])
 					] ),
-					GPUBufferUsage.UNIFORM
-				);
-				const selected = pipelines()[
-					mat?.groundDecal ?
-						44 + (mat.doubleSided ? 0 : 1) :
-						(mat?.deferredParticle ? 22 : 0) + (mat?.multiplyAddBlend ?
-							20 :
-							mat?.inverseSourceColorBlend ?
-							18 :
-							mat?.sourceColorBlend ?
-							16 :
-							mat?.decal ?
-							14 :
-							mat?.sky ?
-							(mat.sky === 2 ? 10 : 8) :
-							mat?.depthWrite === true ?
-							12 :
-							mat?.depthWrite === false ?
-							(mat.additive ? 4 : 2) :
-							(mat?.objectFade || mat?.instanceFade) ?
-							12 :
-							mat?.lightmap ?
-							6 :
-							mat?.additive ?
-							4 :
-							mat?.blend ?
-							2 :
-							0) +
-						(mat && !mat.doubleSided ? 1 : 0)
-				]!;
+					material = buffer( materialData, GPUBufferUsage.UNIFORM );
+				const selected = pipelines( geometryPipelineState( mat ) ),
+					clampedSampling = !!(mat?.lightmap || mat?.decal) && !mat?.groundDecal;
 				const binding = geometryBinding(
 					data.world ? worldUniform! : uniform,
 					storage,
 					material,
 					selected,
+					clampedSampling,
 					image,
 					skinBuffer,
 					boneBuffer,
@@ -845,6 +873,8 @@ export function createGeometryResources(
 					indexBytes: indices.size,
 					palette,
 					jointMaximum,
+					clampedSampling,
+					textureFactorOffset: materialData.byteLength - 16,
 					selection: draw
 				} );
 				return draw;
@@ -913,6 +943,7 @@ export function createGeometryResources(
 						geometryBuffers.get( draw )![3]!,
 						meta.material,
 						draw.pipeline,
+						meta.clampedSampling,
 						meta.image,
 						meta.skin,
 						meta.bones,

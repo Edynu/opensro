@@ -9,6 +9,7 @@ the renderer owns, handling every Geometry field explicitly.
 ===========================================================================
 */
 import { validTextureStage } from "./texture-stage";
+import { validBlend } from "./blend-state";
 import { validateMaterialTimeline } from "./material-timeline";
 import { validateTextureAtlas } from "./texture-atlas";
 import type { Geometry } from "@/engine/contracts/geometry";
@@ -23,8 +24,7 @@ copyMaterial
 export function copyMaterial( material: WorldMaterial ): WorldMaterial {
 	if (
 		material.alphaCompare !== undefined &&
-			(!Number.isInteger( material.alphaCompare ) || material.alphaCompare < 1 || material.alphaCompare > 8) ||
-		material.textureAlphaSquared !== undefined && typeof material.textureAlphaSquared !== "boolean"
+		(!Number.isInteger( material.alphaCompare ) || material.alphaCompare < 1 || material.alphaCompare > 8)
 	) throw Error( "Invalid native alpha state" );
 	if ( material.deferredParticle !== undefined && typeof material.deferredParticle !== "boolean" ) {
 		throw Error( "Invalid deferred material" );
@@ -55,7 +55,15 @@ export function copyMaterial( material: WorldMaterial ): WorldMaterial {
 		material.fadeAlphaOnly !== undefined && typeof material.fadeAlphaOnly !== "boolean" ||
 		material.decal !== undefined && typeof material.decal !== "boolean" ||
 		material.groundDecal !== undefined && typeof material.groundDecal !== "boolean" ||
-		material.sourceColorBlend !== undefined && typeof material.sourceColorBlend !== "boolean" ||
+		material.blendPair !== undefined && !validBlend( material.blendPair ) ||
+		material.shaderDiffuse !== undefined && typeof material.shaderDiffuse !== "boolean" ||
+		material.textureFactorPulse !== undefined &&
+			(![ material.textureFactorPulse.low, material.textureFactorPulse.high ].every( v =>
+				Number.isInteger( v ) && v >= 0 && v <= 255
+			) || !Number.isFinite( material.textureFactorPulse.rate )) ||
+		material.textureFactor !== undefined &&
+			(material.textureFactor.length !== 4 ||
+				!material.textureFactor.every( v => Number.isFinite( v ) && v >= 0 && v <= 1 )) ||
 		material.unlit !== undefined && typeof material.unlit !== "boolean" ||
 		material.terrain !== undefined && typeof material.terrain !== "boolean" ||
 		material.sharedPose !== undefined && typeof material.sharedPose !== "boolean" ||
@@ -87,6 +95,12 @@ export function copyMaterial( material: WorldMaterial ): WorldMaterial {
 			{ uvVelocity: [ ...material.uvVelocity ] as [number, number, number, number, number, number] } :
 			{}),
 		...(material.ambient ? { ambient: [ ...material.ambient ] as [number, number, number] } : {}),
+		...(material.blendPair ? { blendPair: { ...material.blendPair } } : {}),
+		...(material.textureFactorPulse ? { textureFactorPulse: { ...material.textureFactorPulse } } : {}),
+		...(material.textureStage ? { textureStage: { ...material.textureStage } } : {}),
+		...(material.textureFactor ?
+			{ textureFactor: [ ...material.textureFactor ] as [number, number, number, number] } :
+			{}),
 		color: [ ...material.color ],
 		...(material.fog ? { fog: { ...material.fog } } : {}),
 		frames: material.frames?.slice()
