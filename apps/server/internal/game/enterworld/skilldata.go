@@ -191,6 +191,12 @@ type SkillRow struct {
 	// StatusCast marks a damage-free hostile status program (skillstatuscast.go):
 	// its single impact is a zero-damage record that only rolls statuses.
 	StatusCast bool
+	// AreaBurst marks an untargeted caster-centred attack (skillareaburst.go):
+	// no target, its victims are the hostile monsters around the caster.
+	AreaBurst bool
+	// FixedDamage marks a pdmg hit (skillfixeddamage.go): its single impact
+	// deals the authored amount, and dmgt converts the damage into MP.
+	FixedDamage SkillFixedDamage
 	// CombatTrap is a planted hostile trap program (skilltrap.go).
 	CombatTrap    SkillCombatTrap
 	OffensiveArea SkillOffensiveArea
@@ -585,7 +591,7 @@ func (t *TextdataSkills) parse(shards []string) {
 				EffectDurationMs:       encodedEffectDuration(fields),
 				EffectDurationPresent:  encodedTailContainsTag(fields, 0x64757261),
 				HideDetectionBuff:      encodedPrimaryParameterEquals(fields, 0x6c6e6b73, 3, 0, false),
-				IndefiniteBuffTimer:    encodedPrimaryParameterEquals(fields, 0x656672, 0, 3, true),
+				IndefiniteBuffTimer:    encodedPrimaryParameterEquals(fields, tagEfr, 0, 3, true),
 				BodyStatus:             encodedBodyStatus(fields),
 				MovementModifier:       encodedMovementModifier(fields),
 				EffectRider:            encodedEffectRider(fields),
@@ -742,7 +748,7 @@ func (t *TextdataSkills) parse(shards []string) {
 				{ID: textdataU32(fields[skilldataColReqMastery1]), Level: textdataNonNegative(fields[skilldataColReqMasteryLv1])},
 				{ID: textdataU32(fields[skilldataColReqMastery2]), Level: textdataNonNegative(fields[skilldataColReqMasteryLv2])},
 			}
-			row.Attack.MasteryEnhancement = encodedTailHasParameter(fields, 0x67657476, 0x4d414154)
+			row.Attack.MasteryEnhancement = encodedTailHasParameter(fields, tagGetv, 0x4d414154)
 			row.Attack.MasteryIDs = [2]uint32{row.Masteries[0].ID, row.Masteries[1].ID}
 			if row.Imbue.Pinned {
 				row.Imbue.Attack.MasteryEnhancement = row.Attack.MasteryEnhancement
@@ -822,11 +828,15 @@ type SkillUiRow struct {
 	SPCost             int64               `json:"spCost"`
 	Trainable          bool                `json:"trainable"`
 	TargetRequired     bool                `json:"targetRequired"`
-	GroundTarget       bool                `json:"groundTarget,omitempty"`
-	CooldownGroup      uint8               `json:"cooldownGroup,omitempty"`
-	CooldownMs         uint32              `json:"cooldownMs"`
-	Masteries          [2]SkillRequirement `json:"masteries"`
-	Prerequisites      [3]SkillRequirement `json:"prerequisites"`
+	// TargetSelf marks a target-required row that also admits its caster
+	// (column 26, TargetGroup_Self): the client aims a cast with nothing
+	// selected at its own character. Omitted when false.
+	TargetSelf    bool                `json:"targetSelf,omitempty"`
+	GroundTarget  bool                `json:"groundTarget,omitempty"`
+	CooldownGroup uint8               `json:"cooldownGroup,omitempty"`
+	CooldownMs    uint32              `json:"cooldownMs"`
+	Masteries     [2]SkillRequirement `json:"masteries"`
+	Prerequisites [3]SkillRequirement `json:"prerequisites"`
 }
 
 /*
@@ -900,7 +910,7 @@ func (t *TextdataSkills) SpawnSkillRows() []SpawnSkillRow {
 		projection := SpawnSkillRow{LinkedSkillID: row.LinkedSkillID, CancellationDeferred: row.CancellationDeferred, NameAttackContent: row.NameAttackContent, Level: uint8(row.Level), Group: row.Group, ID: row.ID, Token: row.SpawnToken, Status: row.SpawnStatus, EffectRider: row.EffectRider, EffectDurationMs: row.EffectDurationMs, ZeroEffectDuration: row.EffectDurationPresent && row.EffectDurationMs == 0, HideDetectionBuff: row.HideDetectionBuff, IndefiniteBuffTimer: row.IndefiniteBuffTimer}
 		projection.HuntingPoint, projection.StealthDuration = row.HuntingPoint, row.StealthDuration
 		if row.Icon != "" || strings.HasPrefix(row.Codename, "SKILL_CH_") || strings.HasPrefix(row.Codename, "SKILL_EU_") {
-			projection.UI = &SkillUiRow{BuffSecondary: row.BuffSecondary, Name: row.Codename, SPCost: row.SPCost, Trainable: !row.ChainSub && row.SPCost > 0, TargetRequired: row.TargetRequired, GroundTarget: row.PositionEffect.Pinned, CooldownMs: row.CoolTimeMs, CooldownGroup: row.CoolTimeGroup, Masteries: row.Masteries, Prerequisites: row.Prerequisites}
+			projection.UI = &SkillUiRow{BuffSecondary: row.BuffSecondary, Name: row.Codename, SPCost: row.SPCost, Trainable: !row.ChainSub && row.SPCost > 0, TargetRequired: row.TargetRequired, TargetSelf: row.TargetRequired && row.Targets.Self, GroundTarget: row.PositionEffect.Pinned, CooldownMs: row.CoolTimeMs, CooldownGroup: row.CoolTimeGroup, Masteries: row.Masteries, Prerequisites: row.Prerequisites}
 			projection.UI.BuffCancel = "" // Omitted means the native ordinary/direct branch.
 			if row.VoluntaryCancelBlocked && !row.BuffCancelInstance {
 				projection.UI.BuffCancel = "blocked"

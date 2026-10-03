@@ -73,6 +73,10 @@ type Runtime struct {
 	partyAuras  []partyAura
 	partyAuraMu sync.Mutex
 
+	// healsOverTime are the installed timed heals (skillhealtime.go).
+	healsOverTime  []healOverTime
+	healOverTimeMu sync.Mutex
+
 	// walls are the actors' Force-wall slots (+0xC0C), keyed by wallKey.
 	walls  map[string]*standingWall
 	wallMu sync.Mutex
@@ -247,6 +251,11 @@ type Runtime struct {
 		sourceGid uint32,
 	) ([]wire.Frame, bool)
 
+	// RefundExperience is the stat authority's door-free refund of EXP lost
+	// at death (a resurrection's share). Unlike UpdateExperience it is not a
+	// gain, so the growth rates never scale it. Nil grants no refund.
+	RefundExperience func(character *enterworld.Character, exp int64) ([]wire.Frame, bool)
+
 	// ApplyDeathPenalty is progression' door-free ordinary-death updater. Monster
 	// combat invokes it from inside the fatal-HP character transaction; levels
 	// <= 10 legitimately return no frames under the retail protection gate.
@@ -300,6 +309,12 @@ type Runtime struct {
 	// remain registry-live until event 0x64 launches the staged absorption VFX.
 	pendingMonsterDefeatsMu sync.Mutex
 	pendingMonsterDefeats   []pendingMonsterDefeat
+
+	// monsterFightRecipients holds the private reward frames of kills made
+	// in a Temptation fight (temptation.go) until the action tick delivers
+	// them; the monster leg that commits the kill publishes only to viewers.
+	monsterFightRecipientsMu sync.Mutex
+	monsterFightRecipients   []simulation.DivisionFrames
 
 	// basicAttackIntents is the server-owned continuation behind native
 	// 0x72CD [01 01 01 gid]/[01 03 01 gid]. One intent per character replaces

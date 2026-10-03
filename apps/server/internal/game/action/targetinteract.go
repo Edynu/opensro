@@ -309,7 +309,6 @@ attack when it does.
 ================
 */
 func (rt *Runtime) dispatchSkillCommand(divisionID string, character, snapshot *enterworld.Character, cast wire.SkillAction) OpResult {
-
 	if source := rt.deps.SkillData(); source != nil {
 		if skill, ok := source.SkillByID(cast.ActionId); ok &&
 			!isPinnedBaseAttack(snapshot, skill.Codename) {
@@ -325,8 +324,21 @@ func (rt *Runtime) dispatchSkillCommand(divisionID string, character, snapshot *
 			if skill.PositionEffect.Pinned {
 				return rt.acceptPositionSkill(divisionID, character, snapshot, cast, skill)
 			}
+			// Discord Wave: a friendly-targeted hostility cut
+			// (discordwave.go).
+			if skill.Threat.Decrease {
+				return rt.acceptDiscordWave(divisionID, character, snapshot, cast, skill, rt.Now().UnixMilli())
+			}
 			if skill.Threat.Only && !skill.TargetRequired {
 				return rt.acceptUntargetedTaunt(tauntCast{division: divisionID, character: character, snapshot: snapshot, skill: skill}, cast)
+			}
+
+			// Untargeted party-area heals, heals over time and
+			// resurrections: their action vector is the party
+			// selection (58BEF0).
+			if skill.Recovery.PartyResurrectPinned || skill.Recovery.PartyHealPinned ||
+				skill.Recovery.HealOverTimePinned {
+				return rt.acceptSupportSkill(divisionID, character, snapshot, cast, skill)
 			}
 
 			if skill.Recovery.SelfFlatPinned ||
@@ -363,6 +375,10 @@ func (rt *Runtime) dispatchSkillCommand(divisionID string, character, snapshot *
 			if skill.StatusCast && !skill.TargetRequired {
 				result, _ := rt.acceptUntargetedStatusCast(divisionID, character, snapshot, cast, skill, rt.Now().UnixMilli(), nil)
 				return result
+			}
+
+			if skill.AreaBurst && !skill.TargetRequired {
+				return rt.acceptAreaBurst(divisionID, character, snapshot, cast, skill, rt.Now().UnixMilli())
 			}
 
 			if skill.CombatTrap.Pinned {

@@ -106,14 +106,17 @@ buffs and heals alike. It is the only writer of these fields;
 decodeSkillOffense only validates them.
 
 	getv WIMD/BDMD/HLMD  +0x4E4/+0x554/+0x55C  prepared MP cut
+	getv WIRU/CBRA       +0x4E8/+0x50C         cast reach addends (4AE87E)
 	getv MUER/DSER       +0x544/+0x54C         aura radius addends
+	getv MUCR/DSCR       -                     aura cut resistance (Prism, Screen Dance)
 	scls                 +0x380                selector bits (5842AC)
 	reqc                 +0x39C                bits 0, 4, 5 (SkillReqc)
 	reqi                 +0x3A0                up to five {kind, value}
 	reqn                 +0x3B4                every reqi pair must match
 	efr kind 2, onff     +0x290, +0x284        persistent aura (SkillAura)
 	efr kind 3           +0x294                qest radius word
-	dru, odar, ru, hr    +0x3E4, +0x270, ...   SkillBuffModifiers
+	dru, odar, ru, hr,
+	rhru, dcmp           +0x3E4, +0x270, ...   SkillBuffModifiers
 	heal, mwhh, mwmh     +0x324..+0x32C        SkillHeal
 	eshp                 +0x298                aura heals the lowest HP ratio
 	nmf, tele/tel2/tel3,
@@ -132,15 +135,29 @@ func noteParameterIndex(fields []string, row *SkillRow) {
 	}
 	for i := skilldataColEncodedTail; i < len(fields); {
 		tag, ok := textdataInt(fields[i])
-		if !ok || tag == 0 || tag == 0x73736f75 {
+		if !ok || tag == 0x73736f75 {
 			return
 		}
+		// A zero word is padding, not the end of the program: the native
+		// indexers skip it, as CompileSkillProgram does, so a getv or reqi
+		// authored after a padded opcode ("odar 4 n 0 getv ...") still
+		// reaches the row.
+		if tag == 0 {
+			i++
+			continue
+		}
 		switch tag {
-		case 0x67657476: // getv
+		case tagGetv: // getv
+			// WIRU/CBRA (+0x4E8/+0x50C) sit beside WIMD (+0x4E4) in this
+			// per-row index, so a row without att records them too, and
+			// 4AE87E adds them to the cast's reach. Owners that never
+			// compute a reach simply ignore the bit.
 			if key, ok := word(i + 1); ok {
 				if slot, known := SkillParameterFromKey(key); known &&
 					(slot == ParameterWizardMPDecrease || slot == ParameterBardMPDecrease || slot == ParameterHealerMPDecrease ||
-						slot == ParameterMusicRange || slot == ParameterDanceRange || slot == ParameterHealRecoveryUp) {
+						slot == ParameterMusicRange || slot == ParameterDanceRange || slot == ParameterHealRecoveryUp ||
+						slot == ParameterWizardRange || slot == ParameterCrossbowRange ||
+						slot == ParameterMusicCutResist || slot == ParameterDanceCutResist) {
 					row.Attack.Parameters |= SkillParameterMask(1) << slot
 				}
 			}
@@ -162,7 +179,7 @@ func noteParameterIndex(fields []string, row *SkillRow) {
 			}
 		case 0x7265716e: // reqn
 			row.Reqi.All = true
-		case 0x656672: // efr; kind 2 is persistent area at +0x290, kind 3 at +0x294
+		case tagEfr: // efr; kind 2 is persistent area at +0x290, kind 3 at +0x294
 			kind, kindOK := word(i + 1)
 			radius, radiusOK := word(i + 3)
 			maxTargets, maxOK := word(i + 4)
@@ -212,6 +229,18 @@ func noteParameterIndex(fields []string, row *SkillRow) {
 			if firstOK && secondOK {
 				row.BuffModifiers.Dru = true
 				row.BuffModifiers.DruWords = [2]uint32{first, second}
+			}
+		case 0x72687275: // rhru: healing received, HP and MP percent
+			hp, hpOK := word(i + 1)
+			mp, mpOK := word(i + 2)
+			if hpOK && mpOK {
+				row.BuffModifiers.Rhru = true
+				row.BuffModifiers.RhruWords = [2]uint32{hp, mp}
+			}
+		case 0x64636d70: // dcmp: MP consumption cut, percent
+			if percent, ok := word(i + 1); ok {
+				row.BuffModifiers.Dcmp = true
+				row.BuffModifiers.DcmpPercent = percent
 			}
 		case 0x6f646172: // odar +0x270
 			bits, bitsOK := word(i + 1)
@@ -308,6 +337,10 @@ func decodeSkillOffense(fields []string, row *SkillRow) string {
 		row.Threat = taunt
 		return ""
 	}
+	if decrease, ok := compileSkillThreatDecrease(fields, *row); ok {
+		row.Threat = decrease
+		return ""
+	}
 	if threat, ok := compileSkillStatusCast(fields, *row); ok {
 		// Retail initializes the generated-result count to one even without
 		// att or cm; the single record carries the status roll.
@@ -315,6 +348,24 @@ func decodeSkillOffense(fields []string, row *SkillRow) string {
 		row.Threat = threat
 		row.OffensiveArea, row.Threat.Area = threat.Area, SkillOffensiveArea{}
 		row.Attack.ImpactCount = 1
+		row.OffensiveStagePinned = true
+		row.DirectOffensePinned = true
+		return ""
+	}
+	if fixed, ok := compileSkillFixedDamage(fields, *row); ok {
+		// One fixed-damage record (skillfixeddamage.go), released by the
+		// ordinary single-target offensive owner.
+		row.FixedDamage = fixed
+		row.Attack.ImpactCount = 1
+		row.OffensiveStagePinned = true
+		row.DirectOffensePinned = true
+		return ""
+	}
+	if area, ok := compileSkillAreaBurst(fields, *row); ok {
+		// Untargeted caster-centred attack (skillareaburst.go): the target
+		// gate below would refuse it, as it did before an owner existed.
+		row.AreaBurst = true
+		row.OffensiveArea = area
 		row.OffensiveStagePinned = true
 		row.DirectOffensePinned = true
 		return ""
@@ -376,7 +427,7 @@ func decodeSkillOffense(fields []string, row *SkillRow) string {
 			row.DirectOffensePinned = row.OffensiveStagePinned && row.ChainNext == 0
 			return ""
 		}
-		if seen[tag] && tag != 0x67657476 && tag != 0x72657169 {
+		if seen[tag] && tag != tagGetv && tag != 0x72657169 {
 			return "offense:duplicate-instruction:" + strconv.FormatInt(tag, 16)
 		}
 		seen[tag] = true
@@ -537,7 +588,7 @@ func decodeSkillOffense(fields []string, row *SkillRow) string {
 			if !row.CriticalModifier.Present {
 				return "offense:critical-arguments" // shared parser must validate the unsigned pair first
 			}
-		case 0x67657476:
+		case tagGetv:
 			arity = 1
 			if i+1 >= len(fields) {
 				return "offense:invalid-envelope-or-arguments"
@@ -551,7 +602,7 @@ func decodeSkillOffense(fields []string, row *SkillRow) string {
 			if !known && key != 0x4d414154 && !abnormalKey {
 				return "offense:getv:" + strconv.FormatInt(key, 16)
 			}
-		case 0x656672:
+		case tagEfr:
 			arity = 6
 			// Every victim takes every mc impact (58E5F0 loops impacts per
 			// target group; action/skillarea.go).

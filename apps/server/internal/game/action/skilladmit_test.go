@@ -55,7 +55,9 @@ func TestShippedDanceRefusedUntilSelector(t *testing.T) {
 		mp := int64(50000)
 		c.CurrentMP = &mp
 		if dancing {
-			if !rt.effects.Apply(statuseffect.Effect{DivisionID: testDivision, CharacterName: c.Name, SkillID: guard.ID, SkillGroup: guard.Group}) {
+			// Another Bard's Guard Tambour: a child instance naming its
+			// caster's instance (reqc 32 needs another Bard's music).
+			if !rt.effects.Apply(statuseffect.Effect{DivisionID: testDivision, CharacterName: c.Name, SkillID: guard.ID, SkillGroup: guard.Group, AuraParentToken: 1}) {
 				t.Fatal("guard effect refused")
 			}
 		}
@@ -71,7 +73,7 @@ func TestShippedDanceRefusedUntilSelector(t *testing.T) {
 			spawn.X = &x
 			world.Spawn = &spawn
 			m.World = &world
-			deps.Characters.(enterworld.StaticCharacterSource)[testDivision] = append(deps.Characters.(enterworld.StaticCharacterSource)[testDivision], &m)
+			fixtureCharacters(deps.Characters)[testDivision] = append(fixtureCharacters(deps.Characters)[testDivision], &m)
 			return &m
 		}
 		mate := member(4, "mate", 800)
@@ -185,7 +187,7 @@ func TestShippedGuardAuraAppliesOdar(t *testing.T) {
 		spawn.X = &x
 		world.Spawn = &spawn
 		m.World = &world
-		deps.Characters.(enterworld.StaticCharacterSource)[testDivision] = append(deps.Characters.(enterworld.StaticCharacterSource)[testDivision], &m)
+		fixtureCharacters(deps.Characters)[testDivision] = append(fixtureCharacters(deps.Characters)[testDivision], &m)
 		return &m
 	}
 	mate := member(4, "mate", 800)
@@ -261,7 +263,7 @@ func TestShippedRecoveryAuraHealsLowestRatio(t *testing.T) {
 		spawn := *world.Spawn
 		world.Spawn = &spawn
 		m.World = &world
-		deps.Characters.(enterworld.StaticCharacterSource)[testDivision] = append(deps.Characters.(enterworld.StaticCharacterSource)[testDivision], &m)
+		fixtureCharacters(deps.Characters)[testDivision] = append(fixtureCharacters(deps.Characters)[testDivision], &m)
 		return &m
 	}
 	mate := member(4, "mate")
@@ -367,7 +369,9 @@ func TestDancePulseCutByBDMD(t *testing.T) {
 	c.MissionInventory[0].TypeFlags = weapon.TypeFlags()
 	mp := int64(200)
 	c.CurrentMP = &mp
-	if !rt.effects.Apply(statuseffect.Effect{DivisionID: testDivision, CharacterName: c.Name, SkillID: guard.ID, SkillGroup: guard.Group}) {
+	// Another Bard's Guard Tambour: a child instance naming its caster's
+	// instance (reqc 32 needs another Bard's music).
+	if !rt.effects.Apply(statuseffect.Effect{DivisionID: testDivision, CharacterName: c.Name, SkillID: guard.ID, SkillGroup: guard.Group, AuraParentToken: 1}) {
 		t.Fatal("guard effect refused")
 	}
 	r := rt.HandleTargetInteract(testDivision, c, wire.SkillAction{ActionId: skill.ID, HasTarget: true, TargetGid: target.Gid}.Encode())

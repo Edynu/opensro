@@ -66,6 +66,8 @@ type residentSkill struct {
 	DirectOffensePinned     bool
 	OffensiveStagePinned    bool
 	StatusCast              bool
+	AreaBurst               bool
+	FixedDamage             SkillFixedDamage
 	CombatTrap              SkillCombatTrap
 	OffensiveArea           unique.Handle[SkillOffensiveArea]
 	AlchemyStoneBonus       uint32
@@ -164,6 +166,8 @@ func compactSkill(row SkillRow) residentSkill {
 		DirectOffensePinned:     row.DirectOffensePinned,
 		OffensiveStagePinned:    row.OffensiveStagePinned,
 		StatusCast:              row.StatusCast,
+		AreaBurst:               row.AreaBurst,
+		FixedDamage:             row.FixedDamage,
 		CombatTrap:              row.CombatTrap,
 		OffensiveArea:           unique.Make(row.OffensiveArea),
 		AlchemyStoneBonus:       row.AlchemyStoneBonus,
@@ -264,6 +268,8 @@ func (r residentSkill) value() SkillRow {
 		DirectOffensePinned:     r.DirectOffensePinned,
 		OffensiveStagePinned:    r.OffensiveStagePinned,
 		StatusCast:              r.StatusCast,
+		AreaBurst:               r.AreaBurst,
+		FixedDamage:             r.FixedDamage,
 		CombatTrap:              r.CombatTrap,
 		OffensiveArea:           r.OffensiveArea.Value(),
 		AlchemyStoneBonus:       r.AlchemyStoneBonus,

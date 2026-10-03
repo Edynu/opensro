@@ -109,7 +109,13 @@ import { saleResult, soldInventory, commerceJson, commerceInteger } from "@/engi
 import { actionEmote, quickSlotItemSlot, quickSlot, TRACE_ACTION_ID } from "@/engine/foundation/gameplay/quickslots";
 import { reconcileQuickslotInventory } from "@/engine/foundation/gameplay/quickslot-inventory";
 import { createTraining } from "./training/training";
-import { emptySocial, socialPacket, socialRequest, type SocialCommand } from "@/engine/foundation/gameplay/social";
+import {
+	emptySocial,
+	socialPacket,
+	socialRequest,
+	withoutResurrection,
+	type SocialCommand
+} from "@/engine/foundation/gameplay/social";
 import { partyLootNotice } from "@/engine/foundation/gameplay/party-loot";
 import {
 	skillCatalog,
@@ -1145,7 +1151,7 @@ state here before a command can claim a native wire conversation.
 			}
 			if (
 				command.kind.startsWith( "party-" ) || command.kind.startsWith( "guild-" ) ||
-				command.kind === "social-consent"
+				command.kind === "social-consent" || command.kind === "resurrection-consent"
 			) {
 				// CIFCommunityNotice_SubmitText 5F46F0 checks subject first,
 				// then contents, before composing the guild notice request.
@@ -1157,9 +1163,11 @@ state here before a command can claim a native wire conversation.
 				}
 				// The worker may retire a prompt before its queued UI click arrives.
 				if ( command.kind === "social-consent" && !social.invitation ) return null;
+				if ( command.kind === "resurrection-consent" && !social.resurrection ) return null;
 				const request = socialRequest( social, command as SocialCommand );
 				send( request );
 				if ( command.kind === "social-consent" ) social = { ...social, invitation: null };
+				if ( command.kind === "resurrection-consent" ) social = withoutResurrection( social );
 				return request;
 			}
 			if ( command.kind === "skill-withdraw" || command.kind === "mastery-withdraw" ) {
@@ -1395,7 +1403,14 @@ state here before a command can claim a native wire conversation.
 					return sendFrame( frame );
 				}
 				if ( metadata && !metadata.targetRequired ) command = { kind: "skill", skillId: command.skillId };
-				else if ( metadata?.targetRequired && !command.gid ) throw Error( "This skill requires a target" );
+				else if ( metadata?.targetRequired && !command.gid ) {
+					// A row that admits its caster (targetSelf) aims at the caster when
+					// nothing is selected, as the server resolves the same row.
+					if ( !metadata.targetSelf || !localGid ) throw Error( "This skill requires a target" );
+					const frame = combat.skill( skillId, localGid );
+					movement.holdForCast( now );
+					return sendFrame( frame );
+				}
 			}
 			if ( command.kind === "skill" && command.gid === undefined ) {
 				return sendFrame( combat.skill( command.skillId ) );
@@ -2617,7 +2632,7 @@ World transfer retires spatial work while retaining character/session data.
 			potionDue.fill( null );
 			potionFacts = { ...potionFacts, alive: false };
 			selectionDecal = null;
-			social = { ...social, invitation: null };
+			social = withoutResurrection( { ...social, invitation: null } );
 			movement.clear();
 			targeting.clear();
 			combat.clear( true );

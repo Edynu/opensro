@@ -226,9 +226,17 @@ func (rt *Runtime) retireEffectsOnEvent(division string, c *enterworld.Character
 cancelEffectsOnDamage
 
 5A15E0..5A1696 for one landed or blocked hit on c. flags are the
-attack's att word 0. The keep roll holds with KeepPercent (plus the
-victim's modifiers, none of which a shipped hide carries). The caller
-holds c's door.
+attack's att word 0. Each effect whose skc damage mask the hit matches
+ends with 100 - damageKeepPercent, rolled on the victim's probability
+stream.
+
+A party aura's child is never cut by a hit on the member holding it.
+Owner's rule: a tambour, instrument march or dance is cut when its Bard
+receives an attack; the Bard's own instance carries the roll, and its end
+retires every child at the aura's next update. Inferred: a hit on a member
+leaves that member's copy alone, since the rule names the Bard only.
+
+The caller holds c's door.
 ==================
 */
 func (rt *Runtime) cancelEffectsOnDamage(division string, c *enterworld.Character, flags uint32, now int64) {
@@ -242,16 +250,52 @@ func (rt *Runtime) cancelEffectsOnDamage(division string, c *enterworld.Characte
 	var tokens []uint32
 	for _, effect := range rt.effects.Snapshot(division, c.Name) {
 		row, ok := skills.SkillByID(effect.SkillID)
-		if !ok || !row.DamageCancel.Present || row.DamageCancel.Mask&flags == 0 {
+		if !ok || !row.DamageCancel.Present || row.DamageCancel.Mask&flags == 0 || effect.AuraParentToken != 0 {
 			continue
 		}
-		breaks, err := rt.effectOutcome(criticalActor{division: division, character: c.Name}, damageCancelRollKey, 100-row.DamageCancel.KeepPercent)
+		keep, ok := rt.damageKeepPercent(division, c, row)
+		if !ok {
+			continue
+		}
+		breaks, err := rt.effectOutcome(criticalActor{division: division, character: c.Name}, damageCancelRollKey, enterworld.FullKeepPercent-keep)
 		if err != nil || !breaks {
 			continue
 		}
 		tokens = append(tokens, effect.InstanceToken)
 	}
 	rt.publishEndedEffects(division, c, rt.effects.RetireInstances(division, c.Name, tokens), now)
+}
+
+/*
+==================
+damageKeepPercent
+
+The chance one masked hit leaves an effect of row on c running, as
+CSkillManager_ProcessDamageEffects (5A160A..5A1691) forms it: skc word 2,
+plus c's learned MUCR when the row reads getv MUCR (+0x548), plus c's
+learned DSER when it reads getv DSER (+0x54C), held at 100. The roll then
+ends the effect with 100 - keep. DSCR (+0x550) has no reader and adds
+nothing.
+
+ok is false when c's stats cannot be read; the hit then ends nothing.
+==================
+*/
+func (rt *Runtime) damageKeepPercent(division string, c *enterworld.Character, row enterworld.SkillRow) (uint32, bool) {
+	keep := row.DamageCancel.KeepPercent
+	addends := [...]enterworld.SkillParameter{enterworld.ParameterMusicCutResist, enterworld.ParameterDanceRange}
+	if !row.Attack.Parameters.Has(addends[0]) && !row.Attack.Parameters.Has(addends[1]) {
+		return keep, true
+	}
+	stats, _, err := rt.playerCombatStats(division, c)
+	if err != nil {
+		return 0, false
+	}
+	for _, key := range addends {
+		if row.Attack.Parameters.Has(key) {
+			keep += stats.SkillParameters[key]
+		}
+	}
+	return min(keep, enterworld.FullKeepPercent), true
 }
 
 /*
