@@ -11,6 +11,8 @@ with dynamicVertices keep a CPU mirror for position updates.
 */
 import { packTextureStage } from "@/engine/foundation/rendering/texture-stage";
 import { createCharacterShadows } from "./character-shadows";
+import { destroyNow, type Retire } from "./retirement";
+import { DeviceDraw } from "./device-draw";
 import type { createParticlePresentation } from "./particles";
 import type { createGpuAnimationResources } from "./animation";
 import { DEFAULT_BLEND, type GeometryPipelineState } from "./pipelines";
@@ -47,88 +49,6 @@ export function geometryPipelineState( mat: Geometry["material"] ): GeometryPipe
 
 /*
 ================
-DeviceDraw
-
-A draw handle. Consumers only read it: assigning a count throws. Its
-counts, binding and capacity change in place, through select and rebind,
-which only this module calls. Every handle is one class, one shape, so the
-per-frame reads of its counts are monomorphic.
-================
-*/
-class DeviceDraw implements GeometryDraw {
-	readonly deferredParticle: boolean | undefined;
-	readonly blended: boolean;
-	readonly pipeline: GPURenderPipeline;
-	readonly vertices: GPUBuffer;
-	readonly indices: GPUBuffer;
-	readonly count: number;
-	#binding: GPUBindGroup;
-	#instanceCapacity: number;
-	#indexCount: number;
-	#instanceCount: number;
-
-	constructor(
-		fixed: Pick<GeometryDraw, "deferredParticle" | "blended" | "pipeline" | "vertices" | "indices" | "count">,
-		binding: GPUBindGroup,
-		instanceCapacity: number,
-		instanceCount: number
-	) {
-		this.deferredParticle = fixed.deferredParticle;
-		this.blended = fixed.blended ?? false;
-		this.pipeline = fixed.pipeline;
-		this.vertices = fixed.vertices;
-		this.indices = fixed.indices;
-		this.count = fixed.count;
-		this.#binding = binding;
-		this.#instanceCapacity = instanceCapacity;
-		this.#indexCount = fixed.count;
-		this.#instanceCount = instanceCount;
-		Object.freeze( this );
-	}
-
-	get binding() {
-		return this.#binding;
-	}
-
-	get instanceCapacity() {
-		return this.#instanceCapacity;
-	}
-
-	get indexCount() {
-		return this.#indexCount;
-	}
-
-	get instanceCount() {
-		return this.#instanceCount;
-	}
-
-	/*
-	================
-	select
-
-	The index and instance counts the draw submits.
-	================
-	*/
-	static select( draw: DeviceDraw, indexCount: number, instanceCount: number ) {
-		draw.#indexCount = indexCount;
-		draw.#instanceCount = instanceCount;
-	}
-
-	/*
-	================
-	rebind
-
-	A new binding, and with grown instance storage its capacity.
-	================
-	*/
-	static rebind( draw: DeviceDraw, binding: GPUBindGroup, instanceCapacity = draw.#instanceCapacity ) {
-		draw.#binding = binding;
-		draw.#instanceCapacity = instanceCapacity;
-	}
-}
-
-/*
-================
 createGeometryResources
 ================
 */
@@ -144,11 +64,18 @@ export function createGeometryResources(
 	sampling?: ( filtered: boolean, detail: number ) => GPUSampler,
 	animation?: ReturnType<typeof createGpuAnimationResources>,
 	format: GPUTextureFormat = "rgba8unorm",
-	particles?: ReturnType<typeof createParticlePresentation>
+	particles?: ReturnType<typeof createParticlePresentation>,
+	// A frame may still name a released buffer: the device decides when it dies.
+	retire: Retire = destroyNow
 ) {
 	let filtered = true, detail = 2, mixedCpuUploadBytes = 0;
 	const geometryBuffers = new Map<GeometryDraw, GPUBuffer[]>();
-	const worldUniform = created.createBuffer( { size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST } );
+	// Every buffer is labelled: a validation error names the resource it rejects.
+	const worldUniform = created.createBuffer( {
+		label: "geometry-world",
+		size: 64,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+	} );
 	const white = created.createTexture( {
 		size: [ 1, 1 ],
 		format: "rgba8unorm",
@@ -226,8 +153,16 @@ export function createGeometryResources(
 		}
 		return packed.subarray( 0, count * 40 );
 	}
-	const defaultSkin = created.createBuffer( { size: 32, usage: GPUBufferUsage.STORAGE } ),
-		defaultBones = created.createBuffer( { size: 64, usage: GPUBufferUsage.STORAGE } );
+	const defaultSkin = created.createBuffer( {
+			label: "geometry-default-skin",
+			size: 32,
+			usage: GPUBufferUsage.STORAGE
+		} ),
+		defaultBones = created.createBuffer( {
+			label: "geometry-default-bones",
+			size: 64,
+			usage: GPUBufferUsage.STORAGE
+		} );
 	type SharedPalette = { source: Float32Array; buffer: GPUBuffer; refs: number; revision: number; };
 	const sharedPalettes = new Map<Float32Array, SharedPalette>();
 	/*
@@ -238,7 +173,7 @@ export function createGeometryResources(
 	function releasePalette( palette: SharedPalette | undefined ) {
 		if ( palette && !--palette.refs ) {
 			animation?.release( palette.source );
-			palette.buffer.destroy();
+			retire( palette.buffer );
 			sharedPalettes.delete( palette.source );
 		}
 	}
@@ -314,12 +249,19 @@ export function createGeometryResources(
 			blob?: ImageDraw
 		) {
 			if ( !shadows && !requests.length ) return [];
-			shadows ??= createCharacterShadows( current(), worldUniform, texture, draw => {
-				const meta = metadata.get( draw ), buffers = geometryBuffers.get( draw );
-				return meta && buffers ?
-					{ instances: buffers[3]!, material: meta.material, skin: meta.skin, bones: meta.bones } :
-					undefined;
-			}, format );
+			shadows ??= createCharacterShadows(
+				current(),
+				worldUniform,
+				texture,
+				draw => {
+					const meta = metadata.get( draw ), buffers = geometryBuffers.get( draw );
+					return meta && buffers ?
+						{ instances: buffers[3]!, material: meta.material, skin: meta.skin, bones: meta.bones } :
+						undefined;
+				},
+				format,
+				retire
+			);
 			return shadows.prepare( requests, blob );
 		},
 		...(animation ?
@@ -563,6 +505,7 @@ export function createGeometryResources(
 				if ( count > draw.instanceCapacity ) {
 					const capacity = instanceCapacity( count ),
 						storage = gpu.createBuffer( {
+							label: "geometry-instances",
 							size: capacity * 160,
 							usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 						} );
@@ -590,7 +533,8 @@ export function createGeometryResources(
 							capacity
 						);
 						shadows?.forget( draw );
-						buffers[3]!.destroy();
+						// The frame's recorded passes may still read the old storage.
+						retire( buffers[3]! );
 						buffers[3] = storage;
 					} catch ( error ) {
 						storage.destroy();
@@ -693,8 +637,12 @@ export function createGeometryResources(
 			const gpu = current(), buffers: GPUBuffer[] = [];
 			let palette: SharedPalette | undefined;
 			gpu.pushErrorScope( "validation" );
-			const buffer = ( data: Float32Array | Uint32Array, usage: number ) => {
-				const result = gpu.createBuffer( { size: data.byteLength, usage: usage | GPUBufferUsage.COPY_DST } );
+			const buffer = ( label: string, data: Float32Array | Uint32Array, usage: number ) => {
+				const result = gpu.createBuffer( {
+					label,
+					size: data.byteLength,
+					usage: usage | GPUBufferUsage.COPY_DST
+				} );
 				buffers.push( result );
 				gpu.queue.writeBuffer( result, 0, data.buffer as ArrayBuffer, data.byteOffset, data.byteLength );
 				return result;
@@ -704,15 +652,16 @@ export function createGeometryResources(
 				const interleaved = data.vertices?.length === data.positions.length / 3 * 14 ?
 					data.vertices :
 					packGeometryVertices( data );
-				const vertices = buffer( interleaved, GPUBufferUsage.VERTEX ),
-					indices = buffer( data.indices, GPUBufferUsage.INDEX ),
-					uniform = buffer( data.transform, GPUBufferUsage.UNIFORM );
+				const vertices = buffer( "geometry-vertices", interleaved, GPUBufferUsage.VERTEX ),
+					indices = buffer( "geometry-indices", data.indices, GPUBufferUsage.INDEX ),
+					uniform = buffer( "geometry-transform", data.transform, GPUBufferUsage.UNIFORM );
 				const instances = data.instances ??
 						new Float32Array( [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] ),
 					count = instances.length / 16,
 					capacity = instanceCapacity( count ),
 					packed = packInstances( instances, undefined, undefined, undefined, paletteOffsets );
 				const storage = gpu.createBuffer( {
+					label: "geometry-instances",
 					size: capacity * 160,
 					usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 				} );
@@ -741,11 +690,12 @@ export function createGeometryResources(
 							weights[v * 8 + 4 + c] = data.weights[v * 4 + c]!;
 						}
 					}
-					skinBuffer = buffer( joints, GPUBufferUsage.STORAGE );
+					skinBuffer = buffer( "geometry-skin", joints, GPUBufferUsage.STORAGE );
 					if ( paletteOffsets ) {
 						palette = sharedPalettes.get( data.bones );
 						if ( !palette ) {
 							const storage = gpu.createBuffer( {
+								label: "geometry-palette",
 								size: data.bones.byteLength,
 								usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 							} );
@@ -754,7 +704,7 @@ export function createGeometryResources(
 						}
 						palette.refs++;
 						boneBuffer = palette.buffer;
-					} else boneBuffer = buffer( data.bones, GPUBufferUsage.STORAGE );
+					} else boneBuffer = buffer( "geometry-bones", data.bones, GPUBufferUsage.STORAGE );
 				}
 				if ( paletteOffsets ) {
 					if ( !palette ) throw Error( "Palette offsets require skinned geometry" );
@@ -833,7 +783,7 @@ export function createGeometryResources(
 						// D3DRS_TEXTUREFACTOR, read by a stage's TFACTOR argument.
 						...(mat?.textureFactor ?? [ 1, 1, 1, 1 ])
 					] ),
-					material = buffer( materialData, GPUBufferUsage.UNIFORM );
+					material = buffer( "geometry-material", materialData, GPUBufferUsage.UNIFORM );
 				const selected = pipelines( geometryPipelineState( mat ) ),
 					clampedSampling = !!(mat?.lightmap || mat?.decal) && !mat?.groundDecal;
 				const binding = geometryBinding(
@@ -900,7 +850,7 @@ export function createGeometryResources(
 		release( draw: GeometryDraw ) {
 			shadows?.forget( draw );
 			for ( const buffer of geometryBuffers.get( draw ) ?? [] ) {
-				buffer.destroy();
+				retire( buffer );
 			}
 			releasePalette( metadata.get( draw )?.palette );
 			particles?.release( draw );
