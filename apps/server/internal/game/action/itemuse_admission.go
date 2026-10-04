@@ -44,6 +44,9 @@ const (
 	itemUseComposite
 	itemUsePersistentSummoner
 	itemUsePetExtension
+	itemUseResurrection
+	itemUseStatRecall
+	itemUseFirework
 )
 
 /*
@@ -76,6 +79,20 @@ func admittedItemUseFamily(ref *enterworld.ItemRef) itemUseFamily {
 	}
 	if ref.TypeIDs == [4]int64{3, 3, 13, 12} {
 		return itemUsePetExtension
+	}
+	// 49C2B0 case 5 (type 4 = 6): the resurrection scroll, usable only dead.
+	if ref.TypeIDs == [4]int64{3, 3, 13, 6} {
+		return itemUseResurrection
+	}
+	// 49ACA0 family 6: a firework only needs a living user; its whole effect
+	// is the item visual every use publishes. Type 4 = 2 is the fortress shock
+	// bomb, a siege item.
+	if ref.TypeIDs == [4]int64{3, 3, 6, 1} {
+		return itemUseFirework
+	}
+	// Type 4 = 13: the stat point recall (progression/statrecall.go).
+	if ref.TypeIDs == [4]int64{3, 3, 13, 13} {
+		return itemUseStatRecall
 	}
 	// 49F590: the composite scroll (UIU1 param jobs).
 	if ref.TypeIDs == [4]int64{3, 3, 13, 14} {
