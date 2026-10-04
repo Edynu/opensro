@@ -10,7 +10,17 @@ commands and cannot bypass actor eligibility.
 ===========================================================================
 */
 import { createParamJobs } from "@/engine/foundation/gameplay/param-job";
-import { createStorageRoom } from "@/engine/foundation/gameplay/storage-room";
+import { createStorageRoom, isWarehouseTicket } from "@/engine/foundation/gameplay/storage-room";
+import type { PlayerModel } from "@/engine/foundation/gameplay/skin-change";
+import {
+	jobAliasRequest,
+	jobDressSeconds,
+	jobGuildAnswer,
+	jobJoinRequest,
+	jobWithdrawRequest,
+	noJob,
+	type LocalJob
+} from "@/engine/foundation/gameplay/job-guild";
 import { recallAppointmentRequest, recallAppointmentNotice } from "@/engine/foundation/gameplay/recall-appointment";
 import { createPickup } from "./pickup";
 import { createActionSession } from "./action-session";
@@ -166,13 +176,18 @@ function unlimitedItemIds( value: unknown ): readonly number[] {
 WorldReferences
 
 The world catalog lookups gameplay reads but does not own (entities owns
-the catalog): a character reference's country and an item reference.
+the catalog): a character reference's country, a country's player models
+and an item reference.
 ================
 */
 interface WorldReferences {
 	readonly country: ( refObjId: number ) => number | undefined;
+	readonly playerModels: ( country: number ) => readonly PlayerModel[];
 	readonly item: ( refObjId: number ) => { readonly typeFlags: number; readonly name: string; } | undefined;
 }
+
+// A dress answer may trail its bar by a server tick and the round trip.
+const JOB_DRESS_ANSWER_GRACE_MS = 5000;
 
 // grounditem.ExecuteRange: a pickup closer than this is granted in place;
 // farther away the server walks the player to the item first.
@@ -384,7 +399,24 @@ attack can arrive in the same batch as the previous close and starve the walk.
 	let fortress = fortressBootstrap( {} ), musicMode = 0;
 	let social = emptySocial();
 	// The world catalog's lookups, bound by the composition root (core).
-	let worldReferences: WorldReferences = { country: () => undefined, item: () => undefined };
+	let worldReferences: WorldReferences = { country: () => undefined, playerModels: () => [], item: () => undefined };
+	// The session's catalog is fixed; one list per country keeps the
+	// published state's identity stable.
+	let playerModels: { readonly country: number; readonly models: readonly PlayerModel[]; } | null = null;
+	// The local player's job guild membership (job-guild.ts).
+	let job: LocalJob = noJob();
+	/*
+	================
+	localPlayerModels
+	================
+	*/
+	function localPlayerModels(): readonly PlayerModel[] {
+		if ( localCountry === undefined ) return [];
+		if ( playerModels?.country !== localCountry || !playerModels.models.length ) {
+			playerModels = { country: localCountry, models: worldReferences.playerModels( localCountry ) };
+		}
+		return playerModels.models;
+	}
 	let bindings = skillBindings( {} );
 	let catalog: readonly SkillMetadata[] = [];
 	// The local cast's action-state-2 window (CIDecoSkill 8E0A23 / 877240).
@@ -556,6 +588,7 @@ selected entities, cooldowns or world-entry state.
 		skillPress.clear();
 		localGid = 0;
 		localCountry = undefined;
+		job = noJob();
 		cosRecords.clear();
 		cosRefs.clear();
 		cosItemRefs.clear();
@@ -803,6 +836,7 @@ Bind the admitted local actor and initialize its authoritative movement.
 		*/
 		seed( entity: EntityState ) {
 			localCountry = entity.countryByte9c;
+			job = entity.localJob ?? noJob();
 			if ( localGid !== entity.gid ) {
 				localGid = entity.gid;
 				publishFeedback( { kind: "orb-gauge", value: feedback.gauge() } );
@@ -975,6 +1009,17 @@ state here before a command can claim a native wire conversation.
 				npcConversation.clear();
 				storage.close();
 				return frame;
+			}
+			if ( command.kind === "job-join" || command.kind === "job-withdraw" || command.kind === "job-alias" ) {
+				// The job menu exists only on the selected guild NPC (5D79E0).
+				if ( !localGid || targeting.state().target !== command.gid ) throw Error( "Select a job guild NPC" );
+				return sendFrame(
+					command.kind === "job-join" ?
+						jobJoinRequest( command.gid, command.job ) :
+						command.kind === "job-withdraw" ?
+						jobWithdrawRequest( command.gid ) :
+						jobAliasRequest( command.gid, command.mode, command.alias )
+				);
 			}
 			if ( command.kind === "storage-open" ) {
 				const target = targeting.state();
@@ -1515,7 +1560,9 @@ state here before a command can claim a native wire conversation.
 					records: [ ...cosRecords.values() ],
 					selectedGid: command.companionGid,
 					revivalSlot: command.revivalSlot,
-					summonerSlot: command.summonerSlot
+					summonerSlot: command.summonerSlot,
+					skin: command.skin,
+					targetSlot: command.targetSlot
 				} );
 			}
 			if ( command.kind === "release-target" ) {
@@ -2424,6 +2471,11 @@ Packet handling must not depend on which HUD panel is currently open.
 				// press, before touching movement (an empty MP pool is 0x3004).
 				if ( frame.opcode === 0xb245 && frame.payload[0] === 2 ) movement.castRefused( now );
 				if ( item && cast ) returnScroll = cast;
+				// A spent warehouse ticket opens the room on the player's own gid.
+				if ( item && used && localGid && isWarehouseTicket( used.typeFlags ) ) {
+					storage.open( localGid );
+					dirty = true;
+				}
 				// A pickup into the gold slot (0xFE) prints the whole heap: pickup types
 				// 6/0x1C resolve to window 0x46 with slot 0xFE (7653D0), and that branch
 				// of CPSMission_ApplyInventoryOperation reads the u32 and prints
@@ -2456,6 +2508,18 @@ Packet handling must not depend on which HUD panel is currently open.
 					}
 					dirty = true;
 				}
+				const answer = jobGuildAnswer( frame, job );
+				if ( answer ) {
+					job = answer.job;
+					if ( answer.notice ) {
+						notices = [ ...notices.slice( -99 ), { ...answer.notice, sequence: ++noticeSequence } ];
+					}
+					dirty = true;
+					return true;
+				}
+				// The suit move's answer waits for the dress bar (jobdress.go).
+				const dress = jobDressSeconds( frame, localGid );
+				if ( dress !== null ) inventory.holdForDress( now + dress * 1000 + JOB_DRESS_ANSWER_GRACE_MS );
 				if ( frame.opcode === 0xb341 ) {
 					const p = frame.payload;
 					if ( !p.length || p.length !== (p[0] === 1 ? 1 : 2) ) throw Error( "Invalid Berserk response" );
@@ -2774,6 +2838,8 @@ The published plane when something changed since the last take, else null.
 				guide,
 				paramJobs: paramJobs.state(),
 				storage: storage.state(),
+				playerModels: localPlayerModels(),
+				job,
 				cosWindows: cosWindows.filter( row => cosItemRefs2.has( row.itemRefObjId ) ).map( row => ({
 					...row,
 					reference: cosItemRefs2.get( row.itemRefObjId )!
