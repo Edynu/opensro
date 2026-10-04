@@ -356,6 +356,9 @@ export interface CastState {
 	readonly cancellationDeferred?: boolean;
 	readonly cancellationRequestedAtMs?: number;
 	readonly cancelledAtMs?: number;
+	// The client prediction this server cast took over (cast-prediction.ts):
+	// the presentation keeps that prediction's running action.
+	readonly predictedToken?: number;
 	readonly results?: readonly CastTargetResult[];
 	readonly shotAtMs?: number;
 	readonly receivedAtMs?: number;
@@ -540,6 +543,14 @@ export interface GameplayState {
 	readonly vitals: readonly VitalState[];
 	readonly itemCooldowns?: readonly import("@/engine/foundation/gameplay/item-cooldowns").ItemCooldown[];
 	readonly skillCooldowns?: readonly import("@/engine/foundation/gameplay/skill-cooldowns").SkillCooldown[];
+	// The skill that casts next, held by the client for its cooldown or by
+	// the server behind its open command, and the newest denied press
+	// (skill-queue.ts); the HUD draws both.
+	readonly skillQueue?: import("@/engine/foundation/gameplay/skill-queue").SkillQueueState;
+	readonly skillDenied?: import("@/engine/foundation/gameplay/skill-queue").DeniedPress;
+	// The local press's predicted cast, animated until the server's cast
+	// adopts it or it blends out (cast-prediction.ts).
+	readonly castPrediction?: CastState;
 	readonly casts: readonly CastState[];
 	readonly error: string | null;
 }
