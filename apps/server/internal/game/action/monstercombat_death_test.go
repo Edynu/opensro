@@ -12,6 +12,7 @@ package action
 
 import (
 	"encoding/binary"
+	"opensro.online/server/internal/game/pk"
 	"testing"
 	"time"
 
@@ -209,7 +210,7 @@ func TestFatalMonsterAttackCommitsAndReturnsDeathProgression(t *testing.T) {
 	skills[2] = skill
 
 	penaltyCalls := 0
-	rt.ApplyDeathPenalty = func(c *enterworld.Character) ([]wire.Frame, bool) {
+	rt.ApplyDeathPenalty = func(c *enterworld.Character, _ pk.DeathPenalty) ([]wire.Frame, bool) {
 		penaltyCalls++
 		if c.CurrentHP == nil || *c.CurrentHP != 0 {
 			t.Fatalf("death updater observed HP %v, want fatal HP committed inside the same door", c.CurrentHP)
@@ -240,8 +241,8 @@ func TestFatalMonsterAttackCommitsAndReturnsDeathProgression(t *testing.T) {
 	if len(pushed) != 0 {
 		t.Fatalf("monster combat invoked an asynchronous character callback: %+v", pushed)
 	}
-	if len(result.TargetFrames) != 1 || result.TargetFrames[0].Opcode != wire.OpExpUpdate {
-		t.Fatalf("same-turn death progression = %+v, want one target-only 30D2", result.TargetFrames)
+	if private := privateFramesOf(result); len(private) != 1 || private[0].Opcode != wire.OpExpUpdate {
+		t.Fatalf("same-turn death progression = %+v, want one target-only 30D2", private)
 	}
 	assertOnlySkillReleases(t, rt.TickHook()(clock.NowMs()))
 	if len(pushed) != 0 {
