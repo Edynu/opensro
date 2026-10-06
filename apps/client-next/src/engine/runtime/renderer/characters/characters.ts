@@ -1715,7 +1715,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 							geometry.release( draw );
 						}
 					}
-					const streams = plan.sharedPalette && !model.primitives.some( p => p.cloth ) ?
+					const streams = plan.sharedPalette && !plan.cloth ?
 						createPaletteStreams( model, capacity ) :
 						undefined;
 					batch = {
