@@ -84,48 +84,48 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 	*/
 	function step( direction: readonly number[], speed: number, random: () => number ) {
 		const force = data.force ?? direction;
+		const { mobility, pins, order, constraints, damping } = data;
 		// A77530 clamps positive motion to .2..1 before scaling by 900.
 		const wind = (speed > 0 ? Math.max( .2, Math.min( 1, speed ) ) * 900 : speed) + 100;
-		for ( let i = 0; i < data.mobility.length; i++ ) {
-			if ( data.pins[i] === 1 ) continue;
-			const mobility = data.mobility[i]!;
+		for ( let i = 0; i < mobility.length; i++ ) {
+			if ( pins[i] === 1 ) continue;
+			const weight = mobility[i]!;
 			const gust = random() % data.windPeriod === 0;
+			const gravityY = Math.fround( (data.gravityMobility * weight + 1) * data.gravity * -5 );
+			const windWeight = Math.fround( data.windMobility * weight + 1 );
 			for ( let axis = 0; axis < 3; axis++ ) {
 				const at = i * 3 + axis;
-				const gravity = axis === 1 ?
-					Math.fround( (data.gravityMobility * mobility + 1) * data.gravity * -5 ) :
-					0;
+				const gravity = axis === 1 ? gravityY : 0;
 				const push = gust ?
-					Math.fround(
-						Math.fround( force[axis]! * wind ) * Math.fround( data.windMobility * mobility + 1 )
-					) :
+					Math.fround( Math.fround( force[axis]! * wind ) * windWeight ) :
 					0;
 				const acceleration = Math.fround( Math.fround( gravity + push ) * FORCE_STEP );
 				const current = positions[at]!;
-				const velocity = Math.fround( Math.fround( current - previous[at]! ) * data.damping );
+				const velocity = Math.fround( Math.fround( current - previous[at]! ) * damping );
 				previous[at] = current;
 				positions[at] = current + Math.fround( velocity + acceleration );
 			}
 		}
 		for ( let pass = 0; pass < CONSTRAINT_PASSES; pass++ ) {
 			let settled = true;
-			for ( const index of data.order ) {
-				const [a, b, restLength] = data.constraints[index]!;
-				const dx = Math.fround( positions[b * 3]! - positions[a * 3]! );
-				const dy = Math.fround( positions[b * 3 + 1]! - positions[a * 3 + 1]! );
-				const dz = Math.fround( positions[b * 3 + 2]! - positions[a * 3 + 2]! );
+			for ( let edge = 0; edge < order.length; edge++ ) {
+				const constraint = constraints[order[edge]!]!;
+				const a = constraint[0], b = constraint[1], at = a * 3, bt = b * 3;
+				const dx = Math.fround( positions[bt]! - positions[at]! );
+				const dy = Math.fround( positions[bt + 1]! - positions[at + 1]! );
+				const dz = Math.fround( positions[bt + 2]! - positions[at + 2]! );
 				const length = Math.fround( Math.sqrt( Math.fround( dx * dx + dy * dy + dz * dz ) ) );
-				const extension = Math.fround( length - restLength );
+				const extension = Math.fround( length - constraint[2] );
 				// A779D3..A779E6 corrects extension only; compressed edges stay free.
 				if ( extension < EXTENSION_TOLERANCE ) continue;
 				settled = false;
-				const sum = Math.fround( data.mobility[a]! + data.mobility[b]! );
-				const wa = Math.fround( data.mobility[a]! / sum ), wb = Math.fround( data.mobility[b]! / sum );
+				const sum = Math.fround( mobility[a]! + mobility[b]! );
+				const wa = Math.fround( mobility[a]! / sum ), wb = Math.fround( mobility[b]! / sum );
 				for ( let axis = 0; axis < 3; axis++ ) {
 					const delta = axis === 0 ? dx : axis === 1 ? dy : dz;
 					const correction = Math.fround( Math.fround( delta / length ) * extension );
-					positions[a * 3 + axis]! += Math.fround( correction * wa );
-					positions[b * 3 + axis]! -= Math.fround( correction * wb );
+					positions[at + axis]! += Math.fround( correction * wa );
+					positions[bt + axis]! -= Math.fround( correction * wb );
 				}
 			}
 			if ( settled ) break;
@@ -154,7 +154,12 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 				initialized = true;
 			}
 			for ( let i = 0; i < data.pins.length; i++ ) {
-				if ( data.pins[i] !== 0 ) positions.set( input.anchors.subarray( i * 3, i * 3 + 3 ), i * 3 );
+				if ( data.pins[i] === 0 ) continue;
+				// Preserve the anchor copy without allocating a view for every pin/frame.
+				const at = i * 3;
+				positions[at] = input.anchors[at]!;
+				positions[at + 1] = input.anchors[at + 1]!;
+				positions[at + 2] = input.anchors[at + 2]!;
 			}
 			if ( input.enabled ) {
 				elapsed = Math.min( MAX_ACCUMULATOR_MS, elapsed + Math.max( 0, input.deltaMs ) );
