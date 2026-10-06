@@ -34,6 +34,8 @@ timeline.json     what happened during that minute, on replay.mp4's clock (t, se
                   error      JavaScript and runtime failures
                   long-frame main-thread hitches, with the scripts the browser blamed
                   sample     once a second: phase, region and position, HP/MP, target, heap
+movement.json     up to two minutes of movement commands, server receipts, corrections
+                  and frame hitches; clock domains are explicit in the header/events.
 state.json        the game's state when the report was sent (large catalogs omitted).
 environment.json  browser, screen, CPU, memory, network, the player's options, and
                   every resource loaded during the last minute (time, size, status).
@@ -56,7 +58,7 @@ export interface ArchivedReport {
 	readonly delivered: boolean;
 	readonly replay: Blob | null;
 	readonly screenshot: Blob | null;
-	/** timeline.json, state.json and environment.json, by file name. */
+	/** Timeline, movement, state and environment diagnostics, by file name. */
 	readonly diagnostics?: Readonly<Record<string, string>>;
 }
 

@@ -299,6 +299,7 @@ export function createGameplay(
 		event:
 			| import("@/engine/contracts/orb").VisualFeedback
 			| import("@/engine/contracts/effective-hp").CombatPresentationEvent
+			| import("@/engine/contracts/movement-diagnostic").MovementDiagnostic
 	) => void = () => {},
 	readEntity: ( gid: number ) => import("@/engine/contracts/world").EntityState | undefined = () => undefined,
 	playItem: ( cue: import("@/engine/contracts/audio").ItemSoundRequest, at: number ) => void = () => {}
@@ -334,7 +335,7 @@ export function createGameplay(
 	// The held skill press, the newest denial and the round-trip estimate
 	// (skill-queue.ts).
 	const skillPress = createSkillPressQueue<GameplayCommand & { kind: "skill"; }>();
-	const movement = createMovement( send ),
+	const movement = createMovement( send, publishFeedback ),
 		inventory = createInventory( send, handle => play( handle, soundClock ), cue => playItem( cue, soundClock ) ),
 		combat = createCombat( readEntity, publishFeedback, () => skillPress.oneWayMs() ),
 		targeting = createTargeting( send ),

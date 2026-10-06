@@ -136,7 +136,9 @@
 		{
 			"consumer": "src/engine/foundation/gameplay/guild-manager.ts",
 			"provider": "src/engine/runtime/ui/ui.ts",
-			"functions": ["copy"]
+			"functions": [
+				"copy"
+			]
 		},
 		{
 			"consumer": "src/engine/foundation/ui/npc-talk.ts",
@@ -1916,7 +1918,8 @@
 			"provider": "src/engine/runtime/platform/telemetry.ts",
 			"functions": [
 				"present",
-				"active"
+				"active",
+				"setMovementDump"
 			]
 		},
 		{
@@ -1952,6 +1955,27 @@
 			"provider": "src/engine/runtime/random/random.ts",
 			"functions": [
 				"range"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/platform/telemetry.ts",
+			"provider": "src/engine/runtime/bug-report/bug-report.ts",
+			"functions": [
+				"dumpMovement"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/simulation/worker/session/world/gameplay/movement/movement.ts",
+			"provider": "src/engine/runtime/simulation/worker/session/world/core.ts",
+			"functions": [
+				"callback:createGameplay:2"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/simulation/worker/session/world/gameplay/movement/movement.ts",
+			"provider": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
+			"functions": [
+				"callback"
 			]
 		}
 	],
@@ -2223,7 +2247,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "eb4517665c87f423f240c78219c572c29f4fd8ebe556c245f6ac7d0176792f11",
+			"sourceSha256": "f56ae5c3831a70768e37a317239ea02db4857b925f43e2731437b5e0caf56321",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. Device disposal cancels pending mapping.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

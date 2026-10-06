@@ -155,6 +155,7 @@ available for packet families that do not yet own a semantic projection.
 ================
 */
 export type WorldEvent =
+	| import("./movement-diagnostic").MovementDiagnostic
 	| CombatPresentationEvent
 	| VisualFeedback
 	| { readonly kind: "travel"; readonly travel: WorldTravel; }

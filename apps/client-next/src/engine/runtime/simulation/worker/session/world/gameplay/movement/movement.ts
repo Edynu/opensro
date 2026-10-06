@@ -159,7 +159,10 @@ interface ReceiptReconciliation<Segment> {
 createMovement
 ================
 */
-export function createMovement( send: ( frame: import("@/engine/contracts/network").WireFrame ) => void ) {
+export function createMovement(
+	send: ( frame: import("@/engine/contracts/network").WireFrame ) => void,
+	record: ( event: import("@/engine/contracts/movement-diagnostic").MovementDiagnostic ) => void = () => {}
+) {
 	const navigation = createNavigation();
 	let minimapQueries: readonly Pose[] = [];
 	let pose: Pose | null = null,
@@ -296,10 +299,27 @@ other than walking: say what moved it, how far and with what inputs, so a
 reported snap is never a guess. Called with the final committed pose.
 ================
 	*/
-	function noteReanchor( source: string, before: Pose, after: Pose, details: object ) {
+	function noteReanchor(
+		source: string,
+		before: Pose,
+		after: Pose,
+		details: { atMs: number; [key: string]: unknown; }
+	) {
 		admitCorrection( before, after );
 		const jump = sameNavigationSpace( before, after ) ? poseDistance( before, after ) : Infinity;
 		transition = { ...transition, logicalDistance: jump };
+		if ( jump > 0 ) {
+			record( {
+				kind: "movement-diagnostic",
+				event: "correction",
+				simulationAtMs: details.atMs,
+				source,
+				distance: jump,
+				before: { ...before },
+				after: { ...after },
+				...(typeof details.id === "number" ? { requestId: details.id } : {})
+			} );
+		}
 		if ( jump < REANCHOR_REPORT_UNITS ) return;
 		reanchorReports++;
 		recentReanchors.push( {
@@ -798,7 +818,7 @@ native
 				return;
 			}
 			pose = authoritative;
-			noteReanchor( "native move from its source", current, pose, { kind: decoded.kind } );
+			noteReanchor( "native move from its source", current, pose, { atMs: now, kind: decoded.kind } );
 			if ( decoded.kind === "direction" ) {
 				const heading = decoded.heading!;
 				walk = {
@@ -897,6 +917,7 @@ correct
 			pose = authoritative = reconcile( admitPose( value ) );
 			if ( before ) {
 				noteReanchor( "server correction", before, pose, {
+					atMs: now ?? poseAtMs,
 					pending: pending.size,
 					latest: nextId,
 					...context
@@ -976,6 +997,7 @@ request
 			const clipped = navigation.clip( pose, to, query );
 			const frame = { opcode: OP_PREDICTED_MOVE, payload };
 			send( frame );
+			record( { kind: "movement-diagnostic", event: "request", simulationAtMs: now, requestId: id, target: to } );
 			nextId = id;
 			beginTransition( "input" );
 			pending.set( id, { to, sent: now } );
@@ -1103,6 +1125,7 @@ over complete navigation coverage; otherwise the receipt starts the walk.
 			payload.set( body, 5 + offset );
 			const frame = { opcode: OP_PREDICTED_MOVE, payload };
 			send( frame );
+			record( { kind: "movement-diagnostic", event: "request", simulationAtMs: now, requestId: id, heading } );
 			nextId = id;
 			beginTransition( "input" );
 			const leg = directionSegment( pose, heading, now, "client", 1, true );
@@ -1123,7 +1146,19 @@ receive
 		*/
 		receive( payload: Uint8Array, now: number, expectedGid?: number ) {
 			const r = decodeMovementReceipt( payload, expectedGid );
+			const sent = pending.get( r.id )?.sent;
+			const receiptEvent: import("@/engine/contracts/movement-diagnostic").MovementDiagnostic = {
+				kind: "movement-diagnostic",
+				event: "receipt",
+				simulationAtMs: now,
+				requestId: r.id,
+				serverTimeMs: r.serverTimeMs,
+				accepted: r.accepted,
+				stale: r.id <= acknowledged,
+				...(sent === undefined ? {} : { simulationRoundTripMs: Math.max( 0, now - sent ) })
+			};
 			if ( r.id <= acknowledged ) {
+				record( receiptEvent );
 				return;
 			}
 			const command = pending.get( r.id );
@@ -1131,6 +1166,11 @@ receive
 				throw new Error( "Unsolicited movement receipt" );
 			}
 			const world = receiptWorld( r ), to = world.spawn, s = world.segment;
+			record( {
+				...receiptEvent,
+				serverGoal: to,
+				...(s ? { serverFrom: s.from, serverDepartAtMs: s.startedAtMs, serverArriveAtMs: s.arrivesAtMs } : {})
+			} );
 			let replacement: typeof segment = null;
 			if ( s ) {
 				const from = s.from;
@@ -1191,7 +1231,7 @@ receive
 				for ( const id of pending.keys() ) if ( id <= r.id ) pending.delete( id );
 				error = null;
 				keepCastHold();
-				if ( before && pose ) noteReanchor( "direction receipt", before, pose, { id: r.id } );
+				if ( before && pose ) noteReanchor( "direction receipt", before, pose, { atMs: now, id: r.id } );
 				return;
 			}
 			if ( command.direction !== undefined ) walk = null;
@@ -1235,6 +1275,7 @@ receive
 			keepCastHold();
 			if ( predicted ) {
 				noteReanchor( "receipt " + reconciled.kind + ": " + reconciled.reason, predicted, pose!, {
+					atMs: now,
 					id: r.id,
 					latest: nextId,
 					ageMs: now - command.sent,

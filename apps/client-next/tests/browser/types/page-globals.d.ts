@@ -111,5 +111,5 @@ declare var special: any;
 declare var warFixture: any;
 
 interface Window {
-	sroDebug?: { setDiagnostics( enabled: boolean ): boolean; };
+	sroDebug?: import("../../../src/engine/runtime/platform/telemetry").DeveloperConsole;
 }

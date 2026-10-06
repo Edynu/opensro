@@ -32,7 +32,7 @@ import { createReplayRecorder } from "./recorder";
 import { createBugReportDialog, type OutgoingReport, type SendOutcome } from "./dialog";
 import { createReportArchive } from "./archive";
 import { fitTrack } from "./transcode";
-import { createJournal } from "./journal";
+import { createJournal, JOURNAL_WINDOW_MS } from "./journal";
 
 const ROUTE = "/title/bug-report";
 const PREFERENCE_KEY = "sro:bug-report:replay:1";
@@ -108,6 +108,11 @@ BugReportOwner
 export interface BugReportOwner extends BugReportControl {
 	/** A runtime failure worth attaching to the next report. */
 	note( message: string ): void;
+	movement(
+		event: import("@/engine/contracts/movement-diagnostic").MovementDiagnostic | Readonly<Record<string, unknown>>
+	): void;
+	movementClock( simulationOriginMs: number ): void;
+	dumpMovement(): unknown;
 	dispose(): void;
 }
 
@@ -121,6 +126,28 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	const recorder = createReplayRecorder( options.canvas, options.sound );
 	const archive = createReportArchive();
 	const journal = createJournal( options.canvas );
+	let movementOriginMs: number | undefined;
+	/*
+	================
+	dumpMovement
+
+	Keep clock domains explicit: journal atMs is main performance.now(); movement
+	requests and receipts carry simulationAtMs, serverTimeMs is server wall time.
+	================
+	*/
+	function dumpMovement() {
+		return {
+			version: 1,
+			mainTimeOriginMs: performance.timeOrigin,
+			simulationOriginMs: movementOriginMs,
+			capturedAtMs: performance.now(),
+			localGid: options.state().gameplay?.localGid,
+			protocol: "predicted envelope 0x0009 / result 0x000A; IDs are not native 0x7738 fields",
+			events: journal.since( performance.now() - JOURNAL_WINDOW_MS ).filter(
+				event => event.kind === "movement" || event.kind === "long-frame"
+			)
+		};
+	}
 	let lastSampleMs = -Infinity, samples = 0;
 	let settings: ServerSettings | null = null;
 	// "on" and "off" are the server's answer; "unknown" until it gives one.
@@ -530,6 +557,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		};
 		return {
 			"timeline.json": json( timeline ),
+			"movement.json": json( dumpMovement() ),
 			"state.json": json( state ),
 			"environment.json": json( environment() )
 		};
@@ -663,6 +691,23 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	addEventListener( "hashchange", offerLinked, { signal: lifetime.signal } );
 
 	return {
+		/*
+		================
+		movement
+		================
+		*/
+		movement: event => journal.record( "movement", { ...event } ),
+		/*
+		================
+		movementClock
+		================
+		*/
+		movementClock( simulationOriginMs: number ) {
+			if ( simulationOriginMs === movementOriginMs ) return;
+			movementOriginMs = simulationOriginMs;
+			journal.record( "movement", { event: "clock", simulationOriginMs } );
+		},
+		dumpMovement,
 		reportsEnabled: () => availability === "on",
 		chat,
 		open,

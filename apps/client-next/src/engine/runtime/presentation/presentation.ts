@@ -92,7 +92,8 @@ export function createPresentation() {
 						social: event.state.social ?? nextGameplay?.social,
 						shop: "shop" in event.state ? event.state.shop : nextGameplay?.shop
 					};
-				} else if ( event.kind === "cast-finalize" ) { /* Retained across coalesced gameplay snapshots. */ }
+				} else if ( event.kind === "movement-diagnostic" ) { /* Runtime journals this ordered evidence. */ }
+				else if ( event.kind === "cast-finalize" ) { /* Retained across coalesced gameplay snapshots. */ }
 				else if (
 					event.kind === "hp-seed" || event.kind === "hp-result" || event.kind === "hp-refresh" ||
 					event.kind === "hp-revive"

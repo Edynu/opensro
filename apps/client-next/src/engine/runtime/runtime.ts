@@ -55,6 +55,7 @@ const TELEMETRY_SAMPLES = 120, TELEMETRY_INTERVAL_MS = 500;
 // while minimized; this port keeps consuming the world journal (which fails
 // the session when unacknowledged) at this pace, driven by worker messages.
 const HIDDEN_FRAME_MS = 100;
+const MOVEMENT_FRAME_SPIKE_MS = 25;
 /*
 ================
 startRuntime
@@ -443,6 +444,7 @@ export function startRuntime(
 				}
 			)
 		);
+		platform.setMovementDump( bugReport.dumpMovement );
 		// Offers a refresh once a newer client release is live (release-watch.ts).
 		const releaseWatch = own(
 			createReleaseWatch( assets, new URL( RELEASE_PAGE, location.origin ).href, platform.runningEntry() )
@@ -569,6 +571,21 @@ export function startRuntime(
 							} else pendingWorldReset = true;
 						}
 						characters.receiveLifecycle( batch.events );
+						for ( const event of batch.events ) {
+							if ( event.kind === "movement-diagnostic" ) {
+								bugReport.movement( {
+									...event,
+									worldSequence: batch.sequence,
+									localGid: presentation.gameplay()?.localGid
+								} );
+							} else if ( event.kind === "reset" ) {
+								bugReport.movement( {
+									event: "world-reset",
+									epoch: event.epoch,
+									worldSequence: batch.sequence
+								} );
+							}
+						}
 						simulation.ackWorld( batch.sequence );
 					} catch ( error ) {
 						platform.report( `Runtime failed: World publication: ${String( error )}`, error );
@@ -585,6 +602,7 @@ export function startRuntime(
 					// Main-clock milliseconds of simulation time zero: poses carry their
 					// simulation time, and presentation needs it on the frame clock.
 					if ( snapshot.clock?.originMs ) {
+						bugReport.movementClock( snapshot.clock.originMs );
 						characters.simulationOrigin( snapshot.clock.originMs - performance.timeOrigin );
 					}
 				}
@@ -719,6 +737,21 @@ export function startRuntime(
 				// 86CBA0), not the logical heading, which snaps on each click.
 				const cameraFollow = characters.cameraTarget();
 				const movement = presentation.gameplay();
+				if ( visible && lastFrameAt && now - lastFrameAt > MOVEMENT_FRAME_SPIKE_MS && movement?.pose ) {
+					bugReport.movement( {
+						event: "frame-spike",
+						frameAtMs: now,
+						durationMs: now - lastFrameAt,
+						workerDebtMs,
+						revision: movement.movementRevision,
+						localGid: movement.localGid,
+						logical: { ...movement.pose },
+						displayed: cameraFollow?.pose ? { ...cameraFollow.pose } : undefined,
+						bodyYaw: cameraFollow?.yaw,
+						pending: movement.pendingMoves,
+						visibility: document.visibilityState
+					} );
+				}
 				if ( movement?.pose ) {
 					frameProbe()?.movement?.( {
 						atMs: now,

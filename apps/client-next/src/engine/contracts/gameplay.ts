@@ -641,6 +641,7 @@ export interface GameplayState {
 	readonly moving?: boolean;
 	/** Simulation time (ms) at which pose was sampled; ClockSample.originMs maps it to wall time. */
 	readonly poseAtMs?: number;
+	/** Receipt reference sample, refreshed on arrival; it may predate an already-settled stop. Not a live server query. */
 	readonly authoritativePose: Pose | null;
 	readonly pendingMoves: number;
 	readonly acknowledgedMove: number;

@@ -107,6 +107,12 @@ dispose
 	Object.assign( owners.platform, {
 		report: value => reports.push( value ),
 		runningEntry: () => null,
+		/*
+================
+setMovementDump
+================
+		*/
+		setMovementDump() {},
 		visibilityReturned: () => false,
 		/*
 ================
@@ -266,6 +272,7 @@ dispose
 		} ] )
 	);
 	globalThis.__runtimeOwners.platform.runningEntry = () => null;
+	globalThis.__runtimeOwners.platform.setMovementDump = () => {};
 	globalThis.__runtimeOwners.simulation.delivery = () => new Promise( () => {} );
 	for ( const name of Object.keys( factories ) ) {
 		const owner = globalThis.__runtimeOwners[name];
@@ -330,6 +337,7 @@ dispose
 			} ] )
 		);
 	owners.platform.runningEntry = () => null;
+	owners.platform.setMovementDump = () => {};
 	owners.simulation.delivery = () => new Promise( () => {} );
 	globalThis.__runtimeOwners = owners;
 	globalThis.location = { search: "", origin: "http://localhost" };

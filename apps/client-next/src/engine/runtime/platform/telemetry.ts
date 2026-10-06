@@ -29,8 +29,9 @@ interface TelemetryOptions {
 DeveloperConsole
 ================
 */
-interface DeveloperConsole {
+export interface DeveloperConsole {
 	setDiagnostics( enabled: boolean ): boolean;
+	dumpMovement(): unknown;
 }
 declare global {
 	interface Window {
@@ -61,6 +62,7 @@ export function createTelemetry( options: TelemetryOptions ) {
 	readout.setAttribute( "aria-label", "Developer diagnostics" );
 	let enabled = options.enabled;
 	let latest: FrameTelemetry | null = null;
+	let movementDump: (() => unknown) | undefined;
 	chip?.insertBefore( toggle, fpsToggle );
 	chip?.append( readout );
 
@@ -129,6 +131,12 @@ export function createTelemetry( options: TelemetryOptions ) {
 	const consoleApi = {
 		/*
 		================
+		dumpMovement
+		================
+		*/
+		dumpMovement: () => movementDump?.() ?? null,
+		/*
+		================
 		setDiagnostics
 		================
 		*/
@@ -151,6 +159,14 @@ export function createTelemetry( options: TelemetryOptions ) {
 		if ( latest ) present( latest );
 	}, { signal: lifetime.signal } );
 	return {
+		/*
+		================
+		setMovementDump
+		================
+		*/
+		setMovementDump: ( dump: () => unknown ) => {
+			movementDump = dump;
+		},
 		setDiagnostics,
 		present,
 		active: () => enabled && !readout.hidden && !document.hidden,
@@ -160,6 +176,7 @@ export function createTelemetry( options: TelemetryOptions ) {
   ================
   */
 		dispose() {
+			movementDump = undefined;
 			lifetime.abort();
 			toggle.remove();
 			readout.remove();

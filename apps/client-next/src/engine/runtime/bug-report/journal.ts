@@ -3,7 +3,7 @@
 
 journal.ts - what happened during the replay, for the report's .zip
 
-A rolling record of the last minute or so, kept beside the video so a
+A bounded rolling record of the last two minutes, kept beside the video so a
 developer can line up the picture with what the player pressed, what the
 game said and how the page was doing:
 
@@ -15,6 +15,7 @@ game said and how the page was doing:
 	long-frame the main thread was blocked (Long Animation Frames or
 	           long tasks, with the scripts the browser blames)
 	sample     once a second: phase, place, vitals, target, heap
+	movement   commands, receipts, corrections and display hitches
 
 Keys typed into a text field (chat, login, the report itself) are not
 recorded at all: they are messages and passwords, not game input.
@@ -22,9 +23,10 @@ recorded at all: they are messages and passwords, not game input.
 ===========================================================================
 */
 
-const WINDOW_MS = 70000;
+export const JOURNAL_WINDOW_MS = 120000;
 const MAX_EVENTS = 6000;
 const MAX_SCRIPTS = 3;
+const FRAME_GROUP_MS = 1000;
 
 /*
 ================
@@ -35,7 +37,7 @@ JournalEvent
 */
 export interface JournalEvent {
 	readonly atMs: number;
-	readonly kind: "key" | "click" | "ui" | "chat" | "error" | "long-frame" | "sample";
+	readonly kind: "key" | "click" | "ui" | "chat" | "error" | "long-frame" | "sample" | "movement";
 	readonly [field: string]: unknown;
 }
 
@@ -60,6 +62,7 @@ export function createJournal( canvas: HTMLCanvasElement ): Journal {
 	const lifetime = new AbortController();
 	const signal = lifetime.signal;
 	let events: JournalEvent[] = [];
+	let next = 0, count = 0, frameSlot = -1;
 
 	/*
 	================
@@ -68,11 +71,40 @@ export function createJournal( canvas: HTMLCanvasElement ): Journal {
 	*/
 	function record( kind: JournalEvent["kind"], fields: Readonly<Record<string, unknown>> ) {
 		const atMs = performance.now();
-		events.push( { ...fields, atMs, kind } );
-		if ( events.length > MAX_EVENTS || atMs - events[0]!.atMs > WINDOW_MS ) {
-			const cutoff = atMs - WINDOW_MS;
-			events = events.filter( event => event.atMs >= cutoff ).slice( -MAX_EVENTS );
+		if ( kind === "movement" && fields.event === "frame-spike" ) {
+			const previous = events[frameSlot];
+			if ( previous?.kind === kind && previous.event === fields.event && atMs - previous.atMs < FRAME_GROUP_MS ) {
+				// Keep the worst frame's pose and duration, plus the count and interval.
+				// A 30 Hz display must not replace input/error history every frame.
+				const worst = Number( fields.durationMs ) > Number( previous.durationMs ) ? fields : previous;
+				events[frameSlot] = {
+					...worst,
+					atMs: previous.atMs,
+					kind,
+					count: Number( previous.count ) + 1,
+					lastAtMs: atMs
+				};
+				return;
+			}
+			frameSlot = next;
+			append( { ...fields, atMs, kind, count: 1, lastAtMs: atMs } );
+			return;
 		}
+		append( { ...fields, atMs, kind } );
+	}
+
+	/*
+	================
+	append
+
+	Both event producers share a fixed-capacity ring. Writes never scan/copy
+	the history; since() filters by replay time when a report is requested.
+	================
+	*/
+	function append( event: JournalEvent ) {
+		events[next] = event;
+		next = (next + 1) % MAX_EVENTS;
+		count = Math.min( count + 1, MAX_EVENTS );
 	}
 
 	/*
@@ -135,7 +167,7 @@ export function createJournal( canvas: HTMLCanvasElement ): Journal {
 						invoker?: string;
 					}[];
 				};
-				events.push( {
+				append( {
 					atMs: entry.startTime,
 					kind: "long-frame",
 					durationMs: Math.round( entry.duration ),
@@ -164,11 +196,31 @@ export function createJournal( canvas: HTMLCanvasElement ): Journal {
 
 	return {
 		record,
-		since: fromMs => events.filter( event => event.atMs >= fromMs ).sort( ( a, b ) => a.atMs - b.atMs ),
+		/*
+		================
+		since
+		================
+		*/
+		since( fromMs ) {
+			const cutoff = Math.max( fromMs, performance.now() - JOURNAL_WINDOW_MS ), result: JournalEvent[] = [];
+			for ( let i = 0; i < count; i++ ) {
+				const event = events[(next - count + i + MAX_EVENTS) % MAX_EVENTS]!;
+				if ( event.atMs >= cutoff ) result.push( event );
+			}
+			// Long-frame observers report start time after later input has arrived.
+			return result.sort( ( a, b ) => a.atMs - b.atMs );
+		},
+		/*
+		================
+		dispose
+		================
+		*/
 		dispose() {
 			lifetime.abort();
 			observer?.disconnect();
 			events = [];
+			next = count = 0;
+			frameSlot = -1;
 		}
 	};
 }

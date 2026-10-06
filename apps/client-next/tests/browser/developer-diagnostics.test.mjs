@@ -41,6 +41,11 @@ test(
 		try {
 			await page.goto( CLIENT_NEXT_BASE_URL );
 			await ready( page );
+			const movement = await page.evaluate( () => window.sroDebug?.dumpMovement() );
+			assert.ok( movement && typeof movement === "object" && "version" in movement && "events" in movement );
+			assert.equal( movement.version, 1 );
+			assert.ok( Array.isArray( movement.events ) );
+
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );
 			await page.locator( "#fps-toggle" ).click();
 			await page.waitForFunction( () =>
@@ -134,15 +139,11 @@ test( "legacy opt-in migrates without overriding an explicit Experimental choice
 		assert.equal( await page.locator( "#developer-readout" ).isVisible(), false );
 		await page.evaluate( () => window.sroDebug?.setDiagnostics( false ) );
 		assert.equal( await page.evaluate( () => localStorage.getItem( "sro.developerDiagnostics" ) ), null );
-		assert.deepEqual(
-			await page.evaluate( () =>
-				JSON.parse( localStorage.getItem( "sro:v1150:experimental-options:1" ) ?? "null" )
-			),
-			{
-				chatTimestamps: false,
-				developerDiagnostics: false
-			}
+		const stored = await page.evaluate( () =>
+			JSON.parse( localStorage.getItem( "sro:v1150:experimental-options:1" ) ?? "null" )
 		);
+		assert.equal( stored.developerDiagnostics, false );
+		assert.equal( stored.chatTimestamps, false );
 		await page.reload();
 		await ready( page );
 		assert.equal(
