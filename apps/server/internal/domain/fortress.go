@@ -24,11 +24,12 @@ One _SiegeFortress row.
 ================
 */
 type FortressRecord struct {
-	FortressID  uint32 `json:"fortressId"`
-	GuildID     int64  `json:"guildId,omitempty"`
-	TempGuildID int64  `json:"tempGuildId,omitempty"`
-	TaxRate     int16  `json:"taxRate,omitempty"`
-	TaxGold     int64  `json:"taxGold,omitempty"`
+	FortressID    uint32                 `json:"fortressId"`
+	GuildID       int64                  `json:"guildId,omitempty"`
+	TempGuildID   int64                  `json:"tempGuildId,omitempty"`
+	TaxRate       int16                  `json:"taxRate,omitempty"`
+	TaxGold       int64                  `json:"taxGold,omitempty"`
+	BattleRecords []FortressBattleRecord `json:"battleRecords,omitempty"`
 }
 
 /*
@@ -83,4 +84,20 @@ type FortressStore interface {
 	FortressStructures(divisionID string) ([]FortressStructureRecord, error)
 	// SaveFortressStructure writes (present) or removes one zone's structure.
 	SaveFortressStructure(divisionID string, structure FortressStructureRecord, present bool) error
+}
+
+/*
+================
+FortressBattleRecord
+
+_SiegeFortressBattleRecord: the fortress is the containing row; rank and
+its last promotion time survive reconnect independently of a live buff.
+================
+*/
+type FortressBattleRecord struct {
+	CharacterID int64  `json:"characterId"`
+	Kills       uint32 `json:"kills"`
+	Deaths      uint32 `json:"deaths"`
+	Rank        uint8  `json:"rank"`
+	RankAtMs    int64  `json:"rankAtMs"`
 }

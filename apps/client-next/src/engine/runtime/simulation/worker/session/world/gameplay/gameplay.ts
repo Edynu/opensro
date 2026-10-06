@@ -102,6 +102,7 @@ import {
 	fortressInteraction,
 	fortressManagerReply,
 	fortressRegistrationNotice,
+	fortressBattleRankNotice,
 	fortressCaptureNotice,
 	fortressStructureState,
 	FORTRESS_NOTICE_CATEGORY,
@@ -2439,6 +2440,7 @@ Packet handling must not depend on which HUD panel is currently open.
 				const notice = restrictionNotice( frame.opcode, frame.payload ) ??
 					uniqueNotice( frame.opcode, frame.payload, uniqueRefs ) ??
 					fortressNotice( frame.opcode, frame.payload ) ?? fortressRegistrationNotice( fortress, frame ) ??
+					fortressBattleRankNotice( frame, social.localName ) ??
 					fortressCaptureNotice(
 						fortress,
 						frame,

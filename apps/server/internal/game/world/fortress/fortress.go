@@ -59,6 +59,8 @@ type Record struct {
 	EntryOpen bool
 	// The capture state of a running war (capture.go).
 	capture
+	battles           map[int64]domain.FortressBattleRecord
+	battleCheckpoints map[int64]domain.FortressBattleRecord
 }
 
 /*
@@ -209,6 +211,8 @@ func (a *Authority) Get(divisionID string, fortressID uint32) (Record, bool) {
 		return Record{}, false
 	}
 	copied := *record
+	copied.battleCheckpoints = nil
+	copied.battles = nil // Scores are read through BattleRecord, never a mutable map alias.
 	copied.Applicants = make(map[int64]RequestKind, len(record.Applicants))
 	for guild, kind := range record.Applicants {
 		copied.Applicants[guild] = kind
