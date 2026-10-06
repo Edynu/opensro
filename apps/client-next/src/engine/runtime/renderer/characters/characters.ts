@@ -1542,17 +1542,17 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			for ( const actor of visible ) {
 				if ( actor.drawGeometry === false ) continue;
 				const plan = models.get( actor.model )!.plan, dependencies = chains.get( actor.gid )!;
-				const key = actor.model + (models.get( actor.model )!.model.primitives.some( p => p.cloth ) ?
+				const key = actor.model + (plan.cloth ?
 					"\0cloth:" + actor.gid :
 					"") +
 					(actor.deferredParticle ? "\0deferred" : "") +
 					(opacity( actor ) < 1 ? "\0fade" : "") + (actor.materialTint ? "\0tint" : "") +
 					(actor.pointLight ? "\0light" : "") +
-					(models.get( actor.model )!.model.primitives.some( p => p.equipmentGlow ) ?
+					(plan.equipmentGlow ?
 						"\0glow:" + ((actor.animationLod?.fraction ?? 0) <= .5 && opacity( actor ) === 1) :
 						"") +
 					(hasMaterialClocks && materialClocks.get( actor ) ?
-						"\0modifier:" + actor.gid + (models.get( actor.model )!.plan.animationMaterial ?
+						"\0modifier:" + actor.gid + (plan.animationMaterial ?
 							":" + (actor.modelAnimation?.revision ?? 0) + ":" +
 							((actor.animationLod?.fraction ?? 0) > .5) :
 							"") :
@@ -1761,7 +1761,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				// A changing sampled time already proves the full key differs.
 				// Avoid serializing actor/attachment graphs just to discover it.
 				// Cloth advances on frame time even when its skeletal pose is unchanged.
-				const poseKey = timeChanged || model.primitives.some( p => p.cloth ) ?
+				const poseKey = timeChanged || plan.cloth ?
 					undefined :
 					JSON.stringify( [
 						origin,
