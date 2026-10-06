@@ -128,3 +128,25 @@ test("compound attachment fallback resolves the mount marker with the same bind 
 	const child = actor( 3, { attachment: { gid: 2, bone: "head", offset: [ 0, 0, 0 ], basis: "compound" } } );
 	near( renderer.matrix( [ mount, rider, child ], 3 ), [ 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, -6, 30, 0, 1 ] );
 });
+
+test("attachment traversal keeps the eight-actor limit and rejects cycles after independent root queries", () => {
+	const renderer = createCharacters();
+	const rows = Array.from( { length: 9 }, ( _, gid ) =>
+		actor(
+			gid,
+			gid ?
+				{
+					attachment: { gid: gid - 1, bone: "", root: true, offset: [ 1, 0, 0 ] }
+				} :
+				{}
+		) );
+	assert.equal( defined( renderer.matrix( rows, 0 ) )[12], 0 );
+	assert.equal( defined( renderer.matrix( rows, 7 ) )[12], 7 );
+	assert.throws( () => renderer.matrix( rows, 8 ), /Cyclic or excessive character attachment/ );
+	const cycle = [
+		actor( 1, { attachment: { gid: 2, bone: "", root: true, offset: [ 0, 0, 0 ] } } ),
+		actor( 2, { attachment: { gid: 1, bone: "", root: true, offset: [ 0, 0, 0 ] } } )
+	];
+	assert.throws( () => renderer.matrix( cycle, 1 ), /Cyclic or excessive character attachment/ );
+	assert.equal( defined( renderer.matrix( rows, 0 ) )[12], 0 );
+});

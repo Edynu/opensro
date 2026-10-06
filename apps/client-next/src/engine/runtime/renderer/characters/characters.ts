@@ -115,6 +115,7 @@ interface RibbonBuffers {
 	readonly uvs: Float32Array;
 	readonly indices: Uint32Array;
 }
+const MAX_ATTACHMENT_DEPTH = 8;
 
 /*
 ================
@@ -399,13 +400,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		rows: ReadonlyMap<number, CharacterActor>,
 		origin: number,
 		cache: Map<number, Float32Array>,
-		chain = new Set<number>()
+		chain?: Set<number>
 	): Float32Array | null {
 		const cached = cache.get( actor.gid );
 		if ( cached ) return cached;
-		if ( chain.has( actor.gid ) || chain.size >= 8 ) throw new Error( "Cyclic or excessive character attachment" );
-		chain.add( actor.gid );
-		let matrix = placement( actor.pose.regionId, origin, actor.pose.x, actor.pose.y, actor.pose.z, actor.pose.yaw );
+		if ( chain && (chain.has( actor.gid ) || chain.size >= MAX_ATTACHMENT_DEPTH) ) {
+			throw new Error( "Cyclic or excessive character attachment" );
+		}
+		let matrix: Float32Array;
 		const ownerId = actor.attachment?.gid ?? actor.mountedOn;
 		// 777F60 binds a ride without resolving its vehicle, and 85E000 falls
 		// back to the rider when 85D870 finds none: a rider whose vehicle has
@@ -417,6 +419,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			// live object; there is no matrix to inherit.
 			const owner = rows.get( ownerId );
 			if ( !owner ) return null;
+			// Roots and frame-cache hits do not traverse a hierarchy. Allocate
+			// cycle tracking only when this query actually follows an owner.
+			chain ??= new Set<number>();
+			chain.add( actor.gid );
 			// 8D6880: a missing bone retries on the mount, otherwise the root
 			// orientation is kept and the actor is still drawn. 8D4020 does
 			// the same keep-the-owner-matrix step. CRTSocket_UpdateOrdinaryMatrices
@@ -511,6 +517,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 						matrix[12 + n]! += matrix[n]! * x + matrix[4 + n]! * y + matrix[8 + n]! * z;
 					}}
 			}
+		} else {
+			// An attached actor takes its owner's matrix; its own placement
+			// would only be allocated, calculated and immediately discarded.
+			matrix = placement( actor.pose.regionId, origin, actor.pose.x, actor.pose.y, actor.pose.z, actor.pose.yaw );
 		}
 		if ( actor.absoluteEffectScale && actor.attachment ) {
 			for ( let c = 0; c < 3; c++ ) {
