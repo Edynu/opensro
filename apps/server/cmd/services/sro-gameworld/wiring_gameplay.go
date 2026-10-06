@@ -156,6 +156,12 @@ func newGameplayPlane(
 	if err := water.ValidateSecurityAssets(); err != nil {
 		return nil, err
 	}
+	navigationStarted := time.Now()
+	navigationRegions, err := water.PreloadOutdoorNavigation()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("movement: preloaded %d outdoor navigation regions in %s before gameplay readiness", navigationRegions, time.Since(navigationStarted))
 	if deps.MonsterState != nil {
 		deps.MonsterState.EnableRegionDormancy()
 		deps.MonsterState.SetSpawnGroundResolver(water.WalkableSpawnHeightAt)

@@ -1,3 +1,10 @@
+/*
+===========================================================================
+
+objectnav_collision.go - clips movement against native object navigation edges
+
+===========================================================================
+*/
 package movement
 
 import (
@@ -10,6 +17,11 @@ import (
 // This file owns runtime object-deck arbitration and movement collision.
 // objectnav.go owns resource decoding and placement resolution.
 // objectDeckVerdict is the object-nav view of an enter-world spawn.
+/*
+================
+objectDeckVerdict
+================
+*/
 type objectDeckVerdict int
 
 const (
@@ -29,6 +41,11 @@ const (
 // objectDeckStandAt resolves the nearest object plane against the incoming Y.
 // 403D20 has no above-terrain clearance condition: stair decks can lie below
 // the heightmap. Terrain wins ties and keeps walkers underneath overhead decks.
+/*
+================
+objectDeckStandAt
+================
+*/
 func (v *WaterValidator) objectDeckStandAt(surface *groundSurface, baseX, baseZ, y float64) *objectDeckStand {
 	terrainY, ok := surface.terrainHeightAt(baseX, baseZ)
 	if !ok {
@@ -43,6 +60,11 @@ func (v *WaterValidator) objectDeckStandAt(surface *groundSurface, baseX, baseZ,
 // under such a point is not a block for that move - the mover is on the
 // deck plane, not the ground (the Constantinople harbor-bridge shape:
 // deck ~105u above BLOCKED seabed tiles). Fail-open on any missing data.
+/*
+================
+worldPointOnObjectDeck
+================
+*/
 func (v *WaterValidator) worldPointOnObjectDeck(worldX, worldZ, y float64) bool {
 	if worldX < 0 || worldZ < 0 {
 		return false
@@ -106,6 +128,11 @@ const objectEdgeContactWindowUnits = 2.0
 // objectNavEdgeBlocks decides whether crossing one edge, approached from
 // the given side, stops the native walk (semantics + data ground truth in
 // the section banner above).
+/*
+================
+objectNavEdgeBlocks
+================
+*/
 func objectNavEdgeBlocks(flags byte, outline, fromSrcSide bool) bool {
 	if outline {
 		if flags&0x08 != 0 {
@@ -133,6 +160,11 @@ func objectNavEdgeBlocks(flags byte, outline, fromSrcSide bool) bool {
 // side-classification anchor for the edge's srcCell (the native
 // navEdgeSideTest resolves sides through precomputed cell linkage; the
 // centroid reproduces it for non-degenerate triangles).
+/*
+================
+objectCellCentroid2D
+================
+*/
 func objectCellCentroid2D(mesh *objectNavMesh, cell int) (float64, float64) {
 	a := mesh.cellA[cell]
 	b := mesh.cellB[cell]
@@ -143,6 +175,11 @@ func objectCellCentroid2D(mesh *objectNavMesh, cell int) (float64, float64) {
 }
 
 // objectContactOptions narrows which edges of a mesh can block a chord.
+/*
+================
+objectContactOptions
+================
+*/
 type objectContactOptions struct {
 	terrainEntry func(float64) bool
 	exits        bool
@@ -166,6 +203,11 @@ Scans one edge group for the earliest blocking crossing of the object-local
 chord, tightening bestT. Returns the (possibly improved) bestT and whether
 any contact was found; response, when set, receives the contact point.
 ==================
+*/
+/*
+================
+objectEdgeGroupChordContactDetail
+================
 */
 func objectEdgeGroupChordContactDetail(
 	mesh *objectNavMesh, edges *objectNavEdges, outline bool,
@@ -262,6 +304,11 @@ func objectEdgeGroupChordContactDetail(
 // object-local chord against one mesh, below bestT. Bounds-rejects the
 // whole mesh first (XZ chord box vs vertex cloud, Y band widened by the
 // contact window).
+/*
+================
+objectMeshChordContactDetail
+================
+*/
 func objectMeshChordContactDetail(mesh *objectNavMesh, x0, z0, y0, x1, z1, y1, bestT float64, linked func(int, bool, float64) bool, response *objectContactPoint, options ...objectContactOptions) (float64, bool) {
 	var opts objectContactOptions
 	if len(options) > 0 {
@@ -280,6 +327,11 @@ func objectMeshChordContactDetail(mesh *objectNavMesh, x0, z0, y0, x1, z1, y1, b
 	return t, foundOutline || foundInternal
 }
 
+/*
+================
+objectMeshChordContact
+================
+*/
 func objectMeshChordContact(mesh *objectNavMesh, x0, z0, y0, x1, z1, y1, bestT float64, linked ...func(int, bool, float64) bool) (float64, bool) {
 	var permit func(int, bool, float64) bool
 	if len(linked) > 0 {
@@ -297,6 +349,11 @@ const objectAnchorSearchRadiusSectors = 1
 // object-nav placements anchored on the chord or in an adjacent sector. The
 // candidate sectors come from a supercover walk rather than the chord's whole
 // bounding rectangle, keeping diagonal requests linear and bounded.
+/*
+================
+objectChordFirstContact
+================
+*/
 func (v *WaterValidator) objectChordFirstContact(fromWX, fromWZ, fromY, toWX, toWZ, toY float64, walk *navWalk) (float64, float64, bool, objectContactPoint) {
 	start := globalTile{
 		x: int(math.Floor(fromWX / simulation.NativeRegionSize)),
@@ -350,8 +407,7 @@ func (v *WaterValidator) objectChordFirstContact(fromWX, fromWZ, fromY, toWX, to
 		passages := resolveObjectPassages(set, lx0, fromY, lz0, lx1, toY, lz1)
 		for i := range set {
 			placement := set[i].placement
-			cosYaw := math.Cos(placement.yaw)
-			sinYaw := math.Sin(placement.yaw)
+			cosYaw, sinYaw := set[i].cosYaw, set[i].sinYaw
 			ox0 := cosYaw*(lx0-placement.x) + sinYaw*(lz0-placement.z)
 			oz0 := -sinYaw*(lx0-placement.x) + cosYaw*(lz0-placement.z)
 			ox1 := cosYaw*(lx1-placement.x) + sinYaw*(lz1-placement.z)
@@ -422,6 +478,11 @@ func (v *WaterValidator) objectChordFirstContact(fromWX, fromWZ, fromY, toWX, to
 // sealed only when the spawn stands on an object-nav deck (the
 // objectDeckStandAt gates) and the cell's lane has no reachable proven
 // terrain exit. An unresolved edge-object link is not treated as an exit.
+/*
+================
+spawnObjectDeckVerdict
+================
+*/
 func (v *WaterValidator) spawnObjectDeckVerdict(surface *groundSurface, baseX, baseZ, spawnY float64) objectDeckVerdict {
 	stand := v.objectDeckStandAt(surface, baseX, baseZ, spawnY)
 	if stand == nil {

@@ -1,3 +1,12 @@
+/*
+===========================================================================
+
+object_surface_path.go - retains connected object cells along a movement chord
+
+Decoded adjacency is immutable; each query owns only its cuts and result.
+
+===========================================================================
+*/
 package movement
 
 import (
@@ -8,10 +17,21 @@ import (
 	"opensro.online/server/internal/game/world/simulation"
 )
 
+/*
+================
+objectCellSpan
+================
+*/
 type objectCellSpan struct {
 	from, to float64
 	cell     int
 }
+
+/*
+================
+objectOwnedPath
+================
+*/
 type objectOwnedPath struct {
 	stand          *objectDeckStand
 	x0, z0, x1, z1 float64 // object local chord; Y follows the owned cell plane
@@ -24,6 +44,11 @@ type objectOwnedPath struct {
 // This is a source-owner walk, not the outside-object probe in 428300.
 // Collision remains responsible for edge flags. Ownership ends at an outline
 // or an unconnected cell; it cannot jump onto an overlapping deck.
+/*
+================
+objectSurfacePath
+================
+*/
 func (v *WaterValidator) objectSurfacePath(from, to simulation.Spawn) *objectOwnedPath {
 	if simulation.IsDungeonRegion(from.RegionID) || simulation.IsDungeonRegion(to.RegionID) {
 		return nil
@@ -59,6 +84,11 @@ func (v *WaterValidator) objectSurfacePath(from, to simulation.Spawn) *objectOwn
 // Pure geometry owner shared by terrain clipping and pathguard. Partition at
 // triangle edges, then retain the current cell or its edge-connected neighbor.
 // The existing mesh limits bound this work; no arbitrary height window is used.
+/*
+================
+traceObjectCells
+================
+*/
 func traceObjectCells(stand *objectDeckStand, x0, z0, x1, z1 float64) *objectOwnedPath {
 	return traceObjectCellsFrom(stand, x0, z0, x1, z1, 0)
 }
@@ -66,6 +96,11 @@ func traceObjectCells(stand *objectDeckStand, x0, z0, x1, z1 float64) *objectOwn
 // traceObjectCellsFrom traces from chord fraction tStart, where stand's cell
 // owns the walker (an object entered part-way along the chord). Spans keep the
 // global chord parameter so several owners can share one chord.
+/*
+================
+traceObjectCellsFrom
+================
+*/
 func traceObjectCellsFrom(stand *objectDeckStand, x0, z0, x1, z1, tStart float64) *objectOwnedPath {
 	if tStart == 0 {
 		x, z := x0+(x1-x0)*tStart, z0+(z1-z0)*tStart
@@ -75,14 +110,11 @@ func traceObjectCellsFrom(stand *objectDeckStand, x0, z0, x1, z1, tStart float64
 	}
 	path := &objectOwnedPath{stand: stand, x0: x0, z0: z0, x1: x1, z1: z1}
 	m := stand.mesh
-	neighbors := make(map[int][]int)
-	for i := range m.internal.flags {
-		a, b := int(m.internal.srcCell[i]), int(m.internal.dstCell[i])
-		if a >= m.cellCount() || b >= m.cellCount() {
-			continue
-		}
-		neighbors[a] = append(neighbors[a], b)
-		neighbors[b] = append(neighbors[b], a)
+	neighbors := m.cellNeighbors
+	if neighbors == nil {
+		// Hand-built geometry can omit decoded metadata. Keep it local so
+		// concurrent readers never race to populate an immutable mesh.
+		neighbors = buildObjectCellNeighbors(m)
 	}
 	dx, dz := x1-x0, z1-z0
 	cuts := []float64{tStart, 1}
@@ -136,6 +168,32 @@ func traceObjectCellsFrom(stand *objectDeckStand, x0, z0, x1, z1, tStart float64
 	}
 	return path
 }
+
+/*
+================
+buildObjectCellNeighbors
+================
+*/
+func buildObjectCellNeighbors(mesh *objectNavMesh) [][]int {
+	neighbors := make([][]int, mesh.cellCount())
+	for i := range mesh.internal.flags {
+		a, b := int(mesh.internal.srcCell[i]), int(mesh.internal.dstCell[i])
+		if a >= mesh.cellCount() || b >= mesh.cellCount() {
+			continue
+		}
+		// Preserve both directions, duplicates and input order: the first
+		// containing neighbor wins when triangles share a boundary.
+		neighbors[a] = append(neighbors[a], b)
+		neighbors[b] = append(neighbors[b], a)
+	}
+	return neighbors
+}
+
+/*
+================
+cellAt
+================
+*/
 func (p *objectOwnedPath) cellAt(t float64) (int, bool) {
 	if p != nil {
 		for _, span := range p.spans {
@@ -146,6 +204,12 @@ func (p *objectOwnedPath) cellAt(t float64) (int, bool) {
 	}
 	return 0, false
 }
+
+/*
+================
+heightAt
+================
+*/
 func (p *objectOwnedPath) heightAt(t float64) (float64, bool) {
 	cell, ok := p.cellAt(t)
 	if !ok {

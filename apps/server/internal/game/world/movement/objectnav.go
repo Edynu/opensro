@@ -1,3 +1,10 @@
+/*
+===========================================================================
+
+objectnav.go - decodes and caches immutable object navigation assets
+
+===========================================================================
+*/
 package movement
 
 import (
@@ -6,10 +13,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"slices"
-
-	worldgeom "opensro.online/server/internal/game/world"
-	"opensro.online/server/internal/game/world/simulation"
 )
 
 // Object-nav sealed-deck detection for the enter-world stranded-spawn rescue.
@@ -50,6 +53,11 @@ import (
 // objectNavPlacement is one nav object instance from the region bundle's
 // navmesh region entry: object-local payload space maps into the region
 // frame by yaw rotation + translation (makeObjectTransformMatrices).
+/*
+================
+objectNavPlacement
+================
+*/
 type objectNavPlacement struct {
 	terrainCells  *[][4]float32
 	assetID       int
@@ -65,8 +73,18 @@ type objectNavPlacement struct {
 // dstCell 0xffff = no neighbor. vertA/vertB carry the edge segment's
 // vertex indices - the chord clip (objectMeshChordContact) intersects the
 // move segment against them.
+/*
+================
+objectNavLink
+================
+*/
 type objectNavLink struct{ target, targetEdge, edge int }
 
+/*
+================
+objectNavEdges
+================
+*/
 type objectNavEdges struct {
 	vertA   []uint16
 	vertB   []uint16
@@ -81,7 +99,13 @@ type objectNavEdges struct {
 // bytes are parsed (the payload must exact-consume) but not retained.
 // min/max bound the vertex cloud (object-local) so per-move queries can
 // reject a whole mesh in a few compares.
+/*
+================
+objectNavMesh
+================
+*/
 type objectNavMesh struct {
+	cellNeighbors    [][]int   // immutable internal-edge order, shared by every chord walk
 	vertices         []float32 // xyz triplets, object-local native units
 	vertexDirections []byte    // 43EC80 boundary-normal table indices
 	cellA            []uint16
@@ -94,6 +118,11 @@ type objectNavMesh struct {
 	maxX, maxY, maxZ float64
 }
 
+/*
+================
+cellCount
+================
+*/
 func (m *objectNavMesh) cellCount() int {
 	return len(m.cellA)
 }
@@ -101,6 +130,11 @@ func (m *objectNavMesh) cellCount() int {
 // objectResourceIndex maps a placement's assetId to the decodable mesh
 // JSON public paths (bsr renderMeshSection paths resolved through the
 // meshFiles source->public table, the client's exact preference order).
+/*
+================
+objectResourceIndex
+================
+*/
 type objectResourceIndex struct {
 	meshPublicPathsByObjectID map[int][]string
 }
@@ -125,11 +159,21 @@ const (
 )
 
 // objectNavCursor is the running wire offset over the preserved slice.
+/*
+================
+objectNavCursor
+================
+*/
 type objectNavCursor struct {
 	raw []byte
 	off int
 }
 
+/*
+================
+ensure
+================
+*/
 func (c *objectNavCursor) ensure(n int, label string) error {
 	if n < 0 || c.off < 0 || c.off > len(c.raw) || n > len(c.raw)-c.off {
 		return fmt.Errorf("object nav payload truncated in %s at %d/%d", label, c.off, len(c.raw))
@@ -137,6 +181,11 @@ func (c *objectNavCursor) ensure(n int, label string) error {
 	return nil
 }
 
+/*
+================
+countBytes
+================
+*/
 func (c *objectNavCursor) countBytes(count uint32, stride int, limit uint32, label string) (int, error) {
 	if stride <= 0 || count > limit {
 		return 0, fmt.Errorf("object nav %s count %d exceeds limit %d", label, count, limit)
@@ -148,6 +197,11 @@ func (c *objectNavCursor) countBytes(count uint32, stride int, limit uint32, lab
 	return int(count) * stride, nil
 }
 
+/*
+================
+u32
+================
+*/
 func (c *objectNavCursor) u32(label string) (uint32, error) {
 	if err := c.ensure(4, label); err != nil {
 		return 0, err
@@ -160,6 +214,11 @@ func (c *objectNavCursor) u32(label string) (uint32, error) {
 // decodeObjectNavEdgeGroup reads one edge group; range checks and the
 // stride mirror the client decoder (a mismatch is a hard error and the
 // caller drops the mesh - never a silent partial).
+/*
+================
+decodeObjectNavEdgeGroup
+================
+*/
 func decodeObjectNavEdgeGroup(c *objectNavCursor, label string, stride, vertexCount, cellCount int) (objectNavEdges, error) {
 	count, err := c.u32(label + " edge count")
 	if err != nil {
@@ -207,6 +266,11 @@ func decodeObjectNavEdgeGroup(c *objectNavCursor, label string, stride, vertexCo
 // the client's decodeNativeObjectNavPayloadBytes). navFlags is the BMS
 // headerOffsets[11] word gating the optional record bytes. The payload
 // must consume exactly to EOF or the decode fails.
+/*
+================
+decodeObjectNavPayload
+================
+*/
 func decodeObjectNavPayload(raw []byte, navFlags int) (*objectNavMesh, error) {
 	c := &objectNavCursor{raw: raw}
 	if navFlags < 0 || navFlags&^objectNavKnownFlags != 0 {
@@ -357,6 +421,7 @@ func decodeObjectNavPayload(raw []byte, navFlags int) (*objectNavMesh, error) {
 		mesh.minZ = math.Min(mesh.minZ, z)
 		mesh.maxZ = math.Max(mesh.maxZ, z)
 	}
+	mesh.cellNeighbors = buildObjectCellNeighbors(mesh)
 	return mesh, nil
 }
 
@@ -366,6 +431,11 @@ func decodeObjectNavPayload(raw []byte, navFlags int) (*objectNavMesh, error) {
 // records ride inside the same bundle the surface loader already reads;
 // they are parsed defensively from raw JSON so a malformed object list
 // degrades only the object-nav view, never the whole surface.
+/*
+================
+navObjectRecordJSON
+================
+*/
 type navObjectRecordJSON struct {
 	AssetID       json.Number `json:"assetId"`
 	X             json.Number `json:"x"`
@@ -378,6 +448,11 @@ type navObjectRecordJSON struct {
 
 // decodeObjectPlacements parses a navmesh region entry's raw objects
 // array; nil/malformed degrades to no placements.
+/*
+================
+decodeObjectPlacements
+================
+*/
 func decodeObjectPlacements(raw json.RawMessage) []objectNavPlacement {
 	if len(raw) == 0 {
 		return nil
@@ -424,6 +499,11 @@ func decodeObjectPlacements(raw json.RawMessage) []objectNavPlacement {
 	return placements
 }
 
+/*
+================
+objectResourceIndexJSON
+================
+*/
 type objectResourceIndexJSON struct {
 	Bsr []struct {
 		ObjectID          json.Number `json:"objectId"`
@@ -439,6 +519,11 @@ type objectResourceIndexJSON struct {
 	} `json:"meshFiles"`
 }
 
+/*
+================
+objectNavMeshWireJSON
+================
+*/
 type objectNavMeshWireJSON struct {
 	ByteLength     json.Number `json:"byteLength"`
 	HeaderOffsets  []int       `json:"headerOffsets"`
@@ -450,6 +535,11 @@ type objectNavMeshWireJSON struct {
 	} `json:"nativePayloads"`
 }
 
+/*
+================
+objectMeshFileJSON
+================
+*/
 type objectMeshFileJSON struct {
 	Mesh objectNavMeshWireJSON `json:"mesh"`
 }
@@ -459,6 +549,11 @@ type objectMeshFileJSON struct {
 // loadObjectResourceIndex loads (or answers from cache) the object
 // resource index the region bundle names. A failed load caches nil (the
 // standard negative). The read runs with v.mu released.
+/*
+================
+loadObjectResourceIndex
+================
+*/
 func (v *WaterValidator) loadObjectResourceIndex(publicPath string) *objectResourceIndex {
 	if publicPath == "" {
 		return nil
@@ -484,6 +579,11 @@ func (v *WaterValidator) loadObjectResourceIndex(publicPath string) *objectResou
 // buildObjectResourceIndex is the uncached index read: resolve each bsr
 // row's mesh SOURCE paths (renderMeshSection preferred, the client order)
 // to PUBLIC mesh JSON paths through the meshFiles table.
+/*
+================
+buildObjectResourceIndex
+================
+*/
 func (v *WaterValidator) buildObjectResourceIndex(publicPath string) *objectResourceIndex {
 	parsed := &objectResourceIndexJSON{}
 	if !v.readJSON(publicPath, parsed) {
@@ -526,6 +626,11 @@ func (v *WaterValidator) buildObjectResourceIndex(publicPath string) *objectReso
 // meshes of one mesh JSON public path. Most meshes carry no nav payload;
 // the empty slice is the cached negative. The read runs with v.mu
 // released.
+/*
+================
+loadObjectNavMeshes
+================
+*/
 func (v *WaterValidator) loadObjectNavMeshes(publicPath string) []*objectNavMesh {
 	v.mu.Lock()
 	meshes, cached := v.objectNavMeshes[publicPath]
@@ -551,6 +656,11 @@ func (v *WaterValidator) loadObjectNavMeshes(publicPath string) []*objectNavMesh
 // byte offset, headerOffsets[11] is the flags word, and the section ends
 // at the nearest higher header offset (offset 11 excluded, it is not an
 // offset) or the mesh end. Undecodable payloads are dropped (fail open).
+/*
+================
+buildObjectNavMeshes
+================
+*/
 func (v *WaterValidator) buildObjectNavMeshes(publicPath string) []*objectNavMesh {
 	parsed := &objectMeshFileJSON{}
 	if !v.readJSON(publicPath, parsed) {
@@ -559,6 +669,11 @@ func (v *WaterValidator) buildObjectNavMeshes(publicPath string) []*objectNavMes
 	return decodeObjectNavMeshes(parsed.Mesh)
 }
 
+/*
+================
+decodeObjectNavMeshes
+================
+*/
 func decodeObjectNavMeshes(wire objectNavMeshWireJSON) []*objectNavMesh {
 	headers := wire.HeaderOffsets
 	navOffset := 0
@@ -616,14 +731,25 @@ func decodeObjectNavMeshes(wire objectNavMeshWireJSON) []*objectNavMesh {
 
 // resolvedObjectNav is one placement whose asset resolved to at least one
 // decoded object-nav mesh - the unit the per-move queries iterate.
+/*
+================
+resolvedObjectNav
+================
+*/
 type resolvedObjectNav struct {
-	placement objectNavPlacement
-	meshes    []*objectNavMesh
+	placement      objectNavPlacement
+	meshes         []*objectNavMesh
+	cosYaw, sinYaw float64 // immutable outdoor placement rotation, computed at cache construction
 }
 
 // objectNavSetKey addresses one region entry's resolved placement set.
 // Surfaces are load-once and cached for the validator's lifetime, so the
 // pointer is a stable identity.
+/*
+================
+objectNavSetKey
+================
+*/
 type objectNavSetKey struct {
 	surface *groundSurface
 	offset  int64
@@ -635,6 +761,11 @@ type objectNavSetKey struct {
 // This collapses the per-query index/mesh cache traffic (one lock acquire
 // per warm query instead of one per placement) - the movement planes call
 // it per accepted move. The build runs with v.mu released.
+/*
+================
+objectNavSetForOffset
+================
+*/
 func (v *WaterValidator) objectNavSetForOffset(surface *groundSurface, dxRegion, dzRegion int) []resolvedObjectNav {
 	key := objectNavSetKey{surface: surface, offset: offsetKey(dxRegion, dzRegion)}
 	v.mu.Lock()
@@ -658,6 +789,11 @@ func (v *WaterValidator) objectNavSetForOffset(surface *groundSurface, dxRegion,
 // buildObjectNavSet is the uncached resolution (empty slice = the cached
 // negative; absent index or undecodable meshes degrade to fewer entries,
 // never an error - the package's fail-open standard).
+/*
+================
+buildObjectNavSet
+================
+*/
 func (v *WaterValidator) buildObjectNavSet(surface *groundSurface, offset int64) []resolvedObjectNav {
 	placements := surface.objectPlacementsByOffset[offset]
 	if len(placements) == 0 {
@@ -674,7 +810,7 @@ func (v *WaterValidator) buildObjectNavSet(surface *groundSurface, offset int64)
 			meshes = append(meshes, v.loadObjectNavMeshes(meshPath)...)
 		}
 		if len(meshes) > 0 {
-			set = append(set, resolvedObjectNav{placement: placement, meshes: meshes})
+			set = append(set, resolvedObjectNav{placement: placement, meshes: meshes, cosYaw: math.Cos(placement.yaw), sinYaw: math.Sin(placement.yaw)})
 		}
 	}
 	return set
@@ -684,6 +820,11 @@ func (v *WaterValidator) buildObjectNavSet(surface *groundSurface, offset int64)
 
 // objectDeckStand is the winning nearest-Y candidate: the object cell the
 // spawn stands on, when one beats the terrain plane.
+/*
+================
+objectDeckStand
+================
+*/
 type objectDeckStand struct {
 	set              []resolvedObjectNav
 	objectIndex      int
@@ -704,6 +845,11 @@ type objectDeckStand struct {
 // inside cell's XZ triangle and, when it does, the cell plane's
 // barycentric Y there. The small negative tolerance absorbs edge-exact
 // spawns (the native containment is inclusive at cell borders).
+/*
+================
+objectCellPlaneYAt
+================
+*/
 func objectCellPlaneYAt(mesh *objectNavMesh, cell int, lx, lz float64) (float64, bool) {
 	const eps = -1e-4
 	a := mesh.cellA[cell]
@@ -731,86 +877,11 @@ func objectCellPlaneYAt(mesh *objectNavMesh, cell int, lx, lz float64) (float64,
 // outline edge (flags 0x0) belongs to a reachable cell - the only edge
 // kind whose reflect path lets the native walk exit the object
 // (sub_403fb0's exitObjectToTerrain tail).
+/*
+================
+objectLaneSealed
+================
+*/
 func objectLaneSealed(mesh *objectNavMesh, startCell int) bool {
 	return objectLinkedLaneSealed([]resolvedObjectNav{{meshes: []*objectNavMesh{mesh}}}, 0, mesh, startCell)
-}
-
-// spawnObjectDeckStand resolves the object cell a seed-frame spawn point
-// stands on, mirroring the native nearest-Y arbitration. It searches the
-// point sector and adjacent placement anchors so an overhanging deck is
-// owned by its mesh rather than the terrain below.
-func (v *WaterValidator) spawnObjectDeckStand(surface *groundSurface, baseX, baseZ, spawnY, terrainY float64) *objectDeckStand {
-	terrainDelta := math.Abs(terrainY - spawnY)
-	var best *objectDeckStand
-	bestDelta := terrainDelta
-	point := worldgeom.NormalizeOutdoor(worldgeom.RegionXZ{RegionID: surface.seedRegionID, X: baseX, Z: baseZ})
-	pointSectorX := worldgeom.SectorX(point.RegionID)
-	pointSectorZ := worldgeom.SectorY(point.RegionID)
-	gridPoint := worldgeom.ExpandGrid(worldgeom.RegionXZ{RegionID: surface.seedRegionID, X: baseX, Z: baseZ})
-	// A handful of sets (nine anchors on at most two surfaces): a scan of a
-	// stack array, not a map that allocated its buckets every monster step.
-	var checkedBuf [18]objectNavSetKey
-	checked := checkedBuf[:0]
-
-	probe := func(candidate *groundSurface, anchorX, anchorZ int) {
-		if candidate == nil {
-			return
-		}
-		dx := anchorX - simulation.SectorX(candidate.seedRegionID)
-		dz := anchorZ - simulation.SectorY(candidate.seedRegionID)
-		key := objectNavSetKey{surface: candidate, offset: offsetKey(dx, dz)}
-		if slices.Contains(checked, key) {
-			return
-		}
-		checked = append(checked, key)
-		set := v.objectNavSetForOffset(candidate, dx, dz)
-		anchorRegion := worldgeom.RegionIDForSectors(anchorX, anchorZ)
-		anchorLocal := worldgeom.LocalFromGrid(anchorRegion, gridPoint)
-		localX, localZ := anchorLocal.X, anchorLocal.Z
-
-		for i := range set {
-			placement := set[i].placement
-			// Inverse of the forward yaw+translate transform: object-local
-			// point = R(-yaw) * (region point - origin); Y is untouched.
-			cosYaw := math.Cos(placement.yaw)
-			sinYaw := math.Sin(placement.yaw)
-			objectLocalX := cosYaw*(localX-placement.x) + sinYaw*(localZ-placement.z)
-			objectLocalZ := -sinYaw*(localX-placement.x) + cosYaw*(localZ-placement.z)
-			objectLocalY := spawnY - placement.y
-			for meshIndex, mesh := range set[i].meshes {
-				if objectLocalX < mesh.minX || objectLocalX > mesh.maxX ||
-					objectLocalZ < mesh.minZ || objectLocalZ > mesh.maxZ {
-					continue
-				}
-				if objectLocalY-mesh.maxY > bestDelta || mesh.minY-objectLocalY > bestDelta {
-					continue
-				}
-				for cell := 0; cell < mesh.cellCount(); cell++ {
-					cellPlaneY, inside := objectCellPlaneYAt(mesh, cell, objectLocalX, objectLocalZ)
-					if !inside {
-						continue
-					}
-					planeY := cellPlaneY + placement.y
-					delta := math.Abs(planeY - spawnY)
-					if delta < bestDelta {
-						bestDelta = delta
-						best = &objectDeckStand{set: set, objectIndex: i, mesh: mesh, cellIndex: cell, planeY: planeY, placement: placement, anchorX: float64(anchorX) * simulation.NativeRegionSize, anchorZ: float64(anchorZ) * simulation.NativeRegionSize,
-							surface: candidate, setDX: dx, setDZ: dz, meshIndex: meshIndex}
-					}
-				}
-			}
-		}
-	}
-
-	for dz := -objectAnchorSearchRadiusSectors; dz <= objectAnchorSearchRadiusSectors; dz++ {
-		for dx := -objectAnchorSearchRadiusSectors; dx <= objectAnchorSearchRadiusSectors; dx++ {
-			anchorX, anchorZ := pointSectorX+dx, pointSectorZ+dz
-			if anchorX < 0 || anchorZ < 0 || anchorX > 0xff || anchorZ > 0xff {
-				continue
-			}
-			probe(surface, anchorX, anchorZ)
-			probe(v.surfaceForRegion(simulation.RegionIDForSectors(anchorX, anchorZ)), anchorX, anchorZ)
-		}
-	}
-	return best
 }
