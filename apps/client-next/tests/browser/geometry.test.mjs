@@ -1,3 +1,14 @@
+/*
+===========================================================================
+
+geometry.test.mjs - geometry updates, lighting and residency on the real GPU
+
+Use the shared probe endpoint so isolated verification runs against the
+same checkout as the geometry implementation under test.
+
+===========================================================================
+*/
+import { CLIENT_NEXT_BASE_URL } from "../../../../scripts/lib/probeEndpoints.mjs";
 import { CLIENT_PUBLIC_ROOT } from "../../../../scripts/lib/generatedRoot.mjs";
 import { readPublishedAssetJsonSync } from "../../../../scripts/lib/publishedAsset.mjs";
 import { root } from "../../tools/project.mjs";
@@ -8,7 +19,7 @@ import { launchProbeBrowser } from "../../../../scripts/lib/probeBrowser.mjs";
 test( "retail object fade reaches GPU pixels and finishes without camera movement", { timeout: 30000 }, async () => {
 	const { browser, page } = await launchProbeBrowser();
 	try {
-		await page.goto( "http://127.0.0.1:5180/" );
+		await page.goto( CLIENT_NEXT_BASE_URL );
 		const pixels = await page.evaluate( async () => {
 			const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
 			const canvas = document.createElement( "canvas" );
@@ -86,7 +97,7 @@ test( "retail object fade reaches GPU pixels and finishes without camera movemen
 test( "native object lighting preserves ambient, vertex interpolation and NOLIGHT", { timeout: 30000 }, async () => {
 	const { browser, page } = await launchProbeBrowser();
 	try {
-		await page.goto( "http://127.0.0.1:5180/" );
+		await page.goto( CLIENT_NEXT_BASE_URL );
 		const result = await page.evaluate( async () => {
 			const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
 			const canvas = document.createElement( "canvas" );
@@ -147,7 +158,7 @@ test( "indexed geometry reaches the GPU and produces the expected center pixel",
 	const errors = [];
 	page.on( "pageerror", error => errors.push( error.message ) );
 	try {
-		await page.goto( "http://127.0.0.1:5180/" );
+		await page.goto( CLIENT_NEXT_BASE_URL );
 		const result = await page.evaluate( async () => {
 			const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
 			const canvas = document.createElement( "canvas" );
@@ -235,7 +246,7 @@ test( "published city mesh draws through the indexed path with depth enabled", {
 	];
 	const { browser, page } = await launchProbeBrowser();
 	try {
-		await page.goto( "http://127.0.0.1:5180/" );
+		await page.goto( CLIENT_NEXT_BASE_URL );
 		const count = await page.evaluate( async data => {
 			const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" ),
 				canvas = document.createElement( "canvas" );
@@ -278,7 +289,7 @@ test( "published city mesh draws through the indexed path with depth enabled", {
 test( "retained direct instancing handles capacity growth, zero visibility and reuse", { timeout: 30000 }, async () => {
 	const { browser, page } = await launchProbeBrowser();
 	try {
-		await page.goto( "http://127.0.0.1:5180/" );
+		await page.goto( CLIENT_NEXT_BASE_URL );
 		const result = await page.evaluate( async () => {
 			const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" ),
 				canvas = document.createElement( "canvas" );

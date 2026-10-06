@@ -6,7 +6,7 @@ effects-bench.mjs - frame rate of many skill effects, without a server
   node tools/perf/bench/effects-bench.mjs [--count N] [--seconds S]
                                           [--match REGEX] [--size WxH]
                                           [--warmup S] [--cpu-rate N]
-                                          [--cpu] [--heap] [--counts] [--out DIR]
+                                          [--cpu] [--heap] [--trace] [--gpu] [--counts] [--out DIR]
 
 Renders count published effect programs (those whose name matches) at
 once through the production renderer in an uncapped browser, every one
@@ -20,6 +20,9 @@ point this at it with SRO_PROBE_CLIENT_NEXT_BASE_URL. --cpu and --heap
 capture the measured span as OUT/effects.cpuprofile and .heapprofile
 (read them with tools/perf/analyze/profile.mjs); --counts adds WebGPU
 calls a frame (bundles recorded, queue writes, dispatches, bind groups).
+--trace captures browser and GPU process work in OUT/trace.json.
+--gpu records the renderer's bounded GPU pass timings; these instrumented
+runs diagnose GPU work and must not be compared to uninstrumented FPS.
 
 ===========================================================================
 */
@@ -30,7 +33,7 @@ import { createCaptures } from "../core/client.mjs";
 import { writeFile } from "node:fs/promises";
 
 const USAGE =
-	"effects-bench.mjs [--count N] [--seconds S] [--warmup S] [--cpu-rate N] [--match REGEX] [--size WxH] [--cpu] [--heap] [--counts] [--out DIR]";
+	"effects-bench.mjs [--count N] [--seconds S] [--warmup S] [--cpu-rate N] [--match REGEX] [--size WxH] [--cpu] [--heap] [--trace] [--gpu] [--counts] [--out DIR]";
 
 /*
 ================
@@ -41,7 +44,7 @@ in globalThis.__effectsBench for measureEffects. It runs in the page, so
 it closes over nothing.
 ================
 */
-async function admitEffects( { count, match, width, height, counts } ) {
+async function admitEffects( { count, match, width, height, counts, gpu } ) {
 	const GRID_SPACING = 40;
 	const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
 	const { createAssets } = await import( "/src/engine/runtime/assets/assets.ts" );
@@ -50,7 +53,7 @@ async function admitEffects( { count, match, width, height, counts } ) {
 	canvas.width = width;
 	canvas.height = height;
 	document.body.append( canvas );
-	const renderer = createRenderer( canvas ), assets = createAssets();
+	const renderer = createRenderer( canvas, undefined, undefined, { gpuTiming: gpu } ), assets = createAssets();
 	const resources = createCharacterResources( assets, renderer, location.origin );
 	const catalog = await (await fetch( "/assets/effects/programs.json" )).json();
 	const pattern = new RegExp( match );
@@ -79,6 +82,9 @@ async function admitEffects( { count, match, width, height, counts } ) {
 						data.byteLength - (args[3] ?? 0) * elementBytes :
 						args[4] * elementBytes;
 					add( "uploaded bytes", bytes );
+				}
+				if ( name === "dispatchWorkgroups" ) {
+					add( "compute workgroups", args[0] * (args[1] ?? 1) * (args[2] ?? 1) );
 				}
 				return original.apply( this, args );
 			};
@@ -188,6 +194,7 @@ async function measureEffects( { seconds, warmup } ) {
 			if ( renderer.error() ) throw Error( renderer.error() );
 		}
 		const sorted = frames.slice( 2 ).sort( ( a, b ) => a - b ),
+			mainSorted = main.slice( 2 ).sort( ( a, b ) => a - b ),
 			mean = list => list.reduce( ( a, b ) => a + b, 0 ) / Math.max( 1, list.length );
 		const counts = {};
 		for ( const key in tally ) counts[key] = Number( (tally[key] / measured).toFixed( key[0] === "@" ? 2 : 1 ) );
@@ -195,11 +202,22 @@ async function measureEffects( { seconds, warmup } ) {
 			effects: ready.length,
 			fps: 1000 / mean( sorted ),
 			p50: sorted[Math.floor( sorted.length * .5 )],
+			p95: sorted[Math.floor( sorted.length * .95 )],
 			p99: sorted[Math.floor( sorted.length * .99 )],
+			max: sorted.at( -1 ),
+			frames: sorted.length,
+			framesOver25ms: sorted.filter( value => value > 25 ).length,
+			framesOver50ms: sorted.filter( value => value > 50 ).length,
 			main: mean( main.slice( 2 ) ),
+			mainP50: mainSorted[Math.floor( mainSorted.length * .5 )],
+			mainP99: mainSorted[Math.floor( mainSorted.length * .99 )],
+			mainMax: mainSorted.at( -1 ),
+			mainOver25ms: mainSorted.filter( value => value > 25 ).length,
+			mainOver50ms: mainSorted.filter( value => value > 50 ).length,
 			cpuMain: mean( cpu.slice( 2 ) ),
 			readback: mean( readback.slice( 2 ) ),
 			draws: renderer.characterStats().draws,
+			gpuTiming: renderer.gpuTiming(),
 			counts
 		};
 	} finally {
@@ -219,6 +237,8 @@ const options = parseOptions(
 		size: "1600x900",
 		cpu: false,
 		heap: false,
+		trace: false,
+		gpu: false,
 		counts: false,
 		cpuRate: 1,
 		out: "temp/artifacts/effects-bench"
@@ -242,13 +262,19 @@ try {
 		match: options.match,
 		width,
 		height,
-		counts: options.counts
+		counts: options.counts,
+		gpu: options.gpu
 	} );
 	if ( options.cpuRate !== 1 ) {
 		const cdp = await page.context().newCDPSession( page );
 		await cdp.send( "Emulation.setCPUThrottlingRate", { rate: options.cpuRate } );
 	}
-	const captures = await createCaptures( page, { dir: options.out, cpu: options.cpu, heap: options.heap } );
+	const captures = await createCaptures( page, {
+		dir: options.out,
+		cpu: options.cpu,
+		heap: options.heap,
+		trace: options.trace ? `${options.out}/trace.json` : null
+	} );
 	await captures.start();
 	console.log( `[effects] ${options.warmup}s warmup, ${options.seconds}s measurement, CPU rate ${options.cpuRate}` );
 	const result = await page.evaluate( measureEffects, { seconds: options.seconds, warmup: options.warmup } );

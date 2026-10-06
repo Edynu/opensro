@@ -41,6 +41,51 @@ const { PARTICLE_ACTOR, PARTICLE_RECORD } = await load( "src/engine/foundation/a
 const DESTROYED = /used in submit while destroyed/;
 const identity = () => Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
 
+test("empty particle streams clear once and retain pending work until encoding", async () => {
+	const gpu = createStrictGpu(), particles = createParticlePresentation( gpu.device );
+	await particles.ready;
+	const draw = {},
+		instances = gpu.device.createBuffer( { size: 160 } ),
+		bones = gpu.device.createBuffer( { size: 64 } );
+	const input = {
+		rows: 1,
+		slots: 1,
+		live: 0,
+		graph: false,
+		view: 0,
+		lifetime: 1,
+		loop: false,
+		records: new Float32Array( PARTICLE_RECORD ),
+		actors: new Float32Array( PARTICLE_ACTOR ),
+		axes: new Float32Array( 12 ),
+		dirtyStart: 0,
+		dirtyEnd: 1
+	};
+	const encode = () => {
+		const encoder = gpu.device.createCommandEncoder( { label: "particles" } );
+		particles.encode( encoder );
+		gpu.device.queue.submit( [ encoder.finish() ] );
+	};
+	particles.present( draw, instances, bones, input );
+	particles.present( draw, instances, bones, input );
+	encode();
+	assert.equal( particles.stats().dispatches, 1, "repeated empty presentation keeps its initial clear" );
+	particles.present( draw, instances, bones, input );
+	encode();
+	assert.equal( particles.stats().dispatches, 1 );
+	input.live = 1;
+	particles.present( draw, instances, bones, input );
+	encode();
+	assert.equal( particles.stats().dispatches, 2 );
+	input.live = 0;
+	particles.present( draw, instances, bones, input );
+	encode();
+	assert.equal( particles.stats().dispatches, 3, "a previously live stream clears again" );
+	particles.dispose();
+	instances.destroy();
+	bones.destroy();
+});
+
 test("a resource retired inside a frame is destroyed when the frame closes, outside one at once", () => {
 	const retirement = createRetirement(), log = [];
 	const resource = name => ({

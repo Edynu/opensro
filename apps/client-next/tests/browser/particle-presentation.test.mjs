@@ -124,6 +124,7 @@ test( "the GPU particle pass draws what the reference draws, for every record ki
 				const particles = {
 					rows,
 					slots,
+					live: 0,
 					graph: c.graph,
 					view: records.particleView( c.mode ),
 					lifetime: 1.5,
@@ -188,8 +189,17 @@ test( "the GPU particle pass draws what the reference draws, for every record ki
 						usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
 					} );
 				const key = {};
-				const run = async () => {
-					owner.present( key, instances, bones, particles );
+				const run = async ( forceDispatch = false ) => {
+					particles.live = 0;
+					for ( let slot = 0; slot < count; slot++ ) {
+						if ( records.recordLive( particles.records, slot ) ) particles.live++;
+					}
+					owner.present(
+						key,
+						instances,
+						bones,
+						forceDispatch ? { ...particles, live: undefined } : particles
+					);
 					const read = device.createBuffer( {
 						size: count * 224,
 						usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
@@ -237,6 +247,7 @@ test( "the GPU particle pass draws what the reference draws, for every record ki
 							}
 						}
 					}
+					return new Uint32Array( data.buffer );
 				};
 				await run();
 				// A later frame: new actor clocks, and two rewritten slots marked dirty.
@@ -246,6 +257,28 @@ test( "the GPU particle pass draws what the reference draws, for every record ki
 				write( 6 );
 				write( 7 );
 				await run();
+				// Empty output must clear once, stay cleared without dispatch,
+				// then resume with the current records and actor clocks.
+				const saved = particles.records.slice();
+				for ( let slot = 0; slot < count; slot++ ) records.hideRecord( particles.records, slot );
+				particles.dirtyStart = 0;
+				particles.dirtyEnd = count;
+				const clearedBytes = await run();
+				const cleared = owner.stats().dispatches;
+				particles.dirtyEnd = 0;
+				const heldBytes = await run();
+				if ( owner.stats().dispatches !== cleared ) throw Error( "Empty stream dispatched again" );
+				const forcedBytes = await run( true );
+				if ( heldBytes.some( ( word, i ) => word !== clearedBytes[i] || word !== forcedBytes[i] ) ) {
+					throw Error( "Held empty stream differs from forced dispatch bits" );
+				}
+				particles.records.set( saved );
+				particles.dirtyEnd = count;
+				for ( let row = 0; row < rows; row++ ) particles.actors[row * records.PARTICLE_ACTOR] += .01;
+				const resumedBytes = await run(), repeatedBytes = await run( true );
+				if ( resumedBytes.some( ( word, i ) => word !== repeatedBytes[i] ) ) {
+					throw Error( "Reactivated stream differs from forced dispatch bits" );
+				}
 				live.push( { key, instances, bones, run } );
 			}
 			const grown = owner.stats().arenaBytes;

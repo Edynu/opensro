@@ -34,6 +34,13 @@ const WORKGROUP = 64;
 const ARENA_UNIT = 256;
 const ARENA_INITIAL_UNITS = 64;
 
+/*
+================
+Stream
+
+Retained GPU storage and the last queued presentation for one draw.
+================
+*/
 type Stream = {
 	readonly rows: number;
 	readonly slots: number;
@@ -46,6 +53,8 @@ type Stream = {
 	readonly start: number;
 	readonly units: number;
 	binding: GPUBindGroup;
+	// The last queued pass clears every slot. Pending work stays queued until encode.
+	empty: boolean;
 };
 
 /*
@@ -95,7 +104,7 @@ export function createParticlePresentation( device: GPUDevice, retire: Retire = 
 	The stream's binding over the current arena.
 	================
 	*/
-	function bind( stream: Omit<Stream, "binding"> ): GPUBindGroup {
+	function bind( stream: Omit<Stream, "binding" | "empty"> ): GPUBindGroup {
 		return device.createBindGroup( {
 			layout: pipeline!.getBindGroupLayout( 0 ),
 			entries: [
@@ -220,7 +229,7 @@ export function createParticlePresentation( device: GPUDevice, retire: Retire = 
 				start,
 				units
 			};
-			return { ...stream, binding: bind( stream ) };
+			return { ...stream, binding: bind( stream ), empty: false };
 		} catch ( error ) {
 			for ( const buffer of owned ) buffer.destroy();
 			reclaim( start, units );
@@ -289,6 +298,11 @@ export function createParticlePresentation( device: GPUDevice, retire: Retire = 
 					(end - start) * PARTICLE_RECORD * 4
 				);
 			}
+			// Clear old visible output once, then keep it while the CPU proves
+			// every slot remains dead. Tick records still upload above, and a
+			// reactivated stream refreshes its arena before the next dispatch.
+			if ( particles.live === 0 && stream.empty ) return;
+			stream.empty = particles.live === 0;
 			const at = stream.start * ARENA_UNIT / 4;
 			words[at] = particles.slots;
 			words[at + 1] = count;

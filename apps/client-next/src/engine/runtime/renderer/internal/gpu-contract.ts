@@ -245,6 +245,8 @@ axes every frame.
 export interface ParticlePresentation {
 	readonly rows: number;
 	readonly slots: number;
+	// Exact CPU live count when available; omitted callers always dispatch.
+	readonly live?: number;
 	// The particles belong to a particle graph (one tick fraction an actor).
 	readonly graph: boolean;
 	// ParticleView: none, camera, y or v (effect-billboard.ts).
