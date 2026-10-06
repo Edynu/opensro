@@ -124,12 +124,16 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 				settled = false;
 				const sum = Math.fround( mobility[a]! + mobility[b]! );
 				const wa = Math.fround( mobility[a]! / sum ), wb = Math.fround( mobility[b]! / sum );
-				for ( let axis = 0; axis < 3; axis++ ) {
-					const delta = axis === 0 ? dx : axis === 1 ? dy : dz;
-					const correction = Math.fround( Math.fround( delta / length ) * extension );
-					positions[at + axis]! += Math.fround( correction * wa );
-					positions[bt + axis]! -= Math.fround( correction * wb );
-				}
+				// Keep the float32 stores and a/b order while exposing fixed axes to the JIT.
+				const cx = Math.fround( Math.fround( dx / length ) * extension );
+				positions[at]! += Math.fround( cx * wa );
+				positions[bt]! -= Math.fround( cx * wb );
+				const cy = Math.fround( Math.fround( dy / length ) * extension );
+				positions[at + 1]! += Math.fround( cy * wa );
+				positions[bt + 1]! -= Math.fround( cy * wb );
+				const cz = Math.fround( Math.fround( dz / length ) * extension );
+				positions[at + 2]! += Math.fround( cz * wa );
+				positions[bt + 2]! -= Math.fround( cz * wb );
 			}
 			if ( settled ) break;
 		}
