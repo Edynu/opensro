@@ -2025,7 +2025,7 @@
 		{
 			"file": "src/engine/runtime/renderer/device/particles.ts",
 			"expression": "timing?.pass",
-			"function": "encode",
+			"function": "encodeBatch",
 			"kind": "callback",
 			"reason": "Optional device-owned GpuTimingFrame callback for the particle presentation compute pass."
 		},

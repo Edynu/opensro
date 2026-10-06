@@ -401,6 +401,7 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		*/
 		beginFrame() {
 			retirement.open();
+			geometry?.beginFrame();
 		},
 		/*
 		================

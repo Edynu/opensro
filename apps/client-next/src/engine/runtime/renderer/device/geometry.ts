@@ -531,7 +531,7 @@ export function createGeometryResources(
 						storage = gpu.createBuffer( {
 							label: "geometry-instances",
 							size: capacity * 160,
-							usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+							usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
 						} );
 					try {
 						gpu.queue.writeBuffer(
@@ -687,7 +687,7 @@ export function createGeometryResources(
 				const storage = gpu.createBuffer( {
 					label: "geometry-instances",
 					size: capacity * 160,
-					usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+					usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
 				} );
 				buffers.push( storage );
 				if ( instances.byteLength ) {
@@ -728,7 +728,11 @@ export function createGeometryResources(
 						}
 						palette.refs++;
 						boneBuffer = palette.buffer;
-					} else boneBuffer = buffer( "geometry-bones", data.bones, GPUBufferUsage.STORAGE );
+					} else {boneBuffer = buffer(
+							"geometry-bones",
+							data.bones,
+							GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+						);}
 				}
 				if ( paletteOffsets ) {
 					if ( !palette ) throw Error( "Palette offsets require skinned geometry" );
@@ -904,6 +908,14 @@ export function createGeometryResources(
 		}
 	} );
 	return {
+		/*
+		================
+		beginFrame
+		================
+		*/
+		beginFrame() {
+			particles?.beginFrame();
+		},
 		commands,
 		ready: Promise.all( [ animation?.ready, particles?.ready ] ),
 		/*

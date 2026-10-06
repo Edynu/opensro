@@ -3,8 +3,8 @@
 
 particle-shader.ts - the emitted particle presentation pass
 
-One invocation draws one particle slot. It reads the slot's tick record
-and its actor's row (foundation/animation/particle-records.ts) and writes
+One invocation draws one particle slot. A workgroup descriptor selects its
+stream's resident records, output slots and immutable frame rows. It writes
 the slot's instance (geometry.ts's 40-float instance layout) and its
 one-joint palette, continuing the last tick by the frame's fraction of
 the next one (particle-presentation.ts, a deliberate smoothing
@@ -51,11 +51,6 @@ struct Params {
 	axis1: vec4f,
 	axis2: vec4f,
 }
-// A stream's block of the frame arena (particles.ts).
-struct Frame {
-	params: Params,
-	actors: array<Actor>,
-}
 struct Instance {
 	matrix: mat4x4f,
 	opacity: vec4f,
@@ -64,7 +59,8 @@ struct Instance {
 	light: array<vec4f, 3>,
 }
 @group(0) @binding(0) var<storage, read> records: array<Record>;
-@group(0) @binding(1) var<storage, read> frame: Frame;
+// One descriptor per workgroup, followed by each stream's Params and Actors.
+@group(0) @binding(1) var<storage, read> frame: array<vec4u>;
 @group(0) @binding(2) var<storage, read> frames: array<vec4f>;
 @group(0) @binding(3) var<storage, read_write> instances: array<Instance>;
 @group(0) @binding(4) var<storage, read_write> bones: array<mat4x4f>;
@@ -123,7 +119,7 @@ fn velocityBasis( velocity: vec3f, axes: ptr<function, mat3x3f> ) -> bool {
 // faceEffectMesh (effect-billboard.ts): the palette's rotation replaced by
 // the view mode's basis, converted back through the instance matrix,
 // keeping the palette's scale and translation.
-fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> mat4x4f {
+fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f, params: Params ) -> mat4x4f {
 	let a = instance[0].xyz;
 	let b = instance[1].xyz;
 	let c = instance[2].xyz;
@@ -137,7 +133,6 @@ fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> ma
 	let p0 = palette[0].xyz;
 	let p1 = palette[1].xyz;
 	let p2 = palette[2].xyz;
-	let params = frame.params;
 	var axes = mat3x3f( params.axis0.xyz, params.axis1.xyz, params.axis2.xyz );
 	var kept = false;
 	if ( mode == VIEW_V && !velocityBasis( velocity, &axes ) ) {
@@ -161,14 +156,21 @@ fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> ma
 	return out;
 }
 
-@compute @workgroup_size(64) fn main( @builtin(global_invocation_id) id: vec3u ) {
-	let slot = id.x;
-	let params = frame.params;
+@compute @workgroup_size(64) fn main( @builtin(workgroup_id) group: vec3u, @builtin(local_invocation_index) local: u32 ) {
+	let descriptor = frame[group.x];
+	let slot = descriptor.w + local;
+	let at = descriptor.x;
+	let params = Params( frame[at], bitcast<vec4f>( frame[at + 1u] ), frame[at + 2u],
+		bitcast<vec4f>( frame[at + 3u] ), bitcast<vec4f>( frame[at + 4u] ), bitcast<vec4f>( frame[at + 5u] ) );
 	if ( slot >= params.shape.y ) {
 		return;
 	}
-	let record = records[slot];
-	let actor = frame.actors[slot / params.shape.x];
+	let output = descriptor.z + slot;
+	let record = records[descriptor.y + slot];
+	let row = at + 6u + ( slot / params.shape.x ) * 5u;
+	let actor = Actor( bitcast<vec4f>( frame[row] ), mat4x4f(
+		bitcast<vec4f>( frame[row + 1u] ), bitcast<vec4f>( frame[row + 2u] ),
+		bitcast<vec4f>( frame[row + 3u] ), bitcast<vec4f>( frame[row + 4u] ) ) );
 	let lifetime = params.timing.x;
 	var age = actor.clock.x - record.birth;
 	if ( params.timing.y > 0.5 && age >= 0.0 ) {
@@ -176,7 +178,7 @@ fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> ma
 	}
 	let flags = u32( record.flags );
 	if ( ( flags & RECORD_LIVE ) == 0u || age < 0.0 || age >= lifetime ) {
-		instances[slot].matrix = mat4x4f();
+		instances[output].matrix = mat4x4f();
 		return;
 	}
 	// A graph ticks as a whole: its fraction is the actor's. A program
@@ -200,7 +202,7 @@ fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> ma
 		}
 	}
 	if ( params.shape.w != VIEW_NONE ) {
-		palette = face( palette, instance, params.shape.w, select( vec3f( 0.0 ), record.velocity.xyz, presented ) );
+		palette = face( palette, instance, params.shape.w, select( vec3f( 0.0 ), record.velocity.xyz, presented ), params );
 	}
 	if ( presented ) {
 		palette = palette * turn( record.rotation, record.rotationStep, fraction );
@@ -213,9 +215,10 @@ fn face( palette: mat4x4f, instance: mat4x4f, mode: u32, velocity: vec3f ) -> ma
 		let index = u32( floor( at ) );
 		let next = min( count - 1u, index + 1u );
 		let blend = select( at - f32( index ), 0.0, params.sampling.x == 1u );
-		color = frames[index] * ( 1.0 - blend ) + frames[next] * blend;
-		window = frames[count + index];
+		let start = params.sampling.y;
+		color = frames[start + index] * ( 1.0 - blend ) + frames[start + next] * blend;
+		window = frames[start + count + index];
 	}
-	instances[slot] = Instance( instance, vec4f( actor.clock.y, 0.0, 0.0, 0.0 ), color, window, array<vec4f, 3>() );
-	bones[slot] = palette;
+	instances[output] = Instance( instance, vec4f( actor.clock.y, 0.0, 0.0, 0.0 ), color, window, array<vec4f, 3>() );
+	bones[output] = palette;
 }`;

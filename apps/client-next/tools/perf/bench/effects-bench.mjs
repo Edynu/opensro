@@ -86,6 +86,7 @@ async function admitEffects( { count, match, width, height, counts, gpu } ) {
 				if ( name === "dispatchWorkgroups" ) {
 					add( "compute workgroups", args[0] * (args[1] ?? 1) * (args[2] ?? 1) );
 				}
+				if ( name === "copyBufferToBuffer" ) add( "copied bytes", args[4] );
 				return original.apply( this, args );
 			};
 		};
@@ -93,6 +94,7 @@ async function admitEffects( { count, match, width, height, counts, gpu } ) {
 		wrap( GPUQueue.prototype, "writeBuffer", "writeBuffer" );
 		wrap( GPUComputePassEncoder.prototype, "dispatchWorkgroups", "dispatches" );
 		wrap( GPUComputePassEncoder.prototype, "setBindGroup", "compute bind groups" );
+		wrap( GPUCommandEncoder.prototype, "copyBufferToBuffer", "buffer copies" );
 		wrap( GPURenderPassEncoder.prototype, "executeBundles", "executeBundles" );
 	}
 	const probe = {

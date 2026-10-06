@@ -111,16 +111,17 @@ test("a resource retired inside a frame is destroyed when the frame closes, outs
 
 /*
 ================
-growArenaAfterEncode
+encodeDeferredParticles
 
 One frame as the deferred particle pass runs it: a stream is presented and
-its pass encoded, then a second, larger stream grows the frame arena before
-the command buffer is submitted. Returns the submit.
+its pass encoded, then a second, larger stream needs a separate input page
+before the command buffer is submitted. Returns the submit and cleanup.
 ================
 */
-async function growArenaAfterEncode( gpu, retire ) {
+async function encodeDeferredParticles( gpu, retire ) {
 	const particles = createParticlePresentation( gpu.device, retire );
 	await particles.ready;
+	const buffers = [];
 	const presentation = rows => ({
 		rows,
 		slots: 1,
@@ -134,35 +135,137 @@ async function growArenaAfterEncode( gpu, retire ) {
 		dirtyStart: 0,
 		dirtyEnd: 0
 	});
-	const present = rows =>
-		particles.present(
-			{},
-			gpu.device.createBuffer( { label: "instances", size: rows * 160 } ),
-			gpu.device.createBuffer( { label: "bones", size: rows * 64 } ),
-			presentation( rows )
-		);
+	const present = rows => {
+		const instances = gpu.device.createBuffer( { label: "instances", size: rows * 160 } );
+		const bones = gpu.device.createBuffer( { label: "bones", size: rows * 64 } );
+		buffers.push( instances, bones );
+		particles.present( {}, instances, bones, presentation( rows ) );
+	};
+	particles.beginFrame();
 	const encoder = gpu.device.createCommandEncoder( { label: "frame" } );
 	present( 1 );
 	particles.encode( encoder );
-	// 300 actor rows need more than the arena's initial 64 units.
+	// The deferred pass needs a larger page, while the first remains in use.
 	present( 300 );
 	particles.encode( encoder );
-	assert.ok( particles.stats().arenaBytes > 64 * 256, "the arena grew" );
-	return () => gpu.device.queue.submit( [ encoder.finish() ] );
+	return {
+		submit: () => gpu.device.queue.submit( [ encoder.finish() ] ),
+		dispose() {
+			particles.dispose();
+			for ( const buffer of buffers ) buffer.destroy();
+		}
+	};
 }
 
-test("a particle arena that grows after its pass is encoded outlives that frame's submit", async () => {
-	// The rule itself: destroyed at once, the recorded pass names a dead arena.
-	const unguarded = createStrictGpu();
-	assert.throws( await growArenaAfterEncode( unguarded, destroyNow ), DESTROYED );
+test("deferred particle pages outlive every pass in their frame, then dispose completely", async () => {
+	for ( const immediate of [ true, false ] ) {
+		const gpu = createStrictGpu(), retirement = createRetirement();
+		retirement.open();
+		const frame = await encodeDeferredParticles( gpu, immediate ? destroyNow : retirement.retire );
+		assert.doesNotThrow( frame.submit );
+		assert.deepEqual( gpu.log, [ "submit frame" ] );
+		retirement.close();
+		frame.dispose();
+		assert.equal( gpu.live(), 0 );
+	}
+});
 
-	const gpu = createStrictGpu(), retirement = createRetirement();
-	retirement.open();
-	const submit = await growArenaAfterEncode( gpu, retirement.retire );
-	submit();
-	assert.deepEqual( gpu.log, [ "submit frame" ] );
-	retirement.close();
-	assert.deepEqual( gpu.log, [ "submit frame", "destroy particle-frame" ] );
+test("particle frame pages and resident slots remain bounded during stream replacement", async () => {
+	const gpu = createStrictGpu(), particles = createParticlePresentation( gpu.device );
+	await particles.ready;
+	const draw = {},
+		instances = gpu.device.createBuffer( { size: 65 * 160 } ),
+		bones = gpu.device.createBuffer( { size: 65 * 64 } );
+	let retained = 0;
+	for ( let frame = 0; frame < 100; frame++ ) {
+		particles.beginFrame();
+		particles.release( draw );
+		const count = frame % 2 ? 65 : 1;
+		particles.present( draw, instances, bones, {
+			rows: 1,
+			slots: count,
+			graph: false,
+			view: 0,
+			lifetime: 1,
+			loop: false,
+			records: new Float32Array( count * PARTICLE_RECORD ),
+			actors: new Float32Array( PARTICLE_ACTOR ),
+			axes: new Float32Array( 12 ),
+			dirtyStart: 0,
+			dirtyEnd: count
+		} );
+		const encoder = gpu.device.createCommandEncoder();
+		particles.encode( encoder );
+		gpu.device.queue.submit( [ encoder.finish() ] );
+		if ( frame === 3 ) retained = gpu.live();
+		if ( frame > 3 ) assert.equal( gpu.live(), retained, "replacement reuses admitted GPU capacity" );
+		assert.equal( particles.stats().streams, 1 );
+	}
+	particles.dispose();
+	instances.destroy();
+	bones.destroy();
+	assert.equal( gpu.live(), 0 );
+});
+
+test("particle batching obeys aggregate storage, material and workgroup limits", async () => {
+	const cases = [
+		{ streams: 4, slots: 129, materialFloats: 0, groups: 4, dispatches: 4 },
+		{ streams: 4, slots: 1, materialFloats: 4096, groups: 4, dispatches: 2 },
+		{ streams: 5, slots: 1, materialFloats: 0, groups: 2, dispatches: 3 }
+	];
+	for ( const sample of cases ) {
+		const gpu = createStrictGpu(), buffers = [];
+		const maxBytes = 65536;
+		gpu.device.limits = {
+			maxStorageBufferBindingSize: maxBytes,
+			maxBufferSize: maxBytes,
+			maxComputeWorkgroupsPerDimension: sample.groups
+		};
+		const createBuffer = gpu.device.createBuffer;
+		gpu.device.createBuffer = descriptor => {
+			assert.ok( descriptor.size <= maxBytes, "every buffer fits the admitted device budget" );
+			return createBuffer( descriptor );
+		};
+		const particles = createParticlePresentation( gpu.device );
+		await particles.ready;
+		particles.beginFrame();
+		for ( let stream = 0; stream < sample.streams; stream++ ) {
+			const instances = gpu.device.createBuffer( { size: sample.slots * 160 } );
+			const bones = gpu.device.createBuffer( { size: sample.slots * 64 } );
+			buffers.push( instances, bones );
+			particles.present( {}, instances, bones, {
+				rows: 1,
+				slots: sample.slots,
+				graph: false,
+				view: 0,
+				lifetime: 1,
+				loop: false,
+				records: new Float32Array( sample.slots * PARTICLE_RECORD ),
+				actors: new Float32Array( PARTICLE_ACTOR ),
+				axes: new Float32Array( 12 ),
+				dirtyStart: 0,
+				dirtyEnd: sample.slots,
+				frames: sample.materialFloats ?
+					{
+						fps: 1,
+						colors: new Float32Array( sample.materialFloats ),
+						windows: new Float32Array( sample.materialFloats )
+					} :
+					undefined
+			} );
+		}
+		const encoder = gpu.device.createCommandEncoder();
+		particles.encode( encoder );
+		gpu.device.queue.submit( [ encoder.finish() ] );
+		assert.equal(
+			particles.stats().dispatches,
+			sample.dispatches,
+			"work partitions instead of exceeding GPU limits"
+		);
+		particles.dispose();
+		for ( const buffer of buffers ) buffer.destroy();
+		assert.equal( gpu.live(), 0 );
+	}
 });
 
 /*

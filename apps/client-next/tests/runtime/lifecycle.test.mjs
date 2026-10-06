@@ -16,6 +16,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { root } from "../../tools/project.mjs";
 import { defined } from "../helpers/defined.mjs";
+/*
+================
+mockGlobal
+================
+*/
 function mockGlobal( t, name, value ) {
 	const original = Object.getOwnPropertyDescriptor( globalThis, name );
 	Object.defineProperty( globalThis, name, { configurable: true, value } );
@@ -24,9 +29,19 @@ function mockGlobal( t, name, value ) {
 		else delete globalThis[name];
 	} );
 }
+/*
+================
+load
+================
+*/
 async function load( file ) {
 	return import( sourceFileUrl( path.join( root, file ) ).href );
 }
+const GPU_LIMITS = {
+	maxStorageBufferBindingSize: 128 * 1024 * 1024,
+	maxBufferSize: 256 * 1024 * 1024,
+	maxComputeWorkgroupsPerDimension: 65535
+};
 const { createFrame } = await load( "src/engine/runtime/renderer/frame/frame.ts" );
 const { createSurface } = await load( "src/engine/runtime/renderer/surface/surface.ts" );
 const { createDevice } = await load( "src/engine/runtime/renderer/device/device.ts" );
@@ -276,6 +291,7 @@ test("device loss rebuilds only renderer resources and bounds repeated recovery"
 					requestDevice: async () => {
 						let lose;
 						const device = {
+							limits: GPU_LIMITS,
 							lost: new Promise( resolve => lose = resolve ),
 							addEventListener() {},
 							destroyed: false,
@@ -496,6 +512,7 @@ test("instance growth retains vertex/index buffers and releases replaced storage
 		writes = [];
 	Object.defineProperty( globalThis, "GPUBufferUsage", { configurable: true, value: usages } );
 	const gpu = {
+		limits: GPU_LIMITS,
 		lost: new Promise( () => {} ),
 		addEventListener() {},
 		createShaderModule() {
