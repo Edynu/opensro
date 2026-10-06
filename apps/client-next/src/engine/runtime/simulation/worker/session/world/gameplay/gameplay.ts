@@ -94,6 +94,8 @@ import {
 import { gmRequest, gmReply, gmItemReferences, type GmReply } from "@/engine/foundation/gameplay/gm-command";
 import {
 	fortressBootstrap,
+	advanceFortressCountdowns,
+	fortressCountdownNotices,
 	fortressPacket,
 	fortressMusicActive,
 	fortressMusicMode,
@@ -696,7 +698,11 @@ ring stays under what the player fights and the spent move marker goes.
 		selectionDecal = {
 			kind: "target",
 			gid: entity.gid,
-			slot: entity.kind === "monster" || entity.kind === "cos" ? 3 : entity.kind === "player" ? 2 : 1
+			slot: entity.kind === "monster" || entity.kind === "cos" ?
+				3 :
+				entity.kind === "player" || entity.kind === "local-player" ?
+				2 :
+				1
 		};
 	}
 	/*
@@ -2041,6 +2047,8 @@ state here before a command can claim a native wire conversation.
 				predictCast( metadata, undefined, local, now );
 				return sendSkillPress( frame, skillId, now, true );
 			}
+			// 6B3E90 selects the portrait locally through 6813E0.
+			if ( entity && entity.gid === localGid && command.kind === "select" ) return selectEntity( entity, now );
 			if ( !entity || (entity.gid === localGid && command.kind !== "skill") ) {
 				throw new Error( "Target is absent or local player" );
 			}
@@ -2408,7 +2416,7 @@ Packet handling must not depend on which HUD panel is currently open.
 					dirty = true;
 					return true;
 				}
-				const fortressNext = fortressPacket( fortress, frame );
+				const fortressNext = fortressPacket( fortress, frame, now );
 				if ( fortressNext ) {
 					if ( fortressNext.service?.result === 2 && frame.opcode === 0xb1e1 ) {
 						const notice = constantNativeNotice(
@@ -2421,6 +2429,11 @@ Packet handling must not depend on which HUD panel is currently open.
 						musicMode = fortressMusicMode( musicMode, fortress, fortressNext, frame.payload[0]! );
 					}
 					fortress = fortressNext;
+					if ( social.guild && frame.opcode === 0x3887 && frame.payload[0] === 0 ) {
+						for ( const notice of fortressCountdownNotices( fortress ) ) {
+							notices = [ ...notices.slice( -99 ), { ...notice, sequence: ++noticeSequence } ];
+						}
+					}
 					dirty = true;
 				}
 				const notice = restrictionNotice( frame.opcode, frame.payload ) ??
@@ -3188,6 +3201,16 @@ before take assembles the presentation snapshot.
 		*/
 		step( now: number, local?: EntityState ) {
 			flushBindingRepairs();
+			const fortressNext = advanceFortressCountdowns( fortress, now );
+			if ( fortressNext !== fortress ) {
+				fortress = fortressNext;
+				if ( social.guild ) {
+					for ( const notice of fortressCountdownNotices( fortress ) ) {
+						notices = [ ...notices.slice( -99 ), { ...notice, sequence: ++noticeSequence } ];
+					}
+				}
+				dirty = true;
+			}
 			if ( moveReservation.holding() && (!local || local.appearanceState?.[0] === 2) ) {
 				moveReservation.clear();
 				if ( selectionDecal?.kind === "ground" ) selectionDecal = null;

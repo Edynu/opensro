@@ -136,6 +136,7 @@ import { createCosHud } from "./hud/cos-hud";
 import { createRepairHud } from "./hud/repair-hud";
 import { createSkinChangeHud } from "./hud/skin-change-hud";
 import { createJobHud } from "./hud/job-hud";
+import { fortressMiniIndicators } from "@/engine/foundation/ui/fortress-mini-info";
 import { createFortressWarHud, createFortressScheduleHud, FORTRESS_SCHEDULE_ROWS } from "./hud/fortress-war-hud";
 import { createUnionHud } from "./hud/union-hud";
 import { createExchangeHud } from "./hud/exchange-hud";
@@ -599,7 +600,9 @@ export function createUi(
 		const mask = ( gid: number ) => gid ? game?.vitals.find( v => v.gid === gid )?.abnormal ?? 0 : 0;
 		const target = game ? next.entities.find( e => e.gid === game.target ) : undefined;
 		// 5814D0: only CICMonster, CICCos and CICUser targets show the viewer.
-		const subject = target && [ "monster", "cos", "player" ].includes( target.kind ) ? target.gid : 0;
+		const subject = target && [ "monster", "cos", "player", "local-player" ].includes( target.kind ) ?
+			target.gid :
+			0;
 		let changed = false;
 		const targetState = targetBuffs.step( subject, now, effects, mask( subject ), skill );
 		if ( targetState !== targetBuffState ) {
@@ -3225,6 +3228,8 @@ export function createUi(
 			sendGameplay( { kind: "attack", gid: view.gameplay.target } );
 		} else if ( id.startsWith( "party-target:" ) ) {
 			sendGameplay( { kind: "select", gid: Number( id.slice( 13 ) ) } );
+		} else if ( id === "self-target" && view.gameplay?.localGid ) {
+			sendGameplay( { kind: "select", gid: view.gameplay.localGid } );
 		} else if ( id === "clear-target" ) sendGameplay( { kind: "release-target" } );
 		else if ( id === "inventory-next" ) {
 			inventoryPage = Math.min(
@@ -6904,6 +6909,9 @@ export function createUi(
 						mpGauge.current,
 						mpGauge.target,
 						game?.localGid,
+						game?.target === game?.localGid,
+						game?.fortress,
+						game?.social?.guild,
 						game?.guide?.country,
 						next.session?.character,
 						game?.progression?.level ?? character?.level,
@@ -6916,6 +6924,22 @@ export function createUi(
 						const root = hudData.root.GDR_PLAYER_MINI_INFO!, p = hudData.player, [px, py] = root.rect;
 						authoredImage( root, 0, 0 );
 						blocks.push( authoredRect( root, 0, 0 ) );
+						// GDR_PMI_SELECT (ID 200) frames the whole panel while the local
+						// character is the target, as GDR_QPS_SELECT frames a party slot.
+						if ( game?.localGid && game.target === game.localGid ) {
+							authoredImage( p.GDR_PMI_SELECT!, px, py );
+						}
+						// Clicking the panel anywhere but its buttons selects your own
+						// character, so a targeted buff or heal can be aimed at yourself.
+						// The buttons are pushed after this control and sit above it.
+						if ( game?.localGid ) {
+							controls.push( {
+								id: "self-target",
+								label: "Select yourself",
+								kind: "button",
+								rect: authoredRect( root, 0, 0 )
+							} );
+						}
 						for ( const vital of [ "HP", "MP" ] as const ) {
 							const current = vital === "HP" ? local?.hp : local?.mp,
 								max = vital === "HP" ?
@@ -7022,6 +7046,28 @@ export function createUi(
 								if ( value !== undefined ) {
 									authoredText( p["GDR_PMI_TXT_" + key + "DAT"]!, px, py, value );
 								}
+							}
+						}
+						if ( game?.fortress ) {
+							for (
+								const indicator of fortressMiniIndicators(
+									game.fortress,
+									!!game.social?.guild,
+									hudCopy
+								)
+							) {
+								const node = p[indicator.control];
+								if ( !node ) continue;
+								authoredImage( node, px, py, indicator.image ?? node.texture );
+								const rect = authoredRect( node, px, py );
+								controls.push( {
+									id: indicator.control,
+									kind: "region",
+									label: indicator.text,
+									helpText: indicator.text,
+									rect
+								} );
+								blocks.push( rect );
 							}
 						}
 						authoredText( p.GDR_PMI_TXT_ID!, px, py, next.session?.character ?? "" );
@@ -7559,10 +7605,13 @@ export function createUi(
 						undefined;
 					const maxHp = target.maxHp ??
 						(target.kind === "cos" ? hudData.cosReferences.get( target.refObjId )?.maxHp : undefined);
+					// The local character, selected from its portrait, wears the
+					// player layout (5814D0 handles the local CICUser too).
+					const shown = target.kind === "local-player" ? { ...target, kind: "player" as const } : target;
 					const hp = game?.vitals.find( v => v.gid === target.gid )?.hp ?? record?.hp,
 						output = targetStatus(
 							hudData.targets,
-							maxHp === target.maxHp ? target : { ...target, maxHp },
+							maxHp === target.maxHp ? shown : { ...shown, maxHp },
 							game?.progression?.level ?? character?.level ?? 1,
 							hp,
 							hudCopy,
