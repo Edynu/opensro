@@ -103,7 +103,7 @@ export type SessionState = Readonly<{
 }>;
 export interface SessionOwner {
 	isWorldReady(): boolean;
-	command( command: SessionCommand ): void;
+	command( command: SessionCommand, now?: number ): void;
 	step( now?: number ): SessionState | null;
 	takeWorld(): import("./world").WorldBatch | null;
 	ackWorld( sequence: number ): void;

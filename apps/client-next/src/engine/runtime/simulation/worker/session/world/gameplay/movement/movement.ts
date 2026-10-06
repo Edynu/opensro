@@ -1149,6 +1149,7 @@ receive
 				for ( const id of pending.keys() ) if ( id <= r.id ) pending.delete( id );
 				return;
 			}
+			const previousPath = segment?.admitted ? { from: segment.from, to: segment.to } : undefined;
 			advanceTo( now );
 			if ( command.direction !== undefined && r.accepted && walk ) {
 				beginTransition( "receipt" );
@@ -1235,6 +1236,12 @@ receive
 					remaining: reconciled.remaining,
 					to
 				} );
+			}
+			// The journal may coalesce the click and this receipt. Its original
+			// admitted path then never reached presentation; the rebased path
+			// alone cannot prove that the last drawn pose is still safe.
+			if ( reconciled.kind === "keep" && transition.eligible && previousPath ) {
+				transition = { ...transition, previousPath };
 			}
 		},
 		/*

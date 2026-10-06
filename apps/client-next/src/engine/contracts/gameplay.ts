@@ -128,6 +128,9 @@ export interface MovementTransition {
 	readonly eligible: boolean;
 	readonly pathEligible?: boolean;
 	readonly corridor?: { readonly from: Pose; readonly to: Pose; };
+	// An accepted receipt can replace the first publication of its click.
+	// Retain the admitted walk behind its rebased anchor for presentation.
+	readonly previousPath?: { readonly from: Pose; readonly to: Pose; };
 }
 /*
 ================

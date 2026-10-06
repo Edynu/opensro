@@ -241,7 +241,12 @@ baseUrl
 	}
 	return {
 		isWorldReady: () => world.status().phase === "world" && world.status().ready,
-		command( command ) {
+		/*
+		================
+		command
+		================
+		*/
+		command( command, now ) {
 			if ( disposed ) {
 				throw new Error( "Session disposed" );
 			}
@@ -354,7 +359,7 @@ baseUrl
 			}
 			if ( command.kind === "gameplay" ) {
 				try {
-					world.command( command.command );
+					world.command( command.command, now );
 				} catch ( error ) {
 					publish( { ...state, error: String( error ) } );
 				}

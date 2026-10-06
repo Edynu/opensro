@@ -356,6 +356,9 @@ export function createPosePresentation() {
 		// receipts still spend this frame's bounded recovery step and velocity.
 		if ( revisionChanged && recovering && !stalled ) recover( row, recoverySeconds );
 		const model = sampledModel( row, now );
+		if ( revisionChanged && input.transition?.previousPath ) {
+			row.paths.push( input.transition.previousPath );
+		}
 		if ( input.from && input.to ) {
 			const path = row.paths[row.paths.length - 1];
 			if (
@@ -363,9 +366,9 @@ export function createPosePresentation() {
 				poseDistance( path.to, input.to ) > MIN_CORRECTION_DISTANCE
 			) {
 				row.paths.push( { from: input.from, to: input.to } );
-				if ( row.paths.length > MAX_RECOVERY_PATHS ) row.paths.shift();
 			}
 		}
+		if ( row.paths.length > MAX_RECOVERY_PATHS ) row.paths.splice( 0, row.paths.length - MAX_RECOVERY_PATHS );
 		let drawn = displace( model, row.offset );
 		const corridor = input.transition?.corridor;
 		if (

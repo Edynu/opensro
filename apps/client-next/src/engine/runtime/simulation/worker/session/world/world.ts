@@ -361,7 +361,7 @@ takeDeparture
 command
 ================
 		*/
-		command( command: GameplayCommand ) {
+		command( command: GameplayCommand, at = now ) {
 			if ( phase !== "world" || (!ready && command.kind !== "navigation") ) {
 				throw new Error( "World gameplay is not ready" );
 			}
@@ -370,6 +370,9 @@ command
 			const admitted = command.kind === "ground-move" && departure.pending() ?
 				{ ...command, departing: true } :
 				command;
+			// Commands arrive between fixed steps. Reusing the previous tick
+			// starts a turn behind the pose already drawn on the frame clock.
+			now = Math.max( now, at );
 			core.command( admitted, now );
 		},
 		/*
@@ -431,7 +434,9 @@ step
 ================
 		*/
 		step( time: number ) {
-			now = time;
+			// A command may already have advanced this clock while an overdue
+			// fixed tick was queued. Catch-up must never rewind that command.
+			now = Math.max( now, time );
 			if ( disposed ) {
 				return;
 			}
