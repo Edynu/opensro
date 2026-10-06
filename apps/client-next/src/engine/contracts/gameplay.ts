@@ -131,6 +131,12 @@ export interface MovementTransition {
 	// An accepted receipt can replace the first publication of its click.
 	// Retain the admitted walk behind its rebased anchor for presentation.
 	readonly previousPath?: { readonly from: Pose; readonly to: Pose; };
+	// A turn joins two walks admitted by the movement owner. The outgoing
+	// start is sampled on the incoming walk, including its surface owner.
+	readonly turn?: {
+		readonly incoming: { readonly from: Pose; readonly to: Pose; };
+		readonly outgoing: { readonly from: Pose; readonly to: Pose; };
+	};
 }
 /*
 ================

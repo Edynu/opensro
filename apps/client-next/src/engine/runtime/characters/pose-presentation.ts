@@ -22,7 +22,7 @@ which snaps; logical poses stay authoritative.
 
 ===========================================================================
 */
-import type { Pose } from "@/engine/contracts/gameplay";
+import type { Pose, MovementTransition } from "@/engine/contracts/gameplay";
 import { SIMULATION_STEP_MS } from "@/engine/contracts/simulation";
 import { REGION_SIZE, interpolateMovement, poseDistance } from "@/engine/foundation/gameplay/native-movement";
 import { hypot2, hypot3 } from "@/engine/foundation/math/hypot";
@@ -184,6 +184,36 @@ authoritative; only the visual body turns. Heading words span one full turn.
 function turn( from: number, to: number, seconds: number ) {
 	const delta = ((to - from + 98304) % 65536) - 32768, limit = seconds * 98304;
 	return (from + Math.max( -limit, Math.min( limit, delta ) ) + 65536) % 65536;
+}
+
+/*
+================
+recoverTurn
+
+The existing correction's straight chord can cut across a turn. Spend its
+travel along the two admitted legs instead. Only movement can prove their
+connection; intersecting arbitrary historical paths could join two floors.
+================
+*/
+function recoverTurn( before: Pose, model: Pose, candidate: Pose, path: NonNullable<MovementTransition["turn"]> ) {
+	if ( !onCorridor( model, path.outgoing.from, path.outgoing.to, true ) ) return null;
+	const delta = worldVector( candidate, before );
+	if ( !delta ) return null;
+	const distance = hypot3( ...delta );
+	if ( onCorridor( before, path.outgoing.from, path.outgoing.to, true ) ) {
+		const remaining = worldVector( model, before );
+		if ( !remaining ) return null;
+		const length = hypot3( ...remaining );
+		return length ? interpolateMovement( before, model, Math.min( 1, distance / length ) ) : model;
+	}
+	if ( !onCorridor( before, path.incoming.from, path.incoming.to, true ) ) return null;
+	const corner = path.outgoing.from;
+	const first = worldVector( corner, before ), second = worldVector( model, corner );
+	if ( !first || !second ) return null;
+	const toCorner = hypot3( ...first ), toModel = hypot3( ...second );
+	if ( distance < toCorner ) return interpolateMovement( before, corner, distance / toCorner );
+	if ( !toModel ) return model;
+	return interpolateMovement( corner, model, Math.min( 1, (distance - toCorner) / toModel ) );
 }
 
 /*
@@ -380,9 +410,17 @@ export function createPosePresentation() {
 				onCorridor( model, path.from, path.to, true )
 			)
 		) {
-			row.offset = [ 0, 0, 0 ];
-			row.velocity = [ 0, 0, 0 ];
-			drawn = model;
+			const recovered = input.transition.turn ?
+				recoverTurn( row.displayed, model, drawn, input.transition.turn ) :
+				null;
+			if ( recovered ) {
+				drawn = recovered;
+				row.offset = worldVector( drawn, model )!;
+			} else {
+				row.offset = [ 0, 0, 0 ];
+				row.velocity = [ 0, 0, 0 ];
+				drawn = model;
+			}
 		}
 		// Retain the path behind a rebased receipt only while it still carries
 		// visible recovery. This cannot grow with a long session or cut a turn.

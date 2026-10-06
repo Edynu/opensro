@@ -13,6 +13,7 @@ counters, and measures frames while a scenario drives input. Captures
 */
 import { mkdir, writeFile } from "node:fs/promises";
 import { launchProbeBrowser } from "../../../../../scripts/lib/probeBrowser.mjs";
+import { assertCharacterAllowed } from "../../../../../scripts/lib/probeCharacter.mjs";
 import {
 	startChromeTraceCapture,
 	DEFAULT_BROWSER_EVENT_LOOP_TRACE_CATEGORIES
@@ -21,7 +22,9 @@ import { resetMissionMovementFixture } from "../../../../../scripts/lib/missionM
 import { defaultVideoOptions, frameLimits } from "../../../src/engine/foundation/rendering/video-options.ts";
 import { bootPlayableSession } from "../../../tests/browser/helpers/playable-session.mjs";
 
-export const CHARACTER = "asd2";
+export const CHARACTER = assertCharacterAllowed( process.env.SRO_PROBE_CHARACTER ?? "asd2", {
+	context: "frame benchmark"
+} );
 const VIEWPORT = { width: 1600, height: 900 };
 const SETTLE_MS = 8000;
 // Allocation sampling: one sample per 16 KiB allocated on average, keeping
@@ -252,6 +255,7 @@ export async function openClient(
 		cpuRate = 1,
 		frameLimit = 0,
 		shadowDetail = 0,
+		videoOptions = undefined,
 		headed = false,
 		beforeLogin = undefined
 	} = {}
@@ -260,15 +264,18 @@ export async function openClient(
 	await resetMissionMovementFixture( { characterName: CHARACTER, fixture, timeoutMs: 60000 } );
 	const { browser, page } = await launchProbeBrowser( { headed } );
 	try {
-		await page.addInitScript( options => {
-			localStorage.setItem( "sro:v1150:video-options:1", JSON.stringify( options ) );
-		}, {
-			...defaultVideoOptions(),
-			frameLimit,
-			records: defaultVideoOptions().records.map( row =>
-				row.map( ( value, slot ) => slot === 1 ? shadowDetail : value )
-			)
-		} );
+		await page.addInitScript(
+			options => {
+				localStorage.setItem( "sro:v1150:video-options:1", JSON.stringify( options ) );
+			},
+			videoOptions ?? {
+				...defaultVideoOptions(),
+				frameLimit,
+				records: defaultVideoOptions().records.map( row =>
+					row.map( ( value, slot ) => slot === 1 ? shadowDetail : value )
+				)
+			}
+		);
 		await page.addInitScript( instrument, { counts, spans } );
 		await bootPlayableSession( page, CHARACTER, beforeLogin );
 		await page.evaluate( () => globalThis.__benchRuntime = globalThis.__playableRuntime );

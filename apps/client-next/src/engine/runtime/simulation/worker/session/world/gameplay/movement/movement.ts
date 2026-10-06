@@ -945,6 +945,7 @@ request
 			if ( !pose || pending.size >= 32 || nextId === 0xffffffff ) {
 				throw new Error( "Movement command capacity exceeded or player absent" );
 			}
+			const incoming = segment?.admitted ? { from: segment.from, to: segment.to } : undefined;
 			advanceTo( now );
 			const p = admitPose( value ),
 				to = { ...p, x: Math.trunc( p.x ), y: Math.trunc( p.y ), z: Math.trunc( p.z ) },
@@ -992,6 +993,12 @@ request
 					owners: query.owners,
 					admitted: true
 				};
+				if ( incoming ) {
+					transition = {
+						...transition,
+						turn: { incoming, outgoing: { from: segment.from, to: segment.to } }
+					};
+				}
 			}
 			return frame;
 		},
@@ -1150,6 +1157,7 @@ receive
 				return;
 			}
 			const previousPath = segment?.admitted ? { from: segment.from, to: segment.to } : undefined;
+			const previousTurn = transition.turn;
 			advanceTo( now );
 			if ( command.direction !== undefined && r.accepted && walk ) {
 				beginTransition( "receipt" );
@@ -1241,7 +1249,7 @@ receive
 			// admitted path then never reached presentation; the rebased path
 			// alone cannot prove that the last drawn pose is still safe.
 			if ( reconciled.kind === "keep" && transition.eligible && previousPath ) {
-				transition = { ...transition, previousPath };
+				transition = { ...transition, previousPath, turn: previousTurn };
 			}
 		},
 		/*
