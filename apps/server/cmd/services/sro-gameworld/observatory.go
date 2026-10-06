@@ -1,3 +1,15 @@
+/*
+===========================================================================
+
+observatory.go - local operator snapshot wiring
+
+Copies player, population, transport and storage diagnostics into one cached
+operator view. Online player regions define the population's complete focus;
+the capture never advances gameplay or changes authority state.
+
+===========================================================================
+*/
+
 package main
 
 import (
@@ -13,6 +25,11 @@ import (
 	"time"
 )
 
+/*
+================
+observatoryPlayer
+================
+*/
 type observatoryPlayer struct {
 	ID     int64   `json:"id"`
 	Name   string  `json:"name"`
@@ -26,6 +43,14 @@ type observatoryPlayer struct {
 	Alive  bool    `json:"alive"`
 }
 
+/*
+================
+installObservatory
+
+Installs the full cached capture and the smaller process summary before the
+local operator API begins serving requests.
+================
+*/
 func installObservatory(api *agentapi.API, state *simulation.MonsterState, hub *transport.Hub, authority *store.Store, shard string) {
 	started := time.Now()
 	bridge := worldsession.New(hub)
@@ -75,7 +100,12 @@ func installObservatory(api *agentapi.API, state *simulation.MonsterState, hub *
 		}
 		population := simulation.ObservatoryPopulation{Monsters: []simulation.ObservatoryMonster{}}
 		if state != nil {
-			population = state.Observatory(shard)
+			// Monsters around the online players are never the rows the cap drops.
+			focus := make([]uint16, 0, len(players))
+			for _, player := range players {
+				focus = append(focus, player.Region)
+			}
+			population = state.Observatory(shard, focus)
 		}
 		health := authority.Health()
 		return map[string]any{"version": 1, "shard": shard, "capturedAt": now.UTC().Format(time.RFC3339Nano), "uptimeSeconds": time.Since(started).Seconds(), "players": players, "registeredCharacters": registered, "population": population, "transport": hub.Metrics(), "runtime": map[string]any{"goVersion": runtime.Version(), "goroutines": runtime.NumGoroutine(), "parallelism": runtime.GOMAXPROCS(0), "metrics": values}, "storage": health, "captureMs": time.Since(now).Seconds() * 1000}
