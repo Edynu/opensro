@@ -25,6 +25,8 @@ import type { GeometryCommands, GeometryDraw, ImageDraw } from "../internal/gpu-
 
 // Packed floats per vertex (packGeometryVertices).
 const VERTEX_FLOATS = 14;
+const MIN_LAYER_CAPACITY = 1024;
+const LAYER_GROWTH = 2;
 const IDENTITY = () => new Float32Array( [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
 
 type Member = { layer: Layer; base: number; vertices: number; chosen: Uint32Array; count: number; };
@@ -55,11 +57,22 @@ type Layer = {
 ================
 capacityFor
 
-The next power of two at or above twice need, so growth is rare.
+Round a known requirement to a buffer capacity. A rebuild adds headroom;
+initial admission already knows every member of the incoming scene.
 ================
 */
 function capacityFor( need: number ): number {
-	return 2 ** Math.ceil( Math.log2( Math.max( 1024, need * 2 ) ) );
+	return 2 ** Math.ceil( Math.log2( Math.max( MIN_LAYER_CAPACITY, need ) ) );
+}
+
+/*
+================
+eligible
+================
+*/
+function eligible( group: WorldGroup ): boolean {
+	return group.terrainSector !== undefined && !!group.ranges && !!group.material.terrain &&
+		!!group.geometry.vertices;
 }
 
 /*
@@ -69,6 +82,7 @@ createTerrainLayers
 */
 export function createTerrainLayers() {
 	const layers = new Map<string, Layer>(), members = new Map<WorldGroup, Member>();
+	const sceneCapacities = new WeakMap<WorldScene, Map<string, { vertices: number; indices: number; }>>();
 	// Bumped whenever a layer's draw is replaced or released. A list built
 	// before the bump may hold a draw whose buffers are destroyed when the
 	// releasing frame closes, so it must not be drawn again.
@@ -82,6 +96,34 @@ export function createTerrainLayers() {
 	function keyOf( scene: WorldScene, group: WorldGroup ): string {
 		const m = group.material;
 		return `${scene.originRegion}|${m.texture}|${m.blend}|${m.order}`;
+	}
+
+	/*
+	================
+	capacityPlan
+
+	The complete immutable scene is known before its first GPU admission.
+	Reserve each new layer once instead of repeatedly uploading its existing
+	members as the remaining groups arrive over subsequent frames.
+	================
+	*/
+	function capacityPlan( scene: WorldScene ) {
+		let plan = sceneCapacities.get( scene );
+		if ( plan ) return plan;
+		plan = new Map();
+		for ( const group of scene.groups ) {
+			if ( !eligible( group ) ) continue;
+			const key = keyOf( scene, group );
+			let capacity = plan.get( key );
+			if ( !capacity ) {
+				capacity = { vertices: 0, indices: 0 };
+				plan.set( key, capacity );
+			}
+			capacity.vertices += group.geometry.positions.length / 3;
+			capacity.indices += group.geometry.indices.length;
+		}
+		sceneCapacities.set( scene, plan );
+		return plan;
 	}
 
 	/*
@@ -122,8 +164,8 @@ export function createTerrainLayers() {
 			vertices += member.vertices;
 			indices += group.geometry.indices.length;
 		}
-		layer.vertexCapacity = Math.max( layer.vertexCapacity, capacityFor( vertices ) );
-		layer.indexCapacity = Math.max( layer.indexCapacity, capacityFor( indices ) );
+		layer.vertexCapacity = Math.max( layer.vertexCapacity, capacityFor( vertices * LAYER_GROWTH ) );
+		layer.indexCapacity = Math.max( layer.indexCapacity, capacityFor( indices * LAYER_GROWTH ) );
 		geometry.release( layer.draw );
 		revision++;
 		layer.draw = allocate( geometry, layer, layer.vertexCapacity, layer.indexCapacity );
@@ -146,9 +188,7 @@ export function createTerrainLayers() {
 		water stay single draws (their textures are per region already).
 		================
 		*/
-		eligible: ( group: WorldGroup ) =>
-			group.terrainSector !== undefined && !!group.ranges && !!group.material.terrain &&
-			!!group.geometry.vertices,
+		eligible,
 		/*
 		================
 		admit
@@ -162,12 +202,13 @@ export function createTerrainLayers() {
 				indices = group.geometry.indices.length;
 			let layer = layers.get( key );
 			if ( !layer ) {
+				const planned = capacityPlan( scene ).get( key );
 				const shell = {
 					key,
 					image,
 					material: group.geometry.material ?? group.material,
-					vertexCapacity: capacityFor( vertices ),
-					indexCapacity: capacityFor( indices ),
+					vertexCapacity: capacityFor( planned?.vertices ?? vertices * LAYER_GROWTH ),
+					indexCapacity: capacityFor( planned?.indices ?? indices * LAYER_GROWTH ),
 					top: 0,
 					members: new Map<WorldGroup, Member>(),
 					indices: new Uint32Array( 0 ),
