@@ -65,6 +65,8 @@ import {
 	prepareCameraCollisionParts,
 	refitAnimatedCameraParts,
 	resolveFollowCamera,
+	createCameraQueryCache,
+	clearCameraQueryCache,
 	followCameraQuery,
 	animatedCameraCandidates,
 	type RegionCollision
@@ -389,6 +391,7 @@ export function createWorldRenderer(
 	const pickBlocks = new WeakMap<WorldGroup, Float64Array>();
 	// Camera collision parts of a region's terrain survive crossings with it.
 	const terrainCollision = new WeakMap<WorldGroup, RegionCollision>();
+	const collisionQuery = createCameraQueryCache();
 	// Region terrain associations draw through shared layers (terrain-layers.ts).
 	const layers = createTerrainLayers();
 	let collisionScene: WorldScene | null = null,
@@ -1507,7 +1510,15 @@ export function createWorldRenderer(
 					followInput( localCamera.target, camera.follow, collisionDistance, collisionInput ) ||
 					!collisionInputValid
 				) {
-					const result = resolveFollowCamera( localCamera, collisionParts, collisionDistance );
+					const result = resolveFollowCamera(
+						localCamera,
+						collisionParts,
+						collisionDistance,
+						collisionQuery
+					);
+					probe?.worldCount?.( "camera-queries", 1 );
+					probe?.worldCount?.( "camera-query-reused", collisionQuery.reused ? 1 : 0 );
+					probe?.worldCount?.( "camera-static-hits", collisionQuery.staticHits );
 					collisionCamera = result.camera;
 					collisionDistance = result.collision;
 					// The recorded inputs carry the pre-resolve distance: a resolve that
@@ -1518,6 +1529,7 @@ export function createWorldRenderer(
 			} else {
 				collisionScene = null;
 				collisionParts = [];
+				clearCameraQueryCache( collisionQuery );
 				collisionDistance = null;
 				collisionInputValid = false;
 				collisionCamera = null;
@@ -2171,6 +2183,7 @@ export function createWorldRenderer(
 			pickGroups = [];
 			collisionScene = null;
 			collisionParts = [];
+			clearCameraQueryCache( collisionQuery );
 			collisionCamera = null;
 			fades.clear();
 			fadeEpoch++;

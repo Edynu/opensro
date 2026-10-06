@@ -112,6 +112,14 @@ function instrument( { counts, spans } ) {
 		worldMark() {
 			worldEnd = now();
 		},
+		/*
+		================
+		worldCount
+		================
+		*/
+		worldCount( name, value ) {
+			add( name, value );
+		},
 		begin() {
 			displayed = undefined;
 			frameStart = frameMark = now();

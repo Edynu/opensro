@@ -12,7 +12,17 @@ import type { WorldCamera, WorldGroup, WorldScene } from "@/engine/contracts/sce
 import type { Geometry } from "@/engine/contracts/geometry";
 import { characterRadius } from "@/engine/foundation/animation/character-bounds";
 import { geometryPickBlocks, geometryVertex, pickGeometry, pickGeometryBlocks, type PickRay } from "./picking";
+/*
+================
+Point
+================
+*/
 type Point = readonly [number, number, number];
+/*
+================
+SkinEnvelope
+================
+*/
 type SkinEnvelope = {
 	joints: readonly { index: number; min: readonly number[]; max: readonly number[]; }[];
 	weightMin: number;
@@ -21,6 +31,11 @@ type SkinEnvelope = {
 // blocks: geometryPickBlocks of an unskinned part, built on its first ray
 // test. Static world meshes never change, so later frames cull whole index
 // blocks instead of transforming and testing every triangle.
+/*
+================
+CameraCollisionPart
+================
+*/
 export type CameraCollisionPart = {
 	object?: string;
 	order?: number;
@@ -34,6 +49,11 @@ export type CameraCollisionPart = {
 	blocks?: Float64Array;
 };
 // base: this subtree indexes a region's own parts; add base for the scene's.
+/*
+================
+CollisionNode
+================
+*/
 type CollisionNode = {
 	min: number[];
 	max: number[];
@@ -43,7 +63,17 @@ type CollisionNode = {
 };
 // One resident region terrain group's collision: its parts and a tree over
 // them, kept while the group stays resident (renderer/world/world.ts).
+/*
+================
+RegionCollision
+================
+*/
 export type RegionCollision = { readonly parts: CameraCollisionPart[]; readonly tree: CollisionNode | null; };
+/*
+================
+CollisionProduct
+================
+*/
 type CollisionProduct = CameraCollisionPart[] & {
 	readonly acceleration: {
 		readonly root: CollisionNode | null;
@@ -51,6 +81,54 @@ type CollisionProduct = CameraCollisionPart[] & {
 		readonly animated: readonly number[];
 	};
 };
+const CAMERA_SEGMENT_VALUES = 6;
+
+/*
+================
+CameraQueryCache
+
+One exact segment against one immutable scene product. Animated palettes and
+bounds are deliberately excluded from the retained narrow-phase results.
+================
+*/
+export type CameraQueryCache = {
+	parts: readonly CameraCollisionPart[] | null;
+	readonly segment: Float64Array;
+	reused: boolean;
+	staticHits: number;
+	candidates: readonly CameraCollisionPart[];
+	readonly hits: Map<CameraCollisionPart, number | null>;
+};
+
+/*
+================
+createCameraQueryCache
+================
+*/
+export function createCameraQueryCache(): CameraQueryCache {
+	return {
+		parts: null,
+		segment: new Float64Array( CAMERA_SEGMENT_VALUES ),
+		candidates: [],
+		hits: new Map(),
+		reused: false,
+		staticHits: 0
+	};
+}
+
+/*
+================
+clearCameraQueryCache
+================
+*/
+export function clearCameraQueryCache( cache: CameraQueryCache ) {
+	cache.parts = null;
+	cache.reused = false;
+	cache.staticHits = 0;
+	cache.candidates = [];
+	cache.hits.clear();
+}
+
 /*
 ================
 collisionTree
@@ -481,12 +559,35 @@ export function animatedCameraCandidates(
 cameraSegmentHit
 ================
 */
-export function cameraSegmentHit( parts: readonly CameraCollisionPart[], ray: PickRay ): number | null {
+export function cameraSegmentHit(
+	parts: readonly CameraCollisionPart[],
+	ray: PickRay,
+	cache?: CameraQueryCache
+): number | null {
 	let nearest = 1, hit = false;
 	const resolved = new Set<string>();
 	const acceleration = (parts as Partial<CollisionProduct>).acceleration;
-	let candidates: readonly CameraCollisionPart[] = parts;
-	if ( acceleration ) {
+	let retained = !!cache && cache.parts === parts;
+	if ( cache ) {
+		for ( let axis = 0; axis < 3; axis++ ) {
+			if (
+				!Object.is( cache.segment[axis], ray.start[axis] ) ||
+				!Object.is( cache.segment[axis + 3], ray.delta[axis] )
+			) {
+				retained = false;
+			}
+			cache.segment[axis] = ray.start[axis]!;
+			cache.segment[axis + 3] = ray.delta[axis]!;
+		}
+		cache.reused = retained;
+		cache.staticHits = 0;
+		if ( !retained ) {
+			cache.parts = parts;
+			cache.hits.clear();
+		}
+	}
+	let candidates: readonly CameraCollisionPart[] = retained ? cache!.candidates : parts;
+	if ( acceleration && !retained ) {
 		const indices = [ ...acceleration.animated ];
 		queryTree( acceleration.root, ray, indices );
 		queryTree( acceleration.animatedRoot, ray, indices );
@@ -495,14 +596,27 @@ export function cameraSegmentHit( parts: readonly CameraCollisionPart[], ray: Pi
 		indices.sort( ( a, b ) => a - b );
 		candidates = indices.map( index => parts[index]! );
 	}
+	if ( cache && !retained ) cache.candidates = candidates;
 	for ( const part of candidates ) {
 		if ( part.object && resolved.has( part.object ) ) continue;
 		if ( part.sweep && !intersects( ray, part.sweep, 1 ) ) continue;
 		// A farther early part still suppresses later parts of the SAME object.
 		if ( !intersects( ray, part, part.object ? 1 : nearest ) ) continue;
-		const fraction = part.geometry.bones ?
-			pickGeometry( ray, part.geometry, part.matrix, part.geometry.bones ) :
-			pickGeometryBlocks( ray, part.geometry, part.matrix, part.blocks ??= geometryPickBlocks( part.geometry ) );
+		let fraction: number | null;
+		if ( part.geometry.bones ) {
+			fraction = pickGeometry( ray, part.geometry, part.matrix, part.geometry.bones );
+		} else if ( cache?.hits.has( part ) ) {
+			fraction = cache.hits.get( part )!;
+			cache.staticHits++;
+		} else {
+			fraction = pickGeometryBlocks(
+				ray,
+				part.geometry,
+				part.matrix,
+				part.blocks ??= geometryPickBlocks( part.geometry )
+			);
+			cache?.hits.set( part, fraction );
+		}
 		if ( fraction !== null ) {
 			if ( part.object ) resolved.add( part.object );
 			if ( fraction < nearest || fraction === nearest && !hit ) {
@@ -580,10 +694,11 @@ resolveFollowCamera
 export function resolveFollowCamera(
 	camera: WorldCamera,
 	parts: readonly CameraCollisionPart[],
-	previous: number | null
+	previous: number | null,
+	cache?: CameraQueryCache
 ) {
 	const { ray, target, direction, distance } = followCameraQuery( camera, previous );
-	const hit = cameraSegmentHit( parts, ray );
+	const hit = cameraSegmentHit( parts, ray, cache );
 	const resolved = hit === null ?
 		distance :
 		Math.max( 0.001, Math.fround( Math.fround( 5 + hit * (distance - 5) ) - 5 ) );

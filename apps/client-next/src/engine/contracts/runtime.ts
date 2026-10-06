@@ -40,6 +40,7 @@ export interface RenderFrameProbe {
 	// World preparation stages and detail spans (renderer/world/world.ts).
 	worldBegin?(): void;
 	worldMark?( stage: string ): void;
+	worldCount?( name: string, value: number ): void;
 	sampleDetails?(): boolean;
 	detailBegin?( name: string ): void;
 	detailEnd?( name: string ): void;

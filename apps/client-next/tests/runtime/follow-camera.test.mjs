@@ -13,12 +13,19 @@ import "../helpers/native-source-loader.mjs";
 import { pathToFileURL as sourceFileUrl } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+/*
+================
+load
+================
+*/
 async function load( path ) {
 	return import( sourceFileUrl( path ).href );
 }
 const {
 	cameraCollisionParts,
 	cameraSegmentHit,
+	createCameraQueryCache,
+	clearCameraQueryCache,
 	followDistance,
 	resolveFollowCamera,
 	refitAnimatedCameraParts,
@@ -28,6 +35,11 @@ const { geometryVertex } = await load( "src/engine/foundation/rendering/picking.
 const { createInput } = await load( "src/engine/runtime/input/input.ts" );
 const { cameraWheelDelta, zoomCamera } = await load( "src/engine/foundation/rendering/camera-wheel.ts" );
 const identity = () => new Float32Array( [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
+/*
+================
+group
+================
+*/
 function group( positions, indices = [ 0, 1, 2 ] ) {
 	return {
 		id: "wall",
@@ -42,6 +54,11 @@ function group( positions, indices = [ 0, 1, 2 ] ) {
 		}
 	};
 }
+/*
+================
+parts
+================
+*/
 function parts( groups ) {
 	return cameraCollisionParts( { id: "test", originRegion: 0, groups, warnings: [] } );
 }
@@ -630,4 +647,77 @@ test("wheel adapter retains native ticks and fractional/coalesced browser moveme
 	assert.equal( cameraWheelDelta( { deltaY: .25, deltaMode: 0 } ), .3 );
 	assert.equal( zoomCamera( 80, cameraWheelDelta( { deltaY: 300, deltaMode: 0 } ) ), 98 );
 	assert.equal( zoomCamera( 80, cameraWheelDelta( { deltaY: 0, deltaMode: 0 } ) ), 80 );
+});
+
+test("unchanged camera segments retain static work while animated first-part precedence remains live", () => {
+	const far = group( [ -10, -10, 80, 10, -10, 80, 0, 10, 80 ] );
+	const near = group( [ -10, -10, 20, 10, -10, 20, 0, 10, 20 ] );
+	far.geometry.bones = identity();
+	far.geometry.joints = new Uint32Array( 12 );
+	far.geometry.weights = Float32Array.of( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 );
+	far.collision = [ { instance: 0, object: "shared", order: 0, indexStart: 0, indexCount: 3 } ];
+	near.collision = [ { instance: 0, object: "shared", order: 1, indexStart: 0, indexCount: 3 } ];
+	const product = parts( [ near, far ] ), cache = createCameraQueryCache();
+	const ray = { start: [ 0, 0, 0 ], delta: [ 0, 0, 100 ] };
+	const fixed = product.find( part => !part.geometry.bones ).geometry;
+	const positions = fixed.positions;
+	let reads = 0;
+	Object.defineProperty( fixed, "positions", {
+		get() {
+			reads++;
+			return positions;
+		}
+	} );
+	assert.equal( cameraSegmentHit( product, ray, cache ), .8 );
+	far.geometry.bones[12] = 100;
+	refitAnimatedCameraParts( product );
+	assert.equal( cameraSegmentHit( product, ray, cache ), .2, "animated miss reveals the static later part" );
+	assert.ok( reads > 0 );
+	reads = 0;
+	assert.equal( cameraSegmentHit( product, ray, cache ), .2 );
+	assert.equal( reads, 0, "same segment does not revisit immutable triangle positions" );
+	far.geometry.bones[12] = 0;
+	refitAnimatedCameraParts( product );
+	assert.equal( cameraSegmentHit( product, ray, cache ), .8, "animated first hit suppresses retained nearer part" );
+	far.geometry.bones[12] = 100;
+	refitAnimatedCameraParts( product );
+	ray.delta[2] = 50;
+	assert.equal( cameraSegmentHit( product, ray, cache ), .4, "in-place ray changes invalidate retained fractions" );
+	assert.ok( reads > 0 );
+	const replacement = parts( [ group( [ -10, -10, 30, 10, -10, 30, 0, 10, 30 ] ) ] );
+	assert.equal(
+		cameraSegmentHit( replacement, ray, cache ),
+		.6,
+		"scene replacement invalidates retained candidates"
+	);
+	clearCameraQueryCache( cache );
+	assert.equal( cache.parts, null );
+	assert.equal( cache.hits.size, 0 );
+	assert.equal( cache.candidates.length, 0 );
+});
+
+test("retained camera query matches fresh collision through turns, misses and animated bounds changes", () => {
+	const walls = [];
+	for ( let i = 1; i <= 24; i++ ) {
+		const wall = group( [ -10, -10, i * 4, 10, -10, i * 4, 0, 10, i * 4 ] );
+		wall.id = "wall-" + i;
+		wall.collision = [ { instance: 0, object: "object-" + (i % 6), order: i, indexStart: 0, indexCount: 3 } ];
+		if ( i % 3 === 0 ) {
+			wall.geometry.bones = identity();
+			wall.geometry.joints = new Uint32Array( 12 );
+			wall.geometry.weights = Float32Array.of( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 );
+		}
+		walls.push( wall );
+	}
+	const product = parts( walls ), cache = createCameraQueryCache();
+	const ray = { start: [ 0, 0, 0 ], delta: [ 0, 0, 100 ] };
+	for ( let frame = 0; frame < 200; frame++ ) {
+		if ( frame % 10 === 0 ) ray.start[0] = frame % 30 - 10;
+		if ( frame % 20 === 0 ) ray.delta[0] = frame % 40 - 20;
+		for ( const wall of walls ) {
+			if ( wall.geometry.bones ) wall.geometry.bones[12] = frame % 4 === 0 ? 100 : 0;
+		}
+		refitAnimatedCameraParts( product );
+		assert.equal( cameraSegmentHit( product, ray, cache ), cameraSegmentHit( product, ray ), "frame " + frame );
+	}
 });

@@ -2143,6 +2143,13 @@
 		},
 		{
 			"file": "src/engine/runtime/renderer/world/world.ts",
+			"expression": "probe?.worldCount",
+			"function": "prepare",
+			"kind": "callback",
+			"reason": "Optional synchronous frame-owner observer counts exact camera-query reuse without changing collision."
+		},
+		{
+			"file": "src/engine/runtime/renderer/world/world.ts",
 			"expression": "probe?.worldMark",
 			"function": "prepare",
 			"kind": "callback",
