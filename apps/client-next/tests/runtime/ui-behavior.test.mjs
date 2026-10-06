@@ -64,6 +64,42 @@ function assetFixture() {
 	const resources = createUiAssets( assets, ( ...args ) => published.push( args ), "https://fixture.invalid/" );
 	return { assets, resources, requests, results, cancelled, published };
 }
+/*
+================
+UI demand compares by content across arrays
+
+The UI publishes a frozen demand array per layout and hands it back on the
+frames between. A fresh array of the same length that names a different
+image must still be noticed; the same contents in a fresh array must not
+reload anything. (In-place edits of an unfrozen array are covered below.)
+================
+*/
+test("UI demand is compared by content, whichever array carries it", () => {
+	const f = assetFixture();
+	f.resources.step( [ "/a.png", "/b.png" ], 0 );
+	assert.deepEqual( f.requests.length, 2 );
+	f.results.set( 1, { kind: "image", image: { width: 1, height: 1 } } );
+	f.results.set( 2, { kind: "image", image: { width: 1, height: 1 } } );
+	const settled = Object.freeze( [ "/a.png", "/b.png" ] );
+	f.resources.step( settled, 1 );
+	assert.equal( f.resources.step( settled, 2 ), false, "the same frozen array again is the same demand" );
+	assert.equal(
+		f.resources.step( [ "/a.png", "/b.png" ], 3 ),
+		false,
+		"equal contents in a new array change nothing"
+	);
+	f.resources.step( [ "/a.png", "/c.png" ], 4 );
+	assert.equal( f.requests.length, 3, "a same-length demand naming a new image requests it" );
+	assert.match( f.requests[2], /c\.png$/ );
+	// Edited, then frozen: frozen now, but not when it was handed in.
+	const late = [ "/a.png", "/c.png" ];
+	f.resources.step( late, 5 );
+	late[1] = "/d.png";
+	Object.freeze( late );
+	f.resources.step( late, 6 );
+	assert.equal( f.requests.length, 4, "an array frozen after an edit is still read" );
+	assert.match( f.requests[3], /d\.png$/ );
+});
 test("UI textures recover with backoff, release demand and cannot restart after disposal", () => {
 	const f = assetFixture(), paths = [ "/button.png" ];
 	f.resources.step( paths, 0 );

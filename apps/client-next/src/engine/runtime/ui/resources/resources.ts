@@ -54,6 +54,10 @@ export function createUiAssets(
 	let disposed = false;
 	let wanted = new Set<string>();
 	let previousPaths: readonly string[] = [], settled = false;
+	// The array the caller last handed in, if it was already frozen when it
+	// was adopted: only then can it prove an unchanged demand without being
+	// read (an array frozen later may have changed before it was frozen).
+	let frozenArray: readonly string[] | null = null;
 	// Counts removals from `loaded`. Between two removals the resident set only
 	// grows, so a list found fully resident stays so until the count moves.
 	let evictions = 0;
@@ -119,12 +123,19 @@ export function createUiAssets(
 		/*
 		================
 		step
+
+		paths is the frame's whole demand. A caller may edit an array in place
+		between steps; that is noticed. A caller that publishes a frozen array
+		(the UI does, at the end of each layout) lets an unchanged frame skip
+		the walk, because a frozen array cannot have changed.
 		================
 		*/
 		step( paths: readonly string[], now: number ) {
 			if ( disposed ) return false;
 			let demandChanged = paths.length !== previousPaths.length;
-			if ( !demandChanged ) {
+			// The same array, frozen since it was adopted, cannot have changed; any
+			// other array, including one edited in place, is compared by content.
+			if ( !demandChanged && paths !== frozenArray ) {
 				for ( let i = 0; i < paths.length; i++ ) {
 					if ( paths[i] !== previousPaths[i] ) {
 						demandChanged = true;
@@ -132,6 +143,7 @@ export function createUiAssets(
 					}
 				}
 			}
+			frozenArray = Object.isFrozen( paths ) ? paths : null;
 			if ( !demandChanged && settled ) return false;
 			if ( demandChanged ) {
 				previousPaths = [ ...paths ];
@@ -275,6 +287,7 @@ export function createUiAssets(
 			if ( disposed ) return;
 			disposed = true;
 			previousPaths = [];
+			frozenArray = null;
 			settled = false;
 			const errors: unknown[] = [];
 			for ( const id of pending.values() ) {
