@@ -1561,12 +1561,15 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 							((actor.animationLod?.fraction ?? 0) > .5) :
 							"") :
 						"");
-				let cachedKey = batchKeys.get( actor );
-				if ( !cachedKey || cachedKey.model !== actor.model || cachedKey.variant !== variant ) {
-					cachedKey = { model: actor.model, variant, key: actor.model + variant };
-					batchKeys.set( actor, cachedKey );
+				let key = actor.model;
+				if ( variant ) {
+					let cachedKey = batchKeys.get( actor );
+					if ( !cachedKey || cachedKey.model !== actor.model || cachedKey.variant !== variant ) {
+						cachedKey = { model: actor.model, variant, key: actor.model + variant };
+						batchKeys.set( actor, cachedKey );
+					}
+					key = cachedKey.key;
 				}
-				const key = cachedKey.key;
 				const rows = grouped.get( key ) ?? [];
 				const extra = plan.batchBytes( rows.length + 1 ) - plan.batchBytes( rows.length ) +
 					dependencies.reduce(
