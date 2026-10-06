@@ -296,11 +296,21 @@ struct SkinVertex {joints:vec4u,weights:vec4f}
 @group(0) @binding(6) var<storage,read> skinVertices:array<SkinVertex>;
 @group(0) @binding(7) var<storage,read> bones:array<mat4x4f>;
 @group(0) @binding(8) var sphereMap:texture_2d_array<f32>;
-struct Out {@builtin(position) position:vec4f,@location(0) uv:vec2f,@location(1) normal:vec3f,@location(2) color:vec4f,@location(3) maskUV:vec2f,@location(4) viewZ:f32,@location(5) objectLighting:vec3f,@location(6) @interpolate(flat) opacity:f32,@location(7) worldXZ:vec2f,@location(8) @interpolate(flat) materialTint:vec3f,@location(9) sphereUV:vec2f,@location(10) equipmentUV:vec2f,@location(11) worldY:f32}
+@group(0) @binding(9) var waterMirror:texture_2d<f32>;
+struct WaterPass {matrix:mat4x4f,plane:vec4f,bump:vec4f,projection:vec4f}
+@group(0) @binding(10) var<uniform> waterPass:WaterPass;
+// 8BA130: stage 0 bump clamps; stage 1 reflection wraps. Both filter linearly.
+@group(0) @binding(11) var waterBumpSampler:sampler;
+@group(0) @binding(12) var waterMirrorSampler:sampler;
+struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin(position) position:vec4f,@location(0) uv:vec2f,@location(1) normal:vec3f,@location(2) color:vec4f,@location(3) maskUV:vec2f,@location(4) viewZ:f32,@location(5) objectLighting:vec3f,@location(6) @interpolate(flat) opacity:f32,@location(7) worldXZ:vec2f,@location(8) @interpolate(flat) materialTint:vec3f,@location(9) sphereUV:vec2f,@location(10) equipmentUV:vec2f}
 @vertex fn vs(@location(0) position:vec3f,@location(1) normal:vec3f,@location(2) uv:vec2f,@location(3) color:vec4f,@location(4) maskUV:vec2f,@builtin(instance_index) i:u32,@builtin(vertex_index) vertex:u32)->Out {
  var o:Out;let instance=instances[i].matrix;o.opacity=instances[i].opacity.x;var p=vec4f(position,1);var n=vec4f(normal,0);
  if(material.skin.x!=0){let v=skinVertices[vertex];let base=select(select(i*u32(abs(material.skin.x)),0u,material.skin.x<0),u32(instances[i].opacity.y),instances[i].opacity.z>0);let skin=bones[base+v.joints.x]*v.weights.x+bones[base+v.joints.y]*v.weights.y+bones[base+v.joints.z]*v.weights.z+bones[base+v.joints.w]*v.weights.w;p=skin*p;n=skin*n;}
- o.worldXZ=(instance*p).xz;o.worldY=(instance*p).y;o.position=transform*instance*p;o.normal=(instance*n).xyz;let movingUV=vec2f(dot(vec3f(uv,1),material.uvU.xyz),dot(vec3f(uv,1),material.uvV.xyz));o.uv=(movingUV*material.window.xy+material.window.zw)*instances[i].window.xy+instances[i].window.zw;o.materialTint=select(vec3f(1),instances[i].color.rgb,material.policy.w>0.5);o.color=color*select(instances[i].color,vec4f(1,1,1,instances[i].color.a),material.policy.w>0.5);o.maskUV=maskUV;o.viewZ=o.position.w;
+ o.worldY=(instance*p).y;
+ o.worldXZ=(instance*p).xz;o.position=transform*instance*p;o.normal=(instance*n).xyz;let movingUV=vec2f(dot(vec3f(uv,1),material.uvU.xyz),dot(vec3f(uv,1),material.uvV.xyz));o.uv=(movingUV*material.window.xy+material.window.zw)*instances[i].window.xy+instances[i].window.zw;o.materialTint=select(vec3f(1),instances[i].color.rgb,material.policy.w>0.5);o.color=color*select(instances[i].color,vec4f(1,1,1,instances[i].color.a),material.policy.w>0.5);o.maskUV=maskUV;o.viewZ=o.position.w;
+ // Undo only projection scaling to recover the native camera-space position.
+ let projectionScale=vec2f(length(vec3f(transform[0].x,transform[1].x,transform[2].x)),length(vec3f(transform[0].y,transform[1].y,transform[2].y)));
+ o.mirrorPosition=vec4f(o.position.xy/projectionScale,0,o.position.w);
  // Native vs_1_1 oD0: light and saturate each vertex before interpolation.
  var lightingNormal=n.xyz;
  // Data.pk2 vss2.c normalizes the blended normal; vss0.c does not.
@@ -332,23 +342,32 @@ struct Out {@builtin(position) position:vec4f,@location(0) uv:vec2f,@location(1)
   illumination+=light.pointAmbient.rgb+diffuseFactor*light.pointDiffuse.rgb*lambert;
  }
  o.objectLighting=clamp(illumination,vec3f(0),vec3f(1));
+ if(waterPass.plane.w>0.5){o.position=waterPass.matrix*instance*p;o.viewZ=o.position.w;}
  if(material.skin.w>0){
   let k=material.skin.w;var skyPosition=position;let angle=(env.skyTime.x-0.25)*6.28318530718;let sunPosition=vec3f(cos(angle),sin(angle),0)*20000.0;
   if(k==3||k==4){var a=angle;if(k==4){let w=fract(env.skyTime.x+0.25);a=(0.25+(w-0.25)*1.2)*6.28318530718;}
    let center=vec3f(cos(a),sin(a),0)*20000.0;skyPosition=center+vec3f(-position.y*sin(a),position.y*cos(a),position.z)*select(666.666687,1000.0,k==4);
   }
+  if(waterPass.plane.w>0.5&&waterPass.plane.y>0){skyPosition.y=-skyPosition.y;}
   let z=dot(skyPosition,env.forward.xyz);o.position=vec4f(dot(skyPosition,env.right.xyz)/dot(env.right.xyz,env.right.xyz),dot(skyPosition,env.up.xyz)/dot(env.up.xyz,env.up.xyz),z,z);o.viewZ=z;
   if(k==1){let base=mix(env.horizon.rgb,env.zenith.rgb,clamp(position.y/5000.0*env.sun.w,0,1));o.color=vec4f(mix(env.scatter.rgb,base,min(1.0,distance(position,sunPosition)/env.scatter.w)),1);}
   if(k==2){let batch=u32(maskUV.x);let alpha=env.stars[batch/4u][batch%4u];o.color.a*=f32(u32(max(0.0,alpha*env.skyTime.w))&255u)/255.0;o.position=vec4f(o.position.xy+uv*maskUV.y*env.lunar.yz*z,o.position.zw);}
   if(k==5){o.uv=uv+vec2f(env.skyTime.y);}
+  if(waterPass.plane.w>0.5&&waterPass.plane.y>0){o.position.y=-o.position.y;}
  }
  return o;
 }
 @fragment fn fs(input:Out)->@location(0) vec4f {
+ if(waterPass.plane.w>0.5&&material.skin.w==0&&(input.worldY-waterPass.plane.x)*waterPass.plane.y<0){discard;}
  var reflected=vec3f(0);var equipment=vec3f(0);
  if(material.equipmentColor.w>0.0){equipment=textureSample(sphereMap,textureSampler,input.equipmentUV,0).rgb;}
  // Keep implicit-derivative sampling behind uniform gates, before varying exits.
  if(material.reflection.x>0.5&&env.reflection.w>0.5){reflected=textureSample(sphereMap,textureSampler,input.sphereUV,0).rgb;}
+ var waterColor=vec3f(0);
+ if(material.skin.z>0.5&&waterPass.plane.z>0.5&&waterPass.plane.w<0.5){let projected=input.mirrorPosition.xy/input.mirrorPosition.w;var offset=vec2f(0);
+ // 8BA130 cell corners use bump UV (0,1)..(1,0); ordinary water tiles four times.
+ if(material.reflection.w>0.5){let dudv=(textureSampleLevel(sphereMap,waterBumpSampler,input.uv*vec2f(.25,-.25)+vec2f(0,1),0,0).rg*255.0-128.0)/127.0;offset=vec2f(dot(waterPass.bump.xy,dudv),dot(waterPass.bump.zw,dudv));}
+ waterColor=textureSampleLevel(waterMirror,waterMirrorSampler,projected*waterPass.projection.xy+waterPass.projection.zw+offset,0).rgb;}
  let layer=select(u32(env.settings.z),u32(env.lunar.x),material.skin.w==4.0);let tex=textureSample(albedo,textureSampler,input.uv,i32(layer%textureNumLayers(albedo)));
  if(material.skin.w>0){let k=material.skin.w;
   if(k==1||k==2){return input.color;}
@@ -449,6 +468,7 @@ let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,i
   terrainFogColor=mix(env.terrainFog.rgb,env.horizon.rgb,${FOG_SKY_TINT});
  }
  if(material.skin.y>0.5){return vec4f(mix(clamp(light.rgb+env.shadow.rgb,vec3f(0),vec3f(1)),terrainFogColor,fog),1);}
+ if(animated&&waterPass.plane.z>0.5&&waterPass.plane.w<0.5){lit=waterColor;}
  return vec4f(mix(lit*select(vec3f(1),waterShading,animated),select(fogColor,terrainFogColor,material.options.z>0.5),fog),select(select(color.a,clamp(input.color.a,0,1),animated),select(select(1.0,color.a,material.ambient.w>0.5),fadeAlpha,fading),material.lighting.z>0.5));
 }`
 	} );
@@ -481,7 +501,11 @@ let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,i
 			entryPoint: "fs",
 			targets: [ { format, ...(state.blend ? { blend: blendState( state.blend ) } : {}) } ]
 		},
-		primitive: { topology: "triangle-list", cullMode: state.cull ? "back" : "none", frontFace: "cw" },
+		primitive: {
+			topology: "triangle-list",
+			cullMode: state.cull ? "back" : "none",
+			frontFace: "cw"
+		},
 		depthStencil: {
 			format: "depth24plus",
 			depthWriteEnabled: state.depthWrite,
