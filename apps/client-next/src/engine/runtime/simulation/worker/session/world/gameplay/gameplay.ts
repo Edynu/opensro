@@ -1256,6 +1256,13 @@ state here before a command can claim a native wire conversation.
 						jobAliasRequest( command.gid, command.mode, command.alias )
 				);
 			}
+			if ( command.kind === "fortress-schedule" ) {
+				const target = targeting.state();
+				if ( !localGid || target.target !== command.gid || !((target.targetCapabilities ?? 0) & 0x400000) ) {
+					throw Error( "Select a fortress manager" );
+				}
+				return sendFrame( fortressInteraction( command.gid, 5, command.fortress ) );
+			}
 			if ( command.kind === "fortress-war-status" || command.kind === "fortress-war-apply" ) {
 				// The official's row exists only on the selected official (0x800000).
 				const target = targeting.state();
@@ -1865,7 +1872,7 @@ state here before a command can claim a native wire conversation.
 			if ( command.kind === "shop-open" ) {
 				if (
 					entity?.kind !== "npc" || targeting.state().target !== command.gid ||
-					!((targeting.state().targetCapabilities ?? 0) & 1)
+					!((targeting.state().targetCapabilities ?? 0) & 0x801)
 				) throw Error( "Select a merchant first" );
 				return inventory.openShop( command.gid, now, targeting.state().targetCapabilities ?? 0 );
 			}
@@ -2403,6 +2410,13 @@ Packet handling must not depend on which HUD panel is currently open.
 				}
 				const fortressNext = fortressPacket( fortress, frame );
 				if ( fortressNext ) {
+					if ( fortressNext.service?.result === 2 && frame.opcode === 0xb1e1 ) {
+						const notice = constantNativeNotice(
+							FORTRESS_NOTICE_CATEGORY,
+							fortressNext.service.error ?? 0
+						);
+						if ( notice ) notices = [ ...notices.slice( -99 ), { ...notice, sequence: ++noticeSequence } ];
+					}
 					if ( frame.opcode === 0x3887 ) {
 						musicMode = fortressMusicMode( musicMode, fortress, fortressNext, frame.payload[0]! );
 					}
