@@ -196,6 +196,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	// Scratch evaluators for mesh-refined picks, one per admitted model.
 	const pickPoses = new WeakMap<CharacterModel, ReturnType<typeof createCharacterPose>>();
 	const textures = new Map<WorldTexture, ImageDraw>();
+	// Snapshots retain identity while their fields change. Recheck the complete
+	// variant each frame, but retain the long assembly prefix and its string hash.
+	// Weak ownership retires keys with snapshots, including temporary effect rows.
+	const batchKeys = new WeakMap<CharacterActor, { model: string; variant: string; key: string; }>();
 	const poses = new Map<number, {
 		model: string;
 		pose: ReturnType<typeof createCharacterPose>;
@@ -1542,7 +1546,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			for ( const actor of visible ) {
 				if ( actor.drawGeometry === false ) continue;
 				const plan = models.get( actor.model )!.plan, dependencies = chains.get( actor.gid )!;
-				const key = actor.model + (plan.cloth ?
+				const variant = (plan.cloth ?
 					"\0cloth:" + actor.gid :
 					"") +
 					(actor.deferredParticle ? "\0deferred" : "") +
@@ -1557,6 +1561,12 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 							((actor.animationLod?.fraction ?? 0) > .5) :
 							"") :
 						"");
+				let cachedKey = batchKeys.get( actor );
+				if ( !cachedKey || cachedKey.model !== actor.model || cachedKey.variant !== variant ) {
+					cachedKey = { model: actor.model, variant, key: actor.model + variant };
+					batchKeys.set( actor, cachedKey );
+				}
+				const key = cachedKey.key;
 				const rows = grouped.get( key ) ?? [];
 				const extra = plan.batchBytes( rows.length + 1 ) - plan.batchBytes( rows.length ) +
 					dependencies.reduce(
