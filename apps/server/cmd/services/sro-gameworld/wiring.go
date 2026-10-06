@@ -38,6 +38,9 @@ import (
 const (
 	networkDrainTimeout = 15 * time.Second
 	leaseReleaseTimeout = 3 * time.Second
+	// bootFillLimit bounds how long admission waits for the population's boot
+	// fill (about 13 s for the full world); past it players are admitted.
+	bootFillLimit = 60 * time.Second
 
 	envAgentURL        = "SRO_AGENT_URL"
 	envRequireAgentURL = "SRO_AGENT_URL_REQUIRE"
@@ -71,6 +74,9 @@ type gameWorldApplication struct {
 	ticker          *simulation.Ticker
 	readiness       *readiness.Gate
 	leaseOwned      bool
+	// population and shardID let Run hold admission until the boot fill.
+	population *simulation.MonsterState
+	shardID    string
 }
 
 /*
@@ -210,6 +216,7 @@ func newGameWorldApplication(
 			return nil, fmt.Errorf("dormant monster storage: %w", err)
 		}
 		application.populationCache = gameplay.deps.MonsterState
+		application.population = gameplay.deps.MonsterState
 	}
 	if err := gameplay.water.EnableBoundedHeightCache(2 << 20); err != nil {
 		return nil, fmt.Errorf("terrain height cache: %w", err)
@@ -262,6 +269,9 @@ func newGameWorldApplication(
 	if err != nil {
 		return nil, fmt.Errorf("GameWorld control API: %w", err)
 	}
+	application.shardID = ownedShard.ID
+	// The listener also serves the liveness check (/transport/healthz), so it
+	// starts now; only readiness, and with it admission, waits in Run.
 	if err := ts.Start(); err != nil {
 		return nil, fmt.Errorf("transport: %w", err)
 	}
@@ -269,11 +279,6 @@ func newGameWorldApplication(
 	if err := startupContext.Err(); err != nil {
 		return nil, fmt.Errorf("startup cancelled: %w", err)
 	}
-	application.readiness.Open()
-	log.Infof(
-		"shard: GameWorld %q owns state and transport under its Agent lease",
-		ownedShard.ID,
-	)
 	return application, nil
 }
 
@@ -298,6 +303,109 @@ func configuredAgentURL() (string, error) {
 
 /*
 ================
+admit
+
+Opens readiness once the monster population's boot fill has settled. The
+first population passes place every nest's monsters (tens of thousands of
+spawns, each with ground placement), and those ticks run for hundreds of
+milliseconds. Readiness gates admission-token minting and readyz, so no
+new session starts into those ticks; the transport listener is already up
+because it also answers the liveness check. INFERENCE: the native
+GameServer finishes loading its worlds before it accepts clients; this is
+the port's equivalent boundary. bootFillLimit is liveness only, well under
+the job's healthy_deadline: a fill that never settles opens with a warning.
+================
+*/
+func (application *gameWorldApplication) admit(ctx context.Context) error {
+	started := time.Now()
+	settled := func() bool {
+		population := application.population
+		return population == nil || population.PopulationSettled(application.shardID)
+	}
+	open := func(settled bool) {
+		application.readiness.Open()
+		fill := "population settled"
+		if !settled {
+			fill = "population NOT settled; admitted at the bound"
+		}
+		log.Infof(
+			"shard: GameWorld %q owns state and transport under its Agent lease (%s after %s)",
+			application.shardID,
+			fill,
+			time.Since(started).Round(time.Millisecond),
+		)
+	}
+	admitWhenSettled(ctx, admission{
+		settled: settled,
+		open:    open,
+		poll:    simulation.DefaultTickInterval,
+		limit:   bootFillLimit,
+	})
+	return nil
+}
+
+/*
+================
+admission
+
+What admitWhenSettled needs, as plain functions so the order is testable.
+================
+*/
+type admission struct {
+	settled     func() bool
+	open        func(settled bool)
+	poll, limit time.Duration
+}
+
+/*
+================
+admitWhenSettled
+
+Waits for the boot fill (or its bound), then opens readiness and says
+which it was. A run cancelled before that never opens: Run is about to
+drain.
+================
+*/
+func admitWhenSettled(ctx context.Context, a admission) {
+	settled := awaitBootFill(ctx, a.settled, a.poll, a.limit)
+	if !settled && ctx.Err() == nil {
+		log.Warnf("shard: monster population still filling after %s; admitting players anyway", a.limit)
+	}
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+	a.open(settled)
+}
+
+/*
+================
+awaitBootFill
+
+Polls settled every poll until it holds (true), the limit passes or ctx
+ends (false).
+================
+*/
+func awaitBootFill(ctx context.Context, settled func() bool, poll, limit time.Duration) bool {
+	deadline := time.NewTimer(limit)
+	defer deadline.Stop()
+	ticker := time.NewTicker(poll)
+	defer ticker.Stop()
+	for !settled() {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-deadline.C:
+			return false
+		case <-ticker.C:
+		}
+	}
+	return true
+}
+
+/*
+================
 Run
 ================
 */
@@ -315,6 +423,13 @@ func (application *gameWorldApplication) Run(ctx context.Context) error {
 		application.ticker.Run(groupContext)
 		return nil
 	})
+	// Shutdown joins admission before it closes readiness and drains, so a
+	// late admit can never start the transport behind the drain.
+	admitted := make(chan struct{})
+	group.Go(func() error {
+		defer close(admitted)
+		return application.admit(groupContext)
+	})
 	group.Go(func() error {
 		return waitForServeError(
 			groupContext,
@@ -331,8 +446,9 @@ func (application *gameWorldApplication) Run(ctx context.Context) error {
 	})
 
 	<-groupContext.Done()
-	application.readiness.Close()
 	cancelRun()
+	<-admitted
+	application.readiness.Close()
 
 	drainErr := application.drainNetwork()
 	runErr := group.Wait()

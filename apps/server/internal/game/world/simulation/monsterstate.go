@@ -35,13 +35,19 @@ type divisionMonsterState struct {
 	behavior        behaviorQueue
 	lease           instance.Lease
 	lastDensityMs   int64
-	contributions   map[uint32]map[uint32]uint32 // victim -> credited actor -> damage argument
-	abnormalActive  map[uint32]struct{}          // active-only abnormal tick index; blocks live on instances
-	aiEvents        map[uint32][]monsterAIEvent  // fear/confusion tactics events awaiting the behavior step
-	pendingSummons  map[uint32]pendingMonsterSummon
-	instances       monsterStorage
-	uniqueNotices   []Frame
-	uniqueDeaths    map[uint32]bool
+	// Boot fill bookkeeping (PopulationSettled). spawns counts placed nest
+	// spawns; fillPending holds every materialized nest outside a hive and
+	// every hive until its first callback visit that places nothing.
+	populationTicked bool
+	spawns           uint64
+	fillPending      map[populationFillKey]struct{}
+	contributions    map[uint32]map[uint32]uint32 // victim -> credited actor -> damage argument
+	abnormalActive   map[uint32]struct{}          // active-only abnormal tick index; blocks live on instances
+	aiEvents         map[uint32][]monsterAIEvent  // fear/confusion tactics events awaiting the behavior step
+	pendingSummons   map[uint32]pendingMonsterSummon
+	instances        monsterStorage
+	uniqueNotices    []Frame
+	uniqueDeaths     map[uint32]bool
 	// lifetimes holds the CGObjMob tick timers (monsterlifetime.go).
 	lifetimes map[uint32]monsterLifetime
 	// byRegion indexes gids by their generated spawn region so scoped
@@ -388,8 +394,40 @@ func (s *MonsterState) AdvancePopulation(nowMs int64) {
 			s.sampleHiveDensity(state, snapshot, nowMs)
 		}
 		s.runDueHiveTicks(state, nowMs)
+		state.populationTicked = true
 		s.mu.Unlock()
 	}
+}
+
+/*
+================
+MonsterState.PopulationSettled
+
+The division's boot fill is over: every population of it has run a
+population pass, and every nest and hive materialized so far has had a
+callback visit that placed nothing (it was at its target, its timer was
+still waiting, or its placement was rejected). The test is per callback
+unit and sticky, so the respawn churn of a live world, which places
+something somewhere in nearly every nest tick, cannot hold it open. A
+division with no population is settled.
+================
+*/
+func (s *MonsterState) PopulationSettled(division string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, key := range s.populationKeys() {
+		if key.division != division {
+			continue
+		}
+		state := s.populationForLease(key.division, key.lease)
+		if state == nil {
+			continue
+		}
+		if !state.populationTicked || len(state.fillPending) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // InstancesInRegions reads the default population. Startup and clock events
