@@ -195,12 +195,21 @@ function shadowHarness() {
 	} );
 	globalThis.GPUBufferUsage = { UNIFORM: 1, COPY_DST: 2, VERTEX: 4, INDEX: 8 };
 	globalThis.GPUTextureUsage = { RENDER_ATTACHMENT: 1, TEXTURE_BINDING: 2 };
-	const owned = [], calls = [];
+	const owned = [], calls = [], bindings = [], views = [];
 	const resource = data => {
 		const r = {
 			...data,
 			destroyed: false,
-			createView: () => ({}),
+			/*
+			================
+			createView
+			================
+			*/
+			createView( descriptor ) {
+				const view = { texture: r, descriptor };
+				views.push( view );
+				return view;
+			},
 			/*
 			================
 			destroy
@@ -218,7 +227,15 @@ function shadowHarness() {
 		createShaderModule: () => ({}),
 		createRenderPipeline: () => ({ getBindGroupLayout: () => ({}) }),
 		createSampler: () => ({}),
-		createBindGroup: () => ({}),
+		/*
+		================
+		createBindGroup
+		================
+		*/
+		createBindGroup( descriptor ) {
+			bindings.push( descriptor );
+			return descriptor;
+		},
 		createBuffer: resource,
 		createTexture: resource,
 		queue: { writeBuffer() {} }
@@ -229,7 +246,7 @@ function shadowHarness() {
 	const owner = createCharacterShadows(
 			gpu,
 			{},
-			() => ({ createView: () => ({}) }),
+			image => image.texture,
 			d => d === draw ? borrowed : undefined,
 			"rgba8unorm"
 		),
@@ -282,7 +299,7 @@ function shadowHarness() {
 		if ( previous ) Object.defineProperty( globalThis, "navigator", previous );
 		else delete globalThis.navigator;
 	};
-	return { owner, request, encoder, calls, owned, draw, restore };
+	return { owner, request, encoder, calls, owned, draw, borrowed, bindings, views, restore };
 }
 
 test("shadow GPU lifecycle draws the selected batch instance, filters before receiving, and retires disabled resources", () => {
@@ -296,7 +313,7 @@ test("shadow GPU lifecycle draws the selected batch instance, filters before rec
 		] );
 		assert.ok( calls.some( a => Array.isArray( a ) && a.join() === "12,1,0,0,2" ) );
 		calls.length = 0;
-		owner.prepare( [ { ...request, blob: true } ], {} );
+		owner.prepare( [ { ...request, blob: true } ], { texture: { createView: () => ({}) } } );
 		owner.encode( encoder );
 		assert.equal( calls.length, 0 );
 		owner.prepare( [] );
@@ -332,6 +349,63 @@ test("borrowed caster draws are rendered only in the frame that prepared them", 
 		owner.encode( encoder );
 		assert.equal( drawn(), 0 );
 		owner.dispose();
+	} finally {
+		restore();
+	}
+});
+
+test("shadow frames reuse bindings and views while still rendering each current caster", () => {
+	const { owner, request, encoder, calls, bindings, views, borrowed, restore } = shadowHarness();
+	try {
+		const first = owner.prepare( [ request ] )[0];
+		owner.encode( encoder );
+		assert.equal( bindings.length, 3 );
+		assert.equal( views.length, 3 );
+		request.matrix[12] += 10;
+		const next = owner.prepare( [ request ] )[0];
+		owner.encode( encoder );
+		assert.equal( next.binding, first.binding );
+		assert.equal( bindings.length, 3 );
+		assert.equal( views.length, 3 );
+		assert.equal( calls.filter( a => Array.isArray( a ) && a.join() === "12,1,0,0,2" ).length, 2 );
+		// Mutating the borrowed record must invalidate all four buffer identities.
+		for ( const field of [ "instances", "material", "skin", "bones" ] ) {
+			const before = bindings.length;
+			borrowed[field] = {};
+			owner.prepare( [ request ] );
+			assert.equal( bindings.length, before + 1 );
+			assert.ok( bindings.at( -1 ).entries.some( entry => entry.resource.buffer === borrowed[field] ) );
+		}
+		owner.dispose();
+	} finally {
+		restore();
+	}
+});
+
+test("shadow cache follows texture changes, forget during blob frames, and slot retirement", () => {
+	const { owner, request, draw, bindings, owned, restore } = shadowHarness();
+	const blob = { texture: { createView: () => ({}) } };
+	try {
+		owner.prepare( [ request ] );
+		const blobRequest = { ...request, blob: true };
+		const first = owner.prepare( [ blobRequest ], blob )[0];
+		assert.equal( bindings.length, 4 );
+		assert.equal( owner.prepare( [ blobRequest ], blob )[0].binding, first.binding );
+		assert.equal( bindings.length, 4 );
+		blob.texture = { createView: () => ({}) };
+		assert.notEqual( owner.prepare( [ blobRequest ], blob )[0].binding, first.binding );
+		assert.equal( bindings.length, 5 );
+		owner.forget( draw );
+		owner.prepare( [ request ] );
+		assert.equal( bindings.length, 7, "forgotten caster and restored detailed ground both rebuild" );
+		const projection = bindings[5].entries[0].resource.buffer;
+		owner.prepare( [] );
+		assert.ok( owned.every( resource => resource.destroyed ) );
+		owner.prepare( [ request ] );
+		assert.equal( bindings.length, 10 );
+		assert.notEqual( bindings[8].entries[0].resource.buffer, projection );
+		owner.dispose();
+		assert.ok( owned.every( resource => resource.destroyed ) );
 	} finally {
 		restore();
 	}

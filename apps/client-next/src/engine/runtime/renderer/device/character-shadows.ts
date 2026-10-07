@@ -18,6 +18,13 @@ release, or its instance storage growing) so no submit reads a dead buffer.
 import type { CharacterShadowRequest, GeometryDraw, ImageDraw } from "../internal/gpu-contract";
 import { packGeometryVertices } from "@/engine/foundation/rendering/geometry-vertices";
 import { destroyNow, type Retire } from "./retirement";
+/*
+================
+ShadowBinding
+
+Borrowed resources; identity changes invalidate the slot's binding cache.
+================
+*/
 export interface ShadowBinding {
 	readonly instances: GPUBuffer;
 	readonly material: GPUBuffer;
@@ -138,11 +145,23 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		addressModeU: "clamp-to-edge",
 		addressModeV: "clamp-to-edge"
 	} );
+	/*
+	================
+	Slot
+
+	Bindings retain resource identities, never last frame's render eligibility.
+	================
+	*/
 	type Slot = {
 		projection: GPUBuffer;
 		source: GPUTexture;
+		sourceView: GPUTextureView;
 		filtered: GPUTexture;
+		filteredView: GPUTextureView;
 		filterBinding: GPUBindGroup;
+		partCache: WeakMap<GeometryDraw, { buffers: ShadowBinding; binding: GPUBindGroup; }>;
+		groundTexture?: GPUTexture;
+		groundBinding?: GPUBindGroup;
 		vertices: GPUBuffer;
 		indices: GPUBuffer;
 		draw: GeometryDraw;
@@ -213,9 +232,13 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 						format: "rgba8unorm",
 						usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
 					} );
+					const sourceView = source.createView();
 					s = {
 						source,
+						sourceView,
 						filtered,
+						filteredView: filtered.createView(),
+						partCache: new WeakMap(),
 						projection: device.createBuffer( {
 							label: "character-shadow-projection",
 							size: 64,
@@ -223,7 +246,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 						} ),
 						filterBinding: device.createBindGroup( {
 							layout: filter.getBindGroupLayout( 0 ),
-							entries: [ { binding: 0, resource: source.createView() } ]
+							entries: [ { binding: 0, resource: sourceView } ]
 						} ),
 						vertices: device.createBuffer( {
 							label: "character-shadow-vertices",
@@ -253,30 +276,45 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 					for ( const part of r.parts ) {
 						const b = binding( part.draw );
 						if ( !b || part.instance >= part.draw.instanceCount ) continue;
-						s.parts.push( {
-							...part,
-							binding: device.createBindGroup( {
-								layout: silhouette.getBindGroupLayout( 0 ),
-								entries: [
-									{ binding: 0, resource: { buffer: s.projection } },
-									{ binding: 1, resource: { buffer: b.instances } },
-									{ binding: 2, resource: { buffer: b.material } },
-									{ binding: 3, resource: { buffer: b.skin } },
-									{ binding: 4, resource: { buffer: b.bones } }
-								]
-							} )
-						} );
+						let cached = s.partCache.get( part.draw );
+						if (
+							!cached || cached.buffers.instances !== b.instances ||
+							cached.buffers.material !== b.material || cached.buffers.skin !== b.skin ||
+							cached.buffers.bones !== b.bones
+						) {
+							cached = {
+								// The owner may mutate its binding record in place.
+								buffers: { ...b },
+								binding: device.createBindGroup( {
+									layout: silhouette.getBindGroupLayout( 0 ),
+									entries: [
+										{ binding: 0, resource: { buffer: s.projection } },
+										{ binding: 1, resource: { buffer: b.instances } },
+										{ binding: 2, resource: { buffer: b.material } },
+										{ binding: 3, resource: { buffer: b.skin } },
+										{ binding: 4, resource: { buffer: b.bones } }
+									]
+								} )
+							};
+							s.partCache.set( part.draw, cached );
+						}
+						s.parts.push( { ...part, binding: cached.binding } );
 					}
 				}
-				s.draw = {
-					pipeline: ground,
-					binding: device.createBindGroup( {
+				const groundTexture = r.blob ? texture( blob! ) : s.filtered;
+				if ( s.groundTexture !== groundTexture ) {
+					s.groundTexture = groundTexture;
+					s.groundBinding = device.createBindGroup( {
 						layout: ground.getBindGroupLayout( 0 ),
 						entries: [ { binding: 0, resource: { buffer: view } }, {
 							binding: 1,
-							resource: (r.blob ? texture( blob! ) : s.filtered).createView( { dimension: "2d-array" } )
+							resource: groundTexture.createView( { dimension: "2d-array" } )
 						}, { binding: 2, resource: sampler } ]
-					} ),
+					} );
+				}
+				s.draw = {
+					pipeline: ground,
+					binding: s.groundBinding!,
 					vertices: s.vertices,
 					indices: s.indices,
 					count: indices.length,
@@ -304,7 +342,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 				const p = encoder.beginRenderPass( {
 					label: "character-shadow-generate",
 					colorAttachments: [ {
-						view: s.source.createView(),
+						view: s.sourceView,
 						loadOp: "clear",
 						storeOp: "store",
 						clearValue: [ 0, 0, 0, 0 ]
@@ -322,7 +360,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 				const f = encoder.beginRenderPass( {
 					label: "character-shadow-filter",
 					colorAttachments: [ {
-						view: s.filtered.createView(),
+						view: s.filteredView,
 						loadOp: "clear",
 						storeOp: "store",
 						clearValue: [ 0, 0, 0, 0 ]
@@ -344,6 +382,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		*/
 		forget( draw: GeometryDraw ) {
 			for ( const s of slots ) {
+				s?.partCache.delete( draw );
 				if ( s?.parts.some( part => part.draw === draw ) ) {
 					s.parts = s.parts.filter( part => part.draw !== draw );
 				}
