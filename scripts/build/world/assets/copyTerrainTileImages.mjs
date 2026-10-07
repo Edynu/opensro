@@ -16,7 +16,7 @@ tile catalog. Coalesce concurrent publishes and never republish the same
 tile during one build process.
 ===========================================================================
 */
-import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { toPublicImagePath } from "../../shared/assetPaths.mjs";
@@ -63,8 +63,7 @@ export async function resolveReferencedTerrainTiles( textureIds, tileCatalog, so
 copyReferencedTerrainTileImages
 
 Publish what the bundle references. A reference that no longer matches the
-probe's answer is refused: publishing the other representation and sweeping
-the referenced one would orphan the bundle (migrate it first).
+probe's answer is refused: migrate the bundle before choosing its output.
 ================
 */
 export async function copyReferencedTerrainTileImages( referencedTiles, sourceExtractedRoot ) {
@@ -107,12 +106,11 @@ migrateCachedTerrainTileReferences
 A reused region bundle names the tile representation it was published with.
 When the probe now admits a DDJ as a block container but the cached
 reference still names the converted PNG (an upgrade from a pre-container
-build), the reference migrates to the .texture path - publishing the
-container and sweeping the stale PNG must never orphan a bundle that still
-reads it. The reverse direction matters for the same reason: a cached
+build), the reference migrates to the .texture path. The reverse direction
+matters for the same reason: a cached
 .texture reference whose source the probe no longer admits falls back to
-the PNG path. Mutates the parsed bundle in place; true when it changed, so
-the caller persists the bundle before this run publishes its tiles.
+the PNG path. Mutates the parsed bundle in place; true when it changed.
+Publish dependencies successfully before persisting the changed bundle.
 ================
 */
 export async function migrateCachedTerrainTileReferences( bundle, sourceExtractedRoot ) {
@@ -166,18 +164,15 @@ async function currentTerrainTilePublicPath( ddjFileName, sourceExtractedRoot ) 
 ================
 publishTerrainTile
 
-Block tiles publish the NTX1 container and remove the converted PNGs an
-earlier build left behind; non-block tiles keep the staging PNG copy.
+Block tiles publish the NTX1 container; non-block tiles keep the staging PNG
+copy. Both retain previous representations because other region bundles
+share these paths and need not participate in this scoped rebuild.
 ================
 */
 async function publishTerrainTile( ddjPath, target, sourcePath, block ) {
 	if ( block ) {
 		// Authored levels only, byte remap - see copyTerrainLightmaps.mjs.
 		await writeAuthoredBlockContainer( await readFile( ddjPath ), sourcePath, target );
-		const base = target.replace( /\.texture$/, "" );
-		for ( const stale of [ `${base}.png`, `${base}.ddj.png` ] ) {
-			if ( await exists( stale ) ) await rm( stale );
-		}
 		return;
 	}
 	const source = path.join(

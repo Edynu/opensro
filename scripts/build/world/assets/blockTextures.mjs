@@ -55,6 +55,7 @@ const BLOCK_FOURCCS = new Map( [
 ] );
 const NTX_MAGIC = 0x3158544e;
 const NTX_HEADER_BYTES = 20;
+const MAX_TEXTURE_DIMENSION = 8192;
 const ENCODER_PATH = fileURLToPath( new URL( "../../native_texture_mips.py", import.meta.url ) );
 const BLOCK_TEXTURE_CACHE_DIR = path.join( generatedRoot, "intermediate", "block-texture-cache" );
 // One python process per batch beats one per file; the window keeps a
@@ -80,7 +81,10 @@ function blockFormatOfDdsHeader( dds ) {
 	if ( (dds.readUInt32LE( DDPF_FLAGS_OFFSET ) & DDPF_FOURCC) === 0 ) return null;
 	const height = dds.readUInt32LE( DDS_HEIGHT_OFFSET );
 	const width = dds.readUInt32LE( DDS_WIDTH_OFFSET );
-	if ( width < 1 || height < 1 || width & (width - 1) || height & (height - 1) ) return null;
+	if (
+		width < 1 || height < 1 || width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION ||
+		width & (width - 1) || height & (height - 1)
+	) return null;
 	return BLOCK_FOURCCS.get( dds.readUInt32LE( FOURCC_CODE_OFFSET ) ) ?? null;
 }
 
@@ -223,6 +227,7 @@ function validateAuthoredContainer( bytes, origin ) {
 	const blockBytes = nativeTextureBlockBytesOf( fourcc );
 	if (
 		!BLOCK_FOURCCS.has( fourcc ) || width < 1 || height < 1 ||
+		width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION ||
 		width & (width - 1) || height & (height - 1)
 	) fail( "unsupported format or dimensions" );
 	const count = bytes.readUInt32LE( 16 );
@@ -304,7 +309,11 @@ function validateBlockContainer( bytes, origin ) {
 	if ( bytes.length < NTX_HEADER_BYTES || bytes.readUInt32LE( 0 ) !== NTX_MAGIC ) fail( "not an NTX1 header" );
 	const width = bytes.readUInt32LE( 4 ), height = bytes.readUInt32LE( 8 ), fourcc = bytes.readUInt32LE( 12 );
 	const blockBytes = fourcc === 0x31545844 ? 8 : fourcc === 0x33545844 || fourcc === 0x35545844 ? 16 : 0;
-	if ( !blockBytes || width < 1 || height < 1 || width & (width - 1) || height & (height - 1) ) {
+	if (
+		!blockBytes || width < 1 || height < 1 ||
+		width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION ||
+		width & (width - 1) || height & (height - 1)
+	) {
 		fail( "unsupported format or dimensions" );
 	}
 	const count = bytes.readUInt32LE( 16 );
@@ -331,10 +340,10 @@ batch fails the build, exactly like the object lane's one-shot manifest.
 */
 async function drainPendingJobs() {
 	const batch = pendingJobs.splice( 0 );
-	const generator = await generatorHash();
 	// content key -> { cachedTexture, staged, manifestSource, entries }
 	const groups = new Map();
 	try {
+		const generator = await generatorHash();
 		for ( const entry of batch ) {
 			const { job } = entry;
 			const sourceHash = await hashFile( job.source );
@@ -420,5 +429,11 @@ async function copyCached( cachedTexture, target ) {
 	const bytes = await readFile( cachedTexture );
 	validateBlockContainer( bytes, cachedTexture );
 	await mkdir( path.dirname( target ), { recursive: true } );
-	await writeFile( target, bytes );
+	const staged = `${target}.${randomUUID()}.tmp`;
+	try {
+		await writeFile( staged, bytes );
+		await publishFileFromTemp( staged, target );
+	} finally {
+		await rm( staged, { force: true } );
+	}
 }

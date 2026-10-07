@@ -10,9 +10,8 @@ of a CPU decode to expanded RGBA8. A non-block surface keeps the raw .dds
 and the client's legacy decode route.
 ===========================================================================
 */
-import { rm } from "node:fs/promises";
 import { publicPathToFile } from "../../shared/assetPaths.mjs";
-import { exists, writePublicFile } from "../io.mjs";
+import { writePublicFile } from "../io.mjs";
 import { publicRoot } from "../paths.mjs";
 import { probeBlockDdsPayload, writeAuthoredBlockContainer } from "./blockTextures.mjs";
 
@@ -24,9 +23,9 @@ export function terrainLightmapPublicPath( area, sectorX, sectorY, block ) {
 ================
 publishTerrainLightmap
 
-Publish the embedded payload and return its public path. The block
-container replaces any raw .dds an earlier build wrote (and vice versa), so
-the pack sweep can never resurface the superseded sibling.
+Publish the embedded payload and return its public path. Retain an earlier
+representation: neighboring region bundles can share this sector while a
+scoped rebuild updates only one bundle's references.
 ================
 */
 export async function publishTerrainLightmap( area, sectorX, sectorY, payload ) {
@@ -41,7 +40,5 @@ export async function publishTerrainLightmap( area, sectorX, sectorY, payload ) 
 	} else {
 		await writePublicFile( publicPath, payload );
 	}
-	const stale = block ? target.replace( /\.texture$/, ".dds" ) : target.replace( /\.dds$/, ".texture" );
-	if ( await exists( stale ) ) await rm( stale );
 	return publicPath;
 }

@@ -4,7 +4,7 @@
 terrainBlockTextures.test.mjs - the shared block-texture publisher on fixtures
 
 Synthetic DDJ/DDS sources (the nativeCharacterTextures fixture shape) prove
-the probe's admission rules, the lightmap publisher's path/sweep contract,
+the probe's admission rules, the lightmap publisher's compatibility contract,
 the tile publisher's block/PNG split, the cached-bundle migration an
 incremental build runs, and the encode cache's validation. The whole suite
 runs inside its own generated root (SRO_GENERATED_ROOT before any module
@@ -42,6 +42,7 @@ const { publicRoot, imageSourceRoot } = await import( "../../build/world/paths.m
 const { exists } = await import( "../../build/world/io.mjs" );
 const { publicPathToFile } = await import( "../../build/shared/assetPaths.mjs" );
 const { sha256Hex } = await import( "../../build/shared/hash.mjs" );
+const { refreshCachedTerrainTileBundle } = await import( "../../build/world/buildOutdoorWorldRegionResources.mjs" );
 
 test.after( () => rm( generatedRoot, { recursive: true, force: true } ) );
 
@@ -106,6 +107,8 @@ test("the probe admits power-of-two DXT DDJs and bare DDS payloads, nothing else
 	}
 	assert.equal( probeBlockDdsPayload( fixtureDds() ), "dxt1" );
 	assert.equal( probeBlockDdsPayload( fixtureDds( { width: 5, height: 5 } ) ), null );
+	assert.equal( probeBlockDdsPayload( fixtureDds( { width: 16384 } ) ), null );
+	assert.equal( probeBlockDdsPayload( fixtureDds( { height: 16384 } ) ), null );
 	assert.equal( probeBlockDdsPayload( Buffer.from( "JMXVDDJ 1000 short" ) ), null );
 });
 
@@ -215,18 +218,18 @@ test("a persisted tile ledger without recorded references is discarded, not trus
 	assert.equal( fresh.size, 1, "a v4 ledger is read" );
 });
 
-test("the lightmap publisher emits .texture for block payloads and sweeps the raw sibling", async () => {
+test("the lightmap publisher retains the raw sibling for existing bundles", async () => {
 	const area = "__test-lightmaps";
 	const sectors = await publishTerrainLightmap( area, 250, 250, fixtureDds() );
 	assert.equal( sectors, terrainLightmapPublicPath( area, 250, 250, true ) );
 	assert.match( sectors, /terrain-lightmaps\/250-250\.texture$/ );
 	const raw = terrainLightmapPublicPath( area, 250, 250, false );
-	// A stale raw sibling (the pre-block publisher's output) is removed.
+	// Another bundle can still reference the pre-block publisher's output.
 	const stalePath = publicPathToFile( raw, publicRoot );
 	await mkdir( path.dirname( stalePath ), { recursive: true } );
 	await writeFile( stalePath, Buffer.from( "stale" ) );
 	await publishTerrainLightmap( area, 250, 250, fixtureDds() );
-	assert.equal( await exists( stalePath ), false );
+	assert.ok( (await readFile( stalePath )).equals( Buffer.from( "stale" ) ) );
 	assert.ok( await exists( publicPathToFile( sectors, publicRoot ) ) );
 });
 
@@ -242,13 +245,12 @@ test("referenced tiles split between block containers and converted PNG copies",
 		assert.equal( resolved[0].imagePublicPath, terrainTileTexturePublicPath( ddjName ) );
 
 		const published = publicPathToFile( terrainTileTexturePublicPath( ddjName ), publicRoot );
-		// An earlier build's converted PNG for the same tile exists: publishing
-		// the container must sweep it in the same pass.
+		// Another region can still reference the earlier converted PNG.
 		await mkdir( path.dirname( published ), { recursive: true } );
 		await writeFile( published.replace( /\.texture$/, ".png" ), Buffer.from( "stale" ) );
 		await copyReferencedTerrainTileImages( resolved, extracted );
 		assert.ok( await exists( published ) );
-		assert.equal( await exists( published.replace( /\.texture$/, ".png" ) ), false );
+		assert.equal( await exists( published.replace( /\.texture$/, ".png" ) ), true );
 
 		// A non-block tile (non-power-of-two) keeps the converted PNG path and
 		// publishes the staging copy unchanged.
@@ -276,15 +278,12 @@ test("referenced tiles split between block containers and converted PNG copies",
 ================
 An incremental build after the format change
 
-The review's repro: a cached region bundle still names the .png a
-pre-container build published; the new publisher switches the tile to a
-.texture and sweeps the .png - without migrating the bundle first, its
-references 404. The migration walks the probe's current answers and the
-publisher then serves exactly what the (rewritten) bundle reads, in both
-directions.
+A cached region bundle still names the .png a pre-container build published.
+Migrate the chosen bundle while preserving files other bundles still name.
+The reverse migration uses the same dependency-first publication order.
 ================
 */
-test("a cached bundle's tile references migrate to the published representation before the sweep", async () => {
+test("a cached bundle's tile references migrate while preserving compatibility", async () => {
 	const extracted = await mkdtemp( path.join( os.tmpdir(), "sro-block-migrate-" ) );
 	const ddjName = "zzz_test_tile_03.ddj";
 	try {
@@ -316,10 +315,10 @@ test("a cached bundle's tile references migrate to the published representation 
 		);
 		await copyReferencedTerrainTileImages( bundle.terrainTextures.tileCatalog.referencedTiles, extracted );
 
-		// The migrated reference resolves; the swept PNG is gone.
+		// Both the migrated reference and earlier bundles' PNG resolve.
 		const published = publicPathToFile( terrainTileTexturePublicPath( ddjName ), publicRoot );
 		assert.ok( await exists( published ) );
-		assert.equal( await exists( stalePng ), false );
+		assert.equal( await exists( stalePng ), true );
 		assert.equal( (await readFile( published )).readUInt32LE( 0 ), 0x3158544e );
 
 		// The reverse: a source the probe no longer admits falls back to the
@@ -436,6 +435,88 @@ test("a stale recorded reference is detected and never published under", async (
 		await writeFile( referencedPng, Buffer.from( "still-referenced" ) );
 		await assert.rejects( () => copyReferencedTerrainTileImages( stale, extracted ), /migrate the bundle first/ );
 		assert.ok( await exists( referencedPng ), "the referenced PNG survives" );
+	} finally {
+		await rm( extracted, { recursive: true, force: true } );
+	}
+});
+
+test("a scoped rebuild keeps shared tile and lightmap references usable in an untouched bundle", async () => {
+	const extracted = await mkdtemp( path.join( os.tmpdir(), "sro-block-shared-" ) );
+	try {
+		const name = "zzz_shared_regions.ddj";
+		const source = path.join( extracted, "Map_extracted", "tile2d", name );
+		await mkdir( path.dirname( source ), { recursive: true } );
+		await writeFile( source, fixtureDdj() );
+		const tilePath = terrainTileImagePublicPath( name );
+		const lightmapPath = terrainLightmapPublicPath( "__test-shared", 240, 241, false );
+		for ( const publicPath of [ tilePath, lightmapPath ] ) {
+			const file = publicPathToFile( publicPath, publicRoot );
+			await mkdir( path.dirname( file ), { recursive: true } );
+			await writeFile( file, Buffer.from( "previous published bytes" ) );
+		}
+		const bundle = {
+			terrainTextures: {
+				tileCatalog: { referencedTiles: [ { ddjFileName: name, imagePublicPath: tilePath } ] },
+				sectors: [ { lightmapPublicPath: lightmapPath } ]
+			}
+		};
+		const selected = path.join( extracted, "selected.json" );
+		const untouched = path.join( extracted, "untouched.json" );
+		const original = JSON.stringify( bundle );
+		await writeFile( selected, original );
+		await writeFile( untouched, original );
+		await refreshCachedTerrainTileBundle( selected, extracted );
+		const migrated = JSON.parse( await readFile( selected, "utf8" ) );
+		migrated.terrainTextures.sectors[0].lightmapPublicPath = await publishTerrainLightmap(
+			"__test-shared",
+			240,
+			241,
+			fixtureDds()
+		);
+		await writeFile( selected, JSON.stringify( migrated ) );
+		assert.equal( await readFile( untouched, "utf8" ), original );
+		for ( const file of [ selected, untouched ] ) {
+			const current = JSON.parse( await readFile( file, "utf8" ) );
+			for (
+				const publicPath of [
+					current.terrainTextures.tileCatalog.referencedTiles[0].imagePublicPath,
+					current.terrainTextures.sectors[0].lightmapPublicPath
+				]
+			) {
+				assert.ok( await exists( publicPathToFile( publicPath, publicRoot ) ), `${file}: ${publicPath}` );
+			}
+		}
+		assert.equal(
+			migrated.terrainTextures.tileCatalog.referencedTiles[0].imagePublicPath,
+			terrainTileTexturePublicPath( name )
+		);
+	} finally {
+		await rm( extracted, { recursive: true, force: true } );
+	}
+});
+
+test("a failed dependency publication preserves the persisted bundle and its earlier texture", async () => {
+	const extracted = await mkdtemp( path.join( os.tmpdir(), "sro-block-failed-migration-" ) );
+	try {
+		const name = "zzz_failed_migration.ddj";
+		const source = path.join( extracted, "Map_extracted", "tile2d", name );
+		await mkdir( path.dirname( source ), { recursive: true } );
+		// The header qualifies, but its incomplete authored block must fail
+		// validation before the persisted bundle can advertise a new path.
+		await writeFile( source, fixtureDdj().subarray( 0, DDJ_HEADER + DDS_HEADER + 4 ) );
+		const tilePath = terrainTileImagePublicPath( name );
+		const previous = publicPathToFile( tilePath, publicRoot );
+		await mkdir( path.dirname( previous ), { recursive: true } );
+		await writeFile( previous, Buffer.from( "previous published bytes" ) );
+		const output = path.join( extracted, "region.json" );
+		const original = JSON.stringify( {
+			terrainTextures: { tileCatalog: { referencedTiles: [ { ddjFileName: name, imagePublicPath: tilePath } ] } }
+		} );
+		await writeFile( output, original );
+		await assert.rejects( () => refreshCachedTerrainTileBundle( output, extracted ), /truncated authored level/ );
+		assert.equal( await readFile( output, "utf8" ), original );
+		assert.equal( await readFile( previous, "utf8" ), "previous published bytes" );
+		assert.equal( await exists( publicPathToFile( terrainTileTexturePublicPath( name ), publicRoot ) ), false );
 	} finally {
 		await rm( extracted, { recursive: true, force: true } );
 	}

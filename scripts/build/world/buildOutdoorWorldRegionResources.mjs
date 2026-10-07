@@ -100,6 +100,23 @@ function bundleTerrainTiles( bundle ) {
 
 /*
 ================
+refreshCachedTerrainTileBundle
+
+Publish and validate migrated dependencies before changing the persisted
+bundle. A failed texture publish leaves its previous references usable.
+================
+*/
+export async function refreshCachedTerrainTileBundle( outputPath, sourceExtractedRoot ) {
+	const bundle = JSON.parse( await readFile( outputPath, "utf8" ) );
+	const migrated = await migrateCachedTerrainTileReferences( bundle, sourceExtractedRoot );
+	const tiles = bundleTerrainTiles( bundle );
+	await copyReferencedTerrainTileImages( tiles, sourceExtractedRoot );
+	if ( migrated ) await writeCompactJson( outputPath, bundle );
+	return tiles;
+}
+
+/*
+================
 discoverOutdoorWorldSectors
 ================
 */
@@ -373,18 +390,11 @@ export async function buildOutdoorWorldRegionResources( options = {} ) {
 				tiles = undefined;
 			}
 			if ( !tiles ) {
-				const bundle = JSON.parse( await readFile( outputPath, "utf8" ) );
-				// A cached bundle names the representation it was published with;
-				// when the probe's answer changed (a pre-container upgrade, or a
-				// source that no longer qualifies), the references migrate before
-				// this run publishes - a swept PNG must never orphan a live bundle.
-				if ( await migrateCachedTerrainTileReferences( bundle, sourceExtractedRoot ) ) {
-					await writeCompactJson( outputPath, bundle );
-				}
-				tiles = bundleTerrainTiles( bundle );
+				tiles = await refreshCachedTerrainTileBundle( outputPath, sourceExtractedRoot );
 				tilesByRegion.set( String( sector.id ), tiles );
+			} else {
+				await copyReferencedTerrainTileImages( tiles, sourceExtractedRoot );
 			}
-			await copyReferencedTerrainTileImages( tiles, sourceExtractedRoot );
 			reused += 1;
 			reportProgress( options, {
 				phase: "regions",
