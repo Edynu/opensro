@@ -1018,6 +1018,7 @@ World admission: ${renderer.worldStats().sceneId ?? "none"}; ${renderer.worldSta
 		return {
 			dispose,
 			audioSnapshot: () => audio.snapshot(),
+			gpuTiming: () => renderer.gpuTiming(),
 			retryWorld: () => {
 				world.retry();
 				navigation.retry();

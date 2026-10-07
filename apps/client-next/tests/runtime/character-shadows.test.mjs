@@ -195,7 +195,7 @@ function shadowHarness() {
 	} );
 	globalThis.GPUBufferUsage = { UNIFORM: 1, COPY_DST: 2, VERTEX: 4, INDEX: 8 };
 	globalThis.GPUTextureUsage = { RENDER_ATTACHMENT: 1, TEXTURE_BINDING: 2 };
-	const owned = [], calls = [], bindings = [], views = [];
+	const owned = [], calls = [], bindings = [], views = [], passDescriptors = [];
 	const resource = data => {
 		const r = {
 			...data,
@@ -263,6 +263,7 @@ function shadowHarness() {
 		================
 		*/
 		beginRenderPass( d ) {
+			passDescriptors.push( d );
 			calls.push( d.label );
 			return {
 				/*
@@ -299,7 +300,7 @@ function shadowHarness() {
 		if ( previous ) Object.defineProperty( globalThis, "navigator", previous );
 		else delete globalThis.navigator;
 	};
-	return { owner, request, encoder, calls, owned, draw, borrowed, bindings, views, restore };
+	return { owner, request, encoder, calls, owned, draw, borrowed, bindings, views, passDescriptors, restore };
 }
 
 test("shadow GPU lifecycle draws the selected batch instance, filters before receiving, and retires disabled resources", () => {
@@ -406,6 +407,38 @@ test("shadow cache follows texture changes, forget during blob frames, and slot 
 		assert.notEqual( bindings[8].entries[0].resource.buffer, projection );
 		owner.dispose();
 		assert.ok( owned.every( resource => resource.destroyed ) );
+	} finally {
+		restore();
+	}
+});
+
+test("GPU timings include both passes of every detailed shadow exactly once", () => {
+	const { owner, request, encoder, passDescriptors, restore } = shadowHarness();
+	const names = [];
+	const timing = {
+		/*
+		================
+		pass
+		================
+		*/
+		pass( name ) {
+			const index = names.length * 2;
+			names.push( name );
+			return { querySet: {}, beginningOfPassWriteIndex: index, endOfPassWriteIndex: index + 1 };
+		}
+	};
+	try {
+		owner.prepare( Array.from( { length: 10 }, () => request ) );
+		owner.encode( encoder, timing );
+		owner.encode( encoder, timing );
+		assert.equal( names.length, 20 );
+		assert.equal( passDescriptors.length, 20 );
+		for ( const [index, descriptor] of passDescriptors.entries() ) {
+			assert.equal( names[index], index % 2 ? "character-shadow-filter" : "character-shadow-generate" );
+			assert.equal( descriptor.timestampWrites.beginningOfPassWriteIndex, index * 2 );
+			assert.equal( descriptor.timestampWrites.endOfPassWriteIndex, index * 2 + 1 );
+		}
+		owner.dispose();
 	} finally {
 		restore();
 	}

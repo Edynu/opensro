@@ -15,7 +15,7 @@ release, or its instance storage growing) so no submit reads a dead buffer.
 ===========================================================================
 */
 
-import type { CharacterShadowRequest, GeometryDraw, ImageDraw } from "../internal/gpu-contract";
+import type { CharacterShadowRequest, GeometryDraw, GpuTimingFrame, ImageDraw } from "../internal/gpu-contract";
 import { packGeometryVertices } from "@/engine/foundation/rendering/geometry-vertices";
 import { destroyNow, type Retire } from "./retirement";
 /*
@@ -335,12 +335,13 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		renders each slot once.
 		================
 		*/
-		encode( encoder: GPUCommandEncoder ) {
+		encode( encoder: GPUCommandEncoder, timing?: GpuTimingFrame ) {
 			for ( const s of slots ) {
 				if ( !s?.fresh ) continue;
 				s.fresh = false;
 				const p = encoder.beginRenderPass( {
 					label: "character-shadow-generate",
+					timestampWrites: timing?.pass( "character-shadow-generate" ),
 					colorAttachments: [ {
 						view: s.sourceView,
 						loadOp: "clear",
@@ -359,6 +360,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 				p.end();
 				const f = encoder.beginRenderPass( {
 					label: "character-shadow-filter",
+					timestampWrites: timing?.pass( "character-shadow-filter" ),
 					colorAttachments: [ {
 						view: s.filteredView,
 						loadOp: "clear",

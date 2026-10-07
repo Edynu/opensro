@@ -383,7 +383,8 @@ export function createRenderer(
 		},
 		gpuTiming: () => ({
 			enabled: diagnostics.gpuTiming === true,
-			...(device.gpuTiming() ?? { supported: false, skipped: 0, failed: 0, samples: [] })
+			...(device.gpuTiming() ??
+				{ supported: false, skipped: 0, failed: 0, attempted: 0, completed: 0, omittedPasses: 0, samples: [] })
 		}),
 		phase: () => disposed ? "disposed" : failure ? "failed" : device.phase(),
 		error: () => failure ?? device.error(),

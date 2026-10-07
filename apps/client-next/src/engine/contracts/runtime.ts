@@ -67,6 +67,9 @@ Completed GPU timing samples; pending queries stay with the device owner.
 ================
 */
 export interface GpuTimingStats {
+	readonly attempted: number;
+	readonly completed: number;
+	readonly omittedPasses: number;
 	readonly supported: boolean;
 	readonly skipped: number;
 	readonly failed: number;
@@ -331,6 +334,8 @@ External controls enter through the runtime owner rather than mutating subsystem
 */
 export interface RuntimeControl extends Disposable {
 	audioSnapshot(): import("./audio").AudioResidencySnapshot;
+	/** Bounded copied diagnostics; collecting them never waits for GPU readback. */
+	gpuTiming(): GpuTimingStats & { readonly enabled: boolean; };
 	retryWorld(): void;
 	session( command: SessionCommand ): void;
 	sessionState(): SessionState | null;

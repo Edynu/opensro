@@ -2031,6 +2031,13 @@
 			"reason": "Optional device-owned GpuTimingFrame callback for the particle presentation compute pass."
 		},
 		{
+			"file": "src/engine/runtime/renderer/device/character-shadows.ts",
+			"expression": "timing?.pass",
+			"function": "encode",
+			"kind": "callback",
+			"reason": "Optional device-owned GpuTimingFrame callback for each shadow silhouette and filter pass."
+		},
+		{
 			"file": "src/engine/runtime/assets/worker/loader.ts",
 			"expression": "resolve",
 			"function": "wakeIdleWaiters",
@@ -2255,7 +2262,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "f56ae5c3831a70768e37a317239ea02db4857b925f43e2731437b5e0caf56321",
+			"sourceSha256": "aad19e70bbfd66b48c56f7422441ff3c3cb07361a24afc722e7ae7a4d2772440",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. Device disposal cancels pending mapping.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

@@ -926,7 +926,7 @@ export function createGeometryResources(
 		prepare( encoder: GPUCommandEncoder, timing?: import("../internal/gpu-contract").GpuTimingFrame ) {
 			animation?.encode( encoder, timing );
 			particles?.encode( encoder, timing );
-			shadows?.encode( encoder );
+			shadows?.encode( encoder, timing );
 		},
 		/*
 		================
