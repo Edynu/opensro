@@ -183,6 +183,13 @@ materialize
 				if ( layer.lane !== lane || layer.weight === 0 ) continue;
 				const time = layer.time;
 				if ( !layer.clip ) continue;
+				// Catalog admission can reach every standing peer. Grow scratch
+				// only when this pose samples the new clip, after frame admission
+				// has charged its updated pose budget.
+				if ( rotationSamples.length < layer.clip.channels.length * 4 ) {
+					rotationSamples = new Float64Array( layer.clip.channels.length * 4 );
+					rotationClip = undefined;
+				}
 				if ( rotationClip !== layer.clip ) {
 					rotationSamples.fill( NaN );
 					rotationClip = layer.clip;
@@ -303,19 +310,14 @@ materialize
 admitClip
 
 Append a validated bound clip without retiring active playback or palettes.
-Names are immutable once admitted, matching renderer clip admission. Growing
-quaternion scratch preserves brackets for the currently selected old clip.
+Names are immutable once admitted, matching renderer clip admission. Longer
+quaternion scratch is charged and allocated only when playback needs it.
 ================
 		*/
 		admitClip( clip: CharacterClip ) {
 			if ( clips.has( clip.name ) ) return false;
 			registerClip( clip );
 			refreshAnimatedBranches();
-			if ( rotationSamples.length < clip.channels.length * 4 ) {
-				const grown = new Float64Array( clip.channels.length * 4 ).fill( NaN );
-				grown.set( rotationSamples );
-				rotationSamples = grown;
-			}
 			return true;
 		},
 		/*
