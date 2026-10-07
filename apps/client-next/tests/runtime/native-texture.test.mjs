@@ -27,15 +27,16 @@ const BLOCK_PIXELS = 16;
 ================
 encodedTexture
 
-Write a 4x4 NTX resource with three authored mips. The caller supplies one
-block, reused in the 4x4, 2x2 and 1x1 levels so cropping can be checked.
+Write a 4x4 NTX resource with three authored mips (or fewer, as terrain
+ships). The caller supplies one block, reused in the 4x4, 2x2 and 1x1 levels
+so cropping can be checked.
 ================
 */
-function encodedTexture( format, block ) {
-	const bytes = new Uint8Array( 20 + block.length * 3 );
+function encodedTexture( format, block, levels = 3 ) {
+	const bytes = new Uint8Array( 20 + block.length * levels );
 	const header = new DataView( bytes.buffer );
-	[ 0x3158544e, 4, 4, format, 3 ].forEach( ( value, index ) => header.setUint32( index * 4, value, true ) );
-	for ( let level = 0; level < 3; level++ ) bytes.set( block, 20 + level * block.length );
+	[ 0x3158544e, 4, 4, format, levels ].forEach( ( value, index ) => header.setUint32( index * 4, value, true ) );
+	for ( let level = 0; level < levels; level++ ) bytes.set( block, 20 + level * block.length );
 	return bytes;
 }
 
@@ -63,7 +64,7 @@ Record the public GPU operations without imitating the image owner's branch
 logic. Failures can be injected at upload to verify partial cleanup.
 ================
 */
-function recordingDevice( context, compressed = true ) {
+function recordingDevice( context, compressed = true, generatedMips = false ) {
 	const previous = Object.getOwnPropertyDescriptor( globalThis, "GPUTextureUsage" );
 	Object.defineProperty( globalThis, "GPUTextureUsage", {
 		configurable: true,
@@ -101,7 +102,7 @@ function recordingDevice( context, compressed = true ) {
 		pipeline: () => /** @type {GPURenderPipeline} */ (/** @type {unknown} */ ({ getBindGroupLayout: () => ({}) })),
 		sampler: /** @type {GPUSampler} */ ({}),
 		generateMips: () => generated++,
-		generatedMips: () => false
+		generatedMips: () => generatedMips
 	} );
 	return {
 		owner,
@@ -224,6 +225,34 @@ test("BC fallback uploads bounded RGBA mips and leaves the compressed source reu
 	fixture.owner.dispose();
 	assert.equal( fixture.destroyed(), 2 );
 	assert.equal( fixture.generated(), 0 );
+});
+
+test("an authored-only container keeps BC by default and generates RGBA mips only when opted in", t => {
+	const native = recordingDevice( t );
+	const single = decodeNativeTexture( encodedTexture( DXT1, colorBlock(), 1 ) );
+	native.owner.commands.upload( single );
+	assert.equal( native.allocations[0].format, "bc1-rgba-unorm" );
+	assert.equal( native.allocations[0].mipLevelCount, 1 );
+	assert.equal( native.writes.length, 1 );
+	assert.equal( native.generated(), 0 );
+
+	// Experimental > Video > Generated mipmaps: the decoded base level as
+	// RGBA, a full chain the GPU renders into, and nothing past level 0
+	// written from the authored bytes.
+	const opted = recordingDevice( t, true, true );
+	opted.owner.commands.upload( single );
+	assert.equal( opted.allocations[0].format, "rgba8unorm" );
+	assert.equal( opted.allocations[0].mipLevelCount, 3 );
+	assert.ok( opted.allocations[0].usage & 16, "a generated chain needs RENDER_ATTACHMENT" );
+	assert.deepEqual( opted.writes.map( row => [ row.target.mipLevel, row.bytes.length, row.layout.bytesPerRow ] ), [
+		[ 0, 64, 16 ]
+	] );
+	assert.equal( opted.generated(), 1 );
+
+	// A full authored chain is never regenerated, whatever the option says.
+	opted.owner.commands.upload( decodeNativeTexture( encodedTexture( DXT1, colorBlock() ) ) );
+	assert.equal( opted.allocations[1].format, "bc1-rgba-unorm" );
+	assert.equal( opted.generated(), 1 );
 });
 
 test("invalid native layers allocate nothing and a failed upload destroys its partial texture", t => {
