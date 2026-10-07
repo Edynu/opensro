@@ -10,7 +10,7 @@ import { launchProbeBrowser } from "../../../../scripts/lib/probeBrowser.mjs";
 import { CLIENT_NEXT_BASE_URL } from "../../../../scripts/lib/probeEndpoints.mjs";
 test(
 	"retail title full-detail terrain prevents ocean showing through the dock surface",
-	{ timeout: 60000 },
+	{ timeout: 120000 },
 	async () => {
 		const publicRoot = CLIENT_PUBLIC_ROOT + "/";
 		const bundle = read( "/assets/world/constantinople/region-694e.json", publicRoot );
@@ -44,6 +44,9 @@ test(
 			await page.goto( CLIENT_NEXT_BASE_URL );
 			const result = await page.evaluate( async ( { bundle, camera } ) => {
 				const { decodeDxt1 } = await import( "/src/engine/foundation/assets/dds.ts" );
+				const { decodeNativeTexture, decodeNativeTextureLevel } = await import(
+					"/src/engine/foundation/assets/native-texture.ts"
+				);
 				const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
 				const { createWorldDecoder } = await import( "/src/engine/runtime/assets/worker/world/world.ts" );
 				const { sampleFrontendCamera, frontendCameraView } = await import(
@@ -80,6 +83,20 @@ test(
 								textures.set(
 									path,
 									await createImageBitmap( new ImageData( d.pixels, d.width, d.height ) )
+								);
+							} else if ( path.endsWith( ".texture" ) ) {
+								// Terrain lightmaps ship as NTX1 bc1 containers.
+								const native = decodeNativeTexture( new Uint8Array( await blob.arrayBuffer() ) ),
+									level = decodeNativeTextureLevel( native, 0 );
+								textures.set(
+									path,
+									await createImageBitmap(
+										new ImageData(
+											new Uint8ClampedArray( level.buffer ),
+											native.width,
+											native.height
+										)
+									)
 								);
 							} else textures.set( path, await createImageBitmap( blob ) );
 						} catch ( e ) {

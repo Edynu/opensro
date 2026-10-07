@@ -15,7 +15,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { OUTDOOR_WORLD_SHARED_RENDER_PUBLIC_PATH, REGION_SIZE, WATER_NORMAL_FRAME_DURATION_MS } from "./constants.mjs";
 import { copyReferencedSkyImages, resolveSkyTextures } from "./assets/copySkyImages.mjs";
-import { copyReferencedTerrainTileImages } from "./assets/copyTerrainTileImages.mjs";
+
+import {
+	copyReferencedTerrainTileImages,
+	migrateCachedTerrainTileReferences,
+	terrainTileImagePublicPath,
+	terrainTileTexturePublicPath
+} from "./assets/copyTerrainTileImages.mjs";
 import { copyReferencedWaterImages, resolveWaterTextures } from "./assets/copyWaterImages.mjs";
 import { OUTDOOR_WORLD_REGION_CATALOG_PUBLIC_PATH, overlayWorldRegionCatalog } from "./buildWorldRegionCatalog.mjs";
 import { publicPathToFile } from "../shared/assetPaths.mjs";
@@ -358,10 +364,18 @@ export async function buildOutdoorWorldRegionResources( options = {} ) {
 			// Reuse keeps the bundle, not a promise that its images still exist.
 			let tiles = tilesByRegion.get( String( sector.id ) );
 			if ( !tiles ) {
-				tiles = bundleTerrainTiles( JSON.parse( await readFile( outputPath, "utf8" ) ) );
+				const bundle = JSON.parse( await readFile( outputPath, "utf8" ) );
+				// A cached bundle names the representation it was published with;
+				// when the probe's answer changed (a pre-container upgrade, or a
+				// source that no longer qualifies), the references migrate before
+				// this run publishes - a swept PNG must never orphan a live bundle.
+				if ( await migrateCachedTerrainTileReferences( bundle, sourceExtractedRoot ) ) {
+					await writeCompactJson( outputPath, bundle );
+				}
+				tiles = bundleTerrainTiles( bundle );
 				tilesByRegion.set( String( sector.id ), tiles );
 			}
-			await copyReferencedTerrainTileImages( tiles );
+			await copyReferencedTerrainTileImages( tiles, sourceExtractedRoot );
 			reused += 1;
 			reportProgress( options, {
 				phase: "regions",
