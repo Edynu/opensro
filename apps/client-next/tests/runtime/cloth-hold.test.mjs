@@ -115,3 +115,24 @@ test("a cloth stream is never held before its first update or across an option c
 	assert.equal( cloth.hold( .01, false ), false );
 	assert.equal( cloth.hold( .05, true ), false );
 });
+
+test("moving skeletal pins publish on every substep while free vertices retain their solver positions", () => {
+	let randomCalls = 0;
+	const cloth = createClothVertices( clothPrimitive( true ), () => ++randomCalls );
+	const palette = identity(), motion = { direction: [ 0, 0, 1 ], speed: 0 };
+	for ( let frame = 0; frame < 25; frame++ ) {
+		palette[12] = frame;
+		const vertices = cloth.update( palette, frame * .002, true, motion );
+		assert.equal( vertices[0], frame, "pins must not wait for the 50 ms solver step" );
+		assert.equal( vertices[14], 1 );
+		assert.equal( vertices[28], 2 );
+		assert.equal( randomCalls, 0 );
+	}
+	const stepped = cloth.update( palette, .05, true, motion );
+	assert.notEqual( stepped[14], 1, "the solver step must publish free-vertex changes" );
+	palette[12] = 30;
+	const reset = cloth.update( palette, .052, false, motion );
+	assert.equal( reset[0], 30 );
+	assert.equal( reset[14], 31 );
+	assert.equal( reset[28], 32 );
+});
