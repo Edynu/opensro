@@ -1415,6 +1415,7 @@
 				"callback:createEntities:0",
 				"callback:createEntities:1",
 				"callback:recolor:0",
+				"callback:refreshHoverAttack:0",
 				"nameContext"
 			]
 		},
@@ -2069,6 +2070,14 @@
 				"footprints"
 			],
 			"reason": "The footprint owner publishes or clears its retained decals at the original frame and teardown positions."
+		},
+		{
+			"consumer": "src/engine/foundation/gameplay/player-attack.ts",
+			"provider": "src/engine/runtime/simulation/worker/session/world/entities/entities.ts",
+			"functions": [
+				"read",
+				"rider"
+			]
 		}
 	],
 	"boundaries": [
@@ -3480,7 +3489,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "2a9d70ffba4094f17c48f142f14449c3aae0ff226bebc152be517ef9837b9e1b",
+			"sourceSha256": "0410934c9a24acbd47d2e8cc80d73b917bfb3372cbfbc7f4d8c81aaee34270eb",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. Device disposal cancels pending mapping.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,
