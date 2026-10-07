@@ -448,11 +448,21 @@ run
 ================
 */
 async function run( options ) {
+	for ( const name of options.at ) {
+		if ( !LOCATIONS.some( location => location.name === name ) ) throw Error( `unknown location ${name}` );
+	}
+	const selected = LOCATIONS.filter( location =>
+		options.at.includes( location.name ) && location.scenarios.some( name => options.only.includes( name ) )
+	);
+	if ( !selected.length ) throw Error( "no scenarios match --at and --only" );
 	const results = [];
-	for ( const location of LOCATIONS ) {
-		if ( options.at.includes( location.name ) ) await session( options, location, results );
+	for ( const location of selected ) {
+		await session( options, location, results );
 	}
 	if ( options.json ) await writeFile( options.json, JSON.stringify( results, null, 2 ) );
+	if ( !results.length || results.some( result => !Number.isFinite( result.fps ) || result.fps <= 0 ) ) {
+		throw Error( "no valid frame-rate verdict: missing or invalid measurements" );
+	}
 	const worst = Math.min( ...results.map( r => r.fps ) );
 	console.log(
 		options.paced || options.frameLimit ?
