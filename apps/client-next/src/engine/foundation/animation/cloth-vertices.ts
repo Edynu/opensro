@@ -68,33 +68,56 @@ export function createClothVertices( primitive: { geometry: Geometry; cloth?: Cl
 				const at = i * 3;
 				const x = mesh.positions[at]!, y = mesh.positions[at + 1]!, z = mesh.positions[at + 2]!;
 				const nx = mesh.normals?.[at] ?? 0, ny = mesh.normals?.[at + 1] ?? 1, nz = mesh.normals?.[at + 2] ?? 0;
-				for ( let axis = 0; axis < 3; axis++ ) {
-					let position = 0, normal = 0;
-					if ( mesh.joints && mesh.weights ) {
-						for ( let joint = 0; joint < 4; joint++ ) {
-							const weight = mesh.weights[i * 4 + joint]!;
-							if ( !weight ) continue;
-							const base = mesh.joints[i * 4 + joint]! * 16;
-							let p = palette[base + 12 + axis]!, n = 0;
-							// Preserve the original double-precision accumulation order,
-							// reusing immutable vertex inputs across axes and influences.
-							p += palette[base + axis]! * x;
-							n += palette[base + axis]! * nx;
-							p += palette[base + 4 + axis]! * y;
-							n += palette[base + 4 + axis]! * ny;
-							p += palette[base + 8 + axis]! * z;
-							n += palette[base + 8 + axis]! * nz;
-							position += p * weight;
-							normal += n * weight;
-						}
-					} else {
-						position = mesh.positions[i * 3 + axis]!;
-						normal = mesh.normals?.[i * 3 + axis] ?? (axis === 1 ? 1 : 0);
+				let px = x, py = y, pz = z, normalX = nx, normalY = ny, normalZ = nz;
+				if ( mesh.joints && mesh.weights ) {
+					px =
+						py =
+						pz =
+						normalX =
+						normalY =
+						normalZ =
+							0;
+					for ( let joint = 0; joint < 4; joint++ ) {
+						const weight = mesh.weights[i * 4 + joint]!;
+						if ( !weight ) continue;
+						const base = mesh.joints[i * 4 + joint]! * 16;
+						let ax = palette[base + 12]!, ay = palette[base + 13]!, az = palette[base + 14]!;
+						let bx = 0, by = 0, bz = 0;
+						// Each axis retains its original double-precision accumulation
+						// order. Share the influence lookup, not intermediate rounding.
+						ax += palette[base]! * x;
+						ay += palette[base + 1]! * x;
+						az += palette[base + 2]! * x;
+						bx += palette[base]! * nx;
+						by += palette[base + 1]! * nx;
+						bz += palette[base + 2]! * nx;
+						ax += palette[base + 4]! * y;
+						ay += palette[base + 5]! * y;
+						az += palette[base + 6]! * y;
+						bx += palette[base + 4]! * ny;
+						by += palette[base + 5]! * ny;
+						bz += palette[base + 6]! * ny;
+						ax += palette[base + 8]! * z;
+						ay += palette[base + 9]! * z;
+						az += palette[base + 10]! * z;
+						bx += palette[base + 8]! * nz;
+						by += palette[base + 9]! * nz;
+						bz += palette[base + 10]! * nz;
+						px += ax * weight;
+						py += ay * weight;
+						pz += az * weight;
+						normalX += bx * weight;
+						normalY += by * weight;
+						normalZ += bz * weight;
 					}
-					anchors[i * 3 + axis] = position;
-					if ( !enabled || data.pins[i] !== 0 || lastTime === undefined ) {
-						vertices[i * 14 + 3 + axis] = normal;
-					}
+				}
+				anchors[at] = px;
+				anchors[at + 1] = py;
+				anchors[at + 2] = pz;
+				if ( !enabled || data.pins[i] !== 0 || lastTime === undefined ) {
+					vertices[i * 14 + 3] = normalX;
+					vertices[i * 14 + 4] = normalY;
+					vertices[i * 14 + 5] = normalZ;
 				}
 			}
 			const positions = simulation.advance( {
@@ -108,7 +131,9 @@ export function createClothVertices( primitive: { geometry: Geometry; cloth?: Cl
 			lastTime = seconds;
 			lastEnabled = enabled;
 			for ( let i = 0; i < positions.length / 3; i++ ) {
-				for ( let axis = 0; axis < 3; axis++ ) vertices[i * 14 + axis] = positions[i * 3 + axis]!;
+				vertices[i * 14] = positions[i * 3]!;
+				vertices[i * 14 + 1] = positions[i * 3 + 1]!;
+				vertices[i * 14 + 2] = positions[i * 3 + 2]!;
 			}
 			return vertices;
 		}
