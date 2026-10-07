@@ -65,19 +65,22 @@ async function captureGrid( { bytes, width, height, times } ) {
 		}
 		if ( renderer.phase() !== "running" ) throw Error( renderer.error() ?? "Renderer startup timeout" );
 		if ( !model.clips.length ) throw Error( "Fixture has no animation clips" );
-		renderer.setCharacterModel( "parity-model", model, [] );
+		// Separate model identities force multiple ordered draws and bundle runs.
+		for ( let index = 0; index < 32; index++ ) renderer.setCharacterModel( `parity-model-${index}`, model, [] );
 		const camera = { eye: [ 0, 42, -280 ], target: [ 0, 42, 0 ], near: 1, far: 1000, fov: .8 };
-		renderer.setCharacterPreview( camera );
+		// Exercise retained world bundles, not the direct preview draw lane.
+		renderer.setWorld( { id: "image-parity", originRegion: 257, groups: [], warnings: [] } );
+		renderer.setWorldCamera( { ...camera, originRegion: 257 } );
 		const frames = [];
 		for ( const time of times ) {
 			const actors = Array.from( { length: 32 }, ( _, index ) => ({
 				gid: index + 1,
-				model: "parity-model",
+				model: `parity-model-${index}`,
 				clip: model.clips[index % model.clips.length].name,
 				time,
 				loop: true,
 				scale: 1,
-				pose: { regionId: 0, x: (index % 8 - 3.5) * 30, y: Math.floor( index / 8 ) * 25, z: 0, yaw: 0 }
+				pose: { regionId: 257, x: (index % 8 - 3.5) * 30, y: Math.floor( index / 8 ) * 25, z: 0, yaw: 0 }
 			}) );
 			renderer.setCharacterActors( actors );
 			await renderer.frame( { width, height }, time );
@@ -91,7 +94,18 @@ async function captureGrid( { bytes, width, height, times } ) {
 				// The native NOLIGHT material path draws white, independently of tint.
 				if ( pixels[offset] > 180 ) visiblePixels++;
 			}
-			frames.push( { time, actors, visiblePixels, rgba: [ ...pixels ], png: output.toDataURL( "image/png" ) } );
+			// Base64 avoids millions of JSON number entries at the browser boundary.
+			const chunks = [], chunkSize = 32768;
+			for ( let offset = 0; offset < pixels.length; offset += chunkSize ) {
+				chunks.push( String.fromCharCode( ...pixels.subarray( offset, offset + chunkSize ) ) );
+			}
+			frames.push( {
+				time,
+				actors,
+				visiblePixels,
+				rgba: btoa( chunks.join( "" ) ),
+				png: output.toDataURL( "image/png" )
+			} );
 		}
 		return { camera, width, height, frames, stats: renderer.characterStats(), userAgent: navigator.userAgent };
 	} finally {
@@ -143,7 +157,12 @@ async function main() {
 					height: HEIGHT,
 					times: FRAME_TIMES
 				} );
+				assert.ok(
+					capture.stats.actors >= 32 && capture.stats.draws >= 32,
+					`Fixture must exercise 32 retained actor draws: ${JSON.stringify( capture.stats )}`
+				);
 				for ( const [index, frame] of capture.frames.entries() ) {
+					frame.rgba = Buffer.from( frame.rgba, "base64" );
 					await savePng( path.join( out, `${label}-${index}.png` ), frame.png );
 					await writeFile( path.join( out, `${label}-${index}.rgba` ), Uint8Array.from( frame.rgba ) );
 				}
@@ -172,13 +191,18 @@ async function main() {
 						const canvas = document.createElement( "canvas" );
 						canvas.width = width;
 						canvas.height = height;
+						const rgba = Uint8ClampedArray.from( atob( pixels ), character => character.charCodeAt( 0 ) );
 						canvas.getContext( "2d" ).putImageData(
-							new ImageData( Uint8ClampedArray.from( pixels ), width, height ),
+							new ImageData( rgba, width, height ),
 							0,
 							0
 						);
 						return canvas.toDataURL( "image/png" );
-					}, { pixels: [ ...result[name].diff ], width: WIDTH, height: HEIGHT } );
+					}, {
+						pixels: Buffer.from( result[name].diff ).toString( "base64" ),
+						width: WIDTH,
+						height: HEIGHT
+					} );
 					await savePng( path.join( out, `${name}-${index}.png` ), png );
 				}
 				const { diff: noiseDiff, ...noise } = result.noise;
@@ -206,6 +230,7 @@ async function main() {
 			height: HEIGHT,
 			camera: captures[0].camera,
 			userAgent: captures[0].userAgent,
+			renderStats: captures.map( capture => capture.stats ),
 			rows,
 			accepted: rows.every( row => row.accepted )
 		};

@@ -76,6 +76,11 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 		return true;
 	}
 	return {
+		/*
+		================
+		draw
+		================
+		*/
 		draw(
 			view,
 			image,
@@ -96,13 +101,28 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 		) {
 			const sceneView = bloom?.view ?? view;
 			if ( ui !== recordedUi ) {
+				/*
+				================
+				record
+
+				Each encoder starts without bindings. Skip only equal adjacent
+				state within this bundle; the draw order and ranges stay intact.
+				================
+				*/
 				function record( layer: UiDraw["layer"] ) {
 					const selected = ui.filter( draw => draw.layer === layer && draw.count > 0 );
 					if ( !selected.length ) return null;
 					const encoder = commands.createBundleEncoder();
+					let pipeline: GPURenderPipeline | undefined, binding: GPUBindGroup | undefined;
 					for ( const draw of selected ) {
-						encoder.setPipeline( draw.pipeline );
-						encoder.setBindGroup( 0, draw.binding );
+						if ( pipeline !== draw.pipeline ) {
+							encoder.setPipeline( draw.pipeline );
+							pipeline = draw.pipeline;
+						}
+						if ( binding !== draw.binding ) {
+							encoder.setBindGroup( 0, draw.binding );
+							binding = draw.binding;
+						}
 						encoder.draw( 6, draw.count, 0, draw.first );
 					}
 					return encoder.finish();
@@ -140,12 +160,26 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 				if ( !cached || !bundleCurrent( cached, start, end ) ) {
 					const draws = live.slice( start, end ), counts: number[] = [];
 					const encoder = commands.createBundleEncoder();
+					let pipeline: GPURenderPipeline | undefined, binding: GPUBindGroup | undefined;
+					let vertices: GPUBuffer | undefined, indices: GPUBuffer | undefined;
 					for ( const draw of draws ) {
 						counts.push( draw.indexCount, draw.instanceCount );
-						encoder.setPipeline( draw.pipeline );
-						encoder.setBindGroup( 0, draw.binding );
-						encoder.setVertexBuffer( 0, draw.vertices );
-						encoder.setIndexBuffer( draw.indices, "uint32" );
+						if ( pipeline !== draw.pipeline ) {
+							encoder.setPipeline( draw.pipeline );
+							pipeline = draw.pipeline;
+						}
+						if ( binding !== draw.binding ) {
+							encoder.setBindGroup( 0, draw.binding );
+							binding = draw.binding;
+						}
+						if ( vertices !== draw.vertices ) {
+							encoder.setVertexBuffer( 0, draw.vertices );
+							vertices = draw.vertices;
+						}
+						if ( indices !== draw.indices ) {
+							encoder.setIndexBuffer( draw.indices, "uint32" );
+							indices = draw.indices;
+						}
 						encoder.drawIndexed( draw.indexCount, draw.instanceCount, 0, 0, 0 );
 					}
 					cached = { draws, counts, bindings: draws.map( draw => draw.binding ), bundle: encoder.finish() };
@@ -236,6 +270,11 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 				pass.executeBundles( [ uiBundle ] );
 			}
 			pass.end();
+			/*
+			================
+			finish
+			================
+			*/
 			const finish = ( encoder: GPUCommandEncoder, extra: readonly GeometryDraw[] = [] ) => {
 				if ( deferred ) {
 					commands.prepare?.( encoder, timing );
