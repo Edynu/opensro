@@ -16,11 +16,32 @@ import { assertCharacterAllowed } from "../../../../../scripts/lib/probeCharacte
 /*
 ================
 bindPlayableRuntime
+
+The runtime belongs to the page's own entry module. On the dev server that
+is /src/bootstrap.ts. A bench bundle (pnpm build:bench) re-exports it from
+/assets/bench-runtime.js, a facade over the chunk the page already ran, so
+importing it returns that same runtime, never a second one. A release bundle
+has neither, on purpose, so binding to one fails with the reason.
 ================
 */
 export async function bindPlayableRuntime( page ) {
 	await page.evaluate( async () => {
-		globalThis.__playableRuntime = (await import( "/src/bootstrap.ts" )).runtime;
+		// The exact href the page loaded, query included: another URL for the
+		// same file would be a second module instance with a second runtime.
+		const dev = [ ...document.querySelectorAll( 'script[type="module"][src]' ) ]
+			.map( script => new URL( script.getAttribute( "src" ) ?? "", location.href ) )
+			.find( url => url.origin === location.origin && url.pathname === "/src/bootstrap.ts" );
+		const url = dev ? dev.href : new URL( "/assets/bench-runtime.js", location.href ).href;
+		let runtime;
+		try {
+			runtime = (await import( url )).runtime;
+		} catch ( error ) {
+			throw Error(
+				`${url} did not load (${error}): benchmark the dev server or a bench bundle (pnpm build:bench)`
+			);
+		}
+		if ( !runtime ) throw Error( `${url} exports no runtime` );
+		globalThis.__playableRuntime = runtime;
 	} );
 }
 /*
