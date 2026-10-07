@@ -11,6 +11,7 @@ Child owners handle process-specific state while this owner commits item rows.
 import { cosItemUseTail, type CosItemUseContext } from "@/engine/foundation/gameplay/cos-item-use";
 import { planContainerMove, sameStackIdentity, stackable } from "@/engine/foundation/gameplay/container-transfer";
 import { createMall } from "./mall/mall";
+import { createCompanionRentals } from "./companion-rentals";
 import type { MallPurchase } from "@/engine/foundation/gameplay/item-mall-wire";
 import {
 	itemCooldown,
@@ -82,6 +83,7 @@ export function createInventory(
 	playItem: ( cue: import("@/engine/contracts/audio").ItemSoundRequest ) => void = () => {}
 ) {
 	const alchemy = createAlchemy(), gacha = createGacha(), mall = createMall(), magicOption = createMagicOptionGrant();
+	const companionRentals = createCompanionRentals();
 	let mallDelivery: { prepared: ReturnType<typeof decodeShopItems>; slots: number[]; } | null = null;
 	let avatars = new Map<number, InventoryItem>();
 	let slots = new Map<number, InventoryItem>(),
@@ -445,6 +447,7 @@ bootstrap
 			itemCooldowns = [];
 			presentations = new WeakMap();
 			alchemy.reset();
+			companionRentals.reset();
 			gacha.reset();
 			exchange = emptyExchange();
 			stall = emptyStall();
@@ -1759,6 +1762,8 @@ step
 ================
 		*/
 		step( now: number ) {
+			const rentalUpdates = companionRentals.step( slots.values(), now );
+			for ( const item of rentalUpdates ) slots.set( item.slot, item );
 			mall.step( now );
 			const active = itemCooldowns.filter( row => now < row.startedAtMs + row.durationMs ),
 				expired = active.length !== itemCooldowns.length;
@@ -1783,7 +1788,7 @@ step
 				timedOut = true;
 				throw Error( "Inventory transaction timed out; reconnect to resynchronize" );
 			}
-			return unlocked || expired;
+			return unlocked || expired || rentalUpdates.length > 0;
 		},
 		/*
 ================

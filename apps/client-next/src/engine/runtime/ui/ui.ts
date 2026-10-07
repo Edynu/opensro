@@ -1226,6 +1226,7 @@ export function createUi(
 			cosSlot = -1;
 			cosPage = 0;
 			cosPlayerPage = 0;
+			cosDraft = view?.gameplay?.cosRecords?.find( r => r.gid === cosGid )?.commandMode ?? 0;
 		}
 		if ( next === "Auto Potion" ) {
 			potionDraft = autoPotionDraft( view?.gameplay?.autoPotion ?? defaultAutoPotion() );

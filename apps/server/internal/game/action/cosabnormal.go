@@ -14,6 +14,7 @@ package action
 
 import (
 	"fmt"
+	"opensro.online/server/internal/domain"
 	"strings"
 	"sync"
 
@@ -623,7 +624,9 @@ func (rt *Runtime) monsterHitSummonedCOS(divisionID string, instance monster.Ins
 	}
 	result.TargetAlive = true
 	ref, validRef := rt.cosReference(snapshot.CompanionByGID(pet.GID))
-	if !validRef {
+	// CGObjMob_HostilityBodyStatus (5299E0) refuses a grab pet first: its
+	// target's slot 0x43C is CGObj_IsPickPetCOS (483930).
+	if !validRef || ref.TidWord>>11 == domain.PickupPetBand {
 		return result
 	}
 	mover, exists := rt.Monsters.Mover(divisionID, instance.Gid)

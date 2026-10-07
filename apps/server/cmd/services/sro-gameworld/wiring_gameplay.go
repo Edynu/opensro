@@ -19,6 +19,7 @@ import (
 	"opensro.online/server/internal/cluster/shard"
 	"opensro.online/server/internal/data/store"
 	"opensro.online/server/internal/game/action"
+	"opensro.online/server/internal/game/companion"
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/gmcommand"
 	"opensro.online/server/internal/game/item/wire"
@@ -98,6 +99,7 @@ func newGameplayPlane(
 		return nil, err
 	}
 	items := action.NewRuntime(deps, deps.MonsterState)
+	items.PetPolicies = companion.PoliciesFromEnv()
 	items.Guilds = deps.Guilds
 	items.UnlimitedItems = enterworld.StarterKitCodenames(deps.StarterKit)
 	if err := items.ValidateLootReferences(); err != nil {

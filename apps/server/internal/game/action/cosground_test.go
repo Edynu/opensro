@@ -1,3 +1,10 @@
+/*
+===========================================================================
+
+cosground_test.go - pet inventory ownership, pickup arrival and gold routing
+
+===========================================================================
+*/
 package action
 
 import (
@@ -11,11 +18,36 @@ import (
 	"time"
 )
 
+/*
+================
+TestCOSGroundRoundTripAndOwnership
+
+The native pet arrives at 2200; the port-only pacing policy slows it to 2500.
+================
+*/
 func TestCOSGroundRoundTripAndOwnership(t *testing.T) {
+	for _, paced := range []bool{false, true} {
+		t.Run(map[bool]string{false: "native", true: "paced"}[paced], func(t *testing.T) {
+			cosGroundRoundTrip(t, paced)
+		})
+	}
+}
+
+/*
+================
+cosGroundRoundTrip
+================
+*/
+func cosGroundRoundTrip(t *testing.T, paced bool) {
+	arrivalMs := int64(2200)
+	if paced {
+		arrivalMs = 2500
+	}
 	c := testCharacter()
 	refs := testCosSource(testItems())
 	refs.characters["PET"] = &enterworld.CharacterRef{Codename: "PET", RefObjID: 9, TidWord: 0x21c6, RunSpeed: 100}
 	rt, _ := newTestRuntime(c, refs)
+	rt.PetPolicies.Pacing = paced
 	rt.Now = func() time.Time { return time.UnixMilli(1000) }
 	gid, _ := enterworld.CosObjectIDForCharacter(c)
 	row := c.MissionInventory[0]
@@ -63,12 +95,18 @@ func TestCOSGroundRoundTripAndOwnership(t *testing.T) {
 	if len(c.ActiveCOS.Container.Rows) != 0 {
 		t.Fatal("pickup granted before arrival")
 	}
-	rt.TickHook()(2200)
+	if paced {
+		rt.TickHook()(2200)
+		if len(c.ActiveCOS.Container.Rows) != 0 {
+			t.Fatal("slower pet granted pickup before arrival")
+		}
+	}
+	rt.TickHook()(arrivalMs)
 	if len(c.ActiveCOS.Container.Rows) != 1 || len(rt.Ground.All(testDivision)) != 0 || !reflect.DeepEqual(c.MissionInventory, bag) {
 		t.Fatal("arrival failed to grant into COS")
 	}
-	rt.Now = func() time.Time { return time.UnixMilli(2200) }
-	pose := rt.PetPresentation(testDivision, c.Name).World.LiveSpawnAt(2200)
+	rt.Now = func() time.Time { return time.UnixMilli(arrivalMs) }
+	pose := rt.PetPresentation(testDivision, c.Name).World.LiveSpawnAt(arrivalMs)
 	heap := rt.Ground.Add(testDivision, grounditem.Item{GoldAmount: 50, Position: grounditem.Point{RegionID: pose.RegionID, X: float32(pose.X), Z: float32(pose.Z)}, OwnerJID: 999})
 	q.GroundGID = heap.Gid
 	before := goldOf(c)

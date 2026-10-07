@@ -103,5 +103,5 @@ func (rt *Runtime) EntryCompanionMovementSpeeds(division string, character *ente
 		return 0, 0
 	}
 	block := rt.cosAbnormal(division, character.Name, pet.GID)
-	return cosParameter(ref, pet, block, movementWalkParameter), cosParameter(ref, pet, block, movementRunParameter)
+	return rt.cosMovementSpeeds(ref, pet, block)
 }

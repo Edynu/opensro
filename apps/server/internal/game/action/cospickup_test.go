@@ -22,49 +22,64 @@ import (
 /*
 ================
 TestCosPickupCommandCompletesThroughInventoryAuthority
+
+The native pet arrives at 2200; the port-only pacing policy slows it to 2500.
 ================
 */
 func TestCosPickupCommandCompletesThroughInventoryAuthority(t *testing.T) {
-	for _, distance := range []float32{0, 100} {
-		t.Run(time.Duration(distance).String(), func(t *testing.T) {
-			c := testCharacter()
-			refs := testCosSource(testItems())
-			refs.characters["PET"] = &enterworld.CharacterRef{Codename: "PET", RefObjID: 9, TidWord: 0x21c6, RunSpeed: 100}
-			rt, _ := newTestRuntime(c, refs)
-			rt.Now = func() time.Time { return time.UnixMilli(1000) }
-			gid, _ := enterworld.CosObjectIDForCharacter(c)
-			c.ActiveCOS = &enterworld.CharacterCOS{GID: gid, RefObjID: 9, Codename: "PET", CurrentHP: 100, Summoned: true,
-				Container: &domain.COSContainer{Capacity: 2}}
-			rt.ConstrainMovement = func(_ string, _, to simulation.Spawn) (simulation.Spawn, *simulation.MoveError) { return to, nil }
-			rt.BindPetSession(testDivision, c, 1)
-			rt.TickHook()(1000)
-			pose := rt.PetPresentation(testDivision, c.Name).World.LiveSpawnAt(1000)
-			item := rt.Ground.Add(testDivision, grounditem.Item{GoldAmount: 50, Position: grounditem.Point{
-				RegionID: pose.RegionID, X: float32(pose.X) + distance, Z: float32(pose.Z)}})
-			body := wire.NewWriter(9).U32(gid).U8(wire.CosCommandPickupTag).U32(item.Gid).Payload()
-			before := goldOf(c)
-			result := rt.HandleCosCommand(testDivision, c, body)
-			frames := result.Frames
-			if distance > 0 {
-				if len(frames) != 0 || goldOf(c) != before {
-					t.Fatal("approach acknowledged before arrival", result)
+	for _, paced := range []bool{false, true} {
+		for _, distance := range []float32{0, 100} {
+			t.Run(map[bool]string{false: "native", true: "paced"}[paced]+"/"+time.Duration(distance).String(), func(t *testing.T) {
+				arrivalMs := int64(2200)
+				if paced {
+					arrivalMs = 2500
 				}
-				rt.TickHook()(1100)
-				for _, batch := range rt.TickHook()(2200) {
-					for _, frame := range batch.Frames {
-						frames = append(frames, wire.Frame{Opcode: frame.Opcode, Payload: frame.Payload})
+				c := testCharacter()
+				refs := testCosSource(testItems())
+				refs.characters["PET"] = &enterworld.CharacterRef{Codename: "PET", RefObjID: 9, TidWord: 0x21c6, RunSpeed: 100}
+				rt, _ := newTestRuntime(c, refs)
+				rt.PetPolicies.Pacing = paced
+				rt.Now = func() time.Time { return time.UnixMilli(1000) }
+				gid, _ := enterworld.CosObjectIDForCharacter(c)
+				c.ActiveCOS = &enterworld.CharacterCOS{GID: gid, RefObjID: 9, Codename: "PET", CurrentHP: 100, Summoned: true,
+					Container: &domain.COSContainer{Capacity: 2}}
+				rt.ConstrainMovement = func(_ string, _, to simulation.Spawn) (simulation.Spawn, *simulation.MoveError) { return to, nil }
+				rt.BindPetSession(testDivision, c, 1)
+				rt.TickHook()(1000)
+				pose := rt.PetPresentation(testDivision, c.Name).World.LiveSpawnAt(1000)
+				item := rt.Ground.Add(testDivision, grounditem.Item{GoldAmount: 50, Position: grounditem.Point{
+					RegionID: pose.RegionID, X: float32(pose.X) + distance, Z: float32(pose.Z)}})
+				body := wire.NewWriter(9).U32(gid).U8(wire.CosCommandPickupTag).U32(item.Gid).Payload()
+				before := goldOf(c)
+				result := rt.HandleCosCommand(testDivision, c, body)
+				frames := result.Frames
+				if distance > 0 {
+					if len(frames) != 0 || goldOf(c) != before {
+						t.Fatal("approach acknowledged before arrival", result)
+					}
+					rt.TickHook()(1100)
+					if paced {
+						rt.TickHook()(2200)
+						if goldOf(c) != before {
+							t.Fatal("slower pet granted gold before arrival")
+						}
+					}
+					for _, batch := range rt.TickHook()(arrivalMs) {
+						for _, frame := range batch.Frames {
+							frames = append(frames, wire.Frame{Opcode: frame.Opcode, Payload: frame.Payload})
+						}
 					}
 				}
-			}
-			if goldOf(c) != before+50 || len(rt.Ground.All(testDivision)) != 0 {
-				t.Fatal("command failed to commit exactly one pickup", frames)
-			}
-			assertCosPickupAck(t, frames, gid, item.Gid, true)
-			assertCosPickupAck(t, rt.HandleCosCommand(testDivision, c, body).Frames, gid, item.Gid, false)
-			if goldOf(c) != before+50 {
-				t.Fatal("replay duplicated gold")
-			}
-		})
+				if goldOf(c) != before+50 || len(rt.Ground.All(testDivision)) != 0 {
+					t.Fatal("command failed to commit exactly one pickup", frames)
+				}
+				assertCosPickupAck(t, frames, gid, item.Gid, true)
+				assertCosPickupAck(t, rt.HandleCosCommand(testDivision, c, body).Frames, gid, item.Gid, false)
+				if goldOf(c) != before+50 {
+					t.Fatal("replay duplicated gold")
+				}
+			})
+		}
 	}
 }
 

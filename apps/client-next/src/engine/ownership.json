@@ -69,6 +69,7 @@
     "src/engine/runtime/simulation/worker/session/world/gameplay/movement/movement.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
     "src/engine/runtime/simulation/worker/session/world/gameplay/inventory/mall/mall.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/inventory/inventory.ts",
     "src/engine/runtime/simulation/worker/session/world/gameplay/inventory/inventory.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
+    "src/engine/runtime/simulation/worker/session/world/gameplay/inventory/companion-rentals.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/inventory/inventory.ts",
     "src/engine/runtime/simulation/worker/session/world/gameplay/combat/combat.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
     "src/engine/runtime/simulation/worker/session/world/gameplay/targeting/targeting.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
     "src/engine/runtime/simulation/worker/session/world/gameplay/reservation/reservation.ts": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",

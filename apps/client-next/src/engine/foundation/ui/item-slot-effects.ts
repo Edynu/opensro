@@ -27,6 +27,35 @@ const RARITY_RARE = 2;
 // 54FC80): 2 summoned, 3 dormant, 4 dead.
 const RENT_SUMMONED = 2;
 const RENT_DEAD = 4;
+
+/*
+================
+SummonerSlotItem
+================
+*/
+interface SummonerSlotItem {
+	readonly summon?: { readonly state: number; readonly remainingSeconds?: number; };
+}
+
+/*
+================
+summonerSlotState
+
+Pickup rental expiry is independent of the retained alive bit. A timed
+rental whose time is spent shows dead, whatever its state:
+CIFSlotWithHelp_OnStateTimer (555110) applies rent state 4 once
+CSOItem_ConsumeRentTime reaches zero. Only pickup summoners carry a rental
+time (inventory-item.ts), so attack-pet icons keep their own state.
+================
+*/
+function summonerSlotState( item: SummonerSlotItem | undefined ): number | undefined {
+	const summon = item?.summon;
+	if ( summon && summon.remainingSeconds !== undefined && summon.remainingSeconds <= 0 ) {
+		return RENT_DEAD;
+	}
+	return summon?.state;
+}
+
 const RARE_FRAMES = 32, RARE_COLUMNS = 8, RARE_ROWS = 4, RARE_STEP_MS = 40;
 const GLOW_FRAMES = 9, GLOW_STEP_MS = 50;
 const LIFE_FRAMES = 8, LIFE_STEP_MS = 80;
@@ -97,7 +126,7 @@ summoned glow, rare shine, then the one-shot flashes.
 export function itemSlotOverlays(
 	item: {
 		readonly tooltip?: { readonly fields: Readonly<Record<string, number>>; };
-		readonly summon?: { readonly state: number; };
+		readonly summon?: { readonly state: number; readonly remainingSeconds?: number; };
 	} | undefined,
 	rect: UiRect,
 	seed: number,
@@ -106,7 +135,7 @@ export function itemSlotOverlays(
 ): readonly ItemSlotOverlay[] {
 	if ( !item ) return [];
 	const out: ItemSlotOverlay[] = [];
-	if ( item.summon?.state === RENT_SUMMONED ) {
+	if ( summonerSlotState( item ) === RENT_SUMMONED ) {
 		const frame = loopFrame( nowMs, GLOW_STEP_MS, GLOW_FRAMES, seed % GLOW_FRAMES );
 		out.push( {
 			path: SHEET + "interface/pet/pt_edge_effect.png",
@@ -166,9 +195,9 @@ RGBA, or null.
 ================
 */
 export function itemSlotWash(
-	item: { readonly summon?: { readonly state: number; }; } | undefined
+	item: SummonerSlotItem | undefined
 ): readonly [number, number, number, number] | null {
-	return item?.summon?.state === RENT_DEAD ? [ 0x00 / 255, 0x4b / 255, 0x7e / 255, 0x80 / 255 ] : null;
+	return summonerSlotState( item ) === RENT_DEAD ? [ 0x00 / 255, 0x4b / 255, 0x7e / 255, 0x80 / 255 ] : null;
 }
 
 /*

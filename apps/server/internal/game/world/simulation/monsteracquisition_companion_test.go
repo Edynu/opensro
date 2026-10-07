@@ -40,6 +40,7 @@ func TestAcquisitionWeighsOwnersCompanions(t *testing.T) {
 		{"tie keeps the owner", []playerPose{owner, pet(7, 50, 3, 0)}, owner.Gid},
 		{"nearest of two", []playerPose{owner, pet(7, 30, 4, 0), pet(8, 20, 6, 0)}, 8},
 		{"fellow band", []playerPose{owner, pet(7, 20, fellowCOSBand, 0)}, owner.Gid},
+		{"grab pet ignored", []playerPose{owner, pet(7, 10, 4, 0)}, owner.Gid},
 		{"untargetable status", []playerPose{owner, pet(7, 20, 3, 3)}, owner.Gid},
 		{"orphan pet", []playerPose{pet(7, 20, 3, 0)}, 0},
 	}

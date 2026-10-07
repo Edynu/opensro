@@ -159,10 +159,13 @@ func (rt *Runtime) usePersistentSummoner(use persistentSummonUse, result *OpResu
 		rt.bindCompanionSession(use.division, owner, pet).summonedAtMs = use.nowMs
 	}
 	pose := rt.companionLiveSpawn(use.division, c, pet, use.nowMs)
+	walk, run := rt.cosMovementSpeeds(ref, pet, nil)
 	spawn := wire.Frame{Opcode: wire.OpSingleObjectSpawn, Payload: wire.EncodeCosSpawnBand2(wire.CosSpawnBand2{
 		Band: uint8(ref.TidWord >> 11), RefObjID: ref.RefObjID, Gid: gid, BodyStatus: pet.NativeBodyStatus,
 		Position: wire.Position{RegionID: pose.RegionID, X: float32(pose.X), Y: float32(pose.Y), Z: float32(pose.Z), Heading: pose.Angle},
-		Walk:     ref.WalkSpeed, Run: ref.RunSpeed, Scale: ref.Scale, Name: pet.Name, OwnerName: c.Name, OwnerGid: enterworld.ObjectIDForCharacter(c),
+		// The same projected speeds the entry bootstrap publishes for this pet
+		// (EntryCompanionMovementSpeeds), so a fresh summon and a relogin agree.
+		Walk: walk, Run: run, Scale: ref.Scale, Name: pet.Name, OwnerName: c.Name, OwnerGid: enterworld.ObjectIDForCharacter(c),
 		// CICCos_DeserializeSpawnSubState (854CD0): 1 is a fresh summon.
 		State: cosSpawnFresh,
 	})}

@@ -96,7 +96,7 @@ func (rt *Runtime) advanceOwnerFormation(step petCombatStep) []simulation.Frame 
 	relocated := false
 	frames = append(frames, state.follower.FollowFormation(simulation.PetFormationStep{
 		Relocated: &relocated, Owner: world, Slots: &owner.formationSlots, Slot: &state.formationSlot,
-		BodyRadius: float32(uint16(step.ref.Parameters.BodyRadius)), Speed: step.run, Now: step.nowMs,
+		BodyRadius: float32(uint16(step.ref.Parameters.BodyRadius)), Speed: rt.cosPacedRun(step.ref, step.run), Now: step.nowMs,
 		Surface: rt.CompanionSurfaceHeight, Constrain: step.constraint,
 	})...)
 	if relocated {
@@ -132,7 +132,7 @@ func (rt *Runtime) setCompanionFollowSpeed(step petCombatStep, factor float32) [
 		pet.FollowRunFactor, pet.FollowRunSet = factor, true
 		step.pet.FollowRunFactor, step.pet.FollowRunSet = factor, true
 		block := rt.cosAbnormal(step.key.division, step.snapshot.Name, pet.GID)
-		walk, run := cosParameter(step.ref, pet, block, movementWalkParameter), cosParameter(step.ref, pet, block, movementRunParameter)
+		walk, run := rt.cosMovementSpeeds(step.ref, pet, block)
 		step.state.follower.SetMovementSpeeds(walk, run, step.nowMs)
 		frames = []simulation.Frame{{Opcode: movementSpeedOpcode, Payload: wire.NewWriter(movementSpeedBytes).U32(pet.GID).F32(walk).F32(run).Payload()}}
 		step.state.public = append(step.state.public, wire.Frame{Opcode: frames[0].Opcode, Payload: frames[0].Payload})
