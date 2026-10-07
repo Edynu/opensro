@@ -64,7 +64,7 @@ Record the public GPU operations without imitating the image owner's branch
 logic. Failures can be injected at upload to verify partial cleanup.
 ================
 */
-function recordingDevice( context, compressed = true, generatedMips = false ) {
+function recordingDevice( context, compressed = true ) {
 	const previous = Object.getOwnPropertyDescriptor( globalThis, "GPUTextureUsage" );
 	Object.defineProperty( globalThis, "GPUTextureUsage", {
 		configurable: true,
@@ -101,8 +101,7 @@ function recordingDevice( context, compressed = true, generatedMips = false ) {
 		fail: error => errors.push( error ),
 		pipeline: () => /** @type {GPURenderPipeline} */ (/** @type {unknown} */ ({ getBindGroupLayout: () => ({}) })),
 		sampler: /** @type {GPUSampler} */ ({}),
-		generateMips: () => generated++,
-		generatedMips: () => generatedMips
+		generateMips: () => generated++
 	} );
 	return {
 		owner,
@@ -227,32 +226,34 @@ test("BC fallback uploads bounded RGBA mips and leaves the compressed source reu
 	assert.equal( fixture.generated(), 0 );
 });
 
-test("an authored-only container keeps BC by default and generates RGBA mips only when opted in", t => {
-	const native = recordingDevice( t );
-	const single = decodeNativeTexture( encodedTexture( DXT1, colorBlock(), 1 ) );
-	native.owner.commands.upload( single );
-	assert.equal( native.allocations[0].format, "bc1-rgba-unorm" );
-	assert.equal( native.allocations[0].mipLevelCount, 1 );
-	assert.equal( native.writes.length, 1 );
-	assert.equal( native.generated(), 0 );
-
-	// Experimental > Video > Generated mipmaps: the decoded base level as
-	// RGBA, a full chain the GPU renders into, and nothing past level 0
-	// written from the authored bytes.
-	const opted = recordingDevice( t, true, true );
-	opted.owner.commands.upload( single );
-	assert.equal( opted.allocations[0].format, "rgba8unorm" );
-	assert.equal( opted.allocations[0].mipLevelCount, 3 );
-	assert.ok( opted.allocations[0].usage & 16, "a generated chain needs RENDER_ATTACHMENT" );
-	assert.deepEqual( opted.writes.map( row => [ row.target.mipLevel, row.bytes.length, row.layout.bytesPerRow ] ), [
-		[ 0, 64, 16 ]
-	] );
-	assert.equal( opted.generated(), 1 );
-
-	// A full authored chain is never regenerated, whatever the option says.
-	opted.owner.commands.upload( decodeNativeTexture( encodedTexture( DXT1, colorBlock() ) ) );
-	assert.equal( opted.allocations[1].format, "bc1-rgba-unorm" );
-	assert.equal( opted.generated(), 1 );
+test("single and partial authored chains stay intact on BC and fallback adapters", t => {
+	for ( const compressed of [ true, false ] ) {
+		const fixture = recordingDevice( t, compressed );
+		for ( const count of [ 1, 2 ] ) {
+			const source = decodeNativeTexture( encodedTexture( DXT1, colorBlock(), count ) );
+			const before = source.levels.map( bytes => bytes.slice() );
+			const firstWrite = fixture.writes.length;
+			const handle = fixture.owner.commands.upload( source );
+			const allocation = fixture.allocations.at( -1 );
+			assert.equal( allocation.format, compressed ? "bc1-rgba-unorm" : "rgba8unorm" );
+			assert.equal( allocation.mipLevelCount, count );
+			assert.equal( allocation.usage & 16, 0, "authored chains need no render attachment" );
+			const writes = fixture.writes.slice( firstWrite );
+			assert.equal( writes.length, count );
+			for ( const [level, write] of writes.entries() ) {
+				assert.equal( write.target.mipLevel, level );
+				assert.deepEqual(
+					write.bytes,
+					compressed ? source.levels[level] : decodeNativeTextureLevel( source, level )
+				);
+			}
+			assert.deepEqual( source.levels, before );
+			fixture.owner.commands.release( handle );
+		}
+		assert.equal( fixture.generated(), 0 );
+		assert.equal( fixture.destroyed(), 2 );
+		fixture.owner.dispose();
+	}
 });
 
 test("invalid native layers allocate nothing and a failed upload destroys its partial texture", t => {

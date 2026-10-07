@@ -39,7 +39,7 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 	let textureFiltered = true, textureDetail = DEFAULT_TEXTURE_DETAIL;
 	// Experimental > Video. All off is the native frame: the plain copy to the
 	// swapchain, retail samplers and env.stages zero.
-	let finishEnabled = false, anisotropic = false, mipsPreference = false;
+	let finishEnabled = false, anisotropic = false;
 	const stages = new Float32Array( 4 );
 	let timing: ReturnType<typeof createGpuTiming> | null = null;
 	let phase: RuntimePhase = "starting", failure: string | null = null, device: GPUDevice | null = null;
@@ -287,7 +287,6 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				fail,
 				pipeline: pipelines.image,
 				sampler: pipelines.sampler,
-				generatedMips: () => mipsPreference,
 
 				/*
 				================
@@ -467,7 +466,6 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		*/
 		experimentalVideo( value ) {
 			finishEnabled = value.postProcessing;
-			mipsPreference = value.generatedMips;
 			stages.set( [ value.heightFog ? 1 : 0, 0, 0, 0 ] );
 			if ( anisotropic === value.anisotropicFiltering ) return;
 			anisotropic = value.anisotropicFiltering;

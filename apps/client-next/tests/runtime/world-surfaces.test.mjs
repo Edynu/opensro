@@ -52,7 +52,7 @@ test("DDS decoder handles BC1 transparent mode, nonzero offsets, edges and rejec
 	v.setUint32( 112, 0x200, true );
 	assert.throws( () => decodeDxt1( d ), /surface/ );
 });
-test("installed MAPT lightmaps reach every sector as block containers with full mip chains", () => {
+test("installed MAPT lightmaps reach every sector as block containers with authored mip levels", () => {
 	const bundle = json( "/assets/world/china/region-62a8.json" ),
 		scene = createWorldDecoder().decode( new TextEncoder().encode( JSON.stringify( bundle ) ) );
 	const lights = scene.groups.filter( g => g.material.lightmap );

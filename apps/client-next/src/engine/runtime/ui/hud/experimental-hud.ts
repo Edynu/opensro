@@ -61,13 +61,6 @@ export const EXPERIMENTAL_TABS: readonly { readonly title: string; readonly rows
 				id: "experimental-height-fog",
 				label: "Height fog",
 				description: "Distance haze that thins with height."
-			},
-			{
-				key: "generatedMips",
-				id: "experimental-generated-mips",
-				label: "Generated mipmaps",
-				description:
-					"Smoother distant textures; retail sampled the authored level only. Applies to newly streamed areas."
 			}
 		]
 	},

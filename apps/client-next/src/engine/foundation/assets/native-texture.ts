@@ -3,8 +3,8 @@
 
 native-texture.ts - admission and fallback decoding for retained native mips
 
-The NTX container preserves the source format and a complete mip chain from
-the build-time D3DX loader. GPU-capable devices upload the blocks unchanged;
+The NTX container preserves the source format and the authored mip levels
+selected by the build-time native loader. GPU-capable devices upload the blocks unchanged;
 devices without BC support decode one mip at a time without retaining RGBA.
 The format rules also serve CPU residency accounting and input validation.
 

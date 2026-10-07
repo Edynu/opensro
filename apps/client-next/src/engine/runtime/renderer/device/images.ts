@@ -70,11 +70,6 @@ interface ImageDevice {
 	readonly pipeline: () => GPURenderPipeline;
 	readonly sampler: GPUSampler;
 	readonly generateMips: ( texture: GPUTexture, levels: number, layers: number ) => void;
-	// Experimental > Video > Generated mipmaps: when true, a container that
-	// shipped only its authored levels (the terrain's retail-exact single
-	// level) is decoded and uploaded as RGBA with a GPU-generated chain -
-	// the pre-container browser look, as an opt-in.
-	readonly generatedMips: () => boolean;
 }
 
 /*
@@ -170,34 +165,29 @@ export function createImages( device: ImageDevice ) {
 			// therefore use the same fallback as adapters without BC support.
 			const decompress = !!blockBytes && (!gpu.features.has( "texture-compression-bc" ) ||
 				image.width % BLOCK_SIDE !== 0 || image.height % BLOCK_SIDE !== 0);
-			const fullChain = 1 + Math.floor( Math.log2( Math.max( image.width, image.height ) ) );
-			// The experimental chain: an authored-only container (terrain under
-			// its retail-exact default) uploads its decoded base level as RGBA and
-			// the GPU generates the whole chain from it, the browser look the
-			// terrain had before the containers shipped. Port-only, not native.
-			const generate = !!native && !decompress &&
-				native.levels.length < fullChain && device.generatedMips();
-			const rgba = decompress || generate;
-			const levels = native ? (generate ? fullChain : native.levels.length) : mipmaps ? fullChain : 1;
+			const levels = native ? native.levels.length : mipmaps ?
+				1 + Math.floor( Math.log2( Math.max( image.width, image.height ) ) ) :
+				1;
 			gpu.pushErrorScope( "validation" );
 			try {
 				const texture = gpu.createTexture( {
 					mipLevelCount: levels,
 					size: [ image.width, image.height, frames.length ],
-					format: rgba ? "rgba8unorm" : native?.format ?? "rgba8unorm",
-					// Generated chains render into their own levels.
+					format: decompress ? "rgba8unorm" : native?.format ?? "rgba8unorm",
 					usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST |
-						(native && !generate ? 0 : GPUTextureUsage.RENDER_ATTACHMENT)
+						(native ? 0 : GPUTextureUsage.RENDER_ATTACHMENT)
 				} );
 				try {
 					for ( let layer = 0; layer < frames.length; layer++ ) {
 						const source = frames[layer]!;
 						if ( "kind" in source ) {
-							for ( let level = 0; level < (generate ? 1 : levels); level++ ) {
+							for ( let level = 0; level < levels; level++ ) {
 								const width = Math.max( 1, image.width >> level ),
 									height = Math.max( 1, image.height >> level );
-								const compressed = !!blockBytes && !rgba;
-								const data = rgba ? decodeNativeTextureLevel( source, level ) : source.levels[level]!;
+								const compressed = !!blockBytes && !decompress;
+								const data = decompress ?
+									decodeNativeTextureLevel( source, level ) :
+									source.levels[level]!;
 								gpu.queue.writeTexture(
 									{ texture, mipLevel: level, origin: [ 0, 0, layer ] },
 									data as Uint8Array<ArrayBuffer>,
@@ -221,7 +211,7 @@ export function createImages( device: ImageDevice ) {
 							);
 						}
 					}
-					if ( (!native || generate) && levels > 1 ) device.generateMips( texture, levels, frames.length );
+					if ( !native && levels > 1 ) device.generateMips( texture, levels, frames.length );
 					const binding = gpu.createBindGroup( {
 						layout: device.pipeline().getBindGroupLayout( 0 ),
 						entries: [

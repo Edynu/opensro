@@ -44,7 +44,7 @@ test(
 			await page.goto( CLIENT_NEXT_BASE_URL );
 			const result = await page.evaluate( async ( { bundle, camera } ) => {
 				const { decodeDxt1 } = await import( "/src/engine/foundation/assets/dds.ts" );
-				const { decodeNativeTexture, decodeNativeTextureLevel } = await import(
+				const { decodeNativeTexture } = await import(
 					"/src/engine/foundation/assets/native-texture.ts"
 				);
 				const { createRenderer } = await import( "/src/engine/runtime/renderer/renderer.ts" );
@@ -85,19 +85,8 @@ test(
 									await createImageBitmap( new ImageData( d.pixels, d.width, d.height ) )
 								);
 							} else if ( path.endsWith( ".texture" ) ) {
-								// Terrain lightmaps ship as NTX1 bc1 containers.
-								const native = decodeNativeTexture( new Uint8Array( await blob.arrayBuffer() ) ),
-									level = decodeNativeTextureLevel( native, 0 );
-								textures.set(
-									path,
-									await createImageBitmap(
-										new ImageData(
-											new Uint8ClampedArray( level.buffer ),
-											native.width,
-											native.height
-										)
-									)
-								);
+								// Keep authored levels through the production native upload path.
+								textures.set( path, decodeNativeTexture( new Uint8Array( await blob.arrayBuffer() ) ) );
 							} else textures.set( path, await createImageBitmap( blob ) );
 						} catch ( e ) {
 							throw Error( path + ":" + e.message );
@@ -150,7 +139,12 @@ test(
 								);
 							} else r.setWorld( input );
 							r.setWorldCamera( frontendCameraView( sampleFrontendCamera( camera, t ) ) );
-							for ( const [p, b] of textures ) r.setWorldTexture( p, await createImageBitmap( b ) );
+							for ( const [p, b] of textures ) {
+								r.setWorldTexture(
+									p,
+									"kind" in b ? structuredClone( b ) : await createImageBitmap( b )
+								);
+							}
 							let k = 0;
 							do {
 								r.frame( { width: 1823, height: 845 }, k++ * .016 );
@@ -170,7 +164,7 @@ test(
 					return images;
 				} finally {
 					r.dispose();
-					for ( const b of textures.values() ) b.close();
+					for ( const b of textures.values() ) if ( !("kind" in b) ) b.close();
 				}
 			}, { bundle, camera } );
 			for ( const t of [ .7, .9 ] ) {
