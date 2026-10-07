@@ -76,32 +76,55 @@ visit
 	}
 	const animatedLocal = new Uint8Array( model.nodes.length ), animatedGlobal = new Uint8Array( model.nodes.length );
 	let matricesInitialized = false;
-	for ( const clip of model.clips ) {
-		for ( const channel of clip.channels ) {
-			if ( !model.nodes[channel.node]!.matrix ) animatedLocal[channel.node] = 1;
-		}
-	}
-	for ( const n of order ) {
-		const parent = model.nodes[n]!.parent;
-		animatedGlobal[n] = animatedLocal[n]! || (parent >= 0 ? animatedGlobal[parent]! : 0);
-	}
-	const clips = new Map( model.clips.map( clip => [ clip.name, clip ] ) );
+	const clips = new Map<string, CharacterClip>();
 	const timelines = new Map<CharacterClip, ReturnType<typeof createAnimationTimelines>>();
 	// One reusable clip's quaternion brackets, not a cache for every admitted
 	// animation. Switching layer clips invalidates this bounded scratch.
-	const rotationSamples = new Float64Array(
+	let rotationSamples = new Float64Array(
 		model.clips.reduce( ( max, clip ) => Math.max( max, clip.channels.length ), 0 ) * 4
 	).fill( NaN );
 	let rotationClip: CharacterClip | undefined;
-	const singleTrackClips = new Set( model.clips.filter( clip => {
+	const singleTrackClips = new Set<CharacterClip>(), gpuClips = new Set<CharacterClip>();
+	/*
+================
+registerClip
+
+The caller owns validation and binding. A catalog entry adds sampling metadata
+without changing skeleton storage, the selected layers or their revision.
+================
+	*/
+	function registerClip( clip: CharacterClip ) {
 		const paths = new Set<string>();
+		let singleTrack = true;
 		for ( const channel of clip.channels ) {
 			const key = channel.node + ":" + channel.path;
-			if ( paths.has( key ) ) return false;
+			if ( paths.has( key ) ) singleTrack = false;
 			paths.add( key );
+			if ( !model.nodes[channel.node]!.matrix ) animatedLocal[channel.node] = 1;
 		}
-		return true;
-	} ) );
+		clips.set( clip.name, clip );
+		if ( singleTrack ) singleTrackClips.add( clip );
+		if (
+			singleTrack && clip.channels.length > 0 &&
+			clip.channels.every( channel => channel.interpolation !== "CUBICSPLINE" && channel.times.length > 0 )
+		) gpuClips.add( clip );
+	}
+	/*
+================
+refreshAnimatedBranches
+
+A newly animated parent also makes its previously static descendants dynamic.
+Existing matrices remain valid until a changed sample actually uses the clip.
+================
+	*/
+	function refreshAnimatedBranches() {
+		for ( const n of order ) {
+			const parent = model.nodes[n]!.parent;
+			animatedGlobal[n] = animatedLocal[n]! || (parent >= 0 ? animatedGlobal[parent]! : 0);
+		}
+	}
+	for ( const clip of model.clips ) registerClip( clip );
+	refreshAnimatedBranches();
 	const pass = model.nodes.map( () => [ new Float32Array( 3 ), new Float32Array( 4 ), new Float32Array( 3 ) ] );
 	const weights = new Float32Array( model.nodes.length * 3 ),
 		committed = new Float32Array( model.nodes.length * 3 ),
@@ -116,12 +139,6 @@ visit
 	type ResolvedLayer = { clip: CharacterClip | undefined; time: number; weight: number; lane: "event" | "timed"; };
 	let resolved: ResolvedLayer[] = [], pendingLayers: ResolvedLayer[] = [], hasPose = false;
 	let cpuPending = false, cpuEvaluations = 0;
-	const gpuClips = new Set(
-		model.clips.filter( clip =>
-			singleTrackClips.has( clip ) && clip.channels.length > 0 &&
-			clip.channels.every( channel => channel.interpolation !== "CUBICSPLINE" && channel.times.length > 0 )
-		)
-	);
 	const sampleRequest = { clip: model.clips[0]!, time: 0 };
 	/*
 ================
@@ -281,6 +298,26 @@ materialize
 		cpuEvaluations++;
 	}
 	return {
+		/*
+================
+admitClip
+
+Append a validated bound clip without retiring active playback or palettes.
+Names are immutable once admitted, matching renderer clip admission. Growing
+quaternion scratch preserves brackets for the currently selected old clip.
+================
+		*/
+		admitClip( clip: CharacterClip ) {
+			if ( clips.has( clip.name ) ) return false;
+			registerClip( clip );
+			refreshAnimatedBranches();
+			if ( rotationSamples.length < clip.channels.length * 4 ) {
+				const grown = new Float64Array( clip.channels.length * 4 ).fill( NaN );
+				grown.set( rotationSamples );
+				rotationSamples = grown;
+			}
+			return true;
+		},
 		/*
         ================
         bodyVolume
