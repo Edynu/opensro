@@ -37,7 +37,17 @@ main thread's frame and world-preparation time per frame. Options add:
 
 Read the captures with tools/perf/analyze (profile.mjs, trace.mjs).
 
-The goal these measure: 500 frames a second in every scenario.
+The goal these measure: 500 frames a second in every scenario, on the
+built bundle. The dev server serves unbundled modules and is slower to
+start, so its numbers are development readings. To measure the bundle:
+
+  pnpm --filter @sro/client-next build
+  pnpm --filter @sro/client-next preview
+  SRO_PROBE_CLIENT_NEXT_BASE_URL=http://127.0.0.1:4180 node tools/perf/bench/fps-bench.mjs
+
+Every row records what it ran against (identity: dev server or bundle,
+origin, served entry URL, separate harness revision, replay capture state).
+Both boundaries are recorded; changed or unknown state invalidates the row.
 
 ===========================================================================
 */
@@ -46,6 +56,7 @@ import { MISSION_MOVEMENT_FIXTURES } from "../../../../../scripts/lib/missionMov
 import { parseOptions } from "../core/report.mjs";
 import { frameLimits } from "../../../src/engine/foundation/rendering/video-options.ts";
 import { openClient, closeClient, createCaptures, measure, revive } from "../core/client.mjs";
+import { buildIdentity, verifyMeasuredIdentity } from "../core/build-identity.mjs";
 import { keepGoing, drag, walk, approach, fight, cross, loadCombat, combat, strike, localAlive } from "./scenarios.mjs";
 import { cleanupCombat, combatResidue } from "../core/combat-cleanup.mjs";
 
@@ -357,6 +368,11 @@ async function session( options, location, results ) {
 				Math.hypot( before.x - after.x, before.z - after.z ) > REVIVE_TOLERANCE
 			) throw Error( `${location.name}/${name}: the character is not where the scene expects after revive` );
 			const [ms, input] = await drive( client.page, name, location, options.seconds * 1000, scene );
+			const identity = await buildIdentity( client.page );
+			console.log(
+				`  measuring ${identity.build} ${identity.entry ?? identity.origin}, replay ${identity.replay}; ` +
+					`harness ${identity.harnessCommit}, served commit ${identity.servedCommit}`
+			);
 			await captures.start();
 			capturing = true;
 			const started = Date.now();
@@ -364,6 +380,7 @@ async function session( options, location, results ) {
 			result.frameLimit = options.frameLimit;
 			result.cpuRate = options.cpuRate;
 			result.shadowDetail = options.shadowDetail;
+			result.identity = identity;
 			if ( scene ) {
 				result.serverUptimeMinutes = await serverUptimeMinutes();
 				result.scene = {
@@ -379,6 +396,25 @@ async function session( options, location, results ) {
 			}
 			const allocated = await captures.stop( `${location.name}-${name}` );
 			capturing = false;
+			result.identityAfter = await buildIdentity( client.page, identity.harnessCommit );
+			try {
+				verifyMeasuredIdentity( identity, result.identityAfter );
+			} catch ( error ) {
+				// Keep refused evidence separate from valid FPS rows.
+				const evidence = {
+					valid: false,
+					error: String( error ),
+					before: identity,
+					after: result.identityAfter
+				};
+				console.error( "Rejected measurement identity:", JSON.stringify( evidence ) );
+				await mkdir( options.out, { recursive: true } );
+				await writeFile(
+					`${options.out}/${location.name}-${name}-identity-rejected.json`,
+					JSON.stringify( evidence, null, 2 )
+				);
+				throw error;
+			}
 			result.allocatedMBs = allocated === null ? null : allocated / 1048576 / ((Date.now() - started) / 1000);
 			results.push( result );
 			if ( options.json ) await writeFile( options.json, JSON.stringify( results, null, 2 ) );
@@ -464,10 +500,16 @@ async function run( options ) {
 		throw Error( "no valid frame-rate verdict: missing or invalid measurements" );
 	}
 	const worst = Math.min( ...results.map( r => r.fps ) );
+	// Report the measured capture configuration without assuming player defaults.
+	const builds = new Set( results.map( r => `${r.identity.build}, replay ${r.identity.replay}` ) );
+	const verdict = worst >= GOAL_FPS ? "MET" : "not met";
 	console.log(
 		options.paced || options.frameLimit ?
 			`slowest paced scenario ${worst.toFixed( 0 )} fps; see frame-interval percentiles` :
-			`slowest scenario ${worst.toFixed( 0 )} fps; goal ${GOAL_FPS} ${worst >= GOAL_FPS ? "MET" : "not met"}`
+			`slowest scenario ${worst.toFixed( 0 )} fps; goal ${GOAL_FPS} ${verdict} on ${
+				[ ...builds ].join( " / " )
+			}` +
+			(results.some( r => r.identity.build === "dev-server" ) ? " (dev server: not a release verdict)" : "")
 	);
 }
 
