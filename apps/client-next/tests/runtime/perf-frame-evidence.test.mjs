@@ -37,7 +37,7 @@ function fixture() {
 		frame
 		================
 		*/
-		frame( atMs, cpuMs, elapsedMs = cpuMs ) {
+		frame( atMs, cpuMs, elapsedMs = cpuMs, created = 0 ) {
 			clock = atMs;
 			probe.begin();
 			probe.worldBegin();
@@ -46,6 +46,7 @@ function fixture() {
 			probe.mark( "world" );
 			probe.movement( { atMs, revision: 7, workerAtMs: atMs - 5, workerDebtMs: 0 } );
 			probe.characterCount( "cpu-ms", cpuMs );
+			probe.characterCount( "pose-created", created );
 			clock = atMs + elapsedMs;
 			probe.end();
 		}
@@ -82,6 +83,9 @@ test("GPU wait and scheduling gaps do not become CPU-heavy callbacks", async () 
 	assert.equal( result.longFrames[0].atMs, 100 );
 	assert.equal( result.longFrames[0].intervalMs, 100 );
 	assert.equal( result.longFrames[0].cpuMs, 2 );
+	assert.equal( result.opening.maxCpuMs, 2 );
+	assert.equal( result.opening.maxElapsedMs, 80 );
+	assert.equal( result.opening.maxIntervalMs, 100 );
 });
 
 test("witness storage stays bounded while totals cover every long callback", async () => {
@@ -109,6 +113,8 @@ test("warmup and previous measurement windows do not contaminate the next window
 	assert.equal( second.callbacksOver50Ms, 0 );
 	assert.equal( second.intervalsOver50Ms, 0 );
 	assert.equal( second.longFrames.length, 0 );
+	assert.equal( second.opening.maxCpuMs, 2 );
+	assert.equal( second.opening.startAtMs, 2000 );
 	assert.equal( f.target.__benchLoop, false );
 });
 
@@ -124,4 +130,26 @@ test("a frame in flight from the previous window cannot become the next windows 
 	} );
 	assert.equal( next.callbacksOver50Ms, 0 );
 	assert.equal( next.longFrames.length, 0 );
+	assert.equal( next.opening.frames, 1 );
+	assert.equal( next.opening.maxCpuMs, 2 );
+});
+
+test("opening maxima retain sub-threshold callbacks and pose bursts through the rolling tail", async () => {
+	const f = fixture();
+	const result = await measure( f.page, "first-turn", 1, async () => {
+		f.frame( 100, 3 );
+		f.frame( 104, 24, 25, 33 );
+		for ( let index = 0; index < 20000; index++ ) f.frame( 130 + index * 3, 2 );
+		f.frame( 70000, 40, 40, 60 );
+	} );
+	assert.equal( result.callbacksOver50Ms, 0 );
+	assert.equal( result.opening.startAtMs, 100 );
+	assert.equal( result.opening.windowMs, 10000 );
+	assert.equal( result.opening.maxCpuMs, 24 );
+	assert.equal( result.opening.maxCpuAtMs, 104 );
+	assert.equal( result.opening.maxElapsedMs, 25 );
+	assert.equal( result.opening.maxPoseCreated, 33 );
+	assert.equal( result.opening.maxPoseAtMs, 104 );
+	assert.ok( result.opening.endAtMs < 10104 );
+	assert.ok( f.target.__benchRows.every( row => row[0] !== 25 ), "opening evidence survives tail rollover" );
 });

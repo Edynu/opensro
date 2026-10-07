@@ -44,7 +44,7 @@ a profiler's overhead.
 ================
 */
 export function instrument( { counts, spans, target = globalThis } ) {
-	const LONG_FRAME_MS = 50, MAX_LONG_FRAMES = 32;
+	const LONG_FRAME_MS = 50, MAX_LONG_FRAMES = 32, OPENING_WINDOW_MS = 10000;
 	const now = () => target.performance.now();
 	let frameStart = 0, worldStart = 0, worldEnd = 0, frameMark = 0, renderMark = 0, characterMark = 0;
 	let measuring = null, intervalMs;
@@ -151,6 +151,35 @@ export function instrument( { counts, spans, target = globalThis } ) {
 			if ( target.__benchRows.length > 16384 ) target.__benchRows.splice( 0, 4096 );
 			if ( !measuring || target.__benchLoop !== true || measuring !== target.__benchLongFrames ) return;
 			const cpuMs = counts["cpu-ms"] ?? elapsedMs, evidence = measuring;
+			// The incident threshold alone cannot prove a sub-25 ms first turn.
+			// Keep constant-space opening maxima even after the frame tail rolls.
+			const opening = evidence.opening ??= {
+				startAtMs: frameStart,
+				endAtMs: frameStart,
+				windowMs: OPENING_WINDOW_MS,
+				frames: 0,
+				maxCpuMs: 0,
+				maxElapsedMs: 0,
+				maxIntervalMs: 0,
+				maxPoseCreated: 0,
+				maxCpuAtMs: frameStart,
+				maxPoseAtMs: frameStart
+			};
+			if ( frameStart - opening.startAtMs < OPENING_WINDOW_MS ) {
+				opening.frames++;
+				opening.endAtMs = endedAtMs;
+				if ( cpuMs > opening.maxCpuMs ) {
+					opening.maxCpuMs = cpuMs;
+					opening.maxCpuAtMs = frameStart;
+				}
+				const created = counts["pose-created"] ?? 0;
+				if ( created > opening.maxPoseCreated ) {
+					opening.maxPoseCreated = created;
+					opening.maxPoseAtMs = frameStart;
+				}
+				opening.maxElapsedMs = Math.max( opening.maxElapsedMs, elapsedMs );
+				opening.maxIntervalMs = Math.max( opening.maxIntervalMs, intervalMs ?? 0 );
+			}
 			const slowCallback = cpuMs > LONG_FRAME_MS, slowInterval = intervalMs > LONG_FRAME_MS;
 			if ( slowCallback ) evidence.callbacks++;
 			if ( slowInterval ) evidence.intervals++;
@@ -247,6 +276,7 @@ export async function measure( page, name, ms, drive ) {
 		callbacksOver50Ms: longFrames.callbacks,
 		intervalsOver50Ms: longFrames.intervals,
 		longFrames: longFrames.frames,
+		opening: longFrames.opening ?? null,
 		movement,
 		inputs,
 		counts: tally
