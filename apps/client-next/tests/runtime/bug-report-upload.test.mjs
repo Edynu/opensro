@@ -11,7 +11,7 @@ retain movement identities and clocks without exporting chat or credentials.
 import "../helpers/native-source-loader.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inflateRawSync } from "node:zlib";
+import { readZipEntries } from "../helpers/zip-reader.mjs";
 import { createHash } from "node:crypto";
 const { createDiagnosticUpload, diagnosticUploadBudget } = await import(
 	"../../src/engine/runtime/bug-report/archive.ts"
@@ -33,24 +33,12 @@ readZip
 ================
 */
 async function readZip( blob ) {
-	const bytes = Buffer.from( await blob.arrayBuffer() );
+	const entries = readZipEntries( await blob.arrayBuffer() );
 	const documents = {}, methods = [];
-	let offset = 0;
-	while ( bytes.readUInt32LE( offset ) === 0x04034b50 ) {
-		const method = bytes.readUInt16LE( offset + 8 );
-		const size = bytes.readUInt32LE( offset + 18 ), expanded = bytes.readUInt32LE( offset + 22 );
-		const nameSize = bytes.readUInt16LE( offset + 26 ), extraSize = bytes.readUInt16LE( offset + 28 );
-		const name = bytes.subarray( offset + 30, offset + 30 + nameSize ).toString();
-		const start = offset + 30 + nameSize + extraSize;
-		const packed = bytes.subarray( start, start + size );
-		assert.ok( method === 0 || method === 8 );
-		const data = method === 8 ? inflateRawSync( packed ) : packed;
-		assert.equal( data.length, expanded );
-		documents[name] = JSON.parse( data.toString() );
-		methods.push( method );
-		offset = start + size;
+	for ( const [name, entry] of entries ) {
+		documents[name] = JSON.parse( entry.data.toString() );
+		methods.push( entry.method );
 	}
-	assert.equal( bytes.readUInt32LE( offset ), 0x02014b50 );
 	return { documents, methods };
 }
 
