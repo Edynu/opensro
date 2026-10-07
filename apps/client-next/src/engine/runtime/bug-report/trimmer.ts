@@ -169,7 +169,7 @@ export function createClipTrimmer( replay: Mp4Track, maxBytes: number ): ClipTri
 		info.textContent = `Clip ${clock( start )} → ${clock( end )} · ${(end - start).toFixed( 1 )} s · ` +
 			`${(bytes / MEGABYTE).toFixed( 1 )} MB` +
 			(compress ?
-				` → compressed to ${(maxBytes / MEGABYTE).toFixed( 0 )} MB for Discord (full quality kept here)` :
+				` → compressed to ${(maxBytes / MEGABYTE).toFixed( 0 )} MB for upload (full quality kept here)` :
 				"");
 	}
 

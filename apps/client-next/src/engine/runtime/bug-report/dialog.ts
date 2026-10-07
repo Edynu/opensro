@@ -76,10 +76,28 @@ OpenRequest
 */
 export interface OpenRequest {
 	readonly text: string;
+	readonly destinations?: readonly string[];
 	readonly replay: Mp4Track | null;
 	readonly maxBytes: number;
 	readonly replayState: ReplayState;
 	readonly replayError: string | null;
+}
+
+/*
+================
+deliveryNote
+
+Older Agents do not advertise destinations; avoid guessing their storage.
+================
+*/
+export function deliveryNote( destinations: readonly string[] = [] ): string {
+	const discord = destinations.includes( "discord" ), directory = destinations.includes( "directory" );
+	if ( discord && directory ) {
+		return "The report and its attachments are posted to the team's Discord channel and saved on the game server.";
+	}
+	if ( discord ) return "The report and its attachments are posted to the team's Discord channel.";
+	if ( directory ) return "The report and its attachments are saved on the game server for the team to review.";
+	return "The report and its attachments are sent to the team.";
 }
 
 /*
@@ -324,7 +342,7 @@ export function createBugReportDialog( host: DialogHost ): BugReportDialog {
 		description.value = request.text.trim();
 		description.setAttribute( "aria-label", "Description" );
 		const privacy = element( "p", "sro-bug-report__note" );
-		privacy.textContent = "The report and its clip are posted to the team's Discord channel. " +
+		privacy.textContent = deliveryNote( request.destinations ) + " " +
 			"Technical diagnostics include recent movement, input timing, game state and browser details. " +
 			"Chat text and account credentials are excluded from those diagnostics. " +
 			"The clip may show chat and other players, and includes the game's sound.";

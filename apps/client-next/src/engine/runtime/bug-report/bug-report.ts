@@ -71,6 +71,7 @@ interface ServerSettings {
 	readonly maxBytes: number;
 	readonly maxDiagnosticsBytes: number;
 	readonly replaySeconds: number;
+	readonly destinations: readonly string[];
 }
 
 /*
@@ -321,7 +322,10 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 				Number( value.maxBytes ) || 10 * 1024 * 1024,
 				value.maxDiagnosticsBytes
 			),
-			replaySeconds: Number( value.replaySeconds ) || 60
+			replaySeconds: Number( value.replaySeconds ) || 60,
+			destinations: Array.isArray( value.destinations ) ?
+				value.destinations.filter( destination => destination === "discord" || destination === "directory" ) :
+				[]
 		};
 		availability = "on";
 		replayEnabled = storedPreference() ?? settings.replayDefault;
@@ -355,6 +359,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			text,
 			replay: recorder.snapshot(),
 			maxBytes: settings.maxBytes,
+			destinations: settings.destinations,
 			replayState: replayState(),
 			replayError: recorder.lastError()
 		} );
@@ -435,7 +440,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 				const original = muxMp4( report.clip );
 				const containerBytes = original.byteLength - replayTrackBytes( report.clip );
 				sent = await fitTrack( report.clip, mediaBudget - containerBytes, fraction => {
-					progress( `Compressing the clip to fit Discord… ${Math.round( fraction * 100 )}%` );
+					progress( `Compressing the clip to fit the upload limit… ${Math.round( fraction * 100 )}%` );
 				} );
 				media = new Blob( [ (sent === report.clip ? original : muxMp4( sent )) as BlobPart ], {
 					type: "video/mp4"
@@ -555,7 +560,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	function diagnostics( report: OutgoingReport ): Record<string, string> {
 		const zeroMs = report.replay ? report.replay.samples[0]!.timestampUs / 1000 : performance.now() - 60000;
 		const timeline = {
-			note: "t is seconds from the first frame of replay.mp4; clip is the part sent to Discord.",
+			note: "t is seconds from the first frame of replay.mp4; clip is the part sent with the report.",
 			clip: report.range,
 			events: journal.since( zeroMs - 2000 ).map( ( { atMs, ...event } ) => ({
 				t: +((atMs - zeroMs) / 1000).toFixed( 3 ),
