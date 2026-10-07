@@ -26,14 +26,29 @@ import { probeBlockTextureFile, writeAuthoredBlockContainer } from "./blockTextu
 
 const terrainTilePublishJobs = new Map();
 
+/*
+================
+tileDdjFileName
+================
+*/
 function tileDdjFileName( ddjFileName ) {
 	return normalizeAssetPath( ddjFileName ).split( "/" ).at( -1 ) ?? "";
 }
 
+/*
+================
+tileDdjPath
+================
+*/
 function tileDdjPath( ddjFileName, sourceExtractedRoot ) {
 	return path.join( sourceExtractedRoot, "Map_extracted", "tile2d", tileDdjFileName( ddjFileName ) );
 }
 
+/*
+================
+resolveReferencedTerrainTiles
+================
+*/
 export async function resolveReferencedTerrainTiles( textureIds, tileCatalog, sourceExtractedRoot, sourceGameRoot ) {
 	return Promise.all( textureIds.map( async ( textureId ) => {
 		const entry = tileCatalog.entriesById[String( textureId )];
@@ -190,22 +205,42 @@ async function publishTerrainTile( ddjPath, target, sourcePath, block ) {
 	await copyFile( source, target );
 }
 
+/*
+================
+terrainTileTexturePublicPath
+================
+*/
 export function terrainTileTexturePublicPath( ddjFileName ) {
 	return toPublicImagePath( "Map_extracted/tile2d", terrainTileTextureFileName( ddjFileName ), {
 		replaceExtension: false
 	} );
 }
 
+/*
+================
+terrainTileImagePublicPath
+================
+*/
 export function terrainTileImagePublicPath( ddjFileName ) {
 	return toPublicImagePath( "Map_extracted/tile2d", terrainTileImageFileName( ddjFileName ), {
 		replaceExtension: false
 	} );
 }
 
+/*
+================
+terrainTileTextureFileName
+================
+*/
 function terrainTileTextureFileName( ddjFileName ) {
 	return tileDdjFileName( ddjFileName ).replace( /\.[^.]+$/, ".texture" );
 }
 
+/*
+================
+terrainTileImageFileName
+================
+*/
 export function terrainTileImageFileName( ddjFileName ) {
 	const normalizedName = tileDdjFileName( ddjFileName );
 	const primaryPng = normalizedName.replace( /\.[^.]+$/, ".png" );

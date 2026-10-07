@@ -24,6 +24,11 @@ import {
 	resolveBmtTexturePath
 } from "./formats.mjs";
 
+/*
+================
+buildTitleSectorObjectResources
+================
+*/
 export async function buildTitleSectorObjectResources( options ) {
 	const sourceExtractedRoot = options.extractedRoot;
 	const sourceGameRoot = options.gameRoot;
@@ -37,6 +42,11 @@ export async function buildTitleSectorObjectResources( options ) {
 	const materialPathSet = new Set();
 	const meshPathSet = new Set();
 
+	/*
+	================
+	loadBranch
+	================
+	*/
 	async function loadBranch( sourcePath, definition ) {
 		const absolutePath = dataAssetPath( sourceExtractedRoot, sourcePath );
 		if ( !(await exists( absolutePath )) ) {
@@ -261,18 +271,38 @@ async function copyObjectMaterialTextures( texturePaths, area, missing, blockFor
 	return copied;
 }
 
+/*
+================
+objectTexturePublicPath
+================
+*/
 function objectTexturePublicPath( area, textureSourcePath, extension ) {
 	return `/assets/world/${area}/object-textures/${objectTextureImageRelativePath( textureSourcePath, extension )}`;
 }
 
+/*
+================
+objectTextureImageRelativePath
+================
+*/
 function objectTextureImageRelativePath( textureSourcePath, extension ) {
 	return normalizeAssetPath( textureSourcePath ).replace( /\.[^.]+$/, "" ) + extension;
 }
 
+/*
+================
+dataAssetPath
+================
+*/
 function dataAssetPath( sourceExtractedRoot, sourcePath ) {
 	return path.join( sourceExtractedRoot, "Data_extracted", ...normalizeAssetPath( sourcePath ).split( "/" ) );
 }
 
+/*
+================
+countPlacementsByObjectId
+================
+*/
 function countPlacementsByObjectId( placements ) {
 	const counts = new Map();
 	for ( const placement of placements ) {

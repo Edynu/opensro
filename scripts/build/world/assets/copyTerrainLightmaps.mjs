@@ -15,6 +15,11 @@ import { writePublicFile } from "../io.mjs";
 import { publicRoot } from "../paths.mjs";
 import { probeBlockDdsPayload, writeAuthoredBlockContainer } from "./blockTextures.mjs";
 
+/*
+================
+terrainLightmapPublicPath
+================
+*/
 export function terrainLightmapPublicPath( area, sectorX, sectorY, block ) {
 	return `/assets/world/${area}/terrain-lightmaps/${sectorY}-${sectorX}.${block ? "texture" : "dds"}`;
 }

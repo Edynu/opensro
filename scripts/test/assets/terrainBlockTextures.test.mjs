@@ -53,7 +53,6 @@ const DDS_HEADER = 128;
 /*
 ================
 fixtureDds
-fixtureDdj
 
 One 4x4 DXT1 block with distinguishable payload bytes; the header offsets
 match both source shapes the pipeline reads (DDJ-wrapped DDJ files and the
@@ -75,6 +74,11 @@ function fixtureDds( { width = 4, height = 4, fourcc = DXT1, levels = 1, fill = 
 	return dds;
 }
 
+/*
+================
+fixtureDdj
+================
+*/
 function fixtureDdj( options = {} ) {
 	const dds = fixtureDds( options );
 	const ddj = Buffer.alloc( DDJ_HEADER + dds.byteLength, 0 );

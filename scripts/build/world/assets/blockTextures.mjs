@@ -211,13 +211,17 @@ export async function writeAuthoredBlockContainer( bytes, origin, target ) {
 /*
 ================
 nativeTextureBlockBytesOf
-validateAuthoredContainer
 ================
 */
 function nativeTextureBlockBytesOf( fourcc ) {
 	return fourcc === 0x31545844 ? 8 : 16;
 }
 
+/*
+================
+validateAuthoredContainer
+================
+*/
 function validateAuthoredContainer( bytes, origin ) {
 	const fail = why => {
 		throw Error( `Invalid authored container for ${origin}: ${why}` );
