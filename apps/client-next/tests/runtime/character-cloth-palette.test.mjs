@@ -26,6 +26,10 @@ for ( const gpuAvailable of [ false, true ] ) {
 			"cloth consumers require CPU-valid palette data even when GPU evaluation is available"
 		);
 		assert.equal( actual.frames.length, baseline.frames.length );
+		assert.ok(
+			actual.boneWriteBytes < baseline.boneWriteBytes,
+			"identical body palettes must reduce real queue upload bytes while preserving rendered output"
+		);
 		for ( let frame = 0; frame < actual.frames.length; frame++ ) {
 			for ( const [name, digest] of Object.entries( actual.frames[frame].primitives ) ) {
 				assert.equal(
