@@ -444,7 +444,7 @@ test("equipment reflection images preserve item ownership through assembly, fade
 	assert.equal( closed, 3, "borrowed assembly must not close item images twice" );
 });
 
-test("native clip admission updates existing equipment assemblies and retires stale palette owners", () => {
+test("native clip admission updates existing equipment assemblies without replacing poses or geometry", () => {
 	const renderer = createCharacters(), source = model();
 	source.images = [];
 	source.clips = [ { name: "stand", duration: 1, channels: [] } ];
@@ -524,7 +524,7 @@ test("native clip admission updates existing equipment assemblies and retires st
 		scale: 1
 	};
 	renderer.actors( [ row ] );
-	renderer.prepare( geometry, images, 1 );
+	const before = renderer.prepare( geometry, images, 1 );
 	const native = {
 		duration: 1,
 		channels: [ {
@@ -544,14 +544,16 @@ test("native clip admission updates existing equipment assemblies and retires st
 		5,
 		"existing assembly consumes the new native clip; caller cannot mutate admission"
 	);
-	assert.equal( releases, 1, "old palette stream is retired before replacing its model identity" );
+	assert.equal( draws[0], before[0], "clip admission preserves the resident draw" );
+	assert.equal( releases, 0, "unchanged geometry must not be retired for a new clip" );
+	assert.equal( renderer.stats().poseCreations, 0, "existing evaluators admit the clip in place" );
 	assert.equal(
 		renderer.animation( "body", "native:sword:26", native ),
 		bytes,
 		"duplicate role admission is stable"
 	);
 	renderer.prepare( geometry, images, 1 );
-	assert.equal( releases, 1 );
+	assert.equal( releases, 0 );
 	renderer.dispose( geometry, images );
 });
 const actor = model => ({

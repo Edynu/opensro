@@ -17,6 +17,12 @@ const baseline = JSON.parse(
 	readFileSync( new URL( "../fixtures/cloth/palette-owner-before.json", import.meta.url ), "utf8" )
 );
 
+test("an unrelated lazy clip cannot reset standing peers' cloth state or random sequence", () => {
+	const actual = captureClothPalettes( true, true );
+	assert.deepEqual( actual.frames.map( frame => frame.digest ), baseline.frames );
+	assert.equal( actual.gpuCalls, 0 );
+});
+
 for ( const gpuAvailable of [ false, true ] ) {
 	test(`cloth and static palettes retain exact renderer output with GPU callback ${gpuAvailable}`, () => {
 		const actual = captureClothPalettes( gpuAvailable );

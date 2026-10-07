@@ -24,7 +24,10 @@ import { createActorSnapshots } from "./actor-snapshots";
 import type { PortraitPart, PortraitSource } from "@/engine/contracts/portrait";
 import { bsrParticleAttachment } from "@/engine/foundation/animation/bsr-particle-transform";
 import { createPaletteStreams } from "./palette-streams";
-import { createCharacterRenderPlan } from "@/engine/foundation/animation/character-render-plan";
+import {
+	createCharacterRenderPlan,
+	isCharacterAnimationExtension
+} from "@/engine/foundation/animation/character-render-plan";
 import { createCharacterHierarchy } from "@/engine/foundation/animation/character-hierarchy";
 import { attachedOpacity } from "@/engine/foundation/animation/character-fade";
 import { characterBindBounds, characterPickVolume } from "@/engine/foundation/animation/character-pick-volume";
@@ -213,6 +216,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			model: string;
 			pose: ReturnType<typeof createCharacterPose>;
 			lod: ReturnType<typeof createPoseLod>;
+			clips: CharacterModel["clips"];
 			sampled?: number;
 			clip?: string;
 		}
@@ -314,15 +318,30 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		}
 		let state = ownedPoses.get( actor.gid );
 		if ( !state || state.model !== actor.model ) {
-			state = { model: actor.model, pose: createCharacterPose( model ), lod: createPoseLod() };
+			state = {
+				model: actor.model,
+				pose: createCharacterPose( model ),
+				lod: createPoseLod(),
+				clips: model.clips
+			};
 			poseCreations++;
 			probe?.characterCount( "pose-created" );
 			ownedPoses.set( actor.gid, state );
 		}
+		// The current render plan reserves expanded pose storage before this
+		// evaluator is needed. Catalog publication itself allocates no per-peer
+		// scratch, including for actors deferred by the frame residency budget.
+		const catalogChanged = state.clips !== model.clips;
+		if ( catalogChanged ) {
+			for ( let index = state.clips.length; index < model.clips.length; index++ ) {
+				state.pose.admitClip( model.clips[index]! );
+			}
+			state.clips = model.clips;
+		}
 		poses.set( actor.gid, state );
 		const optional = actor.animationLod?.optional && !actor.attachment && !actor.mountedOn &&
 			!resource!.plan.emission;
-		const mustSample = state.sampled === undefined || state.clip !== actor.clip ||
+		const mustSample = catalogChanged || state.sampled === undefined || state.clip !== actor.clip ||
 			actor.animationLod?.optional === false || actor.layers?.some( layer => layer.lane === "event" );
 		const lodAllowed = !actor.animationLod ||
 			state.lod.sample( actor.animationLod.fraction, actor.animationLod.crowded, poseFrame );
@@ -1022,28 +1041,34 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			}
 			residentBytes += bytes - base.bytes;
 			base.bytes = bytes;
-			const changed = new Set<string>();
 			for ( const [key, row] of models ) {
 				if ( key === id || row.dependencies?.[0] === id ) {
 					row.model = { ...row.model, clips: model.clips };
 					row.plan = createCharacterRenderPlan( row.model );
-					changed.add( key );
+					framePoses?.delete( key );
 				}
 			}
-			// Topology/textures remain owned. Retire old palette streams through
-			// the normal prepare/release path before their model identity changes.
-			for ( const [gid, state] of ownedPoses ) {
-				if ( changed.has( state.model ) ) {
-					ownedPoses.delete( gid );
-					poses.delete( gid );
-				}
-			}
-			for ( const batch of batches.values() ) {
-				if ( batch.gids.some( gid => actors.some( a => a.gid === gid && changed.has( a.model ) ) ) ) {
-					batch.signature = "";
-				}
-			}
+			// A new action must not reset every standing peer's pose, cloth or
+			// resident geometry. Skeleton bindings and buffer layouts are unchanged.
 			return bytes;
+		},
+		/*
+		================
+		extendBorrowedAnimations
+
+		Portraits own evaluators and draws but borrow the world's clip catalog.
+		Refresh only an append-only catalog with identical source topology.
+		================
+		*/
+		extendBorrowedAnimations( id: string, model: CharacterModel ) {
+			const resource = models.get( id );
+			if ( !resource || resource.owned || !isCharacterAnimationExtension( resource.model, model ) ) {
+				throw Error( "Invalid borrowed animation extension" );
+			}
+			if ( resource.model === model ) return;
+			resource.model = model;
+			resource.plan = createCharacterRenderPlan( model );
+			framePoses?.delete( id );
 		},
 		/*
 		================
@@ -1818,7 +1843,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 					} ),
 					// Cloth reads the palette on the CPU. Keep canonical bindings shared
 					// with the body, but never hand this storage to GPU-only sampling.
-					plan.cloth ? undefined : geometry.prepareGpuBones
+					plan.cloth ? undefined : geometry.prepareGpuBones,
+					model
 				);
 				let instancesChanged = membershipChanged;
 				for ( let i = 0; i < rows.length; i++ ) {

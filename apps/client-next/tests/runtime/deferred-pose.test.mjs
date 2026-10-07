@@ -96,6 +96,40 @@ test("deferred poses preserve seeks, long clocks, CPU sockets, layers and failed
 	assert.equal( p.evaluate( "move", .25 ), false );
 	assert.equal( p.cpuEvaluations(), 1 );
 });
+test("retained palettes use the appended GPU catalog and recover exact CPU data on fallback", () => {
+	const m = model(), pose = createCharacterPose( m ), bank = createPaletteStreams( m, 1 );
+	const data = bank.streams[0].data;
+	const catalogs = [];
+	let gpuAccepts = true;
+	/*
+	================
+	prepareGpuBones
+	================
+	*/
+	function prepareGpuBones( storage, source ) {
+		assert.equal( storage, data );
+		catalogs.push( source );
+		return gpuAccepts;
+	}
+	pose.evaluate( "move", .1, true, undefined, true );
+	bank.update( [ pose ], prepareGpuBones );
+	const clip = { ...m.clips[0], name: "new-action" };
+	const extended = { ...m, clips: [ ...m.clips, clip ] };
+	pose.admitClip( clip );
+	pose.evaluate( clip.name, .4, true, undefined, true );
+	bank.update( [ pose ], prepareGpuBones, extended );
+	assert.deepEqual( catalogs, [ m, extended ] );
+	assert.equal( bank.streams[0].data, data );
+	gpuAccepts = false;
+	pose.evaluate( clip.name, .6, true, undefined, true );
+	bank.update( [ pose ], prepareGpuBones, extended );
+	const expected = createCharacterPose( extended ), palette = new Float32Array( data.length );
+	expected.evaluate( clip.name, .6 );
+	expected.palette( extended.primitives[0], palette );
+	assert.deepEqual( data, palette );
+	assert.equal( bank.streams[0].cpuValid, true );
+});
+
 test("missing socket probes preserve deferred CPU work and later real sockets and palettes", () => {
 	const m = model(), actual = createCharacterPose( m ), expected = createCharacterPose( m );
 	const out = new Float32Array( 32 ), reference = new Float32Array( 32 );

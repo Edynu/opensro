@@ -10,6 +10,7 @@ import { viewProjection } from "@/engine/foundation/rendering/world-math";
 import { previewYaw } from "@/engine/foundation/math/angles";
 import type { CharacterActor, CharacterModel } from "@/engine/contracts/character";
 import type { PortraitPart, PortraitSource } from "@/engine/contracts/portrait";
+import { isCharacterAnimationExtension } from "@/engine/foundation/animation/character-render-plan";
 import type { GeometryCommands, ImageCommands, GeometryDraw } from "../internal/gpu-contract";
 
 const DEFAULT_PREVIEW_YAW = 0.100000001;
@@ -50,6 +51,7 @@ export function createPortrait(
 			preview?: boolean
 		): readonly GeometryDraw[];
 		borrowModel( id: string, model: CharacterModel, images: readonly WorldTexture[] ): void;
+		extendBorrowedAnimations( id: string, model: CharacterModel ): void;
 		hasModel( id: string ): boolean;
 		socket(
 			actors: readonly CharacterActor[],
@@ -111,14 +113,27 @@ export function createPortrait(
 			// Attached effects come and go every few frames in combat. Only a
 			// change of the character's own model resets the borrowed set; a new
 			// child borrows just its own model (residency drops the departed).
-			const bodyChanged = source !== value.model || value.actor.model !== borrowed[0]?.actor.model;
+			const bodyChanged = !source || !isCharacterAnimationExtension( source, value.model ) ||
+				value.actor.model !== borrowed[0]?.actor.model || parts.some( part => {
+					const previous = borrowed.find( row => row.actor.model === part.actor.model );
+					return previous && !isCharacterAnimationExtension( previous.model, part.model );
+				} );
 			if ( changed && !bodyChanged ) {
 				for ( const part of parts ) {
 					if ( !preview.hasModel( part.actor.model ) ) {
 						preview.borrowModel( part.actor.model, part.model, part.images );
+					} else {
+						const previous = borrowed.find( row => row.actor.model === part.actor.model );
+						if (
+							previous && previous.model !== part.model &&
+							isCharacterAnimationExtension( previous.model, part.model )
+						) {
+							preview.extendBorrowedAnimations( part.actor.model, part.model );
+						}
 					}
 				}
 				borrowed = parts;
+				source = value.model;
 			}
 			if ( bodyChanged || identity !== value.actor.gid ) {
 				started = seconds;

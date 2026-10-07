@@ -357,7 +357,7 @@ function drawDigest( draws, randomTrace ) {
 captureClothPalettes
 ================
 */
-export function captureClothPalettes( gpuAvailable = false ) {
+export function captureClothPalettes( gpuAvailable = false, admitUnusedClip = false ) {
 	const random = createPresentationRandom( RANDOM_SEED, 1, 100000 );
 	const owner = createCharacters( random ), tags = new Map();
 	owner.model( "body-first", model( false, tags ), [] );
@@ -367,6 +367,18 @@ export function captureClothPalettes( gpuAvailable = false ) {
 	let boneWriteBytes = 0;
 	try {
 		for ( let frame = 0; frame < FRAME_COUNT; frame++ ) {
+			if ( admitUnusedClip && frame === 31 ) {
+				owner.animation( "body-first", "new-action", {
+					duration: 1,
+					channels: [ {
+						bone: "bone-1",
+						path: "translation",
+						interpolation: "LINEAR",
+						times: Float32Array.of( 0, 1 ),
+						values: Float32Array.of( 0, 0, 0, 1, 2, 3 )
+					} ]
+				} );
+			}
 			if ( frame === 60 ) {
 				geometry.invalidate();
 				owner.invalidate();

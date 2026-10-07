@@ -25,8 +25,20 @@ import {
 import type { GpuTimingFrame } from "../internal/gpu-contract";
 import { animationShader } from "./animation-shader";
 import { destroyNow, type Retire } from "./retirement";
+import { isCharacterAnimationExtension } from "@/engine/foundation/animation/character-render-plan";
+/*
+================
+Sample
+================
+*/
 type Sample = { readonly clip: CharacterClip; readonly time: number; };
-// A resident clip set; refs counts the admitted models that bind it.
+/*
+================
+ClipSet
+
+A resident clip set; refs counts the admitted models that bind it.
+================
+*/
 type ClipSet = {
 	clips: readonly CharacterClip[];
 	buffer: GPUBuffer;
@@ -34,14 +46,26 @@ type ClipSet = {
 	refs: number;
 	plan: GpuClipPlan;
 };
-// A resident skeleton; refs counts the streams that bind it.
+/*
+================
+Model
+
+A resident skeleton; refs counts the streams that bind it.
+================
+*/
 type Model = {
+	source: CharacterModel;
 	buffer: GPUBuffer;
 	bytes: number;
 	refs: number;
 	clips: ClipSet;
 	configurations: ReadonlyMap<CharacterPrimitive, Uint32Array>;
 };
+/*
+================
+Stream
+================
+*/
 type Stream = {
 	model: Model;
 	primitive: CharacterPrimitive;
@@ -212,6 +236,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 			throw error;
 		}
 		const entry: Model = {
+			source: model,
 			buffer,
 			bytes: skeletonPlan.data.byteLength,
 			refs: 0,
@@ -288,6 +313,16 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 				return false;
 			}
 			if ( samples.some( s => s !== null && !clipPlan.eligible.has( s.clip ) ) ) return false;
+			const previous = streams.get( source );
+			if ( previous && previous.model.source !== model ) {
+				if (
+					previous.primitive !== primitive || previous.output !== output ||
+					!isCharacterAnimationExtension( previous.model.source, model )
+				) throw Error( "GPU animation stream identity changed" );
+				// Catalog packing may change skeleton offsets. Rebind only compute
+				// inputs; the geometry-owned output and all mesh buffers stay live.
+				release( source );
+			}
 			const admitted = admit( model );
 			if ( !admitted ) return false;
 			const config = admitted.configurations.get( primitive );

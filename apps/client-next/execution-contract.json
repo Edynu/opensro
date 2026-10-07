@@ -1292,6 +1292,7 @@
 				"actors",
 				"prepare",
 				"borrowModel",
+				"extendBorrowedAnimations",
 				"hasModel",
 				"socket",
 				"dispose",

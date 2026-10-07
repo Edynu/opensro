@@ -13,6 +13,21 @@ import type { CharacterModel, CharacterClip } from "@/engine/contracts/character
 import { CHARACTER_ACTORS, characterPoseBytes, characterBatchBytes } from "./character-budget";
 /*
 ================
+isCharacterAnimationExtension
+
+Lazy clips extend a catalog, not mesh, skeleton or texture identity. Require
+the exact admitted prefix so replacement clips still take the replacement path.
+================
+*/
+export function isCharacterAnimationExtension( previous: CharacterModel, next: CharacterModel ): boolean {
+	return previous.nodes === next.nodes && previous.primitives === next.primitives &&
+		previous.images === next.images && previous.aggregateBox === next.aggregateBox &&
+		previous.equipmentGlows === next.equipmentGlows && previous.particleGraph === next.particleGraph &&
+		previous.clips.length <= next.clips.length &&
+		previous.clips.every( ( clip, index ) => next.clips[index] === clip );
+}
+/*
+================
 createCharacterRenderPlan
 
 Immutable admitted model topology owns this plan. Frame clocks, visibility,

@@ -163,6 +163,15 @@ test("borrowed portrait keeps socket children, retires old models and never clos
 		},
 		/*
 		================
+		extendBorrowedAnimations
+		================
+		*/
+		extendBorrowedAnimations( key, model ) {
+			assert.ok( models.has( key ) );
+			models.set( key, model );
+		},
+		/*
+		================
 		socket
 		================
 		*/

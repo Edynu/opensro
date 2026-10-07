@@ -23,6 +23,11 @@ async function load( path ) {
 }
 const { createGpuAnimationResources } = { ...(await load( "src/engine/runtime/renderer/device/animation.ts" )) };
 globalThis.GPUBufferUsage = { UNIFORM: 1, COPY_DST: 2, STORAGE: 4 };
+/*
+================
+I
+================
+*/
 const I = () => Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
 /*
 ================
@@ -134,6 +139,27 @@ function fixture( { reject = false, failBinding = false } = {} ) {
 		output: { size: 64 }
 	};
 }
+test("an appended clip rebinds compute inputs while retaining the geometry palette", async () => {
+	const f = fixture();
+	await f.owner.ready;
+	assert.equal( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .2 } ] ), true );
+	const clip = { ...f.clip, name: "new-action" }, model = { ...f.model, clips: [ f.clip, clip ] };
+	assert.equal( f.owner.prepare( f.source, f.output, model, f.primitive, [ { clip, time: .3 } ] ), true );
+	assert.equal( f.owner.stats().models, 1 );
+	assert.equal( f.writes.at( -1 ).values[1], 1, "new catalog selects the appended clip" );
+	assert.throws( () =>
+		f.owner.prepare(
+			f.source,
+			f.output,
+			{ ...model, nodes: [ ...model.nodes ] },
+			f.primitive,
+			[ { clip, time: .3 } ]
+		), /stream identity/ );
+	f.owner.release( f.source );
+	f.owner.dispose();
+	assert.ok( f.buffers.every( buffer => buffer.destroyed === 1 ) );
+});
+
 test("STEP phase cannot round forward across a key; cancellation removes queued work", async () => {
 	const f = fixture();
 	await f.owner.ready;

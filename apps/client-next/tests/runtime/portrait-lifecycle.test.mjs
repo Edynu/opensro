@@ -24,7 +24,7 @@ Keep the real preview owner, replacing only its GPU device capabilities.
 */
 function fixture() {
 	const characters = createCharacters(), handles = new Set();
-	let calls = 0, closes = 0, failRelease = false;
+	let calls = 0, closes = 0, failRelease = false, actorTime = 0;
 	/*
 	================
 	upload
@@ -57,6 +57,15 @@ function fixture() {
 	const images = /** @type {any} */ ({ upload, release });
 	const preview = createPortrait( {
 		...characters,
+		/*
+		================
+		actors
+		================
+		*/
+		actors( actors ) {
+			actorTime = actors[0]?.time ?? 0;
+			characters.actors( actors );
+		},
 		/*
 		================
 		prepare
@@ -126,6 +135,7 @@ function fixture() {
 		handles,
 		calls: () => calls,
 		closes: () => closes,
+		actorTime: () => actorTime,
 		/*
 		================
 		failNextRelease
@@ -158,6 +168,48 @@ test("empty portraits skip preparation after real model and GPU retirement, then
 	f.preview.dispose( f.geometry, f.images );
 	assert.equal( f.handles.size, 0 );
 	assert.equal( f.closes(), 0, "borrowed world images stay open" );
+});
+
+test("appending portrait clips preserves geometry, borrowed images and the preview clock", () => {
+	const f = fixture();
+	const initial = f.preview.prepare( f.source, f.geometry, f.images, { yaw: 0, seconds: 10 } );
+	const handles = [ ...f.handles ];
+	const clip = { name: "new-action", duration: 1, channels: [] };
+	const extended = { ...f.source, model: { ...f.source.model, clips: [ ...f.source.model.clips, clip ] } };
+	const next = f.preview.prepare( extended, f.geometry, f.images, { yaw: 0, seconds: 12 } );
+	assert.equal( next[0], initial[0], "clip admission must not replace draw handles" );
+	assert.deepEqual( [ ...f.handles ], handles );
+	assert.equal( f.characters.stats().poseCreations, 0 );
+	assert.equal( f.actorTime(), 2, "the preview clock must not restart on a new clip" );
+	assert.equal( f.closes(), 0 );
+	const switched = { ...extended, actor: { ...extended.actor, previewClip: "new-action" } };
+	assert.equal( f.preview.prepare( switched, f.geometry, f.images, { yaw: 0, seconds: 13 } )[0], initial[0] );
+	assert.equal( f.actorTime(), 3 );
+	// A real skeleton replacement still follows the full resource lifecycle.
+	const replaced = { ...extended, model: { ...extended.model, nodes: structuredClone( extended.model.nodes ) } };
+	f.preview.prepare( replaced, f.geometry, f.images, { yaw: 0, seconds: 14 } );
+	assert.equal( f.actorTime(), 0 );
+	assert.ok( handles.every( handle => !f.handles.has( handle ) ) );
+	f.preview.dispose( f.geometry, f.images );
+	assert.equal( f.handles.size, 0 );
+});
+
+test("a body clip append cannot conceal replacement geometry on a retained portrait child", () => {
+	const f = fixture();
+	const child = { ...f.source, actor: { ...f.source.actor, gid: 2, model: "child" } };
+	const source = { ...f.source, children: [ child ] };
+	f.preview.prepare( source, f.geometry, f.images );
+	const previous = [ ...f.handles ];
+	const model = {
+		...f.source.model,
+		clips: [ ...f.source.model.clips, { name: "action", duration: 1, channels: [] } ]
+	};
+	const childModel = { ...child.model, primitives: structuredClone( child.model.primitives ) };
+	f.preview.prepare( { ...source, model, children: [ { ...child, model: childModel } ] }, f.geometry, f.images );
+	assert.ok( previous.every( handle => !f.handles.has( handle ) ) );
+	assert.equal( f.characters.portraitSource( 2 )?.model, childModel );
+	f.preview.dispose( f.geometry, f.images );
+	assert.equal( f.handles.size, 0 );
 });
 
 test("failed retirement retries before empty work can be skipped", () => {

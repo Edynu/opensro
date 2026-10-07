@@ -214,7 +214,6 @@ apps/client-next/src/engine/runtime/frontend/stage/stage.ts
 apps/client-next/src/engine/runtime/navigation/navigation.ts
 apps/client-next/src/engine/runtime/presentation/effective-hp.ts
 apps/client-next/src/engine/runtime/random/random.ts
-apps/client-next/src/engine/runtime/renderer/characters/palette-streams.ts
 apps/client-next/src/engine/runtime/renderer/device/flares.ts
 apps/client-next/src/engine/runtime/renderer/device/particle-query.ts
 apps/client-next/src/engine/runtime/renderer/device/thunder.ts
