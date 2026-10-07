@@ -412,6 +412,10 @@ NAME.heapprofile), and one Chrome trace of the whole run. stop() returns
 the span's sampled allocation in bytes, or null without --heap.
 ================
 */
+/**
+ * @param {import("playwright-core").Page} page
+ * @param {{ dir?: string | null, cpu?: boolean, heap?: boolean, trace?: string | null }} options
+ */
 export async function createCaptures( page, { dir = null, cpu = false, heap = false, trace = null } = {} ) {
 	// A sampled trace already starts V8's internal CPU profiler. Keep each
 	// capture to one sampler; separate runs also make their overhead explicit.

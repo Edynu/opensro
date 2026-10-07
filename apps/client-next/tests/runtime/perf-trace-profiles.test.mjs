@@ -14,7 +14,8 @@ import { readProfiles, forEachSample } from "../../tools/perf/core/trace.mjs";
 import { createCaptures } from "../../tools/perf/core/client.mjs";
 
 test("a capture refuses duplicate CPU samplers before starting browser instrumentation", async () => {
-	await assert.rejects( createCaptures( {}, { cpu: true, trace: "unused.json" } ), /Choose --cpu or --trace/ );
+	const page = /** @type {import("playwright-core").Page} */ ({});
+	await assert.rejects( createCaptures( page, { cpu: true, trace: "unused.json" } ), /Choose --cpu or --trace/ );
 });
 
 /*
