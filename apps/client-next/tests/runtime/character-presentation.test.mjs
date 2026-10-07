@@ -477,6 +477,7 @@ function fixture(
 			}
 			if ( job.decode === "character" || job.decode === "effect" ) {
 				const value = model( options.sourceFloats );
+				for ( const clip of value.clips ) clip.duration = options.clipDurations?.[clip.name] ?? clip.duration;
 				if ( metadataAdmission.appearance?.overrideTest ) {
 					value.clips.push( { name: "native:avatar_wing:7", duration: 1, channels: [] } );
 				}
@@ -2139,6 +2140,64 @@ test("production blends retain separate outgoing and incoming sound installation
 	assert.equal( new Set( f.played.map( e => e.id ) ).size, 1 );
 	f.dispose();
 });
+
+for ( const zeroClip of [ "stand", "run" ] ) {
+	test(`production blend keeps ${zeroClip} when its zero duration omits a dispatch row`, () => {
+		const audio = {
+			states: Object.fromEntries(
+				[ "stand", "run" ].filter( clip => clip !== zeroClip ).map( clip => [ clip, {
+					durationMs: 1000,
+					trackEvents: [],
+					soundEvents: [ { cursorMs: 45, cue: "snd_" + clip } ]
+				} ] )
+			),
+			rules: [ "STAND", "RUN" ].map( handle => ({
+				object: "NPC_1",
+				handle: "SND_" + handle,
+				event1: "-",
+				publicPath: "/assets/audio/" + handle + ".wav"
+			}) )
+		};
+		// Zero-duration fallback comes from a decoded clip without BAN metadata;
+		// published BAN duration zero is correctly rejected during admission.
+		const f = fixture(
+			{},
+			2,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			undefined,
+			audio,
+			undefined,
+			{},
+			{},
+			{ clipDurations: { [zeroClip]: 0 } }
+		);
+		try {
+			f.warm();
+			f.step( [ entity( 1, { kind: "monster" } ) ], .3 );
+			f.played.length = 0;
+			f.step( [ entity( 1, { kind: "monster", moving: true, movementMode: 3 } ) ], .4 );
+			f.step( [ entity( 1, { kind: "monster", moving: true, movementMode: 3 } ) ], .46 );
+			assert.equal( f.presentation.error(), null );
+			const layers = f.actors[0].layers;
+			assert.deepEqual( layers.map( layer => layer.clip ).sort(), [ "run", "stand" ] );
+			assert.notEqual( layers[0].activation, layers[1].activation );
+			assert.deepEqual(
+				f.played.map( event => event.path ),
+				zeroClip === "stand" ? [ "/assets/audio/RUN.wav" ] : [],
+				"only the installation with a dispatch cursor can emit its due sound"
+			);
+		} finally {
+			f.dispose();
+		}
+	});
+}
 
 test("cold production animation particles dispatch both blend installations and retain inactive wrappers", () => {
 	const entry = ( path, key ) => ({
