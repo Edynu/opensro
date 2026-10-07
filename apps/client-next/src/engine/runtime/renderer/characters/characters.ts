@@ -1637,6 +1637,19 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				}
 			}
 			probe?.characterMark( "character-plan" );
+			// Visibility includes admitted emitters, whose particles can outlive an
+			// off-screen source. Keep this distinct from requested pose storage.
+			probe?.characterCount( "character-candidates", frameActors.length );
+			probe?.characterCount( "character-visible-candidates", visible.length );
+			probe?.characterCount( "character-needed-poses", needed.size );
+			probe?.characterCount( "character-particle-needed-poses", particleNeeded.size );
+			if ( probe ) {
+				let bodies = 0;
+				for ( const actor of visible ) {
+					if ( !models.get( actor.model )?.plan.emission ) bodies++;
+				}
+				probe?.characterCount( "character-visible-bodies", bodies );
+			}
 			// Oldest cosmetic samples get the next budget slice. Admission and
 			// draw order remain unchanged; a busy crowd cannot starve its tail.
 			poseOrder.length = 0;

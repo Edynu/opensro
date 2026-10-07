@@ -101,14 +101,16 @@ const visible = d => ({
 });
 
 test("batch census follows actual emitted groups on fresh and retained frames", () => {
-	const f = fixture(), samples = [], rows = actors( [ 1, 2, 3 ], .25 );
+	const f = fixture(), samples = [], counters = {}, rows = actors( [ 1, 2, 3 ], .25 );
 	rows[0].opacity = .5;
 	f.owner.profile( {
 		renderBegin() {},
 		renderMark() {},
 		characterBegin() {},
 		characterMark() {},
-		characterCount() {},
+		characterCount( name, count = 1 ) {
+			counters[name] = count;
+		},
 		characterBatch( variant, count, draws ) {
 			samples.push( { variant, count, draws } );
 		}
@@ -123,6 +125,10 @@ test("batch census follows actual emitted groups on fresh and retained frames", 
 				{ variant: "", count: 2, draws: 1 }
 			] );
 			assert.equal( samples.reduce( ( sum, row ) => sum + row.draws, 0 ), output.length );
+			assert.equal( counters["character-candidates"], 3 );
+			assert.equal( counters["character-visible-candidates"], 3 );
+			assert.equal( counters["character-needed-poses"], 3 );
+			assert.equal( counters["character-particle-needed-poses"], 0 );
 		}
 		f.owner.actors( [] );
 		samples.length = 0;
