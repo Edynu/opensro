@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"opensro.online/server/internal/game/combat"
+	"opensro.online/server/internal/game/companion"
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/alchemy"
 	"opensro.online/server/internal/game/item/commerce"
@@ -63,6 +64,9 @@ type Runtime struct {
 	RewardParties       func(division string) []RewardParty
 	NextPartyLootMember func(division, name string) uint32
 	RewardActorPresent  func(division, name string) bool
+	// PetPolicies are the port-only pet rules (companion.PoliciesFromEnv);
+	// the zero value is native.
+	PetPolicies         companion.Policies
 	returnGeneration    atomic.Uint64
 	returnCasts         sync.Map // simulation.WorldKey -> pendingReturn; division lock owns changes
 	playerDisplacements sync.Map // simulation.WorldKey -> playerDisplacement; a struck player's hold
@@ -275,7 +279,7 @@ type Runtime struct {
 	CapturedFollowerDied        func(*enterworld.Character) []wire.Frame
 	AdvanceQuestCalendar        func(nowMs int64)
 	ReleaseQuestCapturesOnDeath func(*enterworld.Character) ([]wire.Frame, bool)
-	QuestMonsterDrops           func(*enterworld.Character, string, func() (uint32, error)) []inventory.ItemAmount
+	QuestMonsterDrops           func(*enterworld.Character, string, uint8, func() (uint32, error)) []inventory.ItemAmount
 	QuestTravelBlocks           func(*enterworld.Character) uint32
 	UpdateQuestKill             func(
 		character *enterworld.Character,

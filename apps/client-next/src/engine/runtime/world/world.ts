@@ -21,6 +21,7 @@ import { createCameraScripts } from "./camera/camera";
 import { createTerrainParts } from "./terrain-parts";
 import type { PresentationRandom } from "@/engine/contracts/presentation-random";
 import type { CameraScript } from "@/engine/contracts/camera-script";
+import { assetFailure, createAssetRecovery } from "@/engine/foundation/assets/asset-recovery";
 
 type Transaction =
 	| { phase: "idle"; }
@@ -52,6 +53,7 @@ export function createWorldStream(
 	random: PresentationRandom
 ) {
 	const scripts = createCameraScripts( random );
+	const recovery = createAssetRecovery();
 	let catalog: Record<string, { area?: string; source?: string; bundlePublicPath: string; }[]> | null = null;
 	/*
 	================
@@ -218,10 +220,18 @@ export function createWorldStream(
 	advance
 	================
 	*/
-	function advance( pose: Pose | null ) {
+	function advance( pose: Pose | null, nowMs: number ) {
+		if ( pose && transaction.phase === "failed" && transaction.region !== pose.regionId ) {
+			recovery.reset();
+			transaction = { phase: "idle" };
+		}
+		if ( pose && transaction.phase === "failed" && recovery.due( nowMs ) ) {
+			transaction = { phase: "idle" };
+		}
 		// Teleports and rapid crossings must not wait for obsolete transactions.
 		if ( pose && transaction.phase === "loading" && transaction.region !== pose.regionId ) {
 			cancelTransaction();
+			recovery.reset();
 			transaction = { phase: "idle" };
 		}
 		if ( future && !future.result ) {
@@ -240,7 +250,7 @@ export function createWorldStream(
 			const result = assets.take( id );
 			if ( !result ) continue;
 			jobs.delete( id );
-			if ( result.kind === "error" ) throw new Error( `${job.path}: ${result.error}` );
+			if ( result.kind === "error" ) throw assetFailure( `${job.path}: ${result.error}`, result.transient );
 			if ( job.kind === "catalog" && result.kind === "bytes" ) {
 				const value = JSON.parse( new TextDecoder( "utf-8", { fatal: true } ).decode( result.buffer ) );
 				if (
@@ -275,12 +285,16 @@ export function createWorldStream(
 			terrain.request( future.outdoor.regions, 1 );
 		}
 		if ( transaction.phase === "loading" || transaction.phase === "ready" ) {
-			for ( const path of renderer.neededWorldTextures() ) {
+			const neededTextures = renderer.neededWorldTextures();
+			for ( const path of neededTextures ) {
 				if ( jobs.size >= 3 || assets.available() === 0 ) break;
 				if ( ![ ...jobs.values() ].some( job => job.path === path ) ) load( path, "texture" );
 			}
 			const stats = renderer.worldStats();
-			if ( !jobs.size && !waiting && stats.pendingTextures === 0 && stats.pendingGroups === 0 ) {
+			if (
+				!jobs.size && !waiting && !neededTextures.length && stats.pendingTextures === 0 &&
+				stats.pendingGroups === 0
+			) {
 				displayedRegion = transaction.region;
 				transaction = { phase: "ready", region: transaction.region };
 			}
@@ -329,14 +343,21 @@ export function createWorldStream(
 			}
 		}
 
-		if ( transaction.phase === "failed" && transaction.region !== pose.regionId ) transaction = { phase: "idle" };
 		if (
 			transaction.phase !== "idle" && !(transaction.phase === "ready" && transaction.region !== pose.regionId)
 		) return;
 		// A failed neighbor transaction leaves the displayed scene intact.
 		// Returning to that region does not require a duplicate scene admission.
 		if ( displayedRegion === pose.regionId ) {
-			transaction = { phase: "ready", region: pose.regionId };
+			// Weather or selection textures can be demanded after scene admission.
+			// Reusing the scene must not renew a failed texture's recovery budget.
+			const stats = renderer.worldStats();
+			transaction = {
+				phase: stats.pendingTextures || stats.pendingGroups || renderer.neededWorldTextures().length ?
+					"loading" :
+					"ready",
+				region: pose.regionId
+			};
 			return;
 		}
 		if ( future && future.region === pose.regionId && future.anchor === terrain.anchorFor( pose.regionId ) ) {
@@ -394,12 +415,15 @@ export function createWorldStream(
 			const drawn = camera ? { ...camera, distance: zoomEase.step( camera.distance, nowMs ) } : camera;
 			if ( pose && target !== null ) updateCamera( target?.pose ?? pose, drawn, target, offset );
 			try {
-				advance( pose );
+				advance( pose, nowMs );
+				if ( transaction.phase === "ready" ) recovery.reset();
 			} catch ( error ) {
 				const region = transaction.phase === "idle" ? pose?.regionId ?? 0 : transaction.region;
 				cancelTransaction();
 				clearFuture();
+				terrain.cancelPending();
 				transaction = { phase: "failed", region, error: String( error ) };
+				recovery.failed( error, nowMs );
 			}
 		},
 		soundSurface: ( pose: Pose ) => sampleSoundTerrain( soundTerrain, pose ),
@@ -440,11 +464,31 @@ export function createWorldStream(
 		error: () => transaction.phase === "failed" ? transaction.error : null,
 		/*
 		================
+		reconnecting
+		================
+		*/
+		reconnecting: () => transaction.phase === "failed" && recovery.reconnecting(),
+		/*
+		================
+		retryTransient
+		================
+		*/
+		retryTransient() {
+			if ( !disposed && transaction.phase === "failed" && recovery.transient() ) {
+				recovery.reset();
+				transaction = { phase: "idle" };
+			}
+		},
+		/*
+		================
 		retry
 		================
 		*/
 		retry() {
-			if ( !disposed && transaction.phase === "failed" ) transaction = { phase: "idle" };
+			if ( !disposed && transaction.phase === "failed" ) {
+				recovery.reset();
+				transaction = { phase: "idle" };
+			}
 		},
 		/*
 		================
@@ -454,6 +498,7 @@ export function createWorldStream(
 		reset() {
 			if ( disposed ) return;
 			scripts.reset();
+			recovery.reset();
 			zoomEase.reset();
 			cancelTransaction();
 			clearFuture();
@@ -474,6 +519,7 @@ export function createWorldStream(
 			if ( disposed ) return;
 			disposed = true;
 			scripts.dispose();
+			recovery.reset();
 			cancelTransaction();
 			clearFuture();
 			terrain.clear();

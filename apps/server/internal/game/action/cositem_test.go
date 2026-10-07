@@ -224,7 +224,7 @@ rolled status separate from its owning character's block.
 */
 func TestMonsterHitRollsStatusOntoThePet(t *testing.T) {
 	rt, clock, c, mon := newCombatTestRuntime(t, 100)
-	equipCombatTestPet(t, rt, c, 4)
+	equipCombatTestPet(t, rt, c, 3)
 	mon.Ref.DefaultSkillIDs[0] = 2
 	skills := rt.deps.SkillData().(staticSkillSource)
 	row := skills[2]

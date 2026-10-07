@@ -147,6 +147,9 @@ func (p *PetFollower) moveTo(goal Spawn, speed float64, nowMs int64, constrain f
 	// Rounding can cross a collision boundary. Require the rounded endpoint to
 	// be admitted too; never restore a rejected fractional endpoint downstream.
 	checked, fault := constrain(from, goal)
+	// Terrain resolves a float height; the destination wire stores an integer.
+	// Compare that same quantized height instead of rejecting every slope.
+	checked.Y = math.Round(checked.Y)
 	if fault != nil || !samePetGoal(checked, goal) {
 		return p.Stop(nowMs)
 	}

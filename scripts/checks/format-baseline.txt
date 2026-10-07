@@ -200,9 +200,7 @@ apps/client-next/src/engine/runtime/assets/worker/packs/blocks.ts
 apps/client-next/src/engine/runtime/assets/worker/packs/index/index.ts
 apps/client-next/src/engine/runtime/assets/worker/packs/internal/pack-contract.ts
 apps/client-next/src/engine/runtime/assets/world-lease.ts
-apps/client-next/src/engine/runtime/characters/damage-feedback.ts
 apps/client-next/src/engine/runtime/characters/orbs/orbs.ts
-apps/client-next/src/engine/runtime/characters/sounds/sounds.ts
 apps/client-next/src/engine/runtime/characters/state-index.ts
 apps/client-next/src/engine/runtime/frontend/camera/camera.ts
 apps/client-next/src/engine/runtime/frontend/dialog/dialog.ts
@@ -210,7 +208,6 @@ apps/client-next/src/engine/runtime/frontend/flow/flow.ts
 apps/client-next/src/engine/runtime/frontend/frontend.ts
 apps/client-next/src/engine/runtime/frontend/stage/preload.ts
 apps/client-next/src/engine/runtime/frontend/stage/stage.ts
-apps/client-next/src/engine/runtime/navigation/navigation.ts
 apps/client-next/src/engine/runtime/presentation/effective-hp.ts
 apps/client-next/src/engine/runtime/random/random.ts
 apps/client-next/src/engine/runtime/renderer/device/flares.ts
@@ -273,7 +270,6 @@ apps/client-next/tests/browser/entity-material-clock.test.mjs
 apps/client-next/tests/browser/entry-consumers.test.mjs
 apps/client-next/tests/browser/equipment-overlays.test.mjs
 apps/client-next/tests/browser/flares.test.mjs
-apps/client-next/tests/browser/follow-camera.test.mjs
 apps/client-next/tests/browser/font-guide-regression.test.mjs
 apps/client-next/tests/browser/foundation.test.mjs
 apps/client-next/tests/browser/gm-item-live.test.mjs
@@ -402,8 +398,6 @@ apps/client-next/tools/verify-ownership.mjs
 apps/server-observatory/public/item-model.js
 apps/server-observatory/public/items.js
 apps/server-observatory/public/model.js
-apps/server-observatory/public/operations.js
-apps/server-observatory/public/view.js
 apps/server-observatory/server/source.mjs
 apps/server-observatory/tests/items.test.mjs
 apps/server-observatory/tests/model.test.mjs

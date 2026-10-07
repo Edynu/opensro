@@ -16,6 +16,64 @@ import type { SessionCommand, SessionState } from "./session";
 import type { InputBatch } from "./input";
 /*
 ================
+CharacterStatistics
+
+Copied renderer counters. Retained poses include socket-only consumers and
+shared evaluators, so eligibility is not a visible-body count or GPU admission.
+================
+*/
+export interface CharacterStatistics {
+	readonly actors: number;
+	readonly draws: number;
+	readonly visibleActors?: number;
+	readonly poseEvaluations?: number;
+	readonly liveOwnedCpuEvaluations?: number;
+	/** CPU pose evaluations since the renderer began, retired evaluators included: never decreases. */
+	readonly cpuEvaluations?: number;
+	readonly gpuAnimation?: {
+		readonly poses: number;
+		readonly dispatches: number;
+		readonly cpuUploadBytes?: number;
+	};
+	readonly poseEligibility?: {
+		readonly actors: number;
+		readonly unique: number;
+		readonly gpuSamples: number;
+		readonly linearSamples: number;
+		readonly sharedPaletteSamples: number;
+		readonly clothSamples: number;
+		readonly gpuPaletteSamples: number;
+	};
+	/**
+	 * The last main frame's admitted actors against their culling spheres:
+	 * how many have their sphere centre inside the frustum, and for the rest
+	 * how far outside it sits, in quarters of the radius (outsideShares[0]
+	 * under 1/4 ... [3] 3/4 or more). Diagnostics only; no bound is implied safe.
+	 */
+	readonly cullSlack?: {
+		readonly admitted: number;
+		readonly bodies: number;
+		readonly attachments: number;
+		readonly centreInside: number;
+		readonly outsideShares: readonly number[];
+		readonly meanRadius: number;
+		/** Lone bodies the active-clip candidate radius would reject (cloth not yet included). */
+		readonly activeRejected: number;
+		readonly meanActiveRadius: number;
+		/**
+		 * Lone bodies whose displayed skinned-pose AABB lies wholly outside every
+		 * frustum: a diagnostic ceiling for tighter culling, not a safety proof. It
+		 * excludes live cloth deformation, emissions and independent shadow casters.
+		 */
+		readonly posedHidden?: number;
+		/** Lone bodies the ceiling could not judge (no resident pose or unskinned parts): counted visible. */
+		readonly posedUnknown?: number;
+		/** Of posedHidden, bodies with cloth, judged on its skinned rest shape. */
+		readonly posedCloth?: number;
+	};
+}
+/*
+================
 RuntimePhase
 
 Every runtime owner exposes its explicit startup, running and retirement phase.
@@ -155,6 +213,8 @@ export interface Platform extends Disposable {
 	// trigger, and the refresh offer once a newer release is live.
 	runningEntry(): string | null;
 	visibilityReturned(): boolean;
+	/** Consumes a browser online event independently of tab visibility. */
+	connectionReturned(): boolean;
 	presentUpdate( newer: boolean ): void;
 	presentTelemetry( sample: FrameTelemetry ): void;
 	diagnosticsActive(): boolean;
@@ -216,7 +276,7 @@ export interface Renderer extends Disposable {
 	setUiTexture( id: string, image: ImageBitmap | ImageData | null ): void;
 	retainCharacterModels( ids: readonly string[] ): void;
 	setCharacterAssembly( id: string, base: string, parts: readonly import("./character").CharacterAttachment[] ): void;
-	characterStats(): { actors: number; draws: number; };
+	characterStats( details?: boolean, posed?: boolean ): CharacterStatistics;
 	setCharacterModel( id: string, model: import("./character").CharacterModel, images: WorldTexture[] ): void;
 	setCharacterAnimation(
 		id: string,
@@ -231,6 +291,8 @@ export interface Renderer extends Disposable {
 	/** The actor snapshots the last setCharacterActors retained (read-only). */
 	characterActors(): readonly import("./character").CharacterActor[];
 
+	/** Copies the actual post-collision projection; no GPU readback or camera approximation. */
+	worldView(): WorldViewSnapshot | null;
 	setWorld( scene: import("./scene").WorldScene | null ): void;
 	/** terrain: the outdoor region parts this scene composes with (world-admission.ts). */
 	adoptWorld(
@@ -329,6 +391,21 @@ export interface Clock extends Disposable {
 
 /*
 ================
+WorldViewSnapshot
+
+Copied world projection used by picking, after camera collision and aspect
+resolution. Coordinates are relative to originRegion; the matrix is column-major.
+================
+*/
+export interface WorldViewSnapshot {
+	readonly matrix: Float32Array;
+	readonly originRegion: number;
+	readonly width: number;
+	readonly height: number;
+}
+
+/*
+================
 RuntimeControl
 
 External controls enter through the runtime owner rather than mutating subsystems.
@@ -349,7 +426,17 @@ export interface RuntimeControl extends Disposable {
 	berserkGauge(): import("./orb").BerserkGauge | undefined;
 	/** The actors the renderer draws this frame. */
 	characterActors(): readonly import("./character").CharacterActor[];
+	/** Copied counters and retained-pose eligibility; does not advance animation. */
+	characterStats(): CharacterStatistics;
+	/**
+	 * characterStats plus the posed culling ceiling. Reads displayed-pose
+	 * palettes, which can force CPU pose evaluation: diagnostics only, never
+	 * inside a measured frame window.
+	 */
+	characterCullCensus(): CharacterStatistics;
 	/** Read-only orbit camera the input owner holds (yaw/pitch/distance). */
 	camera(): import("./input").CameraInput;
+	/** Copied last prepared world view; null before preparation or after failure/disposal. */
+	worldView(): WorldViewSnapshot | null;
 	takeNative(): import("./world").WorldEvent[];
 }

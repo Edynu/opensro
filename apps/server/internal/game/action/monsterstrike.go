@@ -15,6 +15,7 @@ door, casting time) stays with monsterAttackStage and monsterHitSummonedCOS.
 package action
 
 import (
+	"opensro.online/server/internal/domain"
 	"sync/atomic"
 
 	"opensro.online/server/internal/game/abnormal"
@@ -181,6 +182,11 @@ owner's equipment can neither shield nor weaken a pet.
 ================
 */
 func (rt *Runtime) monsterStrikeCOS(in monsterStrikeInput, owner *enterworld.Character, pet *enterworld.CharacterCOS, ref *enterworld.CharacterRef, pose simulation.Spawn) monsterStrikeOutcome {
+	// Recheck at impact: a stale cast or area victim cannot harm a grab pet,
+	// which 5299E0 never treats as hostile (CGObj_IsPickPetCOS, 483930).
+	if ref.TidWord>>11 == domain.PickupPetBand {
+		return monsterStrikeOutcome{alive: true, refusal: simulation.MonsterAttackCommandRejected}
+	}
 	divisionID, instance, skill, nowMs := in.division, in.instance, in.skill, in.now
 	out := monsterStrikeOutcome{alive: true}
 	ownerBlock := rt.newCosAbnormalOwnerForPet(divisionID, owner, pet, nowMs)

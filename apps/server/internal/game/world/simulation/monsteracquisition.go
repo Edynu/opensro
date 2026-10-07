@@ -10,6 +10,7 @@ package simulation
 
 import (
 	"math"
+	"opensro.online/server/internal/domain"
 	"opensro.online/server/internal/game/abnormal"
 	"sort"
 
@@ -110,6 +111,11 @@ protection is its owner's (COS+0x1CD8).
 ================
 */
 func ordinaryCompanionHostility(actor monster.Instance, companion playerPose) bool {
+	// 5299E0 returns 0 first for a grab pet: its target's slot 0x43C is
+	// CGObj_IsPickPetCOS (483930). Remembered targets are refused the same way.
+	if companion.Band == domain.PickupPetBand {
+		return false
+	}
 	observer := actor.Observer()
 	if actor.Abnormal != nil {
 		fear := actor.Abnormal.Slots[abnormal.Fear]

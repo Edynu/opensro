@@ -45,11 +45,12 @@ decodeMappings
 
 The mappings of a version 3 source map as one sorted segment array per
 generated line: [ column, source, line, column, name? ] with source lines
-zero-based.
+zero-based. A one-field segment (generated code with no source) is not a
+lookup target; the line's unmapped flag records that it exists.
 ================
 */
 function decodeMappings( mappings ) {
-	const lines = [];
+	const lines = [], unmapped = [];
 	let source = 0, sourceLine = 0, sourceColumn = 0, name = 0;
 	for ( const text of mappings.split( ";" ) ) {
 		const segments = [];
@@ -70,7 +71,10 @@ function decodeMappings( mappings ) {
 				shift = 0;
 			}
 			column += values[0];
-			if ( values.length < 4 ) continue;
+			if ( values.length < 4 ) {
+				unmapped[lines.length] = true;
+				continue;
+			}
 			source += values[1];
 			sourceLine += values[2];
 			sourceColumn += values[3];
@@ -79,7 +83,7 @@ function decodeMappings( mappings ) {
 		}
 		lines.push( segments );
 	}
-	return lines;
+	return { lines, unmapped };
 }
 
 /*
@@ -93,7 +97,7 @@ export function createSourceMap( map ) {
 	if ( map?.version !== 3 || !Array.isArray( map.sources ) || typeof map.mappings !== "string" ) {
 		throw Error( "Unsupported source map" );
 	}
-	const lines = decodeMappings( map.mappings );
+	const { lines, unmapped } = decodeMappings( map.mappings );
 	return {
 		/*
 		================
@@ -119,6 +123,19 @@ export function createSourceMap( map ) {
 				line: segment[2] + 1,
 				name: segment[4] >= 0 ? map.names[segment[4]] : undefined
 			};
+		},
+		/*
+		================
+		span
+
+		How many distinct source lines one generated (zero-based) line maps to,
+		counting unmapped generated code as one more. A line tick on a line
+		spanning several (a minified bundle) cannot name its source line.
+		================
+		*/
+		span( line ) {
+			const segments = lines[line] ?? [];
+			return new Set( segments.map( segment => segment[1] + ":" + segment[2] ) ).size + (unmapped[line] ? 1 : 0);
 		}
 	};
 }
@@ -215,15 +232,16 @@ export async function createSymbolizer( { maps, root } = {} ) {
 		================
 		position
 
-		The source { file, line } of a sampled position inside url (one-based
-		line and column, as profile chunks record them).
+		The source { file, line, span } of a sampled position inside url
+		(one-based line and column, as profile chunks record them); span is the
+		number of source lines the generated line covers.
 		================
 		*/
 		position( url, line, column ) {
 			const map = url ? loaded.get( url ) : null;
 			if ( !map ) return null;
 			const found = map.lookup( line - 1, Math.max( 0, column - 1 ) );
-			return found ? { file: shortSource( found.source ), line: found.line } : null;
+			return found ? { file: shortSource( found.source ), line: found.line, span: map.span( line - 1 ) } : null;
 		}
 	};
 }

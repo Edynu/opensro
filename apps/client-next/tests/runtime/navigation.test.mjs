@@ -336,6 +336,104 @@ cancel
 	assert.equal( stream.error(), null );
 });
 
+for ( const resume of [ "clock", "online", "region" ] ) {
+	test(`navigation recovers transient transport failure via ${resume}`, () => {
+		let id = 0;
+		const pending = new Map(), sent = [], cancelled = [];
+		const assets = {
+			available: () => 4,
+			request: () => ++id,
+			take: key => {
+				const value = pending.get( key );
+				pending.delete( key );
+				return value ?? null;
+			},
+			cancel: key => {
+				cancelled.push( key );
+				pending.delete( key );
+			}
+		};
+		const stream = createNavigationStream( assets, command => sent.push( command ), "https://fixture.test" );
+		let current = { ...pose, regionId: 0x8001 };
+		const step = now => stream.step( current, undefined, undefined, undefined, now );
+		step( 0 );
+		pending.set( id, { kind: "error", id, error: "Load failed", transient: true } );
+		step( 100 );
+		assert.equal( stream.reconnecting(), true );
+		step( 2099 );
+		assert.equal( id, 1 );
+		if ( resume === "online" ) stream.retryTransient();
+		if ( resume === "region" ) current = { ...current, regionId: 0x8002 };
+		step( resume === "clock" ? 2100 : 2099 );
+		assert.equal( id, 2 );
+		pending.set( id, { kind: "navigation", id, product: product( current.regionId ) } );
+		step( 2200 );
+		assert.equal( sent.length, 1 );
+		assert.equal( stream.phase(), "admitting" );
+		stream.step( current, current.regionId, undefined, sent[0].requestId, 2300 );
+		assert.equal( stream.phase(), "ready" );
+		assert.equal( stream.error(), null );
+		stream.dispose();
+		stream.retryTransient();
+		step( 100000 );
+		assert.equal( id, 2 );
+	});
+}
+
+test("an unanswered navigation load retries, an unanswered admission does not", () => {
+	let id = 0;
+	const sent = [], answers = new Map();
+	const assets = {
+		available: () => 4,
+		request: () => ++id,
+		cancel() {},
+		take: key => answers.get( key ) ?? null
+	};
+	const stream = createNavigationStream( assets, command => sent.push( command ), "https://fixture.test" );
+	const dungeon = { ...pose, regionId: 0x8001 },
+		step = now => stream.step( dungeon, undefined, undefined, undefined, now );
+	step( 0 );
+	// No answer for the 60 s load deadline: a transport symptom, retried.
+	step( 60000 );
+	assert.match( stream.error(), /loading timed out/ );
+	assert.equal( stream.reconnecting(), true );
+	step( 62000 );
+	assert.equal( id, 2, "the load is requested again" );
+	answers.set( 2, { kind: "navigation", id: 2, product: product( dungeon.regionId ) } );
+	step( 62100 );
+	assert.equal( stream.phase(), "admitting" );
+	// No admission within 15 s is the simulation's answer, not the network's.
+	step( 77100 );
+	assert.match( stream.error(), /admitting timed out/ );
+	assert.equal( stream.reconnecting(), false );
+	stream.retryTransient();
+	step( 1000000 );
+	assert.equal( id, 2, "an admission timeout never retries by itself" );
+	stream.dispose();
+});
+
+test("navigation permanent failures ignore automatic recovery", () => {
+	let id = 0;
+	const assets = {
+		available: () => 4,
+		request: () => ++id,
+		cancel() {},
+		take: () => ({ kind: "error", id, error: "Asset HTTP 404" })
+	};
+	const stream = createNavigationStream( assets, () => {}, "https://fixture.test" );
+	stream.step( pose, undefined, undefined, undefined, 0 );
+	stream.step( pose, undefined, undefined, undefined, 100 );
+	stream.retryTransient();
+	stream.step( pose, undefined, undefined, undefined, 1000000 );
+	assert.equal( id, 1 );
+	assert.equal( stream.reconnecting(), false );
+	assert.match( stream.error(), /404/ );
+	stream.retry();
+	stream.step( pose );
+	assert.equal( id, 2 );
+	stream.dispose();
+});
+
 test("asset worker admits and publishes the navigation lane within its request budget", async t => {
 	const { createLoader } = await load( "runtime/assets/worker/loader.ts" );
 	const results = [];

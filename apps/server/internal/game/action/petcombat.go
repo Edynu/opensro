@@ -66,6 +66,7 @@ type petCombatIntent struct {
 	nextAttackMs int64
 	castToken    uint32
 	releaseAtMs  int64
+	pursuing     bool
 }
 
 /*
@@ -211,8 +212,10 @@ func (rt *Runtime) advancePetCombat(step petCombatStep) (frames []simulation.Fra
 	}
 	at := step.state.follower.Position(step.nowMs)
 	if intent.castToken == 0 && !spacing.Contains(at, targetAt) {
-		return step.state.follower.Approach(targetAt, float64(step.run), step.nowMs, spacing.StandOffRadius(), step.constraint), true
+		intent.pursuing = true
+		return step.state.follower.Approach(targetAt, float64(rt.cosPacedRun(step.ref, step.run)), step.nowMs, spacing.StandOffRadius(), step.constraint), true
 	}
+	intent.pursuing = false
 	frames = step.state.follower.Stop(step.nowMs)
 	if intent.castToken == 0 && step.nowMs < intent.nextAttackMs {
 		return frames, true

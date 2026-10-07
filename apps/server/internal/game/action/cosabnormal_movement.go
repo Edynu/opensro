@@ -153,7 +153,7 @@ func (rt *Runtime) refreshCosAbnormalSpeed(owner *cosAbnormalOwner) []wire.Frame
 		return nil
 	}
 	pet := owner.pet
-	walk, run := owner.Param(movementWalkParameter), owner.Param(movementRunParameter)
+	walk, run := owner.Param(movementWalkParameter), rt.cosPacedRun(owner.ref, owner.Param(movementRunParameter))
 	if pet.Mounted && rt.Worlds != nil {
 		rt.Worlds.Update(simulation.WorldKey(owner.division, owner.c.Name),
 			func() simulation.WorldState { return simulation.SeedWorldState(owner.c) },

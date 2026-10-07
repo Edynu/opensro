@@ -11,6 +11,7 @@ modules the client ships, not a per-test bundle.
 */
 import { CLIENT_PUBLIC_ROOT } from "../../../../scripts/lib/generatedRoot.mjs";
 import "../helpers/native-source-loader.mjs";
+import { goldDropModels } from "../helpers/gold-drop-models.mjs";
 import { pathToFileURL as sourceFileUrl } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -210,8 +211,14 @@ test("a stealthed character is hidden from strangers, translucent to its party a
 	const hide = { gid: 2, skill: 7929, token: 9, phase: 2 };
 	let clock = 1;
 	// Let CIDecoAppear (spawn-fade.ts) finish before measuring concealment.
-	for ( let i = 0; i < 5; i++ ) f.presentation.step( [ local, stealthed ], base, clock += 0.1 );
-	clock += 2;
+	for ( let i = 0; i < 80; i++ ) {
+		f.presentation.step( [ local, stealthed ], base, clock += 0.1 );
+		const actor = f.actors.find( value => value.gid === 2 );
+		if ( actor && (actor.opacity ?? 1) === 1 ) break;
+	}
+	const admitted = f.actors.find( actor => actor.gid === 2 );
+	assert.ok( admitted, "the peer finished resource admission" );
+	assert.equal( admitted.opacity ?? 1, 1, "spawn fade has finished" );
 	const opacity = gameplay => {
 		for ( let i = 0; i < 5; i++ ) f.presentation.step( [ local, stealthed ], gameplay, clock += 0.1 );
 		const actor = f.actors.find( a => a.gid === 2 );
@@ -433,21 +440,19 @@ function fixture(
 					kind: "bytes",
 					buffer: new TextEncoder().encode( JSON.stringify( {
 						format: "sro-mission-itemdrop-models",
-						models: drops ?
-							{
-								"item/drop.bsr": {
-									glb: "/assets/itemdrop/drop.glb",
-									clips: [ "stand" ],
-									clipLoop: false,
-									particleModifiers: modifiers
-								},
-								"item/etc/drop_ch_money_ing.bsr": {
-									glb: "/assets/itemdrop/fanfare.glb",
-									clips: [ "stand" ],
-									clipLoop: false
-								}
-							} :
-							{}
+						models: metadataAdmission.dropModels ?? {
+							...goldDropModels(),
+							...(drops ?
+								{
+									"item/drop.bsr": {
+										glb: "/assets/itemdrop/drop.glb",
+										clips: [ "stand" ],
+										clipLoop: false,
+										particleModifiers: modifiers
+									}
+								} :
+								{})
+						}
 					} ) ).buffer
 				};
 			}
@@ -472,6 +477,7 @@ function fixture(
 			}
 			if ( job.decode === "character" || job.decode === "effect" ) {
 				const value = model( options.sourceFloats );
+				for ( const clip of value.clips ) clip.duration = options.clipDurations?.[clip.name] ?? clip.duration;
 				if ( metadataAdmission.appearance?.overrideTest ) {
 					value.clips.push( { name: "native:avatar_wing:7", duration: 1, channels: [] } );
 				}
@@ -715,6 +721,53 @@ function fixture(
 		}
 	};
 }
+test("a released buff never leaves an empty pose after a stall or equipment change", () => {
+	const f = fixture(
+		{ 7: { clips: [ "walk", "run" ], phaseClips: [ [], [ "walk" ], [ "run" ] ], stages: [] } },
+		2,
+		false,
+		false,
+		false,
+		false,
+		true,
+		false,
+		false,
+		false,
+		undefined,
+		{
+			states: {
+				walk: { durationMs: 1000, loop: true, trackEvents: [] },
+				run: { durationMs: 1000, loop: false, trackEvents: [] }
+			},
+			rules: []
+		}
+	);
+	f.warm();
+	f.presentation.simulationOrigin( 0 );
+	const player = entity( 1, { kind: "local-player" } );
+	const game = {
+		localGid: 1,
+		inventory: [],
+		vitals: [],
+		casts: [ { token: 1, caster: 1, target: 0, skill: 7, damage: 0, fatal: false, receivedAtMs: 1000 } ]
+	};
+	f.step( [ player ], 1, game );
+	f.step( [ player ], 1.5, game );
+	game.casts[0].shotAtMs = 1500;
+	f.step( [ player ], 1.6, game );
+	game.inventory = [ { slot: 6, refObjId: 100, typeFlags: 6 << 11, plus: 0 } ];
+	for ( const now of [ 5, 5.016, 5.1, 6 ] ) {
+		f.step( [ player ], now, game );
+		const actor = f.actors.find( actor => actor.gid === 1 );
+		assert.ok( actor );
+		assert.ok(
+			actor.layers === undefined || actor.layers.some( layer => layer.weight > 0 ),
+			`empty pose at ${now}`
+		);
+	}
+	f.dispose();
+});
+
 for ( const local of [ false, true ] ) {
 	for ( const displacement of local ? [ false, true, "after-WAIT" ] : [ false, true, "after-WAIT", "at-arrival" ] ) {
 		test(`cast WAIT preserves displacement translation ${displacement}, local ${local}`, () => {
@@ -2135,6 +2188,64 @@ test("production blends retain separate outgoing and incoming sound installation
 	f.dispose();
 });
 
+for ( const zeroClip of [ "stand", "run" ] ) {
+	test(`production blend keeps ${zeroClip} when its zero duration omits a dispatch row`, () => {
+		const audio = {
+			states: Object.fromEntries(
+				[ "stand", "run" ].filter( clip => clip !== zeroClip ).map( clip => [ clip, {
+					durationMs: 1000,
+					trackEvents: [],
+					soundEvents: [ { cursorMs: 45, cue: "snd_" + clip } ]
+				} ] )
+			),
+			rules: [ "STAND", "RUN" ].map( handle => ({
+				object: "NPC_1",
+				handle: "SND_" + handle,
+				event1: "-",
+				publicPath: "/assets/audio/" + handle + ".wav"
+			}) )
+		};
+		// Zero-duration fallback comes from a decoded clip without BAN metadata;
+		// published BAN duration zero is correctly rejected during admission.
+		const f = fixture(
+			{},
+			2,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+			undefined,
+			audio,
+			undefined,
+			{},
+			{},
+			{ clipDurations: { [zeroClip]: 0 } }
+		);
+		try {
+			f.warm();
+			f.step( [ entity( 1, { kind: "monster" } ) ], .3 );
+			f.played.length = 0;
+			f.step( [ entity( 1, { kind: "monster", moving: true, movementMode: 3 } ) ], .4 );
+			f.step( [ entity( 1, { kind: "monster", moving: true, movementMode: 3 } ) ], .46 );
+			assert.equal( f.presentation.error(), null );
+			const layers = f.actors[0].layers;
+			assert.deepEqual( layers.map( layer => layer.clip ).sort(), [ "run", "stand" ] );
+			assert.notEqual( layers[0].activation, layers[1].activation );
+			assert.deepEqual(
+				f.played.map( event => event.path ),
+				zeroClip === "stand" ? [ "/assets/audio/RUN.wav" ] : [],
+				"only the installation with a dispatch cursor can emit its due sound"
+			);
+		} finally {
+			f.dispose();
+		}
+	});
+}
+
 test("cold production animation particles dispatch both blend installations and retain inactive wrappers", () => {
 	const entry = ( path, key ) => ({
 		field00: 1,
@@ -3135,9 +3246,16 @@ test("dock admission waits for equipment even when its gecko is already rendered
 	}
 });
 
-test("world entry waits for cold gold fanfare without presenting a ground entity", () => {
-	const blockedPaths = new Set( [ "http://localhost/assets/itemdrop/fanfare.glb" ] );
-	const f = fixture(
+/*
+================
+worldEntryFixture
+
+Keep world-entry catalog faults on the same real presentation fixture as
+resource admission; only the asset response and its availability change.
+================
+*/
+function worldEntryFixture( metadataAdmission ) {
+	return fixture(
 		{},
 		2,
 		true,
@@ -3152,8 +3270,40 @@ test("world entry waits for cold gold fanfare without presenting a ground entity
 		undefined,
 		undefined,
 		{},
-		{ blockedPaths }
+		metadataAdmission
 	);
+}
+
+for ( const missing of [ "ing", "small", "normal", "large" ] ) {
+	test(`world entry rejects missing gold catalog model ${missing}`, () => {
+		const dropModels = goldDropModels();
+		delete dropModels[`item/etc/drop_ch_money_${missing}.bsr`];
+		const f = worldEntryFixture( { dropModels } );
+		const player = entity( 1, { kind: "player" } );
+		const state = {
+			localGid: 1,
+			inventory: [],
+			casts: [],
+			attachedEffects: [],
+			skills: [],
+			vitals: [],
+			pose: { ...player, angle: player.heading }
+		};
+		try {
+			for ( let i = 0; i < 80; i++ ) f.presentation.step( [ player ], state, i / 60 );
+			assert.equal( f.presentation.ready( 1 ), true );
+			assert.equal( f.presentation.entryReady(), false );
+			assert.match( f.presentation.error() ?? "", new RegExp( `drop_ch_money_${missing}\\.bsr` ) );
+			assert.ok( f.actors.every( actor => !actor.groundItem ) );
+		} finally {
+			f.dispose();
+		}
+	});
+}
+
+test("world entry waits for cold gold fanfare without presenting a ground entity", () => {
+	const blockedPaths = new Set( [ "http://localhost/assets/itemdrop/fanfare.glb" ] );
+	const f = worldEntryFixture( { blockedPaths } );
 	const player = entity( 1, { kind: "player" } );
 	const state = {
 		localGid: 1,

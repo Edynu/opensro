@@ -46,7 +46,7 @@ import { berserkHud, berserkEntryFlash } from "@/engine/foundation/ui/berserk-hu
 import { resolveTextOverlaps } from "@/engine/foundation/rendering/ui-glyphs";
 import { portalMenu } from "@/engine/foundation/gameplay/portal";
 import { restoreSlotEntry } from "@/engine/foundation/gameplay/commerce";
-import { BUG_REPLAY_LABEL, type BugReportControl } from "@/engine/contracts/bug-report";
+import type { BugReportControl } from "@/engine/contracts/bug-report";
 import { equipmentDropSlot } from "@/engine/foundation/gameplay/equipment-drop";
 import { itemEquipmentOverlay, equipmentWarningUv } from "@/engine/foundation/ui/item-equipment-overlay";
 import { itemCountQuads } from "@/engine/foundation/ui/item-count";
@@ -214,7 +214,7 @@ import {
 import { isSkinChangeScroll, skinDraftRange, type SkinDraftKey } from "@/engine/foundation/gameplay/skin-change";
 import { repairAllCost } from "@/engine/foundation/gameplay/repair";
 import { createSlotEffectClock } from "./hud/slot-effects";
-import { itemSlotOverlays, itemSlotWash, slotSeed } from "@/engine/foundation/ui/item-slot-effects";
+import { itemIsRare, itemSlotOverlays, itemSlotWash, slotSeed } from "@/engine/foundation/ui/item-slot-effects";
 import {
 	COS_CLASS_ATTACK,
 	COS_CLASS_GUILD,
@@ -492,7 +492,6 @@ const PARTY_MATCH_RANGE_SEPARATOR_ID = 43;
 const BUG_COMMAND = /^\/bug(?:\s+|$)/i;
 const BUG_REPORTS_DISABLED = "Bug reports are disabled on this server.";
 const BUG_REPORTS_UNAVAILABLE = "Connecting to the bug reporter; the report window opens as soon as it answers.";
-const BUG_REPLAY_OPTION = "option-bug-replay";
 // The skin change scroll's window (CIFChangePlayerModel).
 const SKIN_PANEL = "Skin change";
 // CIFFortressWarApplyWnd, opened by the fortress official's answer.
@@ -1222,12 +1221,12 @@ export function createUi(
 			optionDraft = { ...options };
 			optionScroll = [ 0, 0 ];
 			beginnerDraft = !!((view?.entities.find( e => e.gid === view?.gameplay?.localGid )?.visualFlags ?? 0) & 1);
-			bugReport?.resetReplayDraft();
 		}
 		if ( next === "COS inventory" ) {
 			cosSlot = -1;
 			cosPage = 0;
 			cosPlayerPage = 0;
+			cosDraft = view?.gameplay?.cosRecords?.find( r => r.gid === cosGid )?.commandMode ?? 0;
 		}
 		if ( next === "Auto Potion" ) {
 			potionDraft = autoPotionDraft( view?.gameplay?.autoPotion ?? defaultAutoPotion() );
@@ -2176,7 +2175,6 @@ export function createUi(
 			bindingScroll = Math.max( 0, Math.min( 12, bindingScroll + (id.endsWith( "up" ) ? -1 : 1) ) );
 		} else if ( id.startsWith( "option-sight:" ) ) sightDraft = sightMode( Number( id.slice( 13 ) ) );
 		else if ( id === "option-beginner" ) beginnerDraft = !beginnerDraft;
-		else if ( id === BUG_REPLAY_OPTION ) bugReport?.toggleReplayDraft();
 		else if ( id.startsWith( "option-mute:" ) ) {
 			const key = id.slice( 12 );
 			if ( key === "muteBgm" || key === "muteEffects" || key === "muteEnvironment" ) {
@@ -2205,7 +2203,6 @@ export function createUi(
 			} else if ( optionTab === 4 ) {
 				optionDraft = defaultGameOptions();
 				beginnerDraft = (view.gameplay?.progression?.maxLevel ?? view.gameplay?.progression?.level ?? 1) <= 19;
-				bugReport?.defaultReplayDraft();
 			}
 		} else if ( id === "option-cancel" ) setPanel( "" );
 		else if ( id === "option-apply" || id === "option-ok" ) {
@@ -2224,7 +2221,6 @@ export function createUi(
 			saveSight( sight );
 			audioSaved = { ...audioDraft };
 			audioPreference( audioSaved, true );
-			bugReport?.applyReplayDraft();
 			if ( id === "option-ok" ) setPanel( "" );
 			else dirty = true;
 		} else if ( id.startsWith( "option-scroll:" ) ) {
@@ -5081,6 +5077,10 @@ export function createUi(
 			}
 			if ( event.kind === "activate" ) {
 				// 570120 / 567290: CTRL shop transaction takes priority over SHIFT/ALT.
+				// A CTRL buy asks for one package when it holds several items, else
+				// for the item's MaxStack (ItemData +0x1A8, the first ItemData column),
+				// so equipment buys one. The quantity editor's purchaseLimit (6C0540)
+				// is not a CTRL input.
 				if (
 					event.ctrl && panel === "Shop" && view?.gameplay?.shop &&
 					(event.id.startsWith( "shop-offer:" ) ||
@@ -5101,7 +5101,7 @@ export function createUi(
 								sendGameplay(
 									merchantCommand(
 										choice,
-										(offer.contents?.length ?? 1) > 1 ? 1 : offer.purchaseLimit ?? offer.maxStack
+										(offer.contents?.length ?? 1) > 1 ? 1 : offer.maxStack
 									)
 								);
 							}
@@ -5111,7 +5111,9 @@ export function createUi(
 							row.slot === Number( event.id.slice( event.id.indexOf( ":" ) + 1 ) )
 						);
 						if ( item ) {
-							if ( (item.typeFlags & 0x1f) === 0xd || item.summon?.state === 2 ) {
+							// 567290: mall (ItemTid_IsMallItem) and rare (CSOItemData_IsRare)
+							// items refuse a quick sell.
+							if ( (item.typeFlags & 0x1f) === 0xd || itemIsRare( item ) || item.summon?.state === 2 ) {
 								message = hud.data()?.strings["UIIT_MSG_STRGERR_CANT_QUICKSELL_CASHITEM"] ?? "";
 								dirty = true;
 								return;
@@ -5578,6 +5580,9 @@ export function createUi(
 					dirty = true;
 				}
 			}
+			// Every frame, unlike chat() below, which runs only when the HUD is
+			// assembled: a running bug recording's timer and cap.
+			bugReport?.recordingFrame();
 			const minimapDelta = minimapLast === null ? 0 : Math.max( 0, now - minimapLast );
 			minimapLast = now;
 			const zoom = advanceMinimapZoom( minimapZoom, minimapTarget, minimapDelta );
@@ -5806,6 +5811,7 @@ export function createUi(
 				now < hudMessages.deadline() &&
 				now < speech.deadline() &&
 				view.resourceError === next.resourceError && view.worldError === next.worldError &&
+				view.worldRetrying === next.worldRetrying &&
 				view.worldReady === next.worldReady && view.travel === next.travel &&
 				view.worldTransitionRegion === next.worldTransitionRegion &&
 				view.frontend.error === next.frontend.error && view.frontend.status === next.frontend.status &&
@@ -5818,7 +5824,8 @@ export function createUi(
 			if ( stableWorld && !dirty ) return null;
 			if (
 				!loading && !next.frontend && !dirty && now < nextPoll && view?.resourceError === next.resourceError &&
-				view?.worldError === next.worldError && view?.worldReady === next.worldReady &&
+				view?.worldError === next.worldError && view?.worldRetrying === next.worldRetrying &&
+				view?.worldReady === next.worldReady &&
 				view?.travel === next.travel && view?.worldTransitionRegion === next.worldTransitionRegion &&
 				view?.session === next.session &&
 				view?.berserkGauge?.displayed === next.berserkGauge?.displayed && view?.gameplay === next.gameplay &&
@@ -9432,16 +9439,6 @@ export function createUi(
 									enabled: optionDraft[key],
 									disabled: false
 								}) );
-							// Not a native option: the bug reporter's replay switch, shown
-							// only while the server has bug reports enabled.
-							if ( group === 1 && bugReport?.reportsEnabled() ) {
-								rows.push( {
-									key: BUG_REPLAY_OPTION,
-									text: "",
-									enabled: bugReport.replayDraft(),
-									disabled: false
-								} );
-							}
 							if ( group === 0 ) {
 								rows.splice( 5, 0, {
 									key: "beginner",
@@ -9465,7 +9462,7 @@ export function createUi(
 								paths.push( skin );
 								if ( resources.has( skin ) ) rect( [ sx, sy, 156, 28 ], white, skin );
 								paths.push( path );
-								const caption = row.key === BUG_REPLAY_OPTION ? BUG_REPLAY_LABEL : hudCopy( row.text );
+								const caption = hudCopy( row.text );
 								// 5C8810 keeps the authored label bounds and enables style 5 bit 1.
 								// 780EA0 draws that shadow at (+1,+1) in black before the glyph.
 								const labelRect = authoredClientRect( labelNode, sx, sy );
@@ -9489,11 +9486,7 @@ export function createUi(
 								// Resource child order paints the checkbox after its label.
 								if ( resources.has( path ) ) rect( r, row.disabled ? [ .5, .5, .5, 1 ] : white, path );
 								controls.push( {
-									id: row.key === "beginner" ?
-										"option-beginner" :
-										row.key === BUG_REPLAY_OPTION ?
-										BUG_REPLAY_OPTION :
-										"option-toggle:" + row.key,
+									id: row.key === "beginner" ? "option-beginner" : "option-toggle:" + row.key,
 									label: caption,
 									rect: r,
 									kind: "button",
@@ -16127,11 +16120,17 @@ export function createUi(
 						)
 					);
 					quads.push(
-						...text.quads( "Unable to finish loading", layout.title, full, white, { hAlign: 1, vAlign: 0 } )
+						...text.quads(
+							next.worldRetrying ? "Connection interrupted" : "Unable to finish loading",
+							layout.title,
+							full,
+							white,
+							{ hAlign: 1, vAlign: 0 }
+						)
 					);
 					quads.push(
 						...text.quads(
-							next.worldError ?
+							next.worldRetrying ? "Connection lost. Retrying automatically..." : next.worldError ?
 								"World resources could not be loaded." :
 								fatalAssetFailure ?
 								"Unable to load resources. Reload to try again." :
@@ -17204,7 +17203,7 @@ export function createUi(
 					loading?.startup === true || next.frontend?.phase === "failed",
 				title: phase === "world" ? "Silkroad game interface" : "Silkroad " + phase,
 				message: assetFailure ?
-					"Unable to finish loading. " +
+					(next.worldRetrying ? "Connection lost. Retrying automatically. " : "Unable to finish loading. ") +
 					(next.worldError ?
 						"Retry world loading." :
 						fatalAssetFailure ?

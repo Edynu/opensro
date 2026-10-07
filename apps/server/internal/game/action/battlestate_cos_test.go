@@ -36,7 +36,7 @@ func TestMonsterHitOnThePetPutsTheOwnerInBattle(t *testing.T) {
 	if !ok {
 		t.Fatal("no pet gid")
 	}
-	equipCombatTestPet(t, rt, c, 4)
+	equipCombatTestPet(t, rt, c, 3)
 
 	entered := battleStateFrame(enterworld.ObjectIDForCharacter(c), true)
 	count := func(frames []uint16, payloads [][]byte) int {

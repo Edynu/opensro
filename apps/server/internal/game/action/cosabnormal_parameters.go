@@ -106,6 +106,33 @@ func cosParameter(ref *enterworld.CharacterRef, pet *enterworld.CharacterCOS, bl
 
 /*
 ================
+cosMovementSpeeds
+
+The walk and run speeds a pet is installed with and published at: the
+native parameters, with the port-only pacing policy applied to the run.
+================
+*/
+func (rt *Runtime) cosMovementSpeeds(ref *enterworld.CharacterRef, pet *enterworld.CharacterCOS, block *abnormal.Block) (float32, float32) {
+	walk, run := cosParameter(ref, pet, block, movementWalkParameter), cosParameter(ref, pet, block, movementRunParameter)
+	return walk, rt.cosPacedRun(ref, run)
+}
+
+/*
+================
+cosPacedRun
+
+A native run speed as the pet moves with it (Policies.RunSpeed).
+================
+*/
+func (rt *Runtime) cosPacedRun(ref *enterworld.CharacterRef, run float32) float32 {
+	if ref == nil {
+		return run
+	}
+	return rt.PetPolicies.RunSpeed(ref.TidWord>>11, run)
+}
+
+/*
+================
 cosCombatStats
 
 Use the common non-player combat projection, including all defense/evasion
