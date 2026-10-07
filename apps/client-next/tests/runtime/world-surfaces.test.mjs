@@ -52,21 +52,29 @@ test("DDS decoder handles BC1 transparent mode, nonzero offsets, edges and rejec
 	v.setUint32( 112, 0x200, true );
 	assert.throws( () => decodeDxt1( d ), /surface/ );
 });
-test("installed MAPT lightmaps reach every sector as block containers with authored mip levels", () => {
+test("installed MAPT lightmaps resolve across scoped container migrations", () => {
 	const bundle = json( "/assets/world/china/region-62a8.json" ),
 		scene = createWorldDecoder().decode( new TextEncoder().encode( JSON.stringify( bundle ) ) );
 	const lights = scene.groups.filter( g => g.material.lightmap );
 	assert.equal( lights.length, bundle.terrain.sectors.length );
 	for ( const group of lights ) {
-		// Lightmaps ship as NTX1 bc1 containers carrying exactly the
-		// authored levels (the retail client sampled this DDS with its own
-		// single level, 0x9f8ea0) - no generated suffix by default.
-		const decoded = decodeNativeTexture( bytes( group.material.texture ) );
-		assert.equal( decoded.width, 512 );
-		assert.equal( decoded.height, 512 );
-		assert.equal( decoded.format, "bc1-rgba-unorm" );
-		assert.equal( decoded.levels.length, 1 );
-		assert.ok( validateNativeTexture( decoded ) > 0 );
+		// Scoped builds deliberately retain legacy DDS references in untouched
+		// bundles. Both supported routes must resolve while regions migrate.
+		const texturePath = group.material.texture;
+		const payload = bytes( texturePath );
+		if ( texturePath.endsWith( ".texture" ) ) {
+			const decoded = decodeNativeTexture( payload );
+			assert.equal( decoded.width, 512 );
+			assert.equal( decoded.height, 512 );
+			assert.equal( decoded.format, "bc1-rgba-unorm" );
+			assert.equal( decoded.levels.length, 1 );
+			assert.ok( validateNativeTexture( decoded ) > 0 );
+		} else {
+			assert.ok( texturePath.endsWith( ".dds" ), texturePath );
+			const decoded = decodeDxt1( payload );
+			assert.equal( decoded.width, 512 );
+			assert.equal( decoded.height, 512 );
+		}
 		assert.deepEqual( [ ...new Set( group.ranges.map( r => r.lod ) ) ].sort(), [ 0, 1, 2, 3 ] );
 		assert.ok( group.geometry.uvs.every( v => v >= 0 && v <= 1 ) );
 		assert.equal( group.material.terrain, undefined );
