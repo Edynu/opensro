@@ -53,6 +53,17 @@ function fixture() {
 	};
 }
 
+test("rare command incidents survive rounding of per-frame averages", async () => {
+	const f = fixture();
+	const result = await measure( f.page, "rare-command", 1, async () => {
+		// measure excludes two opening frames from its ordinary averages.
+		for ( let index = 0; index < 1002; index++ ) f.frame( index * 3, 1, 1, index === 3 ? 1 : 0 );
+	} );
+	assert.equal( result.counts["pose-created"], 0 );
+	assert.equal( result.countTotals["pose-created"], 1 );
+	assert.equal( result.countedFrames, 1000 );
+});
+
 test("an opening long callback survives more frames than the ordinary retained tail", async () => {
 	const f = fixture();
 	const result = await measure( f.page, "opening", 1, async () => {

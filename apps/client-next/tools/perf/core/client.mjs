@@ -202,20 +202,86 @@ export function instrument( { counts, spans, target = globalThis } ) {
 		}
 	};
 	if ( !counts ) return;
-	const wrap = ( prototype, names, key ) => {
+	const encoderCommands = new WeakMap(), bundleCommands = new WeakMap();
+	/*
+	================
+	wrap
+
+	Bundle recording and playback are distinct costs. Retain only command
+	counts, never resource handles, and charge each execution in its own frame.
+	================
+	*/
+	const wrap = ( prototype, names, key, bundleKey ) => {
 		for ( const name of names ) {
 			const original = prototype?.[name];
 			if ( typeof original !== "function" ) continue;
 			prototype[name] = function( ...args ) {
+				const result = original.apply( this, args );
 				tally[key ?? name] = (tally[key ?? name] ?? 0) + 1;
-				return original.apply( this, args );
+				if ( bundleKey ) {
+					const commands = encoderCommands.get( this ) ?? {};
+					commands[bundleKey] = (commands[bundleKey] ?? 0) + 1;
+					encoderCommands.set( this, commands );
+				}
+				if ( name === "writeBuffer" ) {
+					const data = args[2], elementBytes = data.BYTES_PER_ELEMENT ?? 1;
+					add(
+						"writeBuffer bytes",
+						args[4] === undefined ?
+							data.byteLength - (args[3] ?? 0) * elementBytes :
+							args[4] * elementBytes
+					);
+				}
+				return result;
 			};
 		}
 	};
-	wrap( target.GPURenderPassEncoder?.prototype, [ "draw", "drawIndexed" ], "pass draws" );
-	wrap( target.GPURenderPassEncoder?.prototype, [ "executeBundles" ] );
+	const drawMethods = [ "draw", "drawIndexed", "drawIndirect", "drawIndexedIndirect" ];
+	wrap( target.GPURenderPassEncoder?.prototype, drawMethods, "pass draws" );
 	wrap( target.GPURenderPassEncoder?.prototype, [ "setBindGroup" ], "pass bind groups" );
-	wrap( target.GPURenderBundleEncoder?.prototype, [ "draw", "drawIndexed" ], "bundle draws recorded" );
+	wrap( target.GPURenderPassEncoder?.prototype, [ "setPipeline" ], "pass pipelines" );
+	wrap( target.GPURenderBundleEncoder?.prototype, drawMethods, "bundle draws recorded", "draws" );
+	wrap( target.GPURenderBundleEncoder?.prototype, [ "setPipeline" ], "bundle pipelines recorded", "pipelines" );
+	wrap( target.GPURenderBundleEncoder?.prototype, [ "setBindGroup" ], "bundle bind groups recorded", "bind groups" );
+	const bundlePrototype = target.GPURenderBundleEncoder?.prototype;
+	const finishBundle = bundlePrototype?.finish;
+	if ( finishBundle ) {
+		bundlePrototype.finish = function( ...args ) {
+			const bundle = finishBundle.apply( this, args );
+			bundleCommands.set( bundle, { ...(encoderCommands.get( this ) ?? {}) } );
+			encoderCommands.delete( this );
+			return bundle;
+		};
+	}
+	const passPrototype = target.GPURenderPassEncoder?.prototype;
+	const executeBundles = passPrototype?.executeBundles;
+	if ( executeBundles ) {
+		passPrototype.executeBundles = function( bundles ) {
+			// WebGPU accepts an iterable; materialize once so generators are not
+			// consumed by counting before the actual API receives them.
+			const submitted = Array.from( bundles );
+			const result = executeBundles.call( this, submitted );
+			add( "executeBundles", 1 );
+			for ( const bundle of submitted ) {
+				const commands = bundleCommands.get( bundle );
+				add( "bundles executed", 1 );
+				if ( !commands ) {
+					add( "untracked bundles executed", 1 );
+					continue;
+				}
+				for ( const key of [ "draws", "pipelines", "bind groups" ] ) {
+					add( "bundle " + key + " executed", commands[key] ?? 0 );
+				}
+			}
+			return result;
+		};
+	}
+	wrap(
+		target.GPUComputePassEncoder?.prototype,
+		[ "dispatchWorkgroups", "dispatchWorkgroupsIndirect" ],
+		"dispatches"
+	);
+	wrap( target.GPUComputePassEncoder?.prototype, [ "setBindGroup" ], "compute bind groups" );
 	wrap( target.GPUDevice?.prototype, [ "createRenderBundleEncoder" ], "bundles recorded" );
 	wrap( target.GPUQueue?.prototype, [ "writeBuffer" ] );
 	wrap( target.GPUQueue?.prototype, [ "writeTexture" ] );
@@ -260,6 +326,9 @@ export async function measure( page, name, ms, drive ) {
 	const mean = list => list.reduce( ( a, b ) => a + b, 0 ) / Math.max( 1, list.length );
 	const tally = {};
 	for ( const [, , counts] of rows ) for ( const key in counts ) tally[key] = (tally[key] ?? 0) + counts[key];
+	// Preserve rare incidents before the per-frame averages round them away.
+	// These totals cover the retained rows, whose count is reported explicitly.
+	const countTotals = { ...tally };
 	for ( const key in tally ) tally[key] = Number( (tally[key] / Math.max( 1, rows.length )).toFixed( 2 ) );
 	return {
 		name,
@@ -279,7 +348,9 @@ export async function measure( page, name, ms, drive ) {
 		opening: longFrames.opening ?? null,
 		movement,
 		inputs,
-		counts: tally
+		counts: tally,
+		countTotals,
+		countedFrames: rows.length
 	};
 }
 
