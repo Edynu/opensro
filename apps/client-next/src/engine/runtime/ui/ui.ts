@@ -8979,12 +8979,12 @@ export function createUi(
 					const layout = hudData.windows.ifoption!, slot = hudData.windows.ifgameoptionslot!;
 					windowBox( "Experimental", px, py, width, height );
 					closeButton( px + width - 26, py + 10 );
-					const tabWidth = 62, tabStart = (width - (EXPERIMENTAL_TABS.length * tabWidth - 2)) / 2;
+					const tabWidth = 78, tabStart = (width - (EXPERIMENTAL_TABS.length * tabWidth - 2)) / 2;
 					for ( let i = 0; i < EXPERIMENTAL_TABS.length; i++ ) {
 						nativeTab(
 							"experimental-tab:" + i,
 							EXPERIMENTAL_TABS[i]!.title,
-							[ px + tabStart + i * tabWidth, py + 40, 60, 24 ],
+							[ px + tabStart + i * tabWidth, py + 40, tabWidth - 2, 24 ],
 							tab === i,
 							{ family: "com_tab", client: [ 0, 9, 0, 6 ] }
 						);
@@ -8998,7 +8998,7 @@ export function createUi(
 					// Browser-only section reuses the native Set Game header and inset frame.
 					const section = hudData.windows.ifoption_game!.GDR_GAME_OPTION_TAB_1!;
 					authoredImage( { ...section, rect: [ 25, 70, 196, 28 ] }, px, py );
-					authoredText( { ...section, rect: [ 25, 70, 196, 28 ] }, px, py, page.title );
+					authoredText( { ...section, rect: [ 25, 70, 196, 28 ] }, px, py, page.section );
 					authoredChrome(
 						{
 							...hudData.windows.ifoption_game!.GDR_GAME_OPTION_SCROLLMANAGER_1!,

@@ -205,9 +205,6 @@ apps/client-next/src/engine/runtime/characters/state-index.ts
 apps/client-next/src/engine/runtime/frontend/camera/camera.ts
 apps/client-next/src/engine/runtime/frontend/dialog/dialog.ts
 apps/client-next/src/engine/runtime/frontend/flow/flow.ts
-apps/client-next/src/engine/runtime/frontend/frontend.ts
-apps/client-next/src/engine/runtime/frontend/stage/preload.ts
-apps/client-next/src/engine/runtime/frontend/stage/stage.ts
 apps/client-next/src/engine/runtime/presentation/effective-hp.ts
 apps/client-next/src/engine/runtime/random/random.ts
 apps/client-next/src/engine/runtime/renderer/device/flares.ts
