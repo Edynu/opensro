@@ -1,7 +1,7 @@
 /*
 ===========================================================================
 
-zip.ts - a minimal ZIP writer (stored entries, no compression)
+zip.ts - a minimal ZIP writer with stored or caller-deflated entries
 
 The bug reporter exports a saved report (its full-quality replay and a
 JSON description) as one .zip a player can send when asked. The video is
@@ -21,6 +21,8 @@ const END_SIGNATURE = 0x06054b50;
 const VERSION = 20;
 const UTF8_NAMES = 0x0800;
 const CRC_POLYNOMIAL = 0xedb88320;
+const METHOD_STORED = 0;
+const METHOD_DEFLATE = 8;
 
 /*
 ================
@@ -30,6 +32,8 @@ ZipFile
 export interface ZipFile {
 	readonly name: string;
 	readonly data: Uint8Array;
+	/** Raw DEFLATE bytes; the original data supplies the CRC and expanded size. */
+	readonly deflated?: Uint8Array;
 }
 
 /*
@@ -43,10 +47,12 @@ export function zipStore( files: readonly ZipFile[], modified: Date ): Uint8Arra
 	const table = crcTable(), [time, date] = dosTime( modified ), encoder = new TextEncoder();
 	const entries = files.map( file => ({
 		...file,
+		payload: file.deflated ?? file.data,
+		method: file.deflated ? METHOD_DEFLATE : METHOD_STORED,
 		name: encoder.encode( file.name ),
 		crc: crc32( file.data, table )
 	}) );
-	const localSize = entries.reduce( ( sum, entry ) => sum + 30 + entry.name.length + entry.data.length, 0 );
+	const localSize = entries.reduce( ( sum, entry ) => sum + 30 + entry.name.length + entry.payload.length, 0 );
 	const centralSize = entries.reduce( ( sum, entry ) => sum + 46 + entry.name.length, 0 );
 	const out = new Uint8Array( localSize + centralSize + 22 ), view = new DataView( out.buffer );
 	if ( out.length > 0xffffffff ) throw Error( "ZIP archive over 4 GiB" );
@@ -57,17 +63,17 @@ export function zipStore( files: readonly ZipFile[], modified: Date ): Uint8Arra
 		view.setUint32( at, LOCAL_SIGNATURE, true );
 		view.setUint16( at + 4, VERSION, true );
 		view.setUint16( at + 6, UTF8_NAMES, true );
-		view.setUint16( at + 8, 0, true );
+		view.setUint16( at + 8, entry.method, true );
 		view.setUint16( at + 10, time, true );
 		view.setUint16( at + 12, date, true );
 		view.setUint32( at + 14, entry.crc, true );
-		view.setUint32( at + 18, entry.data.length, true );
+		view.setUint32( at + 18, entry.payload.length, true );
 		view.setUint32( at + 22, entry.data.length, true );
 		view.setUint16( at + 26, entry.name.length, true );
 		view.setUint16( at + 28, 0, true );
 		out.set( entry.name, at + 30 );
-		out.set( entry.data, at + 30 + entry.name.length );
-		at += 30 + entry.name.length + entry.data.length;
+		out.set( entry.payload, at + 30 + entry.name.length );
+		at += 30 + entry.name.length + entry.payload.length;
 	}
 	const central = at;
 	for ( const [index, entry] of entries.entries() ) {
@@ -75,11 +81,11 @@ export function zipStore( files: readonly ZipFile[], modified: Date ): Uint8Arra
 		view.setUint16( at + 4, VERSION, true );
 		view.setUint16( at + 6, VERSION, true );
 		view.setUint16( at + 8, UTF8_NAMES, true );
-		view.setUint16( at + 10, 0, true );
+		view.setUint16( at + 10, entry.method, true );
 		view.setUint16( at + 12, time, true );
 		view.setUint16( at + 14, date, true );
 		view.setUint32( at + 16, entry.crc, true );
-		view.setUint32( at + 20, entry.data.length, true );
+		view.setUint32( at + 20, entry.payload.length, true );
 		view.setUint32( at + 24, entry.data.length, true );
 		view.setUint16( at + 28, entry.name.length, true );
 		view.setUint32( at + 42, offsets[index]!, true );

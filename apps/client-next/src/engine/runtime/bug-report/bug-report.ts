@@ -30,7 +30,7 @@ import {
 } from "@/engine/foundation/media/replay-window";
 import { createReplayRecorder } from "./recorder";
 import { createBugReportDialog, type OutgoingReport, type SendOutcome } from "./dialog";
-import { createReportArchive } from "./archive";
+import { createReportArchive, createDiagnosticUpload } from "./archive";
 import { fitTrack } from "./transcode";
 import { createJournal, JOURNAL_WINDOW_MS } from "./journal";
 
@@ -416,20 +416,33 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		const id = reportId();
 		const maxBytes = settings?.maxBytes ?? 0;
 		let sent: Mp4Track | null = null, outcome: SendOutcome;
+		let captured: Record<string, string> = {};
 		try {
+			captured = diagnostics( report );
+			progress( "Preparing technical diagnostics…" );
+			const diagnosticZip = await createDiagnosticUpload( captured, { id, clip: report.range, maxBytes } );
+			const mediaBudget = maxBytes - diagnosticZip.size;
+			let media: Blob | null = report.screenshot;
 			if ( report.clip ) {
-				sent = await fitTrack( report.clip, maxBytes, fraction => {
+				const original = muxMp4( report.clip );
+				const containerBytes = original.byteLength - replayTrackBytes( report.clip );
+				sent = await fitTrack( report.clip, mediaBudget - containerBytes, fraction => {
 					progress( `Compressing the clip to fit Discord… ${Math.round( fraction * 100 )}%` );
 				} );
+				media = new Blob( [ (sent === report.clip ? original : muxMp4( sent )) as BlobPart ], {
+					type: "video/mp4"
+				} );
+			}
+			if ( media && media.size > mediaBudget ) {
+				throw Error( "The clip and diagnostics are too large; choose a shorter clip" );
 			}
 			progress( "Sending the report…" );
 			const form = new FormData();
 			form.append( "description", report.description );
 			form.append( "meta", JSON.stringify( { context: reportContext( id, report, sent ), errors } ) );
-			if ( sent ) {
-				form.append( "clip", new Blob( [ muxMp4( sent ) as BlobPart ], { type: "video/mp4" } ), "replay.mp4" );
-			} else if ( report.screenshot ) {
-				form.append( "screenshot", report.screenshot, "screenshot.jpg" );
+			form.append( "diagnostics", diagnosticZip, "diagnostics.zip" );
+			if ( media ) {
+				form.append( sent ? "clip" : "screenshot", media, sent ? "replay.mp4" : "screenshot.jpg" );
 			}
 			const response = await fetch( options.apiBase + ROUTE, {
 				method: "POST",
@@ -460,7 +473,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 					new Blob( [ muxMp4( report.replay ) as BlobPart ], { type: "video/mp4" } ) :
 					null,
 				screenshot: report.screenshot,
-				diagnostics: diagnostics( report )
+				diagnostics: captured
 			} );
 			if ( report.replay ) {
 				outcome = {

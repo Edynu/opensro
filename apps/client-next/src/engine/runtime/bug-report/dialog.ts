@@ -325,6 +325,8 @@ export function createBugReportDialog( host: DialogHost ): BugReportDialog {
 		description.setAttribute( "aria-label", "Description" );
 		const privacy = element( "p", "sro-bug-report__note" );
 		privacy.textContent = "The report and its clip are posted to the team's Discord channel. " +
+			"Technical diagnostics include recent movement, input timing, game state and browser details. " +
+			"Chat text and account credentials are excluded from those diagnostics. " +
 			"The clip may show chat and other players, and includes the game's sound.";
 		const status = element( "p", "sro-bug-report__status" );
 		status.setAttribute( "role", "status" );

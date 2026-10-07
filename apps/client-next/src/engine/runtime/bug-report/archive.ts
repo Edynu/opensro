@@ -14,13 +14,272 @@ media; saving a new report drops the oldest ones first.
 ===========================================================================
 */
 import type { BugReportField } from "@/engine/contracts/bug-report";
-import { zipStore } from "@/engine/foundation/archive/zip";
+import { zipStore, type ZipFile } from "@/engine/foundation/archive/zip";
 
 const DATABASE = "sro-bug-reports";
 const STORE = "reports";
 const VERSION = 1;
 const MAX_REPORTS = 10;
 const MAX_BYTES = 600 * 1024 * 1024;
+const MAX_DIAGNOSTIC_BYTES = 2 * 1024 * 1024;
+const MIN_DIAGNOSTIC_BYTES = 4096;
+const MAX_USER_AGENT_LENGTH = 512;
+const SHARED_GAMEPLAY_FIELDS = [
+	"revision",
+	"localGid",
+	"pose",
+	"authoritativePose",
+	"moving",
+	"poseAtMs",
+	"movementPath",
+	"movementRevision",
+	"movementTransition",
+	"movementDiagnostics",
+	"pendingMoves",
+	"acknowledgedMove",
+	"target",
+	"targetPending",
+	"casts",
+	"castPrediction",
+	"vitals",
+	"inventory",
+	"inventoryPending",
+	"avatarInventory",
+	"equipmentSlotCount",
+	"inventorySlotCount",
+	"itemCooldowns",
+	"skillCooldowns",
+	"skillQueue",
+	"skillDenied",
+	"skills",
+	"navigationFloor",
+	"navigationRequestId",
+	"navigationRegion",
+	"navigationBlock",
+	"activeCos"
+] as const;
+const SHARED_ENVIRONMENT_FIELDS = [
+	"userAgent",
+	"cpuThreads",
+	"deviceMemoryGB",
+	"screen",
+	"window",
+	"canvas",
+	"network",
+	"replay"
+] as const;
+const SHARED_MOVEMENT_FIELDS = [
+	"version",
+	"mainTimeOriginMs",
+	"simulationOriginMs",
+	"capturedAtMs",
+	"localGid",
+	"events"
+] as const;
+const TECHNICAL_FIELDS = new Set( [
+	...SHARED_GAMEPLAY_FIELDS,
+	...SHARED_MOVEMENT_FIELDS,
+	...SHARED_ENVIRONMENT_FIELDS,
+	"events",
+	"kind",
+	"event",
+	"atMs",
+	"t",
+	"clip",
+	"start",
+	"end",
+	"simulationAtMs",
+	"serverTimeMs",
+	"requestId",
+	"simulationRoundTripMs",
+	"accepted",
+	"stale",
+	"serverGoal",
+	"serverFrom",
+	"serverDepartAtMs",
+	"serverArriveAtMs",
+	"before",
+	"after",
+	"heading",
+	"distance",
+	"source",
+	"reason",
+	"phase",
+	"region",
+	"regionId",
+	"x",
+	"y",
+	"z",
+	"angle",
+	"gid",
+	"refObjId",
+	"token",
+	"caster",
+	"skill",
+	"count",
+	"lastAtMs",
+	"elapsedMs",
+	"cpuMs",
+	"durationMs",
+	"total",
+	"recent",
+	"hp",
+	"maxHp",
+	"mp",
+	"maxMp",
+	"dead",
+	"entities",
+	"heapMB",
+	"abnormal",
+	"deathState",
+	"targetKind",
+	"key",
+	"down",
+	"repeat",
+	"button",
+	"buttons",
+	"width",
+	"height",
+	"devicePixelRatio",
+	"type",
+	"rttMs",
+	"downlinkMbps",
+	"enabled",
+	"droppedFrames",
+	"relocation",
+	"logicalDistance",
+	"eligible",
+	"pathEligible",
+	"corridor",
+	"from",
+	"to",
+	"previousPath",
+	"turn",
+	"incoming",
+	"outgoing",
+	"departAtMs",
+	"arriveAtMs",
+	"fixedTiming",
+	"speed",
+	"mode",
+	"moving",
+	"revision",
+	"pose",
+	"authoritativePose",
+	"displayed",
+	"camera",
+	"deltaMs",
+	"intervalMs",
+	"remaining",
+	"pending",
+	"tail",
+	"slot",
+	"itemId",
+	"quantity",
+	"refItemId",
+	"durability",
+	"plus",
+	"optLevel",
+	"variance",
+	"magicOptions",
+	"id",
+	"value",
+	"level",
+	"status",
+	"cooldownMs",
+	"endAtMs",
+	"startAtMs",
+	"shotAtMs",
+	"stage",
+	"results",
+	"damage",
+	"critical",
+	"blocked",
+	"dodge",
+	"hits",
+	"position",
+	"duration",
+	"startTime",
+	"blockingDuration",
+	"renderStart",
+	"styleAndLayoutStart",
+	"firstUIEventTimestamp",
+	"scripts",
+	"executionStart",
+	"forcedStyleAndLayoutDuration",
+	"pauseDuration",
+	"sourceCharPosition",
+	"windowAttribution",
+	"frameAtMs",
+	"workerAtMs",
+	"workerDebtMs",
+	"logical",
+	"bodyYaw",
+	"visibility",
+	"transition",
+	"acknowledged",
+	"worldSequence",
+	"walkSpeed",
+	"runSpeed",
+	"animationRate"
+] );
+const TECHNICAL_STRINGS: Readonly<Record<string, readonly string[]>> = {
+	kind: [
+		"movement",
+		"movement-diagnostic",
+		"key",
+		"click",
+		"ui",
+		"error",
+		"long-frame",
+		"sample",
+		"local-player",
+		"player",
+		"monster",
+		"npc"
+	],
+	event: [ "request", "receipt", "correction", "clock", "frame-spike", "world-reset" ],
+	visibility: [ "visible", "hidden" ],
+	reason: [ "spawn", "input", "correction", "receipt", "native", "cast", "displacement", "death", "clear" ],
+	source: [ "native", "receipt", "server", "prediction", "cast", "pickup", "native-stop", "native-source" ],
+	phase: [ "starting", "title", "connecting", "login", "character", "loading-world", "world", "disconnected" ],
+	targetKind: [ "player", "monster", "npc", "item", "pet" ],
+	type: [ "slow-2g", "2g", "3g", "4g" ],
+	key: [
+		"KeyW",
+		"KeyA",
+		"KeyS",
+		"KeyD",
+		"ArrowUp",
+		"ArrowDown",
+		"ArrowLeft",
+		"ArrowRight",
+		"Space",
+		"Escape",
+		"Digit0",
+		"Digit1",
+		"Digit2",
+		"Digit3",
+		"Digit4",
+		"Digit5",
+		"Digit6",
+		"Digit7",
+		"Digit8",
+		"Digit9",
+		"F1",
+		"F2",
+		"F3",
+		"F4",
+		"F5",
+		"F6",
+		"F7",
+		"F8",
+		"F9",
+		"F10",
+		"F11",
+		"F12"
+	]
+};
 const README = `OpenSRO bug report
 
 report.json       what the player wrote, the context sent to Discord, recent errors,
@@ -86,6 +345,161 @@ export interface ReportArchive {
 	/** The report as a .zip: report.json, replay.mp4 and screenshot.jpg. */
 	exportZip( id: string ): Promise<Blob | null>;
 	remove( id: string ): Promise<void>;
+}
+
+/*
+================
+DiagnosticUploadOptions
+================
+*/
+export interface DiagnosticUploadOptions {
+	readonly id: string;
+	readonly clip: { readonly start: number; readonly end: number; } | null;
+	readonly maxBytes: number;
+}
+
+/*
+================
+sharedValue
+
+The shared attachment excludes chat, identities and credentials. Numeric cast
+tokens and entity IDs remain intact because replay needs their correlations.
+================
+*/
+function sharedValue( value: unknown, field = "" ): unknown {
+	if ( typeof value === "string" ) return TECHNICAL_STRINGS[field]?.includes( value ) ? value : undefined;
+	if ( Array.isArray( value ) ) return value.map( item => sharedValue( item, field ) );
+	if ( !value || typeof value !== "object" ) return value;
+	const out: Record<string, unknown> = {};
+	for ( const [key, item] of Object.entries( value ) ) {
+		if ( !TECHNICAL_FIELDS.has( key ) ) continue;
+		const shared = sharedValue( item, key );
+		if ( shared !== undefined ) out[key] = shared;
+	}
+	return out;
+}
+
+/*
+================
+selectedFields
+================
+*/
+function selectedFields( value: unknown, fields: readonly string[] ): Record<string, unknown> {
+	const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
+	const out: Record<string, unknown> = {};
+	for ( const key of fields ) {
+		if ( !(key in source) ) continue;
+		const shared = sharedValue( source[key], key );
+		if ( shared !== undefined ) out[key] = shared;
+	}
+	return out;
+}
+
+/*
+================
+diagnosticZip
+
+Compression is optional for browsers without raw DEFLATE support. Stored ZIP
+entries use the same budget and remain readable by the existing archive tools.
+================
+*/
+async function diagnosticZip( documents: Record<string, unknown> ): Promise<Blob> {
+	const files: ZipFile[] = [];
+	for ( const [name, value] of Object.entries( documents ) ) {
+		const data = new TextEncoder().encode( JSON.stringify( value ) + "\n" );
+		let deflated: Uint8Array | undefined;
+		try {
+			const stream = new Blob( [ data ] ).stream().pipeThrough( new CompressionStream( "deflate-raw" ) );
+			const packed = new Uint8Array( await new Response( stream ).arrayBuffer() );
+			if ( packed.length < data.length ) deflated = packed;
+		} catch {
+			// Older browsers can still submit a bounded, ordinary stored ZIP.
+		}
+		files.push( { name, data, deflated } );
+	}
+	return new Blob( [ zipStore( files, new Date( 0 ) ) as BlobPart ], { type: "application/zip" } );
+}
+
+/*
+================
+createDiagnosticUpload
+
+Capture all documents before transcoding the video. Prefer complete compressed
+evidence; if it cannot fit, reduce the largest event history or state field. The
+manifest makes every omission explicit; the full local archive is unchanged.
+================
+*/
+export async function createDiagnosticUpload(
+	files: Readonly<Record<string, string>>,
+	options: DiagnosticUploadOptions
+): Promise<Blob> {
+	const limit = Math.min( MAX_DIAGNOSTIC_BYTES, Math.floor( options.maxBytes ) );
+	if ( !Number.isFinite( options.maxBytes ) || limit < MIN_DIAGNOSTIC_BYTES ) {
+		throw Error( "Report attachment budget is too small" );
+	}
+	const read = ( name: string ): Record<string, unknown> => JSON.parse( files[name] ?? "{}" );
+	const timeline = read( "timeline.json" );
+	const events = Array.isArray( timeline.events ) ? timeline.events : [];
+	const sharedTimeline = sharedValue( {
+		clip: timeline.clip,
+		events: events.filter( event => event.kind !== "chat" )
+	} ) as Record<string, unknown>;
+	const state = read( "state.json" );
+	const gameplay = selectedFields( state.gameplay, SHARED_GAMEPLAY_FIELDS );
+	const sourceEnvironment = read( "environment.json" );
+	const environment = selectedFields( sourceEnvironment, SHARED_ENVIRONMENT_FIELDS );
+	// Browser identification is an explicit environmental field, not game text.
+	if ( typeof sourceEnvironment.userAgent === "string" ) {
+		environment.userAgent = sourceEnvironment.userAgent.slice( 0, MAX_USER_AGENT_LENGTH );
+	}
+	const omissions: string[] = [];
+	const documents: Record<string, unknown> = {
+		"manifest.json": {
+			version: 1,
+			reportId: options.id,
+			clip: options.clip,
+			videoTimelineOffsetSeconds: options.clip?.start ?? 0,
+			note: "Add videoTimelineOffsetSeconds to the attached video time to obtain timeline t. " +
+				"Only permitted technical fields and enumerated game strings are shared; " +
+				"chat, names, account/session credentials and browser storage are excluded.",
+			omissions
+		},
+		"movement.json": selectedFields( read( "movement.json" ), SHARED_MOVEMENT_FIELDS ),
+		"timeline.json": sharedTimeline,
+		"state.json": { session: selectedFields( state.session, [ "phase" ] ), entities: state.entities, gameplay },
+		"environment.json": environment
+	};
+	for ( ;; ) {
+		const zip = await diagnosticZip( documents );
+		if ( zip.size <= limit ) return zip;
+		const candidates = [ "timeline.json", "movement.json" ].map( name => ({
+			name,
+			document: documents[name] as Record<string, unknown>
+		}) ).filter( entry => Array.isArray( entry.document.events ) && entry.document.events.length > 0 )
+			.sort( ( a, b ) =>
+				JSON.stringify( b.document.events ).length - JSON.stringify( a.document.events ).length
+			);
+		const entry = candidates[0];
+		const key = Object.keys( gameplay ).sort( ( a, b ) =>
+			JSON.stringify( gameplay[b] ).length - JSON.stringify( gameplay[a] ).length
+		)[0];
+		// A large inventory snapshot must not evict a tiny, decisive receipt.
+		if (
+			key && (!entry || JSON.stringify( gameplay[key] ).length >= JSON.stringify( entry.document.events ).length)
+		) {
+			delete gameplay[key];
+			omissions.push( `state.json: omitted gameplay.${key} to fit upload limit` );
+			continue;
+		}
+		if ( entry ) {
+			const rows = entry.document.events as unknown[];
+			const dropped = Math.ceil( rows.length / 2 );
+			entry.document.events = rows.slice( dropped );
+			omissions.push( `${entry.name}: dropped ${dropped} oldest events to fit upload limit` );
+			continue;
+		}
+		throw Error( "Technical diagnostics exceed the report attachment budget" );
+	}
 }
 
 /*
