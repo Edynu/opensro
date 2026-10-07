@@ -1728,7 +1728,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 							geometry.release( draw );
 						}
 					}
-					const streams = plan.sharedPalette && !plan.cloth ?
+					const streams = plan.sharedPalette ?
 						createPaletteStreams( model, capacity ) :
 						undefined;
 					batch = {
@@ -1816,7 +1816,9 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 						if ( !state || state.model !== actor.model ) throw Error( "Missing prepared character pose" );
 						return state.pose;
 					} ),
-					geometry.prepareGpuBones
+					// Cloth reads the palette on the CPU. Keep canonical bindings shared
+					// with the body, but never hand this storage to GPU-only sampling.
+					plan.cloth ? undefined : geometry.prepareGpuBones
 				);
 				let instancesChanged = membershipChanged;
 				for ( let i = 0; i < rows.length; i++ ) {
@@ -1845,7 +1847,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 					for ( let p = 0; p < model.primitives.length; p++ ) {
 						const primitive = model.primitives[p]!, offset = i * primitive.joints.length * 16;
 						if ( primitive.emission ) continue;
-						if ( !batch.streams || primitive.cloth ) {
+						if ( !batch.streams ) {
 							state.pose.palette( primitive, batch.palettes[p]!, offset );
 						}
 						if ( primitive.billboard ) {
