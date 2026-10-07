@@ -6,6 +6,15 @@ zip-reader.test.mjs - standard-tool compatibility and corruption rejection
 The committed fixture comes from Python zipfile, with a stored UTF-8 named
 entry and a deflated JSON entry. It is independent of the product writer.
 
+Regenerate from the repository root with Python:
+    from zipfile import ZipFile, ZipInfo, ZIP_STORED, ZIP_DEFLATED
+    with ZipFile('apps/client-next/tests/fixtures/report-standard.zip', 'w') as z:
+        for name, data, method in [('ñ.txt', b'123456789', ZIP_STORED),
+                                   ('details.json', b'{"ok":true}', ZIP_DEFLATED)]:
+            info = ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+            info.compress_type = method
+            z.writestr(info, data)
+
 ===========================================================================
 */
 import "../helpers/native-source-loader.mjs";
