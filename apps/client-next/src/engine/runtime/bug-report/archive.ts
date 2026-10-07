@@ -22,6 +22,8 @@ const VERSION = 1;
 const MAX_REPORTS = 10;
 const MAX_BYTES = 600 * 1024 * 1024;
 const MAX_DIAGNOSTIC_BYTES = 2 * 1024 * 1024;
+// Agent bugreport.maxDiagnosticsUnpacked is part of the upload contract.
+const MAX_DIAGNOSTIC_UNPACKED_BYTES = 8 * 1024 * 1024;
 const MIN_DIAGNOSTIC_BYTES = 4096;
 const MAX_USER_AGENT_LENGTH = 512;
 const SHARED_GAMEPLAY_FIELDS = [
@@ -360,6 +362,20 @@ export interface DiagnosticUploadOptions {
 
 /*
 ================
+diagnosticUploadBudget
+
+An older Agent rejects unknown multipart parts. Only its explicit settings
+capability admits a diagnostics attachment; absent or invalid means legacy.
+================
+*/
+export function diagnosticUploadBudget( maxBytes: number, advertised: unknown ): number {
+	if ( typeof advertised !== "number" || !Number.isFinite( advertised ) || !Number.isFinite( maxBytes ) ) return 0;
+	const bytes = Math.floor( Math.min( advertised, maxBytes, MAX_DIAGNOSTIC_BYTES ) );
+	return bytes >= MIN_DIAGNOSTIC_BYTES ? bytes : 0;
+}
+
+/*
+================
 sharedValue
 
 The shared attachment excludes chat, identities and credentials. Numeric cast
@@ -403,10 +419,12 @@ Compression is optional for browsers without raw DEFLATE support. Stored ZIP
 entries use the same budget and remain readable by the existing archive tools.
 ================
 */
-async function diagnosticZip( documents: Record<string, unknown> ): Promise<Blob> {
+async function diagnosticZip( documents: Record<string, unknown> ): Promise<{ blob: Blob; unpackedBytes: number; }> {
 	const files: ZipFile[] = [];
+	let unpackedBytes = 0;
 	for ( const [name, value] of Object.entries( documents ) ) {
 		const data = new TextEncoder().encode( JSON.stringify( value ) + "\n" );
+		unpackedBytes += data.byteLength;
 		let deflated: Uint8Array | undefined;
 		try {
 			const stream = new Blob( [ data ] ).stream().pipeThrough( new CompressionStream( "deflate-raw" ) );
@@ -417,7 +435,10 @@ async function diagnosticZip( documents: Record<string, unknown> ): Promise<Blob
 		}
 		files.push( { name, data, deflated } );
 	}
-	return new Blob( [ zipStore( files, new Date( 0 ) ) as BlobPart ], { type: "application/zip" } );
+	return {
+		blob: new Blob( [ zipStore( files, new Date( 0 ) ) as BlobPart ], { type: "application/zip" } ),
+		unpackedBytes
+	};
 }
 
 /*
@@ -471,7 +492,7 @@ export async function createDiagnosticUpload(
 	};
 	for ( ;; ) {
 		const zip = await diagnosticZip( documents );
-		if ( zip.size <= limit ) return zip;
+		if ( zip.blob.size <= limit && zip.unpackedBytes <= MAX_DIAGNOSTIC_UNPACKED_BYTES ) return zip.blob;
 		const candidates = [ "timeline.json", "movement.json" ].map( name => ({
 			name,
 			document: documents[name] as Record<string, unknown>

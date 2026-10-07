@@ -30,7 +30,7 @@ import {
 } from "@/engine/foundation/media/replay-window";
 import { createReplayRecorder } from "./recorder";
 import { createBugReportDialog, type OutgoingReport, type SendOutcome } from "./dialog";
-import { createReportArchive, createDiagnosticUpload } from "./archive";
+import { createReportArchive, createDiagnosticUpload, diagnosticUploadBudget } from "./archive";
 import { fitTrack } from "./transcode";
 import { createJournal, JOURNAL_WINDOW_MS } from "./journal";
 
@@ -69,6 +69,7 @@ interface ServerSettings {
 	readonly enabled: boolean;
 	readonly replayDefault: boolean;
 	readonly maxBytes: number;
+	readonly maxDiagnosticsBytes: number;
 	readonly replaySeconds: number;
 }
 
@@ -316,6 +317,10 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			enabled: true,
 			replayDefault: value.replayDefault === true,
 			maxBytes: Number( value.maxBytes ) || 10 * 1024 * 1024,
+			maxDiagnosticsBytes: diagnosticUploadBudget(
+				Number( value.maxBytes ) || 10 * 1024 * 1024,
+				value.maxDiagnosticsBytes
+			),
 			replaySeconds: Number( value.replaySeconds ) || 60
 		};
 		availability = "on";
@@ -420,8 +425,11 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		try {
 			captured = diagnostics( report );
 			progress( "Preparing technical diagnostics…" );
-			const diagnosticZip = await createDiagnosticUpload( captured, { id, clip: report.range, maxBytes } );
-			const mediaBudget = maxBytes - diagnosticZip.size;
+			const diagnosticBudget = diagnosticUploadBudget( maxBytes, settings?.maxDiagnosticsBytes );
+			const diagnosticZip = diagnosticBudget ?
+				await createDiagnosticUpload( captured, { id, clip: report.range, maxBytes: diagnosticBudget } ) :
+				null;
+			const mediaBudget = maxBytes - (diagnosticZip?.size ?? 0);
 			let media: Blob | null = report.screenshot;
 			if ( report.clip ) {
 				const original = muxMp4( report.clip );
@@ -440,7 +448,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			const form = new FormData();
 			form.append( "description", report.description );
 			form.append( "meta", JSON.stringify( { context: reportContext( id, report, sent ), errors } ) );
-			form.append( "diagnostics", diagnosticZip, "diagnostics.zip" );
+			if ( diagnosticZip ) form.append( "diagnostics", diagnosticZip, "diagnostics.zip" );
 			if ( media ) {
 				form.append( sent ? "clip" : "screenshot", media, sent ? "replay.mp4" : "screenshot.jpg" );
 			}

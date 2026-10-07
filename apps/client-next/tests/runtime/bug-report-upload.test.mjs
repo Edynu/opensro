@@ -13,8 +13,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { inflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
-const { createDiagnosticUpload } = await import( "../../src/engine/runtime/bug-report/archive.ts" );
+const { createDiagnosticUpload, diagnosticUploadBudget } = await import(
+	"../../src/engine/runtime/bug-report/archive.ts"
+);
 const OPTIONS = { id: "BR-261007-0125-52FC", clip: { start: 3, end: 8 }, maxBytes: 2 * 1024 * 1024 };
+
+test("old or malformed Agent capabilities keep reports on the legacy multipart contract", () => {
+	for ( const advertised of [ undefined, null, false, "2097152", 0, -1, NaN, Infinity, 4095 ] ) {
+		assert.equal( diagnosticUploadBudget( 10 * 1024 * 1024, advertised ), 0 );
+	}
+	assert.equal( diagnosticUploadBudget( 10 * 1024 * 1024, 2 * 1024 * 1024 ), 2 * 1024 * 1024 );
+	assert.equal( diagnosticUploadBudget( 10 * 1024 * 1024, 100 * 1024 * 1024 ), 2 * 1024 * 1024 );
+	assert.equal( diagnosticUploadBudget( 8192, 2 * 1024 * 1024 ), 8192 );
+});
 
 /*
 ================
@@ -172,6 +183,21 @@ test("a bulky state snapshot cannot discard the only movement receipt", async ()
 	} );
 	const { documents } = await readZip( await createDiagnosticUpload( input, { ...OPTIONS, maxBytes: 4096 } ) );
 	assert.equal( documents["movement.json"].events.length, 1 );
+	assert.equal( documents["movement.json"].events[0].token, 9 );
+	assert.ok( documents["manifest.json"].omissions.some( text => text.includes( "inventory" ) ) );
+});
+
+test("highly compressible diagnostics respect the Agent expanded-byte limit too", async () => {
+	const input = fixture();
+	input["state.json"] = JSON.stringify( {
+		gameplay: { inventory: [ { value: Array( 5 * 1024 * 1024 ).fill( 0 ) } ] }
+	} );
+	const { documents } = await readZip( await createDiagnosticUpload( input, OPTIONS ) );
+	const bytes = Object.values( documents ).reduce(
+		( total, document ) => total + Buffer.byteLength( JSON.stringify( document ) + "\n" ),
+		0
+	);
+	assert.ok( bytes <= 8 * 1024 * 1024 );
 	assert.equal( documents["movement.json"].events[0].token, 9 );
 	assert.ok( documents["manifest.json"].omissions.some( text => text.includes( "inventory" ) ) );
 });
