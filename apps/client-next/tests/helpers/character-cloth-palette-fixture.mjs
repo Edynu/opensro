@@ -141,8 +141,12 @@ function deviceFixture() {
 			throw error;
 		},
 		() => pipeline,
-		() => {
-			throw Error( "Fixture has no image assets" );
+		{
+			texture: () => {
+				throw Error( "Fixture has no image assets" );
+			},
+			acquire() {},
+			drop() {}
 		},
 		gpu.createSampler(),
 		gpu.createSampler(),
