@@ -4,17 +4,22 @@
 bug-report.ts - the in-game bug reporter (issue #90)
 
 Owns everything about reporting a bug from the game: the server's settings
-(GET /title/bug-report), the player's replay preference, the rolling
-replay (recorder.ts), the report window (dialog.ts), recent client errors
-and the upload (POST /title/bug-report).
+(GET /title/bug-report), the player's Record/Stop recording (recorder.ts),
+the report window and its controls (dialog.ts), recent client errors and
+the upload (POST /title/bug-report).
 
 The server decides whether reporting exists at all. Until it answers, and
 whenever it says the feature is off, there is no button, no recording and
 /bug declines. A settings read that fails (the Agent restarting during a
 release, a network drop) is retried with backoff, and /bug asks again at
 once: one failed read at page load used to switch reporting off for the
-whole session. The replay preference is the player's when they have set
-it in the Option window; otherwise it follows the server's default.
+whole session.
+
+Recording runs only between the player's Record and Stop (or the server's
+replaySeconds cap); Stop opens the report window with the clip. An
+always-on rolling replay used to run for every player and cost about
+10 ms of main thread per second (measured 2026-10-07). The replayDefault
+field older Agents still send is ignored.
 
 ===========================================================================
 */
@@ -30,12 +35,12 @@ import {
 } from "@/engine/foundation/media/replay-window";
 import { createReplayRecorder } from "./recorder";
 import { createBugReportDialog, type OutgoingReport, type SendOutcome } from "./dialog";
+import { createRecording } from "./recording";
 import { createReportArchive, createDiagnosticUpload, diagnosticUploadBudget } from "./archive";
 import { fitTrack } from "./transcode";
 import { createJournal, JOURNAL_WINDOW_MS } from "./journal";
 
 const ROUTE = "/title/bug-report";
-const PREFERENCE_KEY = "sro:bug-report:replay:1";
 const MAX_ERRORS = 50;
 const MAX_ERROR_LENGTH = 500;
 const MAX_CONTEXT_FIELDS = 16;
@@ -46,9 +51,6 @@ const WHISPER_CHANNEL = 2;
 // Waits before asking for the settings again after a failed read.
 const SETTINGS_RETRY_MS = [ 5000, 15000, 30000, 60000 ] as const;
 const PENDING_OPEN_MS = 30000;
-// Waits before starting the replay again after it failed to start or
-// stopped on its own while the player has it switched on.
-const REPLAY_RETRY_MS = [ 5000, 15000, 30000, 60000 ] as const;
 const SAMPLE_MS = 1000;
 // Reading performance.memory makes Chrome total the heap: about 1 ms of a
 // frame. A report needs the heap trend, so every tenth sample carries it.
@@ -65,9 +67,8 @@ ServerSettings
 The GET answer (bugreport.Settings on the server).
 ================
 */
-interface ServerSettings {
+export interface ServerSettings {
 	readonly enabled: boolean;
-	readonly replayDefault: boolean;
 	readonly maxBytes: number;
 	readonly maxDiagnosticsBytes: number;
 	readonly replaySeconds: number;
@@ -115,6 +116,7 @@ export interface BugReportOwner extends BugReportControl {
 	): void;
 	movementClock( simulationOriginMs: number ): void;
 	dumpMovement(): unknown;
+
 	dispose(): void;
 }
 
@@ -162,10 +164,6 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	// It lapses after PENDING_OPEN_MS: a window popping up minutes later, in
 	// the middle of a fight, would be worse than typing /bug again.
 	let pendingOpen: string | null = null, pendingOpenAtMs = 0;
-	let replayEnabled = false;
-	// A start in flight, and when the frame may try again (followPreference).
-	let replayStarting = false, replayRetry = 0, replayRetryAtMs = -Infinity;
-	let draft = false;
 	const errors: string[] = [];
 	// The newest chat sequence examined for a report request; lines at or
 	// below it are history. null until the first frame primes it.
@@ -178,7 +176,23 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		saved: () => archive.list(),
 		exportZip: id => archive.exportZip( id ),
 		forget: id => archive.remove( id ),
-		launch: () => void open( "" )
+		launch: () => void open( "" ),
+		record: () => recording.record(),
+		stopRecording: () => recording.stop( "" )
+	} );
+	const recording = createRecording( {
+		recorder,
+		now: () => performance.now(),
+		maxSeconds: () => settings?.enabled ? settings.replaySeconds : 0,
+		show: ( phase, seconds, maxSeconds ) => dialog.showRecording( phase, seconds, maxSeconds ),
+		failed: reason => {
+			note( reason );
+			dialog.notice( recorder.unsupported() ? "This browser cannot record the game." : reason );
+		},
+		finished: ( track, text ) => {
+			if ( !track ) note( recorder.lastError() ?? "The recording was empty" );
+			open( text );
+		}
 	} );
 
 	/*
@@ -202,71 +216,11 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 
 	/*
 	================
-	storedPreference
-
-	The player's own choice, or null when they never made one.
-	================
-	*/
-	function storedPreference(): boolean | null {
-		try {
-			const raw = localStorage.getItem( PREFERENCE_KEY );
-			if ( raw === null ) return null;
-			const value = (JSON.parse( raw ) as { enabled?: unknown; }).enabled;
-			return typeof value === "boolean" ? value : null;
-		} catch {
-			return null;
-		}
-	}
-
-	/*
-	================
-	followPreference
-
-	Starts or stops the loop to match the saved preference. Synchronous:
-	the Option window's OK reaches it from inside the frame.
-	================
-	*/
-	function followPreference() {
-		if ( !settings?.enabled || !replayEnabled ) {
-			recorder.stop();
-			return;
-		}
-		if ( replayStarting ) return;
-		replayStarting = true;
-		replayRetryAtMs = performance.now() + REPLAY_RETRY_MS[Math.min( replayRetry++, REPLAY_RETRY_MS.length - 1 )]!;
-		recorder.start( { windowSeconds: settings.replaySeconds } ).then( started => {
-			if ( started ) replayRetry = 0;
-			else note( recorder.lastError() ?? "Replay did not start" );
-		}, failure => note( "Replay did not start: " + String( failure ) ) ).finally( () => {
-			replayStarting = false;
-		} );
-	}
-
-	/*
-	================
-	keepReplay
-
-	Called every frame. A replay the player has switched on is kept running:
-	a recorder that failed to start or stopped on its own (a paused source,
-	an ended capture track) starts again with backoff, unless the browser
-	cannot encode at all. One failure used to cost the rest of the session.
-	================
-	*/
-	function keepReplay( now: number ) {
-		if ( !settings?.enabled || !replayEnabled ) return;
-		if ( recorder.running() ) recorder.watch();
-		else if ( !recorder.unsupported() && now >= replayRetryAtMs ) followPreference();
-	}
-
-	/*
-	================
 	replayState
 	================
 	*/
 	function replayState(): ReplayState {
-		if ( !replayEnabled ) return "off";
-		if ( recorder.running() ) return "starting";
-		return recorder.unsupported() ? "unsupported" : "restarting";
+		return recorder.unsupported() ? "unsupported" : "idle";
 	}
 
 	/*
@@ -314,24 +268,9 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			pendingOpen = null;
 			return;
 		}
-		settings = {
-			enabled: true,
-			replayDefault: value.replayDefault === true,
-			maxBytes: Number( value.maxBytes ) || 10 * 1024 * 1024,
-			maxDiagnosticsBytes: diagnosticUploadBudget(
-				Number( value.maxBytes ) || 10 * 1024 * 1024,
-				value.maxDiagnosticsBytes
-			),
-			replaySeconds: Number( value.replaySeconds ) || 60,
-			destinations: Array.isArray( value.destinations ) ?
-				value.destinations.filter( destination => destination === "discord" || destination === "directory" ) :
-				[]
-		};
+		settings = readSettings( value );
 		availability = "on";
-		replayEnabled = storedPreference() ?? settings.replayDefault;
-		draft = replayEnabled;
 		dialog.showLauncher( true );
-		followPreference();
 		if ( pendingOpen !== null ) {
 			const text = pendingOpen;
 			pendingOpen = null;
@@ -355,9 +294,15 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			return "unavailable";
 		}
 		if ( dialog.isOpen() ) return "opened";
+		// /bug during a recording ends it: the report is what it was for.
+		const phase = recording.phase();
+		if ( phase === "recording" || phase === "finishing" ) {
+			recording.stop( text );
+			return "opened";
+		}
 		dialog.open( {
 			text,
-			replay: recorder.snapshot(),
+			replay: recording.recorded(),
 			maxBytes: settings.maxBytes,
 			destinations: settings.destinations,
 			replayState: replayState(),
@@ -398,7 +343,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			} );
 		} else {fields.push( {
 				name: "Replay",
-				value: replayReportState( replayEnabled, report.replay !== null, recorder.lastError() )
+				value: replayReportState( report.replay !== null, recorder.lastError() )
 			} );}
 		if ( report.replay ) {
 			fields.push( {
@@ -467,6 +412,8 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 				signal: lifetime.signal
 			} );
 			const body = await response.json().catch( () => ({}) ) as { code?: string; retryAfter?: number; };
+			// A sent recording is not offered again with the next report.
+			if ( response.ok ) recording.sent( report.replay );
 			outcome = response.ok ?
 				{ ok: true, message: `Report ${id} sent. Thank you!` } :
 				{ ok: false, message: refusalMessage( body.code, body.retryAfter ) };
@@ -559,10 +506,14 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	*/
 	function diagnostics( report: OutgoingReport ): Record<string, string> {
 		const zeroMs = report.replay ? report.replay.samples[0]!.timestampUs / 1000 : performance.now() - 60000;
+		// The whole journal window, not just the recording: the player presses
+		// Record after noticing a bug, so what led up to it comes before t = 0.
+		const fromMs = Math.min( zeroMs - 2000, performance.now() - JOURNAL_WINDOW_MS );
 		const timeline = {
-			note: "t is seconds from the first frame of replay.mp4; clip is the part sent with the report.",
+			note: "t is seconds from the first frame of replay.mp4 (negative: before the recording); " +
+				"clip is the part sent with the report.",
 			clip: report.range,
-			events: journal.since( zeroMs - 2000 ).map( ( { atMs, ...event } ) => ({
+			events: journal.since( fromMs ).map( ( { atMs, ...event } ) => ({
 				t: +((atMs - zeroMs) / 1000).toFixed( 3 ),
 				...event
 			}) )
@@ -635,7 +586,7 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			network: connection ?
 				{ type: connection.effectiveType, rttMs: connection.rtt, downlinkMbps: connection.downlink } :
 				null,
-			replay: { enabled: replayEnabled, droppedFrames: recorder.dropped(), lastError: recorder.lastError() },
+			replay: { phase: recording.phase(), droppedFrames: recorder.dropped(), lastError: recorder.lastError() },
 			preferences,
 			resources
 		};
@@ -645,8 +596,10 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 	================
 	chat
 
-	Called every frame with the whole chat. Lines present at the first call
-	are history and never trigger a request; after that each new incoming
+	Called with the whole chat whenever the UI assembles the HUD, which is
+	not every frame (the recording ticks from recordingFrame). Lines
+	present at the first call are history and never trigger a request;
+	after that each new incoming
 	whisper is examined once, by its sequence (chat.ts numbers every line).
 	A sequence that went backwards is a new session's chat: its lines start
 	as history again. Nothing is built for lines already examined, where a
@@ -674,7 +627,6 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		}
 		const now = performance.now();
 		if ( now >= retryAtMs ) loadSettings();
-		keepReplay( now );
 		if ( now - lastSampleMs >= SAMPLE_MS ) {
 			lastSampleMs = now;
 			journal.record( "sample", sample() );
@@ -735,49 +687,10 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 		},
 		dumpMovement,
 		reportsEnabled: () => availability === "on",
+		recordingFrame: () => recording.frame(),
 		chat,
 		open,
 		note,
-		replayDraft: () => draft,
-		/*
-		================
-		toggleReplayDraft
-		================
-		*/
-		toggleReplayDraft() {
-			draft = !draft;
-		},
-		/*
-		================
-		resetReplayDraft
-		================
-		*/
-		resetReplayDraft() {
-			draft = replayEnabled;
-		},
-		/*
-		================
-		defaultReplayDraft
-		================
-		*/
-		defaultReplayDraft() {
-			draft = settings?.replayDefault ?? false;
-		},
-		/*
-		================
-		applyReplayDraft
-		================
-		*/
-		applyReplayDraft() {
-			if ( !settings?.enabled || draft === replayEnabled ) return;
-			replayEnabled = draft;
-			try {
-				localStorage.setItem( PREFERENCE_KEY, JSON.stringify( { enabled: replayEnabled } ) );
-			} catch {
-				// Storage refused (private mode): the choice holds for this session.
-			}
-			followPreference();
-		},
 		/*
 		================
 		dispose
@@ -787,9 +700,31 @@ export function createBugReport( options: BugReportOptions ): BugReportOwner {
 			disposed = true;
 			lifetime.abort();
 			journal.dispose();
-			recorder.stop();
+			recording.dispose();
 			dialog.dispose();
 		}
+	};
+}
+
+/*
+================
+readSettings
+
+An enabled GET answer with defaults for what an older Agent leaves out.
+Older Agents also send replayDefault (the retired always-on replay); it is
+not read: recording starts only at the player's Record.
+================
+*/
+export function readSettings( value: Partial<ServerSettings> ): ServerSettings {
+	const maxBytes = Number( value.maxBytes ) || 10 * 1024 * 1024;
+	return {
+		enabled: true,
+		maxBytes,
+		maxDiagnosticsBytes: diagnosticUploadBudget( maxBytes, value.maxDiagnosticsBytes ),
+		replaySeconds: Number( value.replaySeconds ) || 60,
+		destinations: Array.isArray( value.destinations ) ?
+			value.destinations.filter( destination => destination === "discord" || destination === "directory" ) :
+			[]
 	};
 }
 
