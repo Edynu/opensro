@@ -5,9 +5,9 @@ copyTerrainLightmaps.mjs - the MAPT lightmap publisher
 
 Each MAPT terrain sector embeds one DDS lightmap. Block sources (the
 measured corpus is uniformly DXT1 512x512) ship as NTX1 .texture containers
-- authored blocks plus a generated mip suffix, uploaded by the client as
-GPU bc1 instead of a CPU decode to expanded RGBA8. A non-block surface
-keeps the raw .dds and the client's legacy decode route.
+holding the authored levels only, uploaded by the client as GPU bc1 instead
+of a CPU decode to expanded RGBA8. A non-block surface keeps the raw .dds
+and the client's legacy decode route.
 ===========================================================================
 */
 import { rm } from "node:fs/promises";

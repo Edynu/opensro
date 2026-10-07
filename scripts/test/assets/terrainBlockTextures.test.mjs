@@ -24,7 +24,6 @@ process.env.SRO_GENERATED_ROOT = generatedRoot;
 const {
 	probeBlockDdsPayload,
 	probeBlockTextureFile,
-	publishBlockTextureBytes,
 	publishBlockTextureFile,
 	writeAuthoredBlockContainer
 } = await import( "../../build/world/assets/blockTextures.mjs" );
@@ -36,6 +35,7 @@ const {
 	migrateCachedTerrainTileReferences,
 	resolveReferencedTerrainTiles,
 	terrainTileImagePublicPath,
+	terrainTileReferencesCurrent,
 	terrainTileTexturePublicPath
 } = await import( "../../build/world/assets/copyTerrainTileImages.mjs" );
 const { publicRoot, imageSourceRoot } = await import( "../../build/world/paths.mjs" );
@@ -131,10 +131,6 @@ test("the python lane keeps the authored base block and serves repeats from the 
 		const second = path.join( dir, "out2", "tile.texture" );
 		await publishBlockTextureFile( source, second );
 		assert.ok( (await readFile( second )).equals( container ) );
-
-		const bareTarget = path.join( dir, "out3", "sector.texture" );
-		await publishBlockTextureBytes( fixtureDds(), bareTarget );
-		assert.equal( (await readFile( bareTarget )).readUInt32LE( 0 ), 0x3158544e );
 	} finally {
 		await rm( dir, { recursive: true, force: true } );
 	}
@@ -195,26 +191,28 @@ test("terrain containers ship the authored levels only, verbatim", async () => {
 	}
 });
 
-test("a persisted tile ledger from before the migration is discarded, not trusted", async () => {
-	// The ledger-hit path the review named: a v2 ledger would hand back
-	// cached tiles and skip the bundle-reference migration, letting a stale
-	// .png reference survive the sweep. Version 3 refuses it, so the builder
-	// re-reads those bundles and migrates.
+test("a persisted tile ledger without recorded references is discarded, not trusted", async () => {
+	// The ledger-hit path the review named: a ledger whose tiles do not
+	// record the bundle's reference cannot be checked against the probe.
+	// Version 4 records it; older ledgers are refused and re-read.
 	const { readTerrainTileLedger } = await import( "../../build/world/buildOutdoorWorldRegionResources.mjs" );
 	const ledgerDir = path.join( generatedRoot, "intermediate" );
 	await mkdir( ledgerDir, { recursive: true } );
 	await writeFile(
 		path.join( ledgerDir, "outdoor-terrain-tiles.json" ),
-		JSON.stringify( { version: 2, regions: { "27024": [ { ddjFileName: "x.ddj", sourcePath: "y" } ] } } )
-	);
-	const stale = await readTerrainTileLedger();
-	assert.equal( stale.size, 0, "a v2 ledger is ignored" );
-	await writeFile(
-		path.join( ledgerDir, "outdoor-terrain-tiles.json" ),
 		JSON.stringify( { version: 3, regions: { "27024": [ { ddjFileName: "x.ddj", sourcePath: "y" } ] } } )
 	);
+	const stale = await readTerrainTileLedger();
+	assert.equal( stale.size, 0, "a v3 ledger is ignored" );
+	await writeFile(
+		path.join( ledgerDir, "outdoor-terrain-tiles.json" ),
+		JSON.stringify( {
+			version: 4,
+			regions: { "27024": [ { ddjFileName: "x.ddj", sourcePath: "y", imagePublicPath: "/z.png" } ] }
+		} )
+	);
 	const fresh = await readTerrainTileLedger();
-	assert.equal( fresh.size, 1, "a v3 ledger is read" );
+	assert.equal( fresh.size, 1, "a v4 ledger is read" );
 });
 
 test("the lightmap publisher emits .texture for block payloads and sweeps the raw sibling", async () => {
@@ -399,6 +397,45 @@ test("a corrupt cache entry is rejected instead of published", async () => {
 			() => publishBlockTextureFile( path.join( extracted, "Map_extracted", "tile2d", ddjName ), second ),
 			/Invalid block container/
 		);
+	} finally {
+		await rm( extracted, { recursive: true, force: true } );
+	}
+});
+
+/*
+================
+A ledger hit whose reference the probe no longer publishes
+
+The builder trusts a recorded tile list only while every reference matches
+the probe; the publisher refuses a stale reference instead of sweeping the
+file the bundle still reads.
+================
+*/
+test("a stale recorded reference is detected and never published under", async () => {
+	const extracted = await mkdtemp( path.join( os.tmpdir(), "sro-block-ledger-hit-" ) );
+	const ddjName = "zzz_test_tile_06.ddj";
+	try {
+		await mkdir( path.join( extracted, "Map_extracted", "tile2d" ), { recursive: true } );
+		await writeFile( path.join( extracted, "Map_extracted", "tile2d", ddjName ), fixtureDdj( { fill: 0x5a } ) );
+		const current = [ {
+			ddjFileName: ddjName,
+			sourcePath: "y",
+			imagePublicPath: terrainTileTexturePublicPath( ddjName )
+		} ];
+		const stale = [ {
+			ddjFileName: ddjName,
+			sourcePath: "y",
+			imagePublicPath: terrainTileImagePublicPath( ddjName )
+		} ];
+		assert.equal( await terrainTileReferencesCurrent( current, extracted ), true );
+		assert.equal( await terrainTileReferencesCurrent( stale, extracted ), false );
+
+		// The bundle still reads the PNG: publishing the container would sweep it.
+		const referencedPng = publicPathToFile( terrainTileImagePublicPath( ddjName ), publicRoot );
+		await mkdir( path.dirname( referencedPng ), { recursive: true } );
+		await writeFile( referencedPng, Buffer.from( "still-referenced" ) );
+		await assert.rejects( () => copyReferencedTerrainTileImages( stale, extracted ), /migrate the bundle first/ );
+		assert.ok( await exists( referencedPng ), "the referenced PNG survives" );
 	} finally {
 		await rm( extracted, { recursive: true, force: true } );
 	}

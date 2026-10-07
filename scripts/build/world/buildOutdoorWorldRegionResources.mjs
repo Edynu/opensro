@@ -19,8 +19,7 @@ import { copyReferencedSkyImages, resolveSkyTextures } from "./assets/copySkyIma
 import {
 	copyReferencedTerrainTileImages,
 	migrateCachedTerrainTileReferences,
-	terrainTileImagePublicPath,
-	terrainTileTexturePublicPath
+	terrainTileReferencesCurrent
 } from "./assets/copyTerrainTileImages.mjs";
 import { copyReferencedWaterImages, resolveWaterTextures } from "./assets/copyWaterImages.mjs";
 import { OUTDOOR_WORLD_REGION_CATALOG_PUBLIC_PATH, overlayWorldRegionCatalog } from "./buildWorldRegionCatalog.mjs";
@@ -50,10 +49,10 @@ const OUTDOOR_WORLD_SHARED_RENDER_PATH = publicPathToFile( OUTDOOR_WORLD_SHARED_
 // can never be "current" while the images it names are missing; a region
 // this ledger does not know yet is read from its bundle once.
 const TERRAIN_TILE_LEDGER_PATH = path.join( generatedRoot, "intermediate", "outdoor-terrain-tiles.json" );
-// v3: a persisted ledger may only skip the bundle read when the version
-// already ran the cached-reference migration - a v2 ledger predates it and
-// would let a stale .png reference survive the sweep.
-const TERRAIN_TILE_LEDGER_VERSION = 3;
+// v4: each ledger tile records the reference its bundle names
+// (imagePublicPath), so a hit is trusted only while every reference still
+// matches the probe; an older ledger cannot tell and is discarded.
+const TERRAIN_TILE_LEDGER_VERSION = 4;
 
 /*
 ================
@@ -94,7 +93,8 @@ copyReferencedTerrainTileImages reads: the ledger stays small.
 function bundleTerrainTiles( bundle ) {
 	return (bundle.terrainTextures?.tileCatalog?.referencedTiles ?? []).map( ( tile ) => ({
 		ddjFileName: tile.ddjFileName,
-		sourcePath: tile.sourcePath
+		sourcePath: tile.sourcePath,
+		imagePublicPath: tile.imagePublicPath
 	}) );
 }
 
@@ -366,6 +366,12 @@ export async function buildOutdoorWorldRegionResources( options = {} ) {
 		if ( !options.force && (await exists( outputPath )) ) {
 			// Reuse keeps the bundle, not a promise that its images still exist.
 			let tiles = tilesByRegion.get( String( sector.id ) );
+			// A ledger hit names the references the bundle held when it was
+			// recorded; when the probe's answer moved since, re-read and migrate
+			// the bundle rather than publish under a reference it does not hold.
+			if ( tiles && !(await terrainTileReferencesCurrent( tiles, sourceExtractedRoot )) ) {
+				tiles = undefined;
+			}
 			if ( !tiles ) {
 				const bundle = JSON.parse( await readFile( outputPath, "utf8" ) );
 				// A cached bundle names the representation it was published with;

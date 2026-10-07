@@ -69,7 +69,8 @@ export function validateNativeTexture( texture: NativeTexture ): number {
 	// Containers carry the levels their source authored - the terrain ships
 	// single-level surfaces exactly as retail sampled them (0x9f8ea0 passes
 	// the file's own count), so a chain anywhere from one level to the full
-	// descent is valid; only a count beyond the dimensions is not.
+	// descent is valid; only a count beyond the dimensions is not. The world
+	// object lane still publishes full chains; its build validates that.
 	if (
 		!Number.isInteger( width ) || !Number.isInteger( height ) || width < 1 || height < 1 ||
 		width > MAX_DIMENSION || height > MAX_DIMENSION || (width & (width - 1)) || (height & (height - 1)) ||

@@ -16,7 +16,7 @@ tile catalog. Coalesce concurrent publishes and never republish the same
 tile during one build process.
 ===========================================================================
 */
-import { copyFile, mkdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { toPublicImagePath } from "../../shared/assetPaths.mjs";
@@ -58,10 +58,27 @@ export async function resolveReferencedTerrainTiles( textureIds, tileCatalog, so
 	} ) );
 }
 
+/*
+================
+copyReferencedTerrainTileImages
+
+Publish what the bundle references. A reference that no longer matches the
+probe's answer is refused: publishing the other representation and sweeping
+the referenced one would orphan the bundle (migrate it first).
+================
+*/
 export async function copyReferencedTerrainTileImages( referencedTiles, sourceExtractedRoot ) {
 	for ( const tile of referencedTiles ) {
 		const ddjPath = tileDdjPath( tile.ddjFileName, sourceExtractedRoot );
 		const blockFormat = await probeBlockTextureFile( ddjPath );
+		const expected = blockFormat ?
+			terrainTileTexturePublicPath( tile.ddjFileName ) :
+			terrainTileImagePublicPath( tile.ddjFileName );
+		if ( tile.imagePublicPath !== undefined && tile.imagePublicPath !== expected ) {
+			throw new Error(
+				`Terrain tile ${tile.ddjFileName} is referenced as ${tile.imagePublicPath} but publishes as ${expected}; migrate the bundle first.`
+			);
+		}
 		const target = path.join(
 			imagePublicRoot,
 			"Map_extracted",
@@ -104,16 +121,45 @@ export async function migrateCachedTerrainTileReferences( bundle, sourceExtracte
 	let migrated = false;
 	for ( const tile of tiles ) {
 		if ( typeof tile?.ddjFileName !== "string" ) continue;
-		const blockFormat = await probeBlockTextureFile( tileDdjPath( tile.ddjFileName, sourceExtractedRoot ) );
-		const next = blockFormat ?
-			terrainTileTexturePublicPath( tile.ddjFileName ) :
-			terrainTileImagePublicPath( tile.ddjFileName );
+		const next = await currentTerrainTilePublicPath( tile.ddjFileName, sourceExtractedRoot );
 		if ( tile.imagePublicPath !== next ) {
 			tile.imagePublicPath = next;
 			migrated = true;
 		}
 	}
 	return migrated;
+}
+
+/*
+================
+terrainTileReferencesCurrent
+
+Whether every recorded reference still names what the probe publishes. A
+ledger hit is only trusted when it does; otherwise the builder re-reads and
+migrates that bundle.
+================
+*/
+export async function terrainTileReferencesCurrent( tiles, sourceExtractedRoot ) {
+	for ( const tile of tiles ) {
+		if ( tile.imagePublicPath !== await currentTerrainTilePublicPath( tile.ddjFileName, sourceExtractedRoot ) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+================
+currentTerrainTilePublicPath
+
+The public path a tile publishes under now: the block container when the
+probe admits its DDJ, else the converted PNG.
+================
+*/
+async function currentTerrainTilePublicPath( ddjFileName, sourceExtractedRoot ) {
+	return (await probeBlockTextureFile( tileDdjPath( ddjFileName, sourceExtractedRoot ) )) ?
+		terrainTileTexturePublicPath( ddjFileName ) :
+		terrainTileImagePublicPath( ddjFileName );
 }
 
 /*
@@ -127,7 +173,6 @@ earlier build left behind; non-block tiles keep the staging PNG copy.
 async function publishTerrainTile( ddjPath, target, sourcePath, block ) {
 	if ( block ) {
 		// Authored levels only, byte remap - see copyTerrainLightmaps.mjs.
-		const { readFile } = await import( "node:fs/promises" );
 		await writeAuthoredBlockContainer( await readFile( ddjPath ), sourcePath, target );
 		const base = target.replace( /\.texture$/, "" );
 		for ( const stale of [ `${base}.png`, `${base}.ddj.png` ] ) {

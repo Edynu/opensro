@@ -196,10 +196,12 @@ never ship a malformed artifact even if the source parse drifted.
 export async function writeAuthoredBlockContainer( bytes, origin, target ) {
 	const container = authoredBlockContainer( bytes, origin );
 	validateAuthoredContainer( container, origin );
-	const { writeFile: write } = await import( "node:fs/promises" );
-	const { mkdir } = await import( "node:fs/promises" );
+	// Staged and renamed into place: a crash mid-write never leaves a
+	// truncated container in the published tree.
 	await mkdir( path.dirname( target ), { recursive: true } );
-	await write( target, container );
+	const staged = `${target}.${randomUUID()}.tmp`;
+	await writeFile( staged, container );
+	await publishFileFromTemp( staged, target );
 }
 
 /*
@@ -238,19 +240,13 @@ function validateAuthoredContainer( bytes, origin ) {
 /*
 ================
 publishBlockTextureFile
-publishBlockTextureBytes
 
-Resolve when the NTX1 container of the authored source exists at target.
-File sources are the converted DDJ textures; byte sources are the embedded
-MAPT lightmaps, which land in the cache as their own source sidecar.
+Resolve when the NTX1 container of the authored source exists at target
+(the world object lane: authored levels plus the generated suffix).
 ================
 */
 export function publishBlockTextureFile( source, target ) {
 	return enqueueBlockTexture( { source, target } );
-}
-
-export function publishBlockTextureBytes( bytes, target ) {
-	return enqueueBlockTexture( { bytes, target } );
 }
 
 const pendingJobs = [];
@@ -341,7 +337,7 @@ async function drainPendingJobs() {
 	try {
 		for ( const entry of batch ) {
 			const { job } = entry;
-			const sourceHash = job.bytes ? sha256Hex( job.bytes ) : await hashFile( job.source );
+			const sourceHash = await hashFile( job.source );
 			const key = sha256Hex( generator + sourceHash );
 			let group = groups.get( key );
 			if ( !group ) {
@@ -349,7 +345,7 @@ async function drainPendingJobs() {
 				group = {
 					cachedTexture,
 					staged: `${cachedTexture}.${randomUUID()}.tmp`,
-					manifestSource: job.bytes ? path.join( BLOCK_TEXTURE_CACHE_DIR, `${key}.dds` ) : job.source,
+					manifestSource: job.source,
 					entries: []
 				};
 				groups.set( key, group );
@@ -361,10 +357,6 @@ async function drainPendingJobs() {
 		await mkdir( BLOCK_TEXTURE_CACHE_DIR, { recursive: true } );
 		for ( const group of groups.values() ) {
 			if ( await exists( group.cachedTexture ) ) continue;
-			const first = group.entries[0].job;
-			if ( first.bytes ) {
-				await writeFile( group.manifestSource, first.bytes );
-			}
 			manifest.push( { source: group.manifestSource, target: group.staged } );
 			stagedDestinations.set( group.staged, group.cachedTexture );
 		}
