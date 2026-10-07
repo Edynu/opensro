@@ -100,7 +100,8 @@ function recordingDevice( context, compressed = true ) {
 		fail: error => errors.push( error ),
 		pipeline: () => /** @type {GPURenderPipeline} */ (/** @type {unknown} */ ({ getBindGroupLayout: () => ({}) })),
 		sampler: /** @type {GPUSampler} */ ({}),
-		generateMips: () => generated++
+		generateMips: () => generated++,
+		generatedMips: () => false
 	} );
 	return {
 		owner,
@@ -175,7 +176,7 @@ test("native admission rejects malformed headers, trailing bytes and incomplete 
 		assert.throws( () => decodeNativeTexture( bytes.slice( 0, size ) ) );
 	}
 	assert.throws( () => decodeNativeTexture( new Uint8Array( [ ...bytes, 0 ] ) ) );
-	for ( const [offset, value] of [ [ 0, 0 ], [ 4, 3 ], [ 8, 16384 ], [ 12, 123 ], [ 16, 2 ] ] ) {
+	for ( const [offset, value] of [ [ 0, 0 ], [ 4, 3 ], [ 8, 16384 ], [ 12, 123 ], [ 16, 9 ] ] ) {
 		const bad = bytes.slice();
 		new DataView( bad.buffer ).setUint32( offset, value, true );
 		assert.throws( () => decodeNativeTexture( bad ) );

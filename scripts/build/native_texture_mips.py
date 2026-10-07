@@ -72,18 +72,28 @@ def level_size(fmt, width, height):
 # the bare DDS payloads embedded in MAPT terrain sectors.
 # ================
 def read_dds(source):
+	# Signature validation first and explicit: a malformed source must fail
+	# loudly as a bad input, never reach the encoder as garbage bytes.
 	data = Path(source).read_bytes()
 	if len(data) > MAX_DDJ_BYTES:
-		raise ValueError(f"Invalid DDJ/DDS input: {source}")
+		raise ValueError(f"DDJ/DDS input exceeds size budget: {source}")
 	if data.startswith(DDJ_SIGNATURE):
 		if len(data) < DDJ_HEADER_SIZE + DDS_HEADER_SIZE:
-			raise ValueError(f"Invalid DDJ/DDS input: {source}")
+			raise ValueError(f"Truncated DDJ wrapper: {source}")
 		dds = data[DDJ_HEADER_SIZE:]
-	elif data.startswith(DDS_SIGNATURE) and len(data) >= DDS_HEADER_SIZE:
+	elif data.startswith(DDS_SIGNATURE):
+		if len(data) < DDS_HEADER_SIZE:
+			raise ValueError(f"Truncated DDS header: {source}")
 		dds = data
 	else:
-		raise ValueError(f"Invalid DDJ/DDS input: {source}")
+		raise ValueError(f"Not a DDJ or DDS source (bad signature): {source}")
+	if dds[: len(DDS_SIGNATURE)] != DDS_SIGNATURE:
+		raise ValueError(f"DDJ wrapper does not contain a DDS payload: {source}")
+	if struct.unpack_from("<I", dds, 4)[0] != 124:
+		raise ValueError(f"Unsupported DDS header size in {source}")
 	height, width = struct.unpack_from("<II", dds, DDS_HEIGHT_WIDTH_OFFSET)
+	if width < 1 or height < 1 or width > 8192 or height > 8192:
+		raise ValueError(f"DDS dimensions out of range in {source}")
 	levels = max(1, struct.unpack_from("<I", dds, DDS_MIP_COUNT_OFFSET)[0])
 	flags, fourcc, bits, red, green, blue = struct.unpack_from("<6I", dds, DDS_PIXEL_FORMAT_OFFSET)
 	if flags & DDPF_FOURCC and fourcc in PILLOW_BCN:

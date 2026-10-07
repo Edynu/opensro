@@ -14,7 +14,7 @@ import { rm } from "node:fs/promises";
 import { publicPathToFile } from "../../shared/assetPaths.mjs";
 import { exists, writePublicFile } from "../io.mjs";
 import { publicRoot } from "../paths.mjs";
-import { probeBlockDdsPayload, publishBlockTextureBytes } from "./blockTextures.mjs";
+import { probeBlockDdsPayload, writeAuthoredBlockContainer } from "./blockTextures.mjs";
 
 export function terrainLightmapPublicPath( area, sectorX, sectorY, block ) {
 	return `/assets/world/${area}/terrain-lightmaps/${sectorY}-${sectorX}.${block ? "texture" : "dds"}`;
@@ -34,7 +34,10 @@ export async function publishTerrainLightmap( area, sectorX, sectorY, payload ) 
 	const publicPath = terrainLightmapPublicPath( area, sectorX, sectorY, block );
 	const target = publicPathToFile( publicPath, publicRoot );
 	if ( block ) {
-		await publishBlockTextureBytes( payload, target );
+		// Authored levels only: retail sampled this DDS with its own level
+		// count (0x9f8ea0 passes the file's count to D3DX), so the container
+		// is a byte remap and no generator runs.
+		await writeAuthoredBlockContainer( payload, publicPath, target );
 	} else {
 		await writePublicFile( publicPath, payload );
 	}

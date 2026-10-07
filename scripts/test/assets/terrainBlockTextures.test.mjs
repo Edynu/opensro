@@ -25,7 +25,8 @@ const {
 	probeBlockDdsPayload,
 	probeBlockTextureFile,
 	publishBlockTextureBytes,
-	publishBlockTextureFile
+	publishBlockTextureFile,
+	writeAuthoredBlockContainer
 } = await import( "../../build/world/assets/blockTextures.mjs" );
 const { publishTerrainLightmap, terrainLightmapPublicPath } = await import(
 	"../../build/world/assets/copyTerrainLightmaps.mjs"
@@ -108,7 +109,7 @@ test("the probe admits power-of-two DXT DDJs and bare DDS payloads, nothing else
 	assert.equal( probeBlockDdsPayload( Buffer.from( "JMXVDDJ 1000 short" ) ), null );
 });
 
-test("block publishes keep the authored base block and serve repeats from the cache", async () => {
+test("the python lane keeps the authored base block and serves repeats from the cache", async () => {
 	const dir = await mkdtemp( path.join( os.tmpdir(), "sro-block-publish-" ) );
 	try {
 		const source = path.join( dir, "tile.ddj" );
@@ -137,6 +138,83 @@ test("block publishes keep the authored base block and serve repeats from the ca
 	} finally {
 		await rm( dir, { recursive: true, force: true } );
 	}
+});
+
+test("terrain containers ship the authored levels only, verbatim", async () => {
+	const dir = await mkdtemp( path.join( os.tmpdir(), "sro-block-authored-" ) );
+	try {
+		// Single-level source (the retail lightmap/tile shape): one level,
+		// the authored blocks byte-for-byte, no generated suffix.
+		const single = path.join( dir, "single.texture" );
+		await writeAuthoredBlockContainer( fixtureDdj(), "single", single );
+		const one = await readFile( single );
+		assert.equal( one.readUInt32LE( 16 ), 1 );
+		assert.equal( one.length, 20 + 8 );
+		assert.ok( one.subarray( 20 ).equals( fixtureDdj().subarray( DDJ_HEADER + DDS_HEADER ) ) );
+
+		// A multi-level source keeps exactly its authored count - retail
+		// sampled the file's own levels, so the remap never adds or drops.
+		const three = path.join( dir, "three.texture" );
+		const authored = fixtureDdj( { levels: 3 } );
+		await writeAuthoredBlockContainer( authored, "three", three );
+		const multi = await readFile( three );
+		assert.equal( multi.readUInt32LE( 16 ), 3 );
+		// Level 0 verbatim; the extent is exactly three levels.
+		assert.ok(
+			multi.subarray( 20, 28 ).equals( authored.subarray( DDJ_HEADER + DDS_HEADER, DDJ_HEADER + DDS_HEADER + 8 ) )
+		);
+		assert.equal( multi.length, 20 + 8 + 8 + 8 );
+
+		// A lying header (count 5 on a 4x4 surface) clamps to the chain the
+		// dimensions describe; a truncated payload fails loudly.
+		const liar = fixtureDdj( { levels: 5 } );
+		const clamped = path.join( dir, "clamped.texture" );
+		await writeAuthoredBlockContainer( liar, "clamped", clamped );
+		assert.equal( (await readFile( clamped )).readUInt32LE( 16 ), 3 );
+
+		const truncated = fixtureDdj();
+		truncated.fill( 0, DDJ_HEADER + DDS_HEADER + 4 );
+		await assert.rejects(
+			() =>
+				writeAuthoredBlockContainer(
+					truncated.subarray( 0, DDJ_HEADER + DDS_HEADER + 4 ),
+					"short",
+					path.join( dir, "bad.texture" )
+				),
+			/truncated authored level/
+		);
+
+		// Bare DDS payloads remap identically (the MAPT lightmap shape).
+		const bare = path.join( dir, "bare.texture" );
+		await writeAuthoredBlockContainer( fixtureDds(), "bare", bare );
+		const bareContainer = await readFile( bare );
+		assert.equal( bareContainer.readUInt32LE( 16 ), 1 );
+		assert.ok( bareContainer.subarray( 20 ).equals( fixtureDds().subarray( DDS_HEADER ) ) );
+	} finally {
+		await rm( dir, { recursive: true, force: true } );
+	}
+});
+
+test("a persisted tile ledger from before the migration is discarded, not trusted", async () => {
+	// The ledger-hit path the review named: a v2 ledger would hand back
+	// cached tiles and skip the bundle-reference migration, letting a stale
+	// .png reference survive the sweep. Version 3 refuses it, so the builder
+	// re-reads those bundles and migrates.
+	const { readTerrainTileLedger } = await import( "../../build/world/buildOutdoorWorldRegionResources.mjs" );
+	const ledgerDir = path.join( generatedRoot, "intermediate" );
+	await mkdir( ledgerDir, { recursive: true } );
+	await writeFile(
+		path.join( ledgerDir, "outdoor-terrain-tiles.json" ),
+		JSON.stringify( { version: 2, regions: { "27024": [ { ddjFileName: "x.ddj", sourcePath: "y" } ] } } )
+	);
+	const stale = await readTerrainTileLedger();
+	assert.equal( stale.size, 0, "a v2 ledger is ignored" );
+	await writeFile(
+		path.join( ledgerDir, "outdoor-terrain-tiles.json" ),
+		JSON.stringify( { version: 3, regions: { "27024": [ { ddjFileName: "x.ddj", sourcePath: "y" } ] } } )
+	);
+	const fresh = await readTerrainTileLedger();
+	assert.equal( fresh.size, 1, "a v3 ledger is read" );
 });
 
 test("the lightmap publisher emits .texture for block payloads and sweeps the raw sibling", async () => {

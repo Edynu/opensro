@@ -24,6 +24,7 @@ export interface ExperimentalOptions {
 	readonly postProcessing: boolean;
 	readonly anisotropicFiltering: boolean;
 	readonly heightFog: boolean;
+	readonly generatedMips: boolean;
 }
 
 /*
@@ -52,7 +53,8 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),
 		anisotropicFiltering: enabled( "anisotropicFiltering" ),
-		heightFog: enabled( "heightFog" )
+		heightFog: enabled( "heightFog" ),
+		generatedMips: enabled( "generatedMips" )
 	};
 }
 
@@ -68,6 +70,7 @@ export interface ExperimentalVideo {
 	readonly postProcessing: boolean;
 	readonly anisotropicFiltering: boolean;
 	readonly heightFog: boolean;
+	readonly generatedMips: boolean;
 }
 
 /*
@@ -79,6 +82,7 @@ export function experimentalVideo( options: ExperimentalOptions ): ExperimentalV
 	return {
 		postProcessing: options.postProcessing,
 		anisotropicFiltering: options.anisotropicFiltering,
-		heightFog: options.heightFog
+		heightFog: options.heightFog,
+		generatedMips: options.generatedMips
 	};
 }

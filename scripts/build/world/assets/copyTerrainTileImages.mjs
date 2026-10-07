@@ -22,7 +22,7 @@ import path from "node:path";
 import { toPublicImagePath } from "../../shared/assetPaths.mjs";
 import { exists } from "../io.mjs";
 import { imagePublicRoot, imageSourceRoot, normalizeAssetPath, toGameRelative } from "../paths.mjs";
-import { probeBlockTextureFile, publishBlockTextureFile } from "./blockTextures.mjs";
+import { probeBlockTextureFile, writeAuthoredBlockContainer } from "./blockTextures.mjs";
 
 const terrainTilePublishJobs = new Map();
 
@@ -126,7 +126,9 @@ earlier build left behind; non-block tiles keep the staging PNG copy.
 */
 async function publishTerrainTile( ddjPath, target, sourcePath, block ) {
 	if ( block ) {
-		await publishBlockTextureFile( ddjPath, target );
+		// Authored levels only, byte remap - see copyTerrainLightmaps.mjs.
+		const { readFile } = await import( "node:fs/promises" );
+		await writeAuthoredBlockContainer( await readFile( ddjPath ), sourcePath, target );
 		const base = target.replace( /\.texture$/, "" );
 		for ( const stale of [ `${base}.png`, `${base}.ddj.png` ] ) {
 			if ( await exists( stale ) ) await rm( stale );

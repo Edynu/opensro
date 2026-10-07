@@ -58,13 +58,14 @@ test("installed MAPT lightmaps reach every sector as block containers with full 
 	const lights = scene.groups.filter( g => g.material.lightmap );
 	assert.equal( lights.length, bundle.terrain.sectors.length );
 	for ( const group of lights ) {
-		// Lightmaps ship as NTX1 bc1 containers (authored blocks plus a
-		// generated mip suffix), not the decoded RGBA the DDS route produced.
+		// Lightmaps ship as NTX1 bc1 containers carrying exactly the
+		// authored levels (the retail client sampled this DDS with its own
+		// single level, 0x9f8ea0) - no generated suffix by default.
 		const decoded = decodeNativeTexture( bytes( group.material.texture ) );
 		assert.equal( decoded.width, 512 );
 		assert.equal( decoded.height, 512 );
 		assert.equal( decoded.format, "bc1-rgba-unorm" );
-		assert.equal( decoded.levels.length, 10 );
+		assert.equal( decoded.levels.length, 1 );
 		assert.ok( validateNativeTexture( decoded ) > 0 );
 		assert.deepEqual( [ ...new Set( group.ranges.map( r => r.lod ) ) ].sort(), [ 0, 1, 2, 3 ] );
 		assert.ok( group.geometry.uvs.every( v => v >= 0 && v <= 1 ) );

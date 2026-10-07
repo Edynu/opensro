@@ -37,6 +37,11 @@ interface ImageDevice {
 	readonly pipeline: () => GPURenderPipeline;
 	readonly sampler: GPUSampler;
 	readonly generateMips: ( texture: GPUTexture, levels: number, layers: number ) => void;
+	// Experimental > Video > Generated mipmaps: when true, a container that
+	// shipped only its authored levels (the terrain's retail-exact single
+	// level) is decoded and uploaded as RGBA with a GPU-generated chain -
+	// the pre-container browser look, as an opt-in.
+	readonly generatedMips: () => boolean;
 }
 
 /*
@@ -81,9 +86,14 @@ export function createImages( device: ImageDevice ) {
 			// therefore use the same fallback as adapters without BC support.
 			const decompress = !!blockBytes && (!gpu.features.has( "texture-compression-bc" ) ||
 				image.width % BLOCK_SIDE !== 0 || image.height % BLOCK_SIDE !== 0);
-			const levels = native ? native.levels.length : mipmaps ?
-				1 + Math.floor( Math.log2( Math.max( image.width, image.height ) ) ) :
-				1;
+			const fullChain = 1 + Math.floor( Math.log2( Math.max( image.width, image.height ) ) );
+			// The experimental chain: an authored-only container (terrain under
+			// its retail-exact default) decodes to RGBA and generates the missing
+			// levels, trading the compressed residency for the smoother browser
+			// look it had before the containers shipped.
+			const generate = !!native && !decompress &&
+				native.levels.length < fullChain && device.generatedMips();
+			const levels = native ? (generate ? fullChain : native.levels.length) : mipmaps ? fullChain : 1;
 			gpu.pushErrorScope( "validation" );
 			try {
 				const texture = gpu.createTexture( {
@@ -100,9 +110,9 @@ export function createImages( device: ImageDevice ) {
 							for ( let level = 0; level < levels; level++ ) {
 								const width = Math.max( 1, image.width >> level ),
 									height = Math.max( 1, image.height >> level );
-								const compressed = !!blockBytes && !decompress;
-								const data = decompress ?
-									decodeNativeTextureLevel( source, level ) :
+								const compressed = !!blockBytes && !decompress && !generate;
+								const data = decompress || generate ?
+									decodeNativeTextureLevel( source, Math.min( level, source.levels.length - 1 ) ) :
 									source.levels[level]!;
 								gpu.queue.writeTexture(
 									{ texture, mipLevel: level, origin: [ 0, 0, layer ] },
