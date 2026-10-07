@@ -383,6 +383,9 @@ the span's sampled allocation in bytes, or null without --heap.
 ================
 */
 export async function createCaptures( page, { dir = null, cpu = false, heap = false, trace = null } = {} ) {
+	// A sampled trace already starts V8's internal CPU profiler. Keep each
+	// capture to one sampler; separate runs also make their overhead explicit.
+	if ( cpu && trace ) throw Error( "Choose --cpu or --trace per run; sampled traces already include CPU profiles" );
 	const cdp = cpu || heap ? await page.context().newCDPSession( page ) : null;
 	if ( dir ) await mkdir( dir, { recursive: true } );
 	if ( cpu ) {

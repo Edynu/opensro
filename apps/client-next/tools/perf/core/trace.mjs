@@ -87,24 +87,34 @@ function labelOf( thread ) {
 ================
 readProfiles
 
-One profile per thread that has a Profile event, rebuilt from its chunks.
+Rebuild each profiler independently: --cpu and --trace can record the same
+thread with overlapping clocks and colliding node IDs. Prefer the internal
+trace sampler, then the longest complete recording of that source. Never
+concatenate independent clocks to make one apparently longer profile.
 ================
 */
-function readProfiles( events, threads ) {
+export function readProfiles( events, threads ) {
 	const owners = new Map();
 	for ( const e of events ) {
 		if ( e.name === "Profile" ) {
-			owners.set( `${e.pid}:${e.id}`, { thread: `${e.pid}/${e.tid}`, start: e.args.data.startTime } );
+			owners.set( `${e.pid}:${e.id}`, {
+				thread: `${e.pid}/${e.tid}`,
+				start: e.args.data.startTime,
+				source: e.args.data.source ?? "unknown"
+			} );
 		}
 	}
-	const profiles = new Map();
+	const recordings = new Map();
 	for ( const e of events ) {
 		if ( e.name !== "ProfileChunk" ) continue;
-		const owner = owners.get( `${e.pid}:${e.id}` );
+		const id = `${e.pid}:${e.id}`, owner = owners.get( id );
 		if ( !owner ) continue;
-		let profile = profiles.get( owner.thread );
+		let profile = recordings.get( id );
 		if ( !profile ) {
 			profile = {
+				id,
+				source: owner.source,
+				threadKey: owner.thread,
 				thread: threads.get( owner.thread ),
 				nodes: new Map(),
 				samples: [],
@@ -113,7 +123,7 @@ function readProfiles( events, threads ) {
 				columns: [],
 				start: owner.start
 			};
-			profiles.set( owner.thread, profile );
+			recordings.set( id, profile );
 		}
 		const data = e.args.data, cpu = data.cpuProfile ?? {};
 		for ( const node of cpu.nodes ?? [] ) profile.nodes.set( node.id, node );
@@ -125,7 +135,8 @@ function readProfiles( events, threads ) {
 			profile.columns.push( data.columns?.[i] ?? 0 );
 		}
 	}
-	for ( const profile of profiles.values() ) {
+	const profiles = new Map();
+	for ( const profile of recordings.values() ) {
 		let t = profile.start;
 		profile.times = profile.deltas.map( d => (t += d) );
 		// Parent links: chunks give parent on the node, or children on the parent.
@@ -135,6 +146,14 @@ function readProfiles( events, threads ) {
 				if ( c && c.parent === undefined ) c.parent = node.id;
 			}
 		}
+		if ( !profile.samples.length ) continue;
+		const previous = profiles.get( profile.threadKey );
+		const preferred = profile.source === "Internal", wasPreferred = previous?.source === "Internal";
+		if (
+			!previous || (preferred && !wasPreferred) ||
+			(preferred === wasPreferred &&
+				profile.times.at( -1 ) - profile.start > previous.times.at( -1 ) - previous.start)
+		) profiles.set( profile.threadKey, profile );
 	}
 	return profiles;
 }
