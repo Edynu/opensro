@@ -44,6 +44,33 @@ export interface CharacterStatistics {
 		readonly clothSamples: number;
 		readonly gpuPaletteSamples: number;
 	};
+	/**
+	 * The last main frame's admitted actors against their culling spheres:
+	 * how many have their sphere centre inside the frustum, and for the rest
+	 * how far outside it sits, in quarters of the radius (outsideShares[0]
+	 * under 1/4 ... [3] 3/4 or more). Diagnostics only; no bound is implied safe.
+	 */
+	readonly cullSlack?: {
+		readonly admitted: number;
+		readonly bodies: number;
+		readonly attachments: number;
+		readonly centreInside: number;
+		readonly outsideShares: readonly number[];
+		readonly meanRadius: number;
+		/** Lone bodies the active-clip candidate radius would reject (cloth not yet included). */
+		readonly activeRejected: number;
+		readonly meanActiveRadius: number;
+		/**
+		 * Lone bodies whose displayed skinned-pose AABB lies wholly outside every
+		 * frustum: a diagnostic ceiling for tighter culling, not a safety proof. It
+		 * excludes live cloth deformation, emissions and independent shadow casters.
+		 */
+		readonly posedHidden?: number;
+		/** Lone bodies the ceiling could not judge (no resident pose or unskinned parts): counted visible. */
+		readonly posedUnknown?: number;
+		/** Of posedHidden, bodies with cloth, judged on its skinned rest shape. */
+		readonly posedCloth?: number;
+	};
 }
 /*
 ================
@@ -249,7 +276,7 @@ export interface Renderer extends Disposable {
 	setUiTexture( id: string, image: ImageBitmap | ImageData | null ): void;
 	retainCharacterModels( ids: readonly string[] ): void;
 	setCharacterAssembly( id: string, base: string, parts: readonly import("./character").CharacterAttachment[] ): void;
-	characterStats( details?: boolean ): CharacterStatistics;
+	characterStats( details?: boolean, posed?: boolean ): CharacterStatistics;
 	setCharacterModel( id: string, model: import("./character").CharacterModel, images: WorldTexture[] ): void;
 	setCharacterAnimation(
 		id: string,
@@ -401,6 +428,12 @@ export interface RuntimeControl extends Disposable {
 	characterActors(): readonly import("./character").CharacterActor[];
 	/** Copied counters and retained-pose eligibility; does not advance animation. */
 	characterStats(): CharacterStatistics;
+	/**
+	 * characterStats plus the posed culling ceiling. Reads displayed-pose
+	 * palettes, which can force CPU pose evaluation: diagnostics only, never
+	 * inside a measured frame window.
+	 */
+	characterCullCensus(): CharacterStatistics;
 	/** Read-only orbit camera the input owner holds (yaw/pitch/distance). */
 	camera(): import("./input").CameraInput;
 	/** Copied last prepared world view; null before preparation or after failure/disposal. */
