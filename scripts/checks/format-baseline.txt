@@ -479,8 +479,6 @@ scripts/build/sparseAssetPackGroupRefresh.mjs
 scripts/build/world/assets/buildDungeonResources.mjs
 scripts/build/world/assets/buildDungeonWorlds.mjs
 scripts/build/world/assets/copyMissionMinimapTileImages.mjs
-scripts/build/world/assets/copyTerrainLightmaps.mjs
-scripts/build/world/assets/copyTerrainTileImages.mjs
 scripts/build/world/assets/dungeonInfo.mjs
 scripts/build/world/assets/dungeonWater.mjs
 scripts/build/world/assets/environment/environmentTracks.mjs
@@ -509,7 +507,6 @@ scripts/build/world/navmesh/buildRegionNavmeshData.mjs
 scripts/build/world/navmesh/parseNavmesh.mjs
 scripts/build/world/objects/compound.mjs
 scripts/build/world/sworld/deriveTitleTerrainSectorCoverage.mjs
-scripts/build/world/sworld/prepareCellTerrainTexture.mjs
 scripts/checks/lib/methodBlock.mjs
 scripts/clean_release_workspace.mjs
 scripts/lib/clipOracleWalkPlane.mjs
