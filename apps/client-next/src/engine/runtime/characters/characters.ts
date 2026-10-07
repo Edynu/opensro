@@ -15,41 +15,26 @@ import { fortressAppearance } from "@/engine/foundation/animation/fortress-appea
 import { movementEntryRate, transitionActionStates } from "@/engine/foundation/animation/action-refresh";
 import { createStatusOwner } from "@/engine/foundation/animation/status-presentation";
 import { defaultWearFrozen, refreshDefaultWear } from "@/engine/foundation/animation/default-wear-policy";
-import { validateEquipmentBranches, equipmentSocket } from "@/engine/foundation/animation/equipment-sockets";
-import { validateEquipmentParticles } from "@/engine/foundation/animation/equipment-particles";
 import { selectAvatarOverride, type AvatarOverrideSelection } from "@/engine/foundation/animation/avatar-override";
 import {
 	assembleEquipmentAppearance,
-	createItemCodenameIndex,
-	type DressCatalog,
 	type SetEntry,
 	wornItemsFromList
 } from "@/engine/foundation/animation/equipment-appearance";
 import { requestCastCancellation } from "@/engine/foundation/gameplay/cast-results";
-import {
-	createAnimationEmission,
-	modelAnimationParticles,
-	type AnimationParticleSet
-} from "@/engine/foundation/animation/animation-emission";
+import { createAnimationEmission, type AnimationParticleSet } from "@/engine/foundation/animation/animation-emission";
 import {
 	COMBAT_STANCE_SECONDS,
 	combatStanceOnCast,
 	combatStanceOnHit
 } from "@/engine/foundation/animation/combat-stance";
-import {
-	createModelAnimation,
-	modelAnimationBindings,
-	modelModifierSets,
-	type ModifierSelector,
-	type ModelAnimationBinding
-} from "@/engine/foundation/animation/model-animation";
+import { createModelAnimation } from "@/engine/foundation/animation/model-animation";
 import { createEntityLod } from "@/engine/foundation/animation/entity-lod";
 import { createAnimationDispatch } from "@/engine/foundation/animation/animation-dispatch";
 import { createModifierDelta } from "@/engine/foundation/rendering/modifier-delta";
 import { animationActivation, type AnimationActivation } from "@/engine/foundation/animation/animation-activation";
 import { createPresentationIds } from "@/engine/foundation/animation/presentation-ids";
-import { createModelEmission, modelAmbientParticles } from "@/engine/foundation/animation/model-emission";
-import { readStructureVisuals, type StructureVisuals } from "@/engine/foundation/rendering/structure-stage";
+import { createModelEmission } from "@/engine/foundation/animation/model-emission";
 import { createStructureVisuals } from "./structure-visuals";
 import type { ModelParticle } from "@/engine/foundation/animation/model-particles";
 import {
@@ -74,7 +59,7 @@ import { createPresentationSamples } from "./presentation-samples";
 import { createCharacterStateIndex } from "./state-index";
 import { createSkillObjects, SKILL_OBJECT_MANIFESTS } from "./skill-objects";
 import { monsterScale, monsterMaterialSlot } from "@/engine/foundation/rendering/monster-scale";
-import { skillSoundRoots, weaponSoundLabel } from "@/engine/foundation/animation/sound-selectors";
+import { weaponSoundLabel } from "@/engine/foundation/animation/sound-selectors";
 import { emoteRoute, emoteAttachments } from "@/engine/foundation/animation/emote";
 import { transitionPosture, postureLayers, type Posture } from "@/engine/foundation/animation/posture";
 import { disappearActor, type Disappear } from "@/engine/foundation/animation/disappear";
@@ -100,13 +85,9 @@ import {
 import { skillMotionResolveAnimation } from "@/engine/foundation/animation/skill-motion-resolve";
 import { CHARACTER_ACTORS } from "@/engine/foundation/animation/character-budget";
 import { createCharacterSelection } from "@/engine/foundation/animation/character-selection";
-import {
-	animationMetadata,
-	weaponAnimationSet,
-	type AnimationMetadata
-} from "@/engine/foundation/animation/animation-metadata";
+import { weaponAnimationSet, type AnimationMetadata } from "@/engine/foundation/animation/animation-metadata";
 import { createCharacterEffects } from "./effects/effects";
-import { createCharacterSounds, type SoundRule } from "./sounds/sounds";
+import { createCharacterSounds } from "./sounds/sounds";
 import { createCharacterResources } from "./resources/resources";
 import { createMallPreview } from "./mall-preview";
 import { characterHeadingYaw } from "@/engine/foundation/math/angles";
@@ -121,51 +102,8 @@ import type { Renderer } from "@/engine/contracts/runtime";
 import type { EntityState } from "@/engine/contracts/world";
 import type { GameplayState } from "@/engine/contracts/gameplay";
 import type { CharacterActor } from "@/engine/contracts/character";
-/*
-================
-Resource
-================
-*/
-interface Resource {
-	particleModifiers?: unknown;
-	animationParticles?: readonly AnimationParticleSet[];
-	animationParticlePaths?: readonly string[];
-	animationBindings?: unknown;
-	modifierSets?: unknown;
-	modifierSelectors?: readonly ModifierSelector[];
-	modifierBindings?: readonly ModelAnimationBinding[];
-	ambientParticles?: readonly ModelParticle[];
-	// The manifest's atstructeffect fields, read into structureVisuals.
-	structureStages?: unknown;
-	structureSounds?: unknown;
-	structureDamageEffects?: unknown;
-	structureVisuals?: StructureVisuals;
-	materialKind?: number;
-	materialVariants?: Readonly<Record<string, string>>;
-	scalePercent?: number;
-	eventRain?: boolean;
-	soundProfileName?: string;
-	animationStates?: Record<string, AnimationMetadata>;
-	codename: string;
-	cover?: Record<string, number>;
-	refObjId: number;
-	glb: string;
-	clips: readonly string[];
-	previewGlb?: string;
-	previewClips?: readonly string[];
-}
-/*
-================
-LinkedRide
-
-A characterInfo "ride" BSR (skilleffect.txt section characterInfo, columns
-Ride Type and ride), published as an npc manifest row of kind "ride".
-================
-*/
-interface LinkedRide {
-	readonly glb: string;
-	readonly clips: readonly string[];
-}
+import { createPresentationCatalog } from "./presentation-catalog";
+import type { PresentationOutput, Resource } from "./internal/presentation-contract";
 /*
 ================
 CharacterFrameProbe
@@ -317,7 +255,6 @@ export function createCharacterPresentation(
 	>();
 	// Presentation-time deadlines survive cast retirement and visibility selection.
 	const combatStanceEnds = new Map<number, number>();
-	const recoveryByCodename = new Map<string, number>();
 	let damageTexts: import("@/engine/contracts/damage-text").DamageText[] = [];
 	let environmentalSequence = 0;
 	const feedback = createDamageFeedback( ( key, at ) => health?.release( key, at ) );
@@ -335,75 +272,65 @@ export function createCharacterPresentation(
 			}
 		>();
 	const allocateActor = createPresentationIds(), lizardGid = allocateActor();
-	let previewReady = false, dockReady = false;
+	// The frame's published results; several phases write them (presentation-contract.ts).
+	const output: PresentationOutput = {
+		displayed: new Map<number, CharacterActor>(),
+		failure: null,
+		cameraTarget: null,
+		cameraFade: null,
+		previewReady: false,
+		dockReady: false,
+		commonReady: false
+	};
 	let rainEventActive = false;
 	const rainEventEntities = new Map<number, number>();
 	const rainEvents:
 		({ kind: "spawn" | "state"; gid: number; refObjId: number; } | { kind: "despawn"; gid: number; } | {
 			kind: "reset";
 		})[] = [];
-	const catalog = new Map<number, Resource>(),
-		states = new Map<number, {
-			modifierId: number;
-			feedbackSettled?: boolean;
-			modifierResource?: Resource;
-			modifierLayers?: readonly import("@/engine/contracts/character").CharacterLayer[];
-			activations?: Map<string, AnimationActivation>;
-			dispatch?: ReturnType<typeof createAnimationDispatch>;
-			modelAnimation?: ReturnType<typeof createModelAnimation>;
-			navigationHold?: {
-				revision: number;
-				pose: import("@/engine/contracts/gameplay").Pose;
-				mode: number | undefined;
-			};
-			actionRevision?: number;
-			actionMode?: number;
-			actionMask?: number;
-			actionInput?: ActionInput;
-			actionHeight?: { from: number; to: number; at: number; };
-			dead?: boolean;
-			sitting?: boolean;
-			postureClip?: string;
-			postureStarted?: number;
-			combatIdle?: {
-				body: Resource;
-				metadata: Record<string, AnimationMetadata> | undefined;
-				set: string;
-				motion: ReturnType<typeof skillMotionResolveAnimation>;
-			};
-			clip: string;
-			started: number;
-			frozenSample?: number;
-			rateSample?: number;
-			rateClock?: number;
-			locomotion?: LocomotionBlend;
-			hitToken?: string;
-			hitStarted?: number;
-			hitCritical?: boolean;
-			pickupRevision?: number;
-			pickupStarted?: number;
-			equipmentParticles?: readonly ModelParticle[];
-			defaultWear?: { resource: Resource; keys: readonly string[]; };
-			fortressIndex?: number;
-		}>();
-	let dress: DressCatalog = {},
-		itemIds: ReadonlyMap<string, number> = new Map(),
-		items: Record<string, {
-			codename: string;
-			dropModelPath?: string;
-			wornModelPath?: string | null;
-		}> = {};
-	let commonReady = false;
-	let dropModels: Record<
-		string,
-		{
-			glb: string;
-			clips: readonly string[];
-			clipLoop: boolean;
-			particleModifiers?: unknown;
-			ambientParticles?: readonly ModelParticle[];
-		}
-	> = {};
+	const states = new Map<number, {
+		modifierId: number;
+		feedbackSettled?: boolean;
+		modifierResource?: Resource;
+		modifierLayers?: readonly import("@/engine/contracts/character").CharacterLayer[];
+		activations?: Map<string, AnimationActivation>;
+		dispatch?: ReturnType<typeof createAnimationDispatch>;
+		modelAnimation?: ReturnType<typeof createModelAnimation>;
+		navigationHold?: {
+			revision: number;
+			pose: import("@/engine/contracts/gameplay").Pose;
+			mode: number | undefined;
+		};
+		actionRevision?: number;
+		actionMode?: number;
+		actionMask?: number;
+		actionInput?: ActionInput;
+		actionHeight?: { from: number; to: number; at: number; };
+		dead?: boolean;
+		sitting?: boolean;
+		postureClip?: string;
+		postureStarted?: number;
+		combatIdle?: {
+			body: Resource;
+			metadata: Record<string, AnimationMetadata> | undefined;
+			set: string;
+			motion: ReturnType<typeof skillMotionResolveAnimation>;
+		};
+		clip: string;
+		started: number;
+		frozenSample?: number;
+		rateSample?: number;
+		rateClock?: number;
+		locomotion?: LocomotionBlend;
+		hitToken?: string;
+		hitStarted?: number;
+		hitCritical?: boolean;
+		pickupRevision?: number;
+		pickupStarted?: number;
+		equipmentParticles?: readonly ModelParticle[];
+		defaultWear?: { resource: Resource; keys: readonly string[]; };
+		fortressIndex?: number;
+	}>();
 	const animationEmission = createAnimationEmission( allocateActor );
 	const stageAnimations = new Map<
 		number,
@@ -429,43 +356,21 @@ export function createCharacterPresentation(
 			play,
 			random,
 			id => {
-				const item = items[String( id )];
-				return item ? { ...item, model: dropModels[item.dropModelPath ?? ""] } : undefined;
+				const item = published.items[String( id )];
+				return item ? { ...item, model: published.dropModels[item.dropModelPath ?? ""] } : undefined;
 			},
 			allocateActor,
 			statusOwner
 		);
-	const animationStates = new Map<string, Record<string, AnimationMetadata>>(),
-		soundProfiles = new Map<string, string>();
-	let skillSounds = skillSoundRoots( [] );
-	const manifests = [
-		"/assets/char/roster.json",
-		"/assets/npc/manifest.json",
-		"/assets/data/missionPresentation.json",
-		"/assets/audio/effectsound.json",
-		"/assets/anim/manifest.json",
-		"/assets/itemdrop/manifest.json",
-		// The skill sound plane and the characterInfo plane, published apart from
-		// the 27,835-row skill catalogue the HUD owns (buildSkillDataAsset.mjs).
-		"/assets/data/skillAudioData.json",
-		"/assets/data/characterActionData.json"
-	];
-	const shadowSizes = new Map<number, number>();
-	const heights = new Map<string, number>(), heightFactors = new Map<string, number>();
-	const bloodEffects = new Map<string, readonly [string | null, string | null]>(),
-		riderModes = new Map<string, number>();
-	const effectAnchors = new Map<string, NonNullable<CharacterActor["effectAnchor"]>>();
+	const published = createPresentationCatalog( { resources, sounds, referenceAppearances } );
 	const posePresentation = createPosePresentation();
 	const selection = createCharacterSelection( CHARACTER_ACTORS );
 	const stateIndex = createCharacterStateIndex();
-	let cameraFade: ({ gid: number; time: number; } & CharacterFade) | null = null;
-	let cameraTarget: import("@/engine/contracts/scene").FollowCameraTarget | null = null;
 	const actionClocks = new Map<number, ActionSchedule>();
 	// Action events of a predicted cast (cast-prediction.ts), held until the
 	// server's cast adopts its clock: effects and sounds belong to that cast.
 	const predictedEvents = new Map<number, ReturnType<typeof advanceAction>["events"]>();
 	const deathFinalizes = new Map<number, number>();
-	const nativeMotionUrls = new Map<string, ReadonlyMap<string, string>>();
 	let warmSkills: readonly number[] | undefined, warmBody: string | undefined;
 	let warmMotions: { role: string; url: string; }[] = [];
 	// A mask's skin (msch 1) replaces the model outright; an msch 3 disguise
@@ -613,7 +518,7 @@ export function createCharacterPresentation(
 	================
 	*/
 	function resourceFor( entity: EntityState ): Resource | undefined {
-		const resource = catalog.get( appearanceRef( entity ) );
+		const resource = published.catalog.get( appearanceRef( entity ) );
 		const staged = resource?.structureVisuals &&
 			structureVisuals.appearance( entity.gid, resource.glb, resource.ambientParticles ?? [] );
 		if ( resource && staged ) return { ...resource, glb: staged.glb, ambientParticles: staged.particles };
@@ -635,9 +540,8 @@ export function createCharacterPresentation(
 	// Appearance topology is independent of pose time. Revalidate resource
 	// readiness each frame, but derive garment/cosmetic parts only on change.
 	const hwanHairActors = new Map<number, { gid: number; started: number; }>();
-	// characterInfo rides: the rider's codename -> its packetless ride model, and
-	// each live rider's presentation-owned ride actor (CICMonster_DeserializeSpawnPacket).
-	const ridesByRider = new Map<string, LinkedRide>();
+	// characterInfo rides: each live rider's presentation-owned ride actor
+	// (CICMonster_DeserializeSpawnPacket); the ride models are published.ridesByRider.
 	const linkedRides = new Map<number, number>();
 	// CIDecoAppear (spawn-fade.ts): each spawned character's ramp start, null
 	// while armed and waiting for its first drawable frame. fadeSeen holds the
@@ -661,8 +565,8 @@ export function createCharacterPresentation(
 		number,
 		{
 			resource: Resource;
-			dress: typeof dress;
-			items: typeof items;
+			dress: typeof published.dress;
+			items: typeof published.items;
 			signature: string;
 			defaultWear: readonly string[];
 			particles: readonly ModelParticle[];
@@ -673,7 +577,6 @@ export function createCharacterPresentation(
 			dependencies: readonly string[];
 		}
 	>();
-	let manifest = 0, failure: string | null = null, displayed = new Map<number, CharacterActor>();
 	let hideSilkCos = false;
 	return {
 		/*
@@ -757,7 +660,7 @@ export function createCharacterPresentation(
 		*/
 		eventRain() {
 			// Preserve delivery order while the character catalogs load.
-			if ( manifest < 2 ) return rainEventActive;
+			if ( published.manifest < 2 ) return rainEventActive;
 			for ( const event of rainEvents ) {
 				if ( event.kind === "reset" ) {
 					combatStanceEnds.clear();
@@ -772,12 +675,14 @@ export function createCharacterPresentation(
 					rainEventActive = false;
 					rainEventEntities.clear();
 				} else if ( event.kind === "despawn" ) {
-					if ( catalog.get( rainEventEntities.get( event.gid ) ?? 0 )?.eventRain ) rainEventActive = false;
+					if ( published.catalog.get( rainEventEntities.get( event.gid ) ?? 0 )?.eventRain ) {
+						rainEventActive = false;
+					}
 					rainEventEntities.delete( event.gid );
 				} else {
 					if (
 						rainEventEntities.get( event.gid ) !== event.refObjId &&
-						catalog.get( event.refObjId )?.eventRain
+						published.catalog.get( event.refObjId )?.eventRain
 					) rainEventActive = true;
 					rainEventEntities.set( event.gid, event.refObjId );
 				}
@@ -838,7 +743,7 @@ export function createCharacterPresentation(
 			const animationDeltaMs = animationDelta( seconds );
 			skillObjects.retain( entities );
 			resources.begin( seconds );
-			failure = null;
+			output.failure = null;
 			const { localMover, logicalPose, samples } = createPresentationSamples( entities, gameplay );
 			posePresentation.samples( samples );
 			const result = resources.poll();
@@ -854,380 +759,21 @@ export function createCharacterPresentation(
 					resources.rejected( result.path, error );
 				}
 			}
-			if ( result && !skillObjectResult ) {
-				try {
-					const decoded = JSON.parse( new TextDecoder( "utf-8", { fatal: true } ).decode( result.buffer ) );
-					const value = decoded as {
-						effectAppearanceStores?: number[][];
-						effectAppearanceReferences?: readonly (readonly [number, number, number])[];
-						skillAudioRows?: string[];
-						recoveryByCodename?: Record<string, number>;
-						models?: Resource[] | Record<string, Resource>;
-						dress?: typeof dress;
-						itemsByRefObjId?: typeof items;
-						rules?: SoundRule[];
-						characterShadowSizes?: readonly (readonly [number, number])[];
-						characterActionEffectRows?: {
-							codename: string;
-							soundProfileName: string;
-							bloodEffects?: readonly [string | null, string | null];
-							riderTransformMode?: number;
-							heightFactor?: number;
-							anchorSocketName?: string | null;
-							anchorOffset?: { x: number; y: number; z: number; };
-						}[];
-					};
-					if ( value.characterShadowSizes ) {
-						for ( const [id, size] of value.characterShadowSizes ) {
-							if (
-								!Number.isSafeInteger( id ) || id <= 0 || !Number.isInteger( size ) || size < 0
-							) throw Error( "Invalid character shadow reference size" );
-							shadowSizes.set( id, size );
-						}
-					}
-					const nextHeights = new Map( heights ),
-						nextHeightFactors = new Map( heightFactors ),
-						nextEffectAnchors = new Map( effectAnchors );
-					const nextSkillSounds = value.skillAudioRows ?
-						skillSoundRoots( value.skillAudioRows ) :
-						skillSounds;
-					const nextCatalog = new Map( catalog ),
-						nextAnimations = new Map( animationStates ),
-						nextProfiles = new Map( soundProfiles ),
-						nextMotionUrls = new Map( nativeMotionUrls );
-					const rows = Object.values( value.models ?? {} ).filter( row => row.refObjId !== undefined );
-					const nextRides = new Map( ridesByRider );
-					for (
-						const row of Object.values( value.models ?? {} ) as (Resource & {
-							kind?: string;
-							requiredBy?: unknown;
-						})[]
-					) {
-						if ( row.kind !== "ride" ) continue;
-						if (
-							typeof row.glb !== "string" || !row.glb.startsWith( "/assets/npc/" ) ||
-							row.glb.includes( ".." ) ||
-							!Array.isArray( row.clips ) || row.clips.some( clip => typeof clip !== "string" ) ||
-							!Array.isArray( row.requiredBy ) || row.requiredBy.some( rider =>
-								typeof rider !== "string"
-							)
-						) throw new Error( "Invalid linked ride" );
-						for ( const rider of row.requiredBy as string[] ) {
-							nextRides.set( rider, { glb: row.glb, clips: row.clips } );
-						}
-					}
-					for ( const row of rows ) {
-						if (
-							(row.scalePercent !== undefined &&
-								(!Number.isFinite( row.scalePercent ) || row.scalePercent <= 0)) ||
-							(row.eventRain !== undefined && typeof row.eventRain !== "boolean") ||
-							!Number.isInteger( row.refObjId ) || typeof row.codename !== "string" ||
-							typeof row.glb !== "string" || !Array.isArray( row.clips ) || row.clips.some( clip =>
-								typeof clip !== "string"
-							)
-						) {
-							throw new Error( "Invalid character manifest" );
-						}
-					}
-					for ( const row of rows ) {
-						if (
-							row.materialKind !== undefined &&
-							(!Number.isInteger( row.materialKind ) || row.materialKind < 0 || row.materialKind > 255)
-						) throw Error( "Invalid monster material kind" );
-						if (
-							row.materialVariants !== undefined &&
-							(typeof row.materialVariants !== "object" || row.materialVariants === null ||
-								Array.isArray( row.materialVariants ) ||
-								Object.entries( row.materialVariants ).some( ( [slot, path] ) =>
-									!/^([1-4])$/.test( slot ) || typeof path !== "string" ||
-									!path.startsWith( "/assets/npc/" ) || path.includes( ".." ) ||
-									!path.endsWith( ".glb" )
-								))
-						) throw Error( "Invalid monster material variants" );
-						const staged = readStructureVisuals( row, modelAmbientParticles );
-						nextCatalog.set( row.refObjId, {
-							...row,
-							...(staged ? { structureVisuals: staged } : {}),
-							ambientParticles: modelAmbientParticles( row.particleModifiers ),
-							animationParticles: modelAnimationParticles( row.particleModifiers ),
-							animationParticlePaths: [
-								...new Set(
-									modelAnimationParticles( row.particleModifiers ).flatMap( s =>
-										s.particles.map( p =>
-											"/assets/effects/programs.json#" + encodeURIComponent( p.effectPath )
-										)
-									)
-								)
-							],
-							modifierBindings: modelAnimationBindings( row.animationBindings ),
-							modifierSelectors: modelModifierSets( row.modifierSets ),
-							animationStates: row.animationStates ? animationMetadata( row.animationStates ) : undefined
-						} );
-					}
-
-					if ( result.path === "/assets/anim/manifest.json" ) {
-						for (
-							const [name, entry] of Object.entries(
-								(decoded as {
-									models: Record<string, Record<string, unknown>>;
-								}).models ?? {}
-							)
-						) {
-							const { soundProfileName, animationSets, ...clips } = entry;
-							const metadata = animationMetadata( clips );
-							if ( metadata.hit && !metadata.hit1 ) metadata.hit1 = metadata.hit;
-							if (
-								animationSets && typeof animationSets === "object" && !Array.isArray( animationSets )
-							) {
-								for ( const [set, states] of Object.entries( animationSets ) ) {
-									if (
-										!states || typeof states !== "object" || Array.isArray( states )
-									) throw new Error( "Invalid animation set" );
-									const rows = states as Record<string, unknown>;
-									const urls = new Map( nextMotionUrls.get( name ) );
-									for ( const [state, value] of Object.entries( rows ) ) {
-										const role = `native:${set}:${state}`, url = (value as { url?: unknown; }).url;
-										if (
-											!/^\d+$/.test( state ) || typeof url !== "string" ||
-											!url.startsWith( "/assets/anim/" ) || !url.endsWith( ".ban" ) ||
-											url.includes( ".." )
-										) throw Error( "Invalid native animation publication" );
-										Object.assign( metadata, animationMetadata( { [role]: value } ) );
-										urls.set( role, url );
-									}
-									nextMotionUrls.set( name, urls );
-									for (
-										const [role, id] of Object.entries( {
-											attack1: 2,
-											attack2: 5,
-											attack3: 16,
-											attack4: 17
-										} )
-									) {
-										if ( rows[String( id )] ) {
-											Object.assign(
-												metadata,
-												animationMetadata( {
-													[`${role}-${set.replaceAll( "_", "-" )}`]: rows[String( id )]
-												} )
-											);
-										}
-									}
-								}
-							}
-							nextAnimations.set( name, metadata );
-							if ( typeof soundProfileName === "string" ) {
-								nextProfiles.set( name, soundProfileName );
-							}
-						}
-					}
-					for ( const row of value.characterActionEffectRows ?? [] ) {
-						if ( !row || typeof row.codename !== "string" || typeof row.soundProfileName !== "string" ) {
-							throw new Error( "Invalid sound profile" );
-						}
-						nextProfiles.set( row.codename, row.soundProfileName );
-						if ( row.bloodEffects ) {
-							if (
-								row.bloodEffects.length !== 2 ||
-								row.bloodEffects.some( p =>
-									p !== null && (typeof p !== "string" || !p.endsWith( ".efp" ) || p.includes( ".." ))
-								)
-							) throw Error( "Invalid character blood resources" );
-							bloodEffects.set( row.codename, row.bloodEffects );
-						}
-						if ( row.riderTransformMode !== undefined ) {
-							riderModes.set( row.codename, row.riderTransformMode );
-						}
-						if ( row.anchorOffset ) {
-							const a = row.anchorOffset;
-							if ( ![ a.x, a.y, a.z ].every( Number.isFinite ) ) {
-								throw Error( "Invalid action effect anchor" );
-							}
-							nextEffectAnchors.set( row.codename, {
-								bone: row.anchorSocketName ?? null,
-								offset: [ a.x, a.y, a.z ]
-							} );
-						}
-						if ( row.heightFactor !== undefined ) {
-							if ( !Number.isFinite( row.heightFactor ) ) throw new Error( "Invalid character height" );
-							nextHeights.set( row.codename, Math.fround( Math.fround( row.heightFactor ) * 20 ) );
-							nextHeightFactors.set( row.codename, Math.fround( row.heightFactor ) );
-						}
-					}
-					if ( value.dress ) {
-						validateEquipmentParticles( value.dress.specialGlows );
-						if (
-							value.dress.defaultWearLanguage !== undefined &&
-							(!Number.isInteger( value.dress.defaultWearLanguage ) ||
-								value.dress.defaultWearLanguage < 0 || value.dress.defaultWearLanguage > 5)
-						) throw Error( "Invalid native clothing language" );
-						for ( const [id, row] of Object.entries( value.dress.avatarVisualOverrides ?? {} ) ) {
-							if (
-								!/^\d+$/.test( id ) || !row || typeof row.animation !== "string" ||
-								!Number.isInteger( row.priority ) || row.priority < 0 || row.priority > 255 ||
-								typeof row.additionalBsr !== "string" ||
-								row.additionalBsr !== "" &&
-									(!row.additionalBsr.startsWith( "res/" ) || !row.additionalBsr.endsWith( ".bsr" ) ||
-										row.additionalBsr.includes( ".." ))
-							) throw Error( "Invalid avatar visual override" );
-						}
-						const equipmentEntries: Record<string, SetEntry> = {};
-						for ( const [id, row] of Object.entries( value.dress.equipment ?? {} ) ) {
-							if (
-								!row || !/^\d+$/.test( id ) ||
-								row.slot !== null && (!Number.isInteger( row.slot ) || row.slot < 0 || row.slot > 8) ||
-								!row.bodies || typeof row.bodies !== "object"
-							) throw Error( "Invalid native equipment reference" );
-							for ( const [body, entry] of Object.entries( row.bodies ) ) {
-								if ( entry !== null ) equipmentEntries[id + body] = entry;
-							}
-						}
-						for ( const entry of Object.values( value.dress.avatarAuxiliary ?? {} ) ) {
-							if (
-								!entry || typeof entry.bone !== "string" || !entry.bone ||
-								!Array.isArray( entry.clips ) || !entry.clips.includes( "stand" ) ||
-								entry.clips.some( clip => typeof clip !== "string" )
-							) throw Error( "Invalid auxiliary avatar" );
-						}
-						for (
-							const entries of [
-								value.dress.hwan ?? {},
-								value.dress.defaultWear ?? {},
-								value.dress.fortressWear ?? {},
-								value.dress.avatarAuxiliary ?? {},
-								equipmentEntries
-							]
-						) {
-							if ( !entries || typeof entries !== "object" || Array.isArray( entries ) ) {
-								throw new Error( "Invalid equipment catalog" );
-							}
-							for ( const entry of Object.values( entries ) ) {
-								if (
-									!entry || typeof entry.glb !== "string" || !entry.glb.startsWith( "/assets/" ) ||
-									entry.glb.includes( ".." ) || !Array.isArray( entry.parts ) ||
-									entry.parts.some( part => typeof part !== "string" )
-								) throw new Error( "Invalid equipment entry" );
-								validateEquipmentBranches( entry.branches );
-								if ( entry.covers ) {
-									for ( const indices of Object.values( entry.covers ) ) {
-										if (
-											!Array.isArray( indices ) ||
-											indices.some( index => !Number.isInteger( index ) || index < 0 )
-										) throw new Error( "Invalid equipment coverage" );
-									}
-								}
-							}
-						}
-					}
-					if ( value.itemsByRefObjId ) {
-						for ( const entry of Object.values( value.itemsByRefObjId ) ) {
-							if ( !entry || typeof entry.codename !== "string" ) {
-								throw new Error( "Invalid item presentation" );
-							}
-						}
-					}
-					let nextDrops = dropModels;
-					if ( result.path === "/assets/itemdrop/manifest.json" ) {
-						if (
-							decoded.format !== "sro-mission-itemdrop-models" || !decoded.models ||
-							typeof decoded.models !== "object" || Array.isArray( decoded.models )
-						) throw new Error( "Invalid drop model catalog" );
-						for (
-							const row of Object.values( decoded.models ) as {
-								glb: string;
-								clips: string[];
-								clipLoop: boolean;
-							}[]
-						) {
-							if (
-								!row || typeof row.glb !== "string" || !row.glb.startsWith( "/assets/itemdrop/" ) ||
-								row.glb.includes( ".." ) || !Array.isArray( row.clips ) || row.clips.some( clip =>
-									typeof clip !== "string"
-								) || typeof row.clipLoop !== "boolean"
-							) throw new Error( "Invalid drop model entry" );
-						}
-						nextDrops = Object.fromEntries(
-							Object.entries( decoded.models as typeof dropModels ).map( (
-								[key, row]
-							) => [ key, { ...row, ambientParticles: modelAmbientParticles( row.particleModifiers ) } ] )
-						);
-					}
-					// No live state changes until every projection has validated.
-					if ( value.recoveryByCodename ) {
-						for ( const [name, period] of Object.entries( value.recoveryByCodename ) ) {
-							if (
-								!name || !Number.isInteger( period ) || period < 0 || period > 0x7fffffff - 500
-							) {
-								throw Error( "Invalid native recovery duration" );
-							}
-						}
-					}
-					if ( value.recoveryByCodename ) {
-						recoveryByCodename.clear();
-						for ( const [name, period] of Object.entries( value.recoveryByCodename ) ) {
-							recoveryByCodename.set( name, period );
-						}
-					}
-					if ( value.rules ) sounds.catalog( value.rules );
-					if ( value.effectAppearanceStores ) {
-						const pools = value.effectAppearanceStores;
-						if (
-							pools.length !== 2 ||
-							pools.some( p => !Array.isArray( p ) || p.some( id => !Number.isInteger( id ) || id <= 0 ) )
-						) throw Error( "Invalid native appearance stores" );
-						// The msch (CSkillData+0x268) references, walked at build time by the
-						// client's own decoder (tooltipAppearanceReferences).
-						const refs = new Map<number, { type: number; cap: number; }>();
-						for ( const row of value.effectAppearanceReferences ?? [] ) {
-							if (
-								!Array.isArray( row ) || row.length !== 3 || !Number.isSafeInteger( row[0] ) ||
-								!Number.isSafeInteger( row[1] ) || !Number.isSafeInteger( row[2] ) || row[0] <= 0 ||
-								refs.has( row[0] )
-							) throw Error( "Invalid native appearance references" );
-							refs.set( row[0], { type: row[1], cap: row[2] } );
-						}
-						referenceAppearances.setReferences( refs, pools );
-					}
-					skillSounds = nextSkillSounds;
-					effectAnchors.clear();
-					for ( const [key, anchor] of nextEffectAnchors ) effectAnchors.set( key, anchor );
-					heights.clear();
-					for ( const [key, height] of nextHeights ) heights.set( key, height );
-					heightFactors.clear();
-					for ( const [key, factor] of nextHeightFactors ) heightFactors.set( key, factor );
-					catalog.clear();
-					for ( const [key, row] of nextCatalog ) catalog.set( key, row );
-					ridesByRider.clear();
-					for ( const [key, row] of nextRides ) ridesByRider.set( key, row );
-					animationStates.clear();
-					for ( const [key, row] of nextAnimations ) animationStates.set( key, row );
-					nativeMotionUrls.clear();
-					for ( const [key, row] of nextMotionUrls ) nativeMotionUrls.set( key, row );
-					soundProfiles.clear();
-					for ( const [key, row] of nextProfiles ) soundProfiles.set( key, row );
-					if ( value.dress ) {
-						dress = value.dress;
-						itemIds = createItemCodenameIndex( dress );
-					}
-					if ( value.itemsByRefObjId ) items = value.itemsByRefObjId;
-					dropModels = nextDrops;
-					manifest++;
-					resources.accepted( result.path );
-				} catch ( error ) {
-					resources.rejected( result.path, error );
-				}
-			}
+			if ( result && !skillObjectResult ) published.admit( result );
 			// An empty roster is an active dock: it must admit the catalog before
 			// dockReady can reveal the button that opens character creation.
-			if ( (entities.length || dock || preview) && manifest < (dock || preview ? 1 : manifests.length) ) {
-				resources.manifest( manifests[manifest]! );
+			if (
+				(entities.length || dock || preview) &&
+				published.manifest < (dock || preview ? 1 : published.manifests.length)
+			) {
+				resources.manifest( published.manifests[published.manifest]! );
 			}
-			if ( manifest === manifests.length ) {
+			if ( published.manifest === published.manifests.length ) {
 				const path = skillObjects.nextManifest( entities );
 				if ( path ) resources.manifest( path );
 			}
-			previewReady = false;
-			dockReady = false;
+			output.previewReady = false;
+			output.dockReady = false;
 			if ( !preview ) {
 				previewDisplay = null;
 				previewShape = null;
@@ -1238,18 +784,18 @@ export function createCharacterPresentation(
 				// Dock and creation actors are dressed through the item catalog
 				// (roster.json, manifest 0); none exists before it is resident.
 				// The gecko needs no catalog and is admitted meanwhile.
-				const catalogResident = manifest > 0;
+				const catalogResident = published.manifest > 0;
 				const rows = !catalogResident ? [] : preview ?
 					[ {
 						id: 0,
 						name: preview.selection.name,
 						deletePending: false,
-						visualLoadout: creationLoadout( preview.selection, itemIds )
+						visualLoadout: creationLoadout( preview.selection, published.itemIds )
 					} ] :
 					dock!.slice( 0, 4 );
 				for ( const [index, row] of rows.entries() ) {
 					try {
-						const resource = [ ...catalog.values() ].find( model =>
+						const resource = [ ...published.catalog.values() ].find( model =>
 							model.codename === row.visualLoadout.modelCodename
 						);
 						if ( !resource ) continue;
@@ -1257,11 +803,11 @@ export function createCharacterPresentation(
 						// items through the same slot visuals as the world. Previews are ownerless.
 						const oldWear = previewWear.get( row.id ),
 							freeze = nativeServerName !== undefined &&
-								defaultWearFrozen( dress.defaultWearLanguage ?? 4, nativeServerName );
+								defaultWearFrozen( published.dress.defaultWearLanguage ?? 4, nativeServerName );
 						const assembly = assembleEquipmentAppearance( {
 							resource,
-							dress,
-							equipment: wornItemsFromList( row.visualLoadout.items, dress ),
+							dress: published.dress,
+							equipment: wornItemsFromList( row.visualLoadout.items, published.dress ),
 							avatars: row.visualLoadout.avatars,
 							hwanHair: false,
 							mounted: false,
@@ -1303,7 +849,7 @@ export function createCharacterPresentation(
 									deleted: row.deletePending,
 									started: seconds,
 									transition: row.deletePending ? "charselect-state13" : "charselect-state15",
-									previous: displayed.get( row.id )
+									previous: output.displayed.get( row.id )
 								};
 								dockStates.set( row.id, state );
 							}
@@ -1369,7 +915,7 @@ export function createCharacterPresentation(
 						} );
 						if ( preview ) previewDisplay = { actor: actors.at( -1 )!, paths };
 					} catch ( error ) {
-						failure = String( error );
+						output.failure = String( error );
 					}
 				}
 				for ( const id of previewWear.keys() ) {
@@ -1379,7 +925,7 @@ export function createCharacterPresentation(
 					if ( preview || !rows.some( row => row.id === id ) ) dockStates.delete( id );
 				}
 				// Count only complete roster assemblies before auxiliary actors enter.
-				dockReady = catalogResident && !preview && actors.length === rows.length;
+				output.dockReady = catalogResident && !preview && actors.length === rows.length;
 				if ( lizard && !preview ) {
 					const path = "/assets/character-select/interface_lizard.glb";
 					if ( resources.ready( path ) ) {
@@ -1414,8 +960,9 @@ export function createCharacterPresentation(
 						const selection = { ...preview.selection, gender };
 						const [firstFigure, lastFigure] = creationRange( selection, "figure" );
 						for ( let figure = firstFigure; figure <= lastFigure; figure++ ) {
-							const codename = creationLoadout( { ...selection, figure }, itemIds ).modelCodename;
-							const model = [ ...catalog.values() ].find( row => row.codename === codename );
+							const codename =
+								creationLoadout( { ...selection, figure }, published.itemIds ).modelCodename;
+							const model = [ ...published.catalog.values() ].find( row => row.codename === codename );
 							if ( model?.previewGlb ) paths.add( model.previewGlb );
 						}
 						const [firstWeapon, lastWeapon] = creationRange( selection, "weapon" );
@@ -1423,24 +970,24 @@ export function createCharacterPresentation(
 							const equipped = { ...selection, weapon };
 							const [firstProtector, lastProtector] = creationRange( equipped, "protector" );
 							for ( let protector = firstProtector; protector <= lastProtector; protector++ ) {
-								const loadout = creationLoadout( { ...equipped, protector }, itemIds );
+								const loadout = creationLoadout( { ...equipped, protector }, published.itemIds );
 								const body = (selection.race === 0 ? "EU" : "CH") + "_" + (gender === 0 ? "M" : "W");
 								for ( const item of loadout.items ) {
-									const entry = dress.equipment?.[String( item.refObjId )]?.bodies[body];
+									const entry = published.dress.equipment?.[String( item.refObjId )]?.bodies[body];
 									if ( entry ) paths.add( entry.glb );
 								}
 							}
 						}
 						const prefix = (selection.race === 0 ? "EU" : "CH") + "_" + (gender === 0 ? "M" : "W") + "_";
-						for ( const [key, entry] of Object.entries( dress.defaultWear ?? {} ) ) {
+						for ( const [key, entry] of Object.entries( published.dress.defaultWear ?? {} ) ) {
 							if ( key.startsWith( prefix ) ) paths.add( entry.glb );
 						}
 					}
-					previewReady = actors.length === 1;
+					output.previewReady = actors.length === 1;
 					for ( const path of paths ) {
 						// Do not short-circuit: ready owns bounded incremental admission.
 						const ready = resources.ready( path );
-						previewReady = ready && previewReady;
+						output.previewReady = ready && output.previewReady;
 					}
 				}
 				if ( preview && !actors.length && previewDisplay ) {
@@ -1450,7 +997,7 @@ export function createCharacterPresentation(
 						time: seconds
 					} );
 				}
-				displayed = new Map( actors.map( actor => [ actor.gid, actor ] ) );
+				output.displayed = new Map( actors.map( actor => [ actor.gid, actor ] ) );
 				actors.push(
 					...scenery.step(
 						renderer.scenery?.() ?? null,
@@ -1459,13 +1006,13 @@ export function createCharacterPresentation(
 						CHARACTER_ACTORS - actors.length
 					)
 				);
-				cameraTarget = null;
+				output.cameraTarget = null;
 				renderer.setCharacterActors( actors );
 				resources.retainWanted( actors.map( actor => actor.model ) );
 				return;
 			}
 			for ( const gid of retiring ) {
-				const actor = displayed.get( gid );
+				const actor = output.displayed.get( gid );
 				if ( actor ) {
 					const id = allocateActor(), state = states.get( gid );
 					const animation = state?.modifierResource && state.dispatch && state.modelAnimation ?
@@ -1488,7 +1035,7 @@ export function createCharacterPresentation(
 						particles: modelEmission.transfer( gid, id ),
 						animation,
 						children: [ ...(auxiliaryActors.get( gid )?.values() ?? []) ].flatMap( child => {
-							const actor = displayed.get( child.gid );
+							const actor = output.displayed.get( child.gid );
 							return actor ? [ actor ] : [];
 						} ).map( child => ({ ...child, attachment: { ...child.attachment!, gid: id } }) )
 					} );
@@ -1517,16 +1064,17 @@ export function createCharacterPresentation(
 				const paths = displayedDependencies.get( entity.gid );
 				if ( paths ) resources.plan( paths );
 				else if ( priority( entity ) < 2 ) {
-					const resource = catalog.get( appearanceRef( entity ) );
+					const resource = published.catalog.get( appearanceRef( entity ) );
 					if ( resource ) resources.plan( [ resource.glb ] );
 				}
 			}
 			// Baseline drops own residency before one-shot combat effects compete.
-			commonReady = manifest === manifests.length && !!local && displayed.has( local.gid );
-			if ( gameplay?.localGid && commonReady ) {
+			output.commonReady = published.manifest === published.manifests.length && !!local &&
+				output.displayed.has( local.gid );
+			if ( gameplay?.localGid && output.commonReady ) {
 				for ( const key of GOLD_DROP_MODELS ) {
-					const model = dropModels[key];
-					if ( model && !resources.ready( model.glb ) ) commonReady = false;
+					const model = published.dropModels[key];
+					if ( model && !resources.ready( model.glb ) ) output.commonReady = false;
 				}
 			}
 			probe?.detailEnd( "presentation-selection" );
@@ -1557,7 +1105,7 @@ export function createCharacterPresentation(
 			// Warm learned motions through the character resource owner. BANs
 			// stay shared by body/role; no per-cast mesh or texture rebuild.
 			if ( local ) {
-				const body = resourceFor( local ), urls = body && nativeMotionUrls.get( body.codename );
+				const body = resourceFor( local ), urls = body && published.nativeMotionUrls.get( body.codename );
 				if ( body && urls && effects.loaded() ) {
 					if ( warmSkills !== gameplay?.skills || warmBody !== body.glb ) {
 						warmSkills = gameplay?.skills;
@@ -1621,7 +1169,7 @@ export function createCharacterPresentation(
 						weapon ?
 						weaponSoundLabel( weapon.typeFlags ) :
 						"PUNCH",
-					skill: skillSounds.get( skill )?.[player ? 1 : 0],
+					skill: published.skillSounds.get( skill )?.[player ? 1 : 0],
 					critical,
 					berserk: entity.appearanceState?.[2] === 1
 				};
@@ -1632,7 +1180,7 @@ export function createCharacterPresentation(
 				const event of structureVisuals.step(
 					entities.flatMap( entity => {
 						const staged = entity.kind === "structure" ?
-							catalog.get( appearanceRef( entity ) )?.structureVisuals :
+							published.catalog.get( appearanceRef( entity ) )?.structureVisuals :
 							undefined;
 						return staged ? [ { entity, visuals: staged, hp: vitalsByGid.get( entity.gid )?.hp } ] : [];
 					} ),
@@ -1642,12 +1190,12 @@ export function createCharacterPresentation(
 				// Camera scripts run on the presentation clock, like the skill shakes.
 				if ( event.shake ) effects.structureShake( seconds * 1000 );
 				const entity = entitiesByGid.get( event.gid ),
-					resource = entity ? catalog.get( appearanceRef( entity ) ) : undefined;
+					resource = entity ? published.catalog.get( appearanceRef( entity ) ) : undefined;
 				if ( !entity || !resource || !event.handle ) continue;
 				const pose = logicalPose( entity );
 				sounds.emit(
 					`structure:${event.gid}:${event.handle}:${seconds}`,
-					resource.soundProfileName ?? soundProfiles.get( resource.codename ) ?? resource.codename,
+					resource.soundProfileName ?? published.soundProfiles.get( resource.codename ) ?? resource.codename,
 					[ event.handle ],
 					soundContext( entity ),
 					[ (pose.regionId & 255) * 1920 + pose.x, pose.y, (pose.regionId >>> 8) * 1920 + pose.z ],
@@ -1688,8 +1236,8 @@ export function createCharacterPresentation(
 									role,
 									clips: resource.clips,
 									bodyStates: resource.animationStates,
-									catalogStates: animationStates.get( resource.codename ),
-									motionUrls: nativeMotionUrls.get( resource.codename )
+									catalogStates: published.animationStates.get( resource.codename ),
+									motionUrls: published.nativeMotionUrls.get( resource.codename )
 								} );
 								if ( !resolved ) return undefined;
 								if (
@@ -1710,13 +1258,14 @@ export function createCharacterPresentation(
 								resource.clips.includes( role ) ?
 								role :
 								"";
-							const definition = (resource.animationStates ?? animationStates.get( resource.codename ))
-								?.[clip];
+							const definition =
+								(resource.animationStates ?? published.animationStates.get( resource.codename ))
+									?.[clip];
 							return definition ? { clip, definition } : undefined;
 						} )
 					);
 					if ( alternatives.some( table => table.some( phase => phase === undefined ) ) ) {
-						failure = `Missing action phase timeline ${resource.codename}`;
+						output.failure = `Missing action phase timeline ${resource.codename}`;
 						continue;
 					}
 					if ( loading ) continue;
@@ -1860,7 +1409,7 @@ export function createCharacterPresentation(
 					const cursor = trigger.event === 0 ?
 						0 :
 						phase?.definition.trackEvents.filter( row => row.eventCode === 1 )[trigger.event - 1]?.cursorMs;
-					const rows = [ ...displayed.values() ].map( actor => {
+					const rows = [ ...output.displayed.values() ].map( actor => {
 						const entity = entitiesByGid.get( actor.gid ),
 							native = entity ? logicalPose( entity ) : undefined;
 						const sampled = native ? posePresentation.pose( actor.gid, native, seconds ) : undefined;
@@ -1898,7 +1447,7 @@ export function createCharacterPresentation(
 					} );
 					return renderer.characterSocket( rows, gid, { name: bone, fallback: "mount-root" }, offset );
 				},
-				[ ...displayed.values() ],
+				[ ...output.displayed.values() ],
 				effectDetail,
 				bloodEnabled
 			);
@@ -1907,12 +1456,13 @@ export function createCharacterPresentation(
 			referenceAppearances.step( effects.attachedInstances() );
 			for ( const event of effects.takeActivations() ) {
 				const entity = entitiesByGid.get( event.gid ),
-					resource = entity ? catalog.get( appearanceRef( entity ) ) : undefined;
+					resource = entity ? published.catalog.get( appearanceRef( entity ) ) : undefined;
 				if ( entity && resource ) {
 					const pose = logicalPose( entity );
 					sounds.emit(
 						`activate:${event.gid}:${event.skill}:${event.at}`,
-						resource.soundProfileName ?? soundProfiles.get( resource.codename ) ?? resource.codename,
+						resource.soundProfileName ?? published.soundProfiles.get( resource.codename ) ??
+							resource.codename,
 						[ "SND_ACTIVATE" ],
 						soundContext( entity, event.skill ),
 						[ (pose.regionId & 255) * 1920 + pose.x, pose.y, (pose.regionId >>> 8) * 1920 + pose.z ],
@@ -2000,11 +1550,11 @@ export function createCharacterPresentation(
 						seconds
 					);
 					if ( impact.type === 2 && seconds - at <= .25 ) {
-						const resource = catalog.get( target.refObjId );
+						const resource = published.catalog.get( target.refObjId );
 						if ( resource ) {
 							sounds.emit(
 								"block:" + key,
-								resource.soundProfileName ?? soundProfiles.get( resource.codename ) ??
+								resource.soundProfileName ?? published.soundProfiles.get( resource.codename ) ??
 									resource.codename,
 								[ "SND_BLOCKING" ],
 								soundContext( target, 0, !!(impact.flags & 2) ),
@@ -2043,7 +1593,7 @@ export function createCharacterPresentation(
 					effects.impactSource( caster?.gid, target.gid, gameplay?.attachedEffects ?? [], cast ) :
 					{ gid: cast.caster, skill: hit.soundSkill ?? 0, defensive: false };
 				if ( effectDetail && caster && hit.source !== "hawk" ) {
-					const shown = [ ...displayed.values() ].map( actor => {
+					const shown = [ ...output.displayed.values() ].map( actor => {
 							const entity = entitiesByGid.get( actor.gid );
 							if ( !entity ) return actor;
 							const pose = posePresentation.pose( actor.gid, logicalPose( entity ), seconds );
@@ -2062,15 +1612,17 @@ export function createCharacterPresentation(
 						victim = shown.find( a => a.gid === target.gid ),
 						matrix = source ? renderer.characterMatrix?.( shown, caster.gid ) : null;
 					if ( source && victim && matrix ) {
-						const targetResource = catalog.get( appearanceRef( target ) ),
-							anchor = targetResource ? effectAnchors.get( targetResource.codename ) : undefined;
+						const targetResource = published.catalog.get( appearanceRef( target ) ),
+							anchor = targetResource ?
+								published.effectAnchors.get( targetResource.codename ) :
+								undefined;
 						const bone = anchor?.bone ?
 							renderer.characterLocalMatrix( shown, target.gid, anchor.bone ) :
 							null;
 						const ride = target.mountedOn ? entitiesByGid.get( target.mountedOn ) : undefined,
-							rideResource = ride ? catalog.get( ride.refObjId ) : undefined;
+							rideResource = ride ? published.catalog.get( ride.refObjId ) : undefined;
 						const saddle =
-							anchor?.bone && ride && rideResource && !riderModes.get( rideResource.codename ) ?
+							anchor?.bone && ride && rideResource && !published.riderModes.get( rideResource.codename ) ?
 								renderer.characterLocalMatrix( shown, ride.gid, "saddle" ) :
 								null;
 						const point = hit.source === "cast" ?
@@ -2095,7 +1647,7 @@ export function createCharacterPresentation(
 								hit.source === "flush" || (hit.secondary ?? false),
 								point,
 								basis,
-								targetResource ? bloodEffects.get( targetResource.codename ) : undefined,
+								targetResource ? published.bloodEffects.get( targetResource.codename ) : undefined,
 								bloodEnabled,
 								seconds,
 								resources.ready
@@ -2104,7 +1656,7 @@ export function createCharacterPresentation(
 					}
 				}
 				const emitter = entitiesByGid.get( route.gid ),
-					resource = emitter ? catalog.get( emitter.refObjId ) : undefined;
+					resource = emitter ? published.catalog.get( emitter.refObjId ) : undefined;
 				// 8E3800 passes a null action owner to 8D5440. Its hawk hit
 				// does not dispatch the holder's SND_DMG/critical cues.
 				if (
@@ -2115,7 +1667,8 @@ export function createCharacterPresentation(
 					sounds.impact(
 						"impact:" + key,
 						emitter.gid,
-						resource.soundProfileName ?? soundProfiles.get( resource.codename ) ?? resource.codename,
+						resource.soundProfileName ?? published.soundProfiles.get( resource.codename ) ??
+							resource.codename,
 						route.defensive ?
 							[ "SND_DDMG" ] :
 							context.critical ?
@@ -2152,7 +1705,7 @@ export function createCharacterPresentation(
 			probe?.detailBegin( "presentation-state" );
 			for ( const entity of entities ) {
 				if ( entity.groundItem ) continue;
-				const resource = catalog.get( appearanceRef( entity ) );
+				const resource = published.catalog.get( appearanceRef( entity ) );
 				if ( !resource ) continue;
 				const pose = logicalPose( entity );
 				let entry = idleStates.get( entity.gid );
@@ -2181,9 +1734,9 @@ export function createCharacterPresentation(
 					entry.posture = transitionPosture( entry.posture, { kind: "cancel" } );
 				} else {
 					if ( hit?.downAt !== undefined ) {
-						const recoveryMs = recoveryByCodename.get( resource.codename );
+						const recoveryMs = published.recoveryByCodename.get( resource.codename );
 						if ( recoveryMs === undefined ) {
-							failure = `Missing native recovery duration ${resource.codename}`;
+							output.failure = `Missing native recovery duration ${resource.codename}`;
 						} else {entry.posture = transitionPosture( entry.posture, {
 								kind: "down",
 								at: hit.downAt,
@@ -2222,7 +1775,8 @@ export function createCharacterPresentation(
 							kind: "tick",
 							at: seconds,
 							duration: resources.duration( resource.glb, role ) ||
-								((resource.animationStates ?? animationStates.get( resource.codename ))?.[role]
+								((resource.animationStates ?? published.animationStates.get( resource.codename ))
+										?.[role]
 										?.durationMs ?? 0) / 1000
 						} );
 					}
@@ -2251,7 +1805,8 @@ export function createCharacterPresentation(
 					random.range,
 					role =>
 						resources.duration( resource.glb, role ) ||
-						((resource.animationStates ?? animationStates.get( resource.codename ))?.[role]?.durationMs ??
+						((resource.animationStates ?? published.animationStates.get( resource.codename ))?.[role]
+								?.durationMs ??
 								0) / 1000
 				);
 				entry.x = pose.x;
@@ -2290,9 +1845,10 @@ export function createCharacterPresentation(
 						continue;
 					}
 					if ( entity.groundItem ) {
-						const item = items[String( entity.refObjId )], drop = dropModels[item?.dropModelPath ?? ""];
+						const item = published.items[String( entity.refObjId )],
+							drop = published.dropModels[item?.dropModelPath ?? ""];
 						if ( !drop ) {
-							if ( manifest === manifests.length ) {
+							if ( published.manifest === published.manifests.length ) {
 								throw Error( "Missing authored drop model for item " + entity.refObjId );
 							}
 							continue;
@@ -2300,7 +1856,7 @@ export function createCharacterPresentation(
 						const gold = (entity.groundItem.typeFlags & 0x60) === 0x60 &&
 							(entity.groundItem.typeFlags & 0x780) === 0x280;
 						const fanfare = gold && entity.groundItem.appear !== undefined ?
-							dropModels["item/etc/drop_ch_money_ing.bsr"] :
+							published.dropModels["item/etc/drop_ch_money_ing.bsr"] :
 							undefined;
 						if ( gold && entity.groundItem.appear !== undefined && !fanfare ) {
 							throw Error( "Missing native gold fanfare model" );
@@ -2350,11 +1906,12 @@ export function createCharacterPresentation(
 					// Character-info supplies native height, hit anchors and audio.
 					// A retried manifest can leave models resident first; do not
 					// publish incomplete bodies to next frame's effect owner.
-					if ( manifest < manifests.length ) continue;
+					if ( published.manifest < published.manifests.length ) continue;
 					const resource = resourceFor( entity );
 					if ( !resource ) continue;
 					if ( !resources.ready( resource.glb ) ) {
-						const previous = displayed.get( entity.gid ), paths = displayedDependencies.get( entity.gid );
+						const previous = output.displayed.get( entity.gid ),
+							paths = displayedDependencies.get( entity.gid );
 						if ( previous && paths && resources.plan( paths ) ) {
 							next.set( entity.gid, previous );
 							displayedDependencies.set( entity.gid, paths );
@@ -2375,7 +1932,8 @@ export function createCharacterPresentation(
 					let overrideCommit: readonly number[] | undefined = [];
 					let defaultWearCommit: readonly string[] | undefined = [];
 					const fallback = () => {
-						const previous = displayed.get( entity.gid ), paths = displayedDependencies.get( entity.gid );
+						const previous = output.displayed.get( entity.gid ),
+							paths = displayedDependencies.get( entity.gid );
 						if ( previous && paths && resources.plan( paths ) ) {
 							auxiliaryCommit = undefined;
 							overrideCommit = undefined;
@@ -2396,11 +1954,11 @@ export function createCharacterPresentation(
 							// go through the ordinary slot visuals and compound refresh.
 							const parts = assembleEquipmentAppearance( {
 									resource,
-									dress,
+									dress: published.dress,
 									equipment: referenceAppearanceItems(
 										disguise,
 										resource.codename.includes( "_MAN_" ),
-										itemIds
+										published.itemIds
 									),
 									avatars: [],
 									hwanHair: false,
@@ -2412,7 +1970,7 @@ export function createCharacterPresentation(
 									ownerless: false,
 									committedWear: [],
 									freezeWear: nativeServerName !== undefined &&
-										defaultWearFrozen( dress.defaultWearLanguage ?? 4, nativeServerName )
+										defaultWearFrozen( published.dress.defaultWearLanguage ?? 4, nativeServerName )
 								} ).parts,
 								paths = [ resource.glb, ...parts.map( p => p.model ) ];
 							if ( resources.plan( paths ) ) {
@@ -2422,13 +1980,16 @@ export function createCharacterPresentation(
 							} else model = fallback();
 						} else if (
 							(skin || entity.gid === gameplay?.localGid || entity.equipment || avatars.length) &&
-							manifest >= 3
+							published.manifest >= 3
 						) {
 							const equipment = wornEquipment( entity, gameplay );
 							const weaponHidden = effects.appearance( entity.gid ).weaponHidden;
 							const hwanHair = entity.appearanceState?.[2] === 1 &&
 								resource.codename.startsWith( "CHAR_CH_" );
-							const freezeWear = defaultWearFrozen( dress.defaultWearLanguage ?? 4, nativeServerName );
+							const freezeWear = defaultWearFrozen(
+								published.dress.defaultWearLanguage ?? 4,
+								nativeServerName
+							);
 							const player = entity.kind === "player" || entity.kind === "local-player",
 								local = localEntity;
 							const fortressIndex = player && local ?
@@ -2454,13 +2015,14 @@ export function createCharacterPresentation(
 								wornSignature( equipment ) + "|" + avatarSignature( avatars );
 							let appearance = appearances.get( entity.gid );
 							if (
-								!appearance || appearance.resource !== resource || appearance.dress !== dress ||
-								appearance.items !== items || appearance.signature !== signature
+								!appearance || appearance.resource !== resource ||
+								appearance.dress !== published.dress ||
+								appearance.items !== published.items || appearance.signature !== signature
 							) {
 								const committedWear = states.get( entity.gid )?.defaultWear;
 								const assembly = assembleEquipmentAppearance( {
 									resource,
-									dress,
+									dress: published.dress,
 									equipment,
 									avatars,
 									hwanHair,
@@ -2480,8 +2042,8 @@ export function createCharacterPresentation(
 								];
 								appearance = {
 									resource,
-									dress,
-									items,
+									dress: published.dress,
+									items: published.items,
 									signature,
 									defaultWear,
 									particles,
@@ -2515,7 +2077,7 @@ export function createCharacterPresentation(
 							}
 						}
 					} catch ( error ) {
-						failure = String( error );
+						output.failure = String( error );
 						model = fallback();
 					}
 					if ( sampleActorDetails ) probe?.detailBegin( "actor-motion" );
@@ -2529,12 +2091,16 @@ export function createCharacterPresentation(
 					const previousOverride = avatarOverrides.get( entity.gid );
 					const selectedOverride = overrideCommit === undefined ?
 						previousOverride :
-						selectAvatarOverride( previousOverride, overrideCommit, dress?.avatarVisualOverrides ?? {} );
+						selectAvatarOverride(
+							previousOverride,
+							overrideCommit,
+							published.dress?.avatarVisualOverrides ?? {}
+						);
 					if ( selectedOverride ) avatarOverrides.set( entity.gid, selectedOverride );
 					const overrideChanged = previousOverride?.selected !== selectedOverride?.selected;
 					const override = selectedOverride?.selected === undefined ?
 						undefined :
-						dress?.avatarVisualOverrides?.[selectedOverride.selected];
+						published.dress?.avatarVisualOverrides?.[selectedOverride.selected];
 					const authorityDead = entity.appearanceState?.[0] !== undefined ?
 						entity.appearanceState[0] === 2 :
 						vitalsByGid.get( entity.gid )?.hp === 0;
@@ -2695,7 +2261,7 @@ export function createCharacterPresentation(
 						motionSet = override?.animation || weaponSet?.replaceAll( "-", "_" );
 					let combatIdle: ReturnType<typeof skillMotionResolveAnimation>;
 					if ( (combatStanceEnds.get( entity.gid ) ?? -Infinity) > seconds ) {
-						const metadata = animationStates.get( resource.codename ),
+						const metadata = published.animationStates.get( resource.codename ),
 							stanceSet = !entity.mountedOn && motionSet || "default";
 						if (
 							state.combatIdle?.body !== resource || state.combatIdle.metadata !== metadata ||
@@ -2716,7 +2282,7 @@ export function createCharacterPresentation(
 									clips: resource.clips,
 									bodyStates: resource.animationStates,
 									catalogStates: metadata,
-									motionUrls: nativeMotionUrls.get( resource.codename )
+									motionUrls: published.nativeMotionUrls.get( resource.codename )
 								} )
 							};
 						}
@@ -2745,9 +2311,9 @@ export function createCharacterPresentation(
 						(baseRole === "run" || baseRole === "walk" || baseRole === "stand")
 					) {
 						const role = `native:${motionSet}:${baseRole === "run" ? 7 : baseRole === "walk" ? 1 : 0}`;
-						const definition = animationStates.get( resource.codename )?.[role] ??
+						const definition = published.animationStates.get( resource.codename )?.[role] ??
 								resource.animationStates?.[role],
-							url = nativeMotionUrls.get( resource.codename )?.get( role );
+							url = published.nativeMotionUrls.get( resource.codename )?.get( role );
 						if (
 							definition &&
 							(resource.clips.includes( role ) || url && resources.animation( resource.glb, role, url ))
@@ -2781,7 +2347,7 @@ export function createCharacterPresentation(
 						let committed = false;
 						const previousDefinition = previousOverride?.selected === undefined ?
 							undefined :
-							dress?.avatarVisualOverrides?.[previousOverride.selected];
+							published.dress?.avatarVisualOverrides?.[previousOverride.selected];
 						for ( const effect of refresh.effects ) {
 							if ( effect.kind === "commit" ) {
 								committed = true;
@@ -2789,12 +2355,12 @@ export function createCharacterPresentation(
 							}
 							if ( effect.kind === "navigation" ) continue;
 							if ( effect.kind === "feet" ) {
-								const actor = displayed.get( entity.gid );
+								const actor = output.displayed.get( entity.gid );
 								if ( actor ) {
 									for ( const right of [ false, true ] ) {
 										footContact(
 											entity,
-											[ ...displayed.values() ],
+											[ ...output.displayed.values() ],
 											actor,
 											nativePose,
 											right,
@@ -2850,9 +2416,10 @@ export function createCharacterPresentation(
 										const candidate = `native:${definition.animation}:${
 											role === "run" ? 7 : role === "walk" ? 1 : 0
 										}`;
-										const metadata = animationStates.get( resource.codename )?.[candidate] ??
-												resource.animationStates?.[candidate],
-											url = nativeMotionUrls.get( resource.codename )?.get( candidate );
+										const metadata =
+												published.animationStates.get( resource.codename )?.[candidate] ??
+													resource.animationStates?.[candidate],
+											url = published.nativeMotionUrls.get( resource.codename )?.get( candidate );
 										if (
 											metadata &&
 											(resource.clips.includes( candidate ) ||
@@ -2939,8 +2506,9 @@ export function createCharacterPresentation(
 					if ( !dead ) {
 						for ( const motion of effects.hostMotions( entity.gid ) ) {
 							const role = `attached-${motion.set.replaceAll( "_", "-" )}-${motion.id}`,
-								definition = (resource.animationStates ?? animationStates.get( resource.codename ))
-									?.[role];
+								definition =
+									(resource.animationStates ?? published.animationStates.get( resource.codename ))
+										?.[role];
 							if ( !definition || !resource.clips.includes( role ) ) continue;
 							const age = Math.max( 0, seconds - motion.started ),
 								end = motion.stoppedAt ??
@@ -3031,18 +2599,18 @@ export function createCharacterPresentation(
 						probe?.detailEnd( "actor-motion" );
 						probe?.detailBegin( "actor-sounds" );
 					}
-					const metadata = resource.animationStates ?? animationStates.get( resource.codename );
+					const metadata = resource.animationStates ?? published.animationStates.get( resource.codename );
 					// Retain the native idle metadata through its outgoing blend.
 					const motionMetadata = ( name: string ) =>
 						state.combatIdle?.motion?.clip === name ?
 							state.combatIdle.motion.definition :
-							metadata?.[name] ?? animationStates.get( resource.codename )?.[name];
+							metadata?.[name] ?? published.animationStates.get( resource.codename )?.[name];
 					// Resolve equipment, surface and world position only when a cue
 					// is due. Cursor advancement remains independent of visibility.
 					const soundSource = () => {
 						const context = soundContext( entity, cast?.skill, state.hitCritical );
 						return {
-							profile: resource.soundProfileName ?? soundProfiles.get( resource.codename ) ??
+							profile: resource.soundProfileName ?? published.soundProfiles.get( resource.codename ) ??
 								resource.codename,
 							position: [
 								(nativePose.regionId & 255) * 1920 + nativePose.x,
@@ -3107,7 +2675,7 @@ export function createCharacterPresentation(
 					state.modifierResource = resource;
 					state.modifierLayers = layers;
 					next.set( entity.gid, {
-						shadowSize: !entity.groundItem ? shadowSizes.get( entity.refObjId ) : undefined,
+						shadowSize: !entity.groundItem ? published.shadowSizes.get( entity.refObjId ) : undefined,
 						modelAnimation: resource.modifierBindings?.length ?
 							(state.modelAnimation ??= createModelAnimation()).step(
 								dispatch,
@@ -3131,13 +2699,13 @@ export function createCharacterPresentation(
 						materialTint: appearance.materialTint,
 						pointLight: appearance.pointLight,
 						modifierId: state.modifierId,
-						bloodEffects: bloodEffects.get( resource.codename ),
+						bloodEffects: published.bloodEffects.get( resource.codename ),
 						effectBaseScale: baseScale,
-						heightFactor: heightFactors.get( resource.codename ),
-						effectAnchor: effectAnchors.get( resource.codename ),
+						heightFactor: published.heightFactors.get( resource.codename ),
+						effectAnchor: published.effectAnchors.get( resource.codename ),
 						pickable: !authorityDead || entity.gid === gameplay?.localGid,
-						height: heights.has( resource.codename ) ?
-							heights.get( resource.codename )! *
+						height: published.heights.has( resource.codename ) ?
+							published.heights.get( resource.codename )! *
 							(state.actionHeight ?
 								state.actionHeight.from +
 								(state.actionHeight.to - state.actionHeight.from) *
@@ -3197,7 +2765,7 @@ export function createCharacterPresentation(
 						particleHolders.push( { actor: next.get( entity.gid )!, particles: state.equipmentParticles } );
 					}
 				} catch ( error ) {
-					failure = String( error );
+					output.failure = String( error );
 				}
 			}
 			probe?.detailEnd( "presentation-actors" );
@@ -3214,7 +2782,7 @@ export function createCharacterPresentation(
 			}
 			const settled = new Set<number>();
 			for ( const entity of entities ) {
-				const state = states.get( entity.gid ), resource = catalog.get( appearanceRef( entity ) );
+				const state = states.get( entity.gid ), resource = published.catalog.get( appearanceRef( entity ) );
 				if ( state?.dead && resource ) {
 					const clip = state.postureClip ??
 							(state.clip === "deathquick" || state.clip === "downdie" ? state.clip : "death"),
@@ -3287,7 +2855,7 @@ export function createCharacterPresentation(
 				if ( entity.appearanceState?.[2] !== 1 ) continue;
 				const resource = resourceFor( entity ), owner = next.get( entity.gid );
 				if ( !resource?.codename.startsWith( "CHAR_CH_" ) || !owner ) continue;
-				const hair = dress.hwan?.[resource.codename.includes( "_MAN_" ) ? "CH_M" : "CH_W"];
+				const hair = published.dress.hwan?.[resource.codename.includes( "_MAN_" ) ? "CH_M" : "CH_W"];
 				if ( !hair || !resources.ready( hair.glb ) ) continue;
 				hairOwners.add( entity.gid );
 				let state = hwanHairActors.get( entity.gid );
@@ -3324,7 +2892,7 @@ export function createCharacterPresentation(
 			const rideOwners = new Set<number>();
 			for ( const entity of entities ) {
 				const resource = resourceFor( entity ), owner = next.get( entity.gid );
-				const ride = resource ? ridesByRider.get( resource.codename ) : undefined;
+				const ride = resource ? published.ridesByRider.get( resource.codename ) : undefined;
 				if ( !owner || !ride || !resources.ready( ride.glb ) || next.size >= CHARACTER_ACTORS ) continue;
 				rideOwners.add( entity.gid );
 				let gid = linkedRides.get( entity.gid );
@@ -3332,7 +2900,7 @@ export function createCharacterPresentation(
 					gid = allocateActor();
 					linkedRides.set( entity.gid, gid );
 				}
-				const mode = riderModes.get( resource!.codename ) ?? 0;
+				const mode = published.riderModes.get( resource!.codename ) ?? 0;
 				const motion = ( clip: string ) => ride.clips.includes( clip ) ? clip : "stand";
 				next.set( gid, {
 					gid,
@@ -3427,16 +2995,18 @@ export function createCharacterPresentation(
 			for ( const gid of avatarOverrides.keys() ) if ( !active.has( gid ) ) avatarOverrides.delete( gid );
 			sounds.retain( active );
 			posePresentation.retain( active );
-			cameraTarget = null;
+			output.cameraTarget = null;
 			if ( local && gameplay?.pose ) {
-				const height = heights.get( catalog.get( local.refObjId )?.codename ?? "" );
+				const height = published.heights.get( published.catalog.get( local.refObjId )?.codename ?? "" );
 				const mount = local.mountedOn ? entitiesByGid.get( local.mountedOn ) : undefined;
-				const mountHeight = mount ? heights.get( catalog.get( mount.refObjId )?.codename ?? "" ) : undefined;
+				const mountHeight = mount ?
+					published.heights.get( published.catalog.get( mount.refObjId )?.codename ?? "" ) :
+					undefined;
 				// A rider whose mount has not spawned (yet) is drawn alone; follow it.
 				const riding = mount && mountHeight !== undefined && next.has( mount.gid ) ? mount : undefined;
 				const rendered = next.get( riding?.gid ?? local.gid )?.pose;
 				if ( rendered && height !== undefined ) {
-					cameraTarget = {
+					output.cameraTarget = {
 						height,
 						mounted: !!riding,
 						// Actor yaw is pi minus the native yaw (characterHeadingYaw).
@@ -3495,20 +3065,31 @@ export function createCharacterPresentation(
 				}
 			}
 			if ( local ) {
-				if ( cameraFade?.gid !== local.gid ) {
-					cameraFade = { gid: local.gid, time: seconds, mode: false, current: 255, start: 255, progress: 1 };
+				if ( output.cameraFade?.gid !== local.gid ) {
+					output.cameraFade = {
+						gid: local.gid,
+						time: seconds,
+						mode: false,
+						current: 255,
+						start: 255,
+						progress: 1
+					};
 				}
 				const hidden = cameraPitch < -0.8999999761581421,
-					transition = cameraFade.mode !== hidden || cameraFade.progress < 1;
-				const alpha = advanceCharacterFade( cameraFade, hidden, Math.max( 0, seconds - cameraFade.time ) );
-				cameraFade.time = seconds;
+					transition = output.cameraFade.mode !== hidden || output.cameraFade.progress < 1;
+				const alpha = advanceCharacterFade(
+					output.cameraFade,
+					hidden,
+					Math.max( 0, seconds - output.cameraFade.time )
+				);
+				output.cameraFade.time = seconds;
 				// 866B90 applies camera interpolation first while it is live;
 				// after it finishes, the body-4 branch restores alpha 0x50.
 				const actor = next.get( local.gid );
 				if ( actor && (transition || local.appearanceState?.[2] !== 4) ) {
 					next.set( local.gid, { ...actor, opacity: alpha } );
 				}
-			} else cameraFade = null;
+			} else output.cameraFade = null;
 			for ( const row of disappearing.values() ) {
 				let actor = disappearActor( row, seconds );
 				if ( actor && next.size < CHARACTER_ACTORS ) {
@@ -3591,9 +3172,9 @@ export function createCharacterPresentation(
 			// 5BAF70 -> 5B9DF0 builds a slot-owned preview from the roster model.
 			// It remains admitted even when no world entity exists for that member.
 			const portraits: CharacterActor[] = [];
-			const skin = mallPreview.skin(), localResource = local && catalog.get( local.refObjId );
-			const mallResource = local && catalog.get( skin?.model ?? local.refObjId );
-			if ( mallResource && localResource && local && gameplay && manifest >= 3 ) {
+			const skin = mallPreview.skin(), localResource = local && published.catalog.get( local.refObjId );
+			const mallResource = local && published.catalog.get( skin?.model ?? local.refObjId );
+			if ( mallResource && localResource && local && gameplay && published.manifest >= 3 ) {
 				// A body of the other sex cannot wear the worn set; 4EFE50 refuses
 				// that change until the armour and avatars are off anyway.
 				const worn = mallResource.codename.includes( "_WOMAN_" ) ===
@@ -3601,7 +3182,7 @@ export function createCharacterPresentation(
 				portraits.push( ...mallPreview.step(
 					{
 						resource: mallResource,
-						dress,
+						dress: published.dress,
 						equipment: worn ? gameplay.inventory : [],
 						avatars: worn ? local.avatars ?? [] : [],
 						seconds,
@@ -3613,7 +3194,7 @@ export function createCharacterPresentation(
 				) );
 			}
 			for ( const member of gameplay ? partyMembers( gameplay ) : [] ) {
-				const resource = catalog.get( member.model );
+				const resource = published.catalog.get( member.model );
 				if ( !resource || !resources.ready( resource.glb ) ) continue;
 				portraits.push( {
 					gid: partyPortraitGid( member.id ),
@@ -3625,7 +3206,7 @@ export function createCharacterPresentation(
 					scale: 1
 				} );
 			}
-			displayed = next;
+			output.displayed = next;
 			// One pass builds both the published actors and the wanted models, in the
 			// same order the spread-and-map version produced, without temporaries.
 			const presentedActors: CharacterActor[] = [], wanted: string[] = [];
@@ -3640,7 +3221,7 @@ export function createCharacterPresentation(
 			resources.retainWanted( wanted );
 			probe?.detailEnd( "presentation-finalize" );
 		},
-		ready: ( gid: number ) => displayed.has( gid ),
+		ready: ( gid: number ) => output.displayed.has( gid ),
 		/*
 		================
 		entryReady
@@ -3648,9 +3229,9 @@ export function createCharacterPresentation(
 		Keep first-use baseline work behind world entry without spawning fake drops.
 		================
 		*/
-		entryReady: () => commonReady && warmMotions.length === 0 && effects.loaded(),
-		previewReady: () => previewReady,
-		dockReady: () => dockReady,
+		entryReady: () => output.commonReady && warmMotions.length === 0 && effects.loaded(),
+		previewReady: () => output.previewReady,
+		dockReady: () => output.dockReady,
 		/*
 		================
 		profile
@@ -3659,11 +3240,11 @@ export function createCharacterPresentation(
 		profile( value: CharacterFrameProbe | undefined ) {
 			probe = value;
 		},
-		cameraTarget: () => cameraTarget,
+		cameraTarget: () => output.cameraTarget,
 		takeCameraScripts: () => effects.takeCameraScripts(),
 		orbGauge: () => orbs.gauge(),
 		damageText: () => damageTexts as readonly import("@/engine/contracts/damage-text").DamageText[],
-		error: () => failure ?? resources.error() ?? effects.error(),
+		error: () => output.failure ?? resources.error() ?? effects.error(),
 		/*
 		================
 		simulationOrigin
@@ -3688,7 +3269,7 @@ export function createCharacterPresentation(
 			warmSkills = undefined;
 			warmBody = undefined;
 			warmMotions = [];
-			commonReady = false;
+			output.commonReady = false;
 			scenery.reset();
 			entityLod.reset();
 			modelEmission.reset();
@@ -3718,15 +3299,15 @@ export function createCharacterPresentation(
 			rainEventEntities.clear();
 			rainEvents.length = 0;
 			orbs.reset();
-			previewReady = false;
-			dockReady = false;
+			output.previewReady = false;
+			output.dockReady = false;
 			previewDisplay = null;
 			previewShape = null;
 			previewWear.clear();
 			dockStates.clear();
 			lizardStarted = null;
-			cameraTarget = null;
-			cameraFade = null;
+			output.cameraTarget = null;
+			output.cameraFade = null;
 			effects.reset();
 			referenceAppearances.reset();
 			sounds.reset();
@@ -3735,9 +3316,9 @@ export function createCharacterPresentation(
 			actionClocks.clear();
 			predictedEvents.clear();
 			deathFinalizes.clear();
-			displayed.clear();
+			output.displayed.clear();
 			displayedDependencies.clear();
-			failure = null;
+			output.failure = null;
 			renderer.setCharacterActors( [] );
 		},
 		/*
@@ -3781,15 +3362,15 @@ export function createCharacterPresentation(
 			rainEventEntities.clear();
 			rainEvents.length = 0;
 			orbs.reset();
-			previewReady = false;
-			dockReady = false;
+			output.previewReady = false;
+			output.dockReady = false;
 			previewDisplay = null;
 			previewShape = null;
 			previewWear.clear();
 			dockStates.clear();
 			lizardStarted = null;
-			cameraTarget = null;
-			cameraFade = null;
+			output.cameraTarget = null;
+			output.cameraFade = null;
 			effects.dispose();
 			referenceAppearances.reset();
 			sounds.reset();
@@ -3798,12 +3379,9 @@ export function createCharacterPresentation(
 			actionClocks.clear();
 			predictedEvents.clear();
 			deathFinalizes.clear();
-			displayed.clear();
+			output.displayed.clear();
 			displayedDependencies.clear();
-			catalog.clear();
-			nativeMotionUrls.clear();
-			animationStates.clear();
-			soundProfiles.clear();
+			published.dispose();
 		}
 	};
 }
