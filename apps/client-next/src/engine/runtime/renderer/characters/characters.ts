@@ -1697,6 +1697,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				// admission/budget accounting, but do not rebuild or upload it
 				// again when visibility completes the deferred pass.
 				if ( continuation && !rows[0]!.deferredParticle ) continue;
+				const outputStart = output.length;
 				rows.sort( ( a, b ) => a.gid - b.gid );
 				const resource = models.get( rows[0]!.model )!, model = resource.model, plan = resource.plan;
 				const fading = opacity( rows[0]! ) < 1;
@@ -1832,6 +1833,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				if ( poseKey !== undefined && batch.poseKey === poseKey ) {
 					batch.draws.forEach( ( draw, index ) => updateModifiers( draw, index ) );
 					output.push( ...batch.draws );
+					probe?.characterBatch?.(
+						id.slice( rows[0]!.model.length ),
+						rows.length,
+						batch.draws.filter( draw => draw.indexCount > 0 && draw.instanceCount > 0 ).length
+					);
 					continue;
 				}
 				batch.poseKey = poseKey;
@@ -2230,6 +2236,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 					updateModifiers( draw, p, true );
 					output.push( draw );
 				}
+				probe?.characterBatch?.(
+					id.slice( rows[0]!.model.length ),
+					rows.length,
+					output.slice( outputStart ).filter( draw => draw.indexCount > 0 && draw.instanceCount > 0 ).length
+				);
 			}
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );

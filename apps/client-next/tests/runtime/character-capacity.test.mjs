@@ -58,10 +58,17 @@ function fixture() {
 	const gpu = {
 		upload( g ) {
 			uploads++;
-			return { count: g.instances.length / 16, instances: g.instances.slice(), bones: g.bones.slice() };
+			return {
+				count: g.instances.length / 16,
+				instanceCount: g.instances.length / 16,
+				indexCount: g.indices.length,
+				instances: g.instances.slice(),
+				bones: g.bones.slice()
+			};
 		},
 		updateInstances( d, m ) {
 			d.count = m.length / 16;
+			d.instanceCount = d.count;
 			d.instances = m.slice();
 			return d;
 		},
@@ -91,6 +98,39 @@ const visible = d => ({
 	count: d.count,
 	instances: d.instances.slice( 0, d.count * 16 ),
 	bones: d.bones.slice( 0, d.count * 16 )
+});
+
+test("batch census follows actual emitted groups on fresh and retained frames", () => {
+	const f = fixture(), samples = [], rows = actors( [ 1, 2, 3 ], .25 );
+	rows[0].opacity = .5;
+	f.owner.profile( {
+		renderBegin() {},
+		renderMark() {},
+		characterBegin() {},
+		characterMark() {},
+		characterCount() {},
+		characterBatch( variant, count, draws ) {
+			samples.push( { variant, count, draws } );
+		}
+	} );
+	try {
+		f.owner.actors( rows );
+		for ( let frame = 0; frame < 2; frame++ ) {
+			samples.length = 0;
+			const output = f.owner.prepare( f.gpu, {}, 257 );
+			assert.deepEqual( samples, [
+				{ variant: "\0fade", count: 1, draws: 1 },
+				{ variant: "", count: 2, draws: 1 }
+			] );
+			assert.equal( samples.reduce( ( sum, row ) => sum + row.draws, 0 ), output.length );
+		}
+		f.owner.actors( [] );
+		samples.length = 0;
+		f.owner.prepare( f.gpu, {}, 257 );
+		assert.deepEqual( samples, [] );
+	} finally {
+		f.owner.dispose( f.gpu, null );
+	}
 });
 
 /*

@@ -37,6 +37,8 @@ export interface RenderFrameProbe {
 	characterBegin(): void;
 	characterMark( stage: string ): void;
 	characterCount( name: string, value?: number ): void;
+	// Optional census of admitted batches; absent during ordinary timing runs.
+	characterBatch?( variant: string, actors: number, draws: number ): void;
 	// World preparation stages and detail spans (renderer/world/world.ts).
 	worldBegin?(): void;
 	worldMark?( stage: string ): void;

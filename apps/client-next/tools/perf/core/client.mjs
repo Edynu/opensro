@@ -108,6 +108,29 @@ export function instrument( { counts, spans, target = globalThis } ) {
 		characterCount( name, value = 1 ) {
 			add( name, value );
 		},
+		/*
+		================
+		characterBatch
+
+		Reasons overlap. The combination bucket is exclusive, while a fragment
+		bucket answers how much submitted work carries that particular split.
+		Never retain model IDs, actor IDs or animation revisions as tally keys.
+		================
+		*/
+		characterBatch: counts ?
+			( variant, actors, draws ) => {
+				const fragments = variant.split( "\0" ).filter( Boolean ).map( value => value.split( ":" )[0] );
+				const reasons = [ "cloth", "modifier", "glow", "fade", "tint", "light", "deferred" ].filter(
+					value => fragments.includes( value )
+				);
+				if ( !reasons.length ) reasons.push( "plain" );
+				for ( const key of [ "all", "combination:" + reasons.join( "+" ), ...reasons ] ) {
+					add( "character-batch groups " + key, 1 );
+					add( "character-batch actors " + key, actors );
+					add( "character-batch draws " + key, draws );
+				}
+			} :
+			undefined,
 		sampleDetails: () => spans,
 		worldBegin() {
 			worldStart = now();
@@ -202,7 +225,7 @@ export function instrument( { counts, spans, target = globalThis } ) {
 		}
 	};
 	if ( !counts ) return;
-	const encoderCommands = new WeakMap(), bundleCommands = new WeakMap();
+	const encoderCommands = new WeakMap(), bundleCommands = new WeakMap(), shadowPasses = new WeakSet();
 	/*
 	================
 	wrap
@@ -218,6 +241,10 @@ export function instrument( { counts, spans, target = globalThis } ) {
 			prototype[name] = function( ...args ) {
 				const result = original.apply( this, args );
 				tally[key ?? name] = (tally[key ?? name] ?? 0) + 1;
+				if ( key === "pass draws" && shadowPasses.has( this ) ) add( "shadow silhouette draws", 1 );
+				if ( name === "beginRenderPass" && args[0]?.label === "character-shadow-generate" ) {
+					shadowPasses.add( result );
+				}
 				if ( bundleKey ) {
 					const commands = encoderCommands.get( this ) ?? {};
 					commands[bundleKey] = (commands[bundleKey] ?? 0) + 1;

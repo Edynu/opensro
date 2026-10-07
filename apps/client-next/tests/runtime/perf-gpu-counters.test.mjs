@@ -60,10 +60,21 @@ function fixture() {
 			return "written";
 		}
 	}
+	/*
+	================
+	CommandEncoder
+	================
+	*/
+	class CommandEncoder {
+		beginRenderPass( _descriptor ) {
+			return new PassEncoder();
+		}
+	}
 	const target = /** @type {any} */ ({
 		performance: { now: () => 0, timeOrigin: 0 },
 		GPURenderBundleEncoder: BundleEncoder,
 		GPURenderPassEncoder: PassEncoder,
+		GPUCommandEncoder: CommandEncoder,
 		GPUQueue: Queue
 	});
 	runInContext( `(${instrument.toString()})({ counts: true, spans: false })`, createContext( target ) );
@@ -73,9 +84,45 @@ function fixture() {
 		tally: target.__benchTally,
 		encoder: new BundleEncoder(),
 		pass: new PassEncoder(),
-		queue: new Queue()
+		queue: new Queue(),
+		command: new CommandEncoder()
 	};
 }
+
+test("batch census keeps overlapping fragments and exclusive combinations without actor-key growth", () => {
+	const f = fixture(), probe = f.target.__worldProbeFrameProfiler;
+	probe.characterBatch( "\0cloth:42\0glow:true\0modifier:42:3:false", 1, 15 );
+	probe.characterBatch( "\0cloth:99\0glow:true\0modifier:99:8:false", 1, 12 );
+	probe.characterBatch( "", 32, 3 );
+	assert.equal( f.tally["character-batch groups all"], 3 );
+	assert.equal( f.tally["character-batch actors all"], 34 );
+	assert.equal( f.tally["character-batch draws all"], 30 );
+	assert.equal( f.tally["character-batch groups cloth"], 2 );
+	assert.equal( f.tally["character-batch draws modifier"], 27 );
+	assert.equal( f.tally["character-batch draws combination:cloth+modifier+glow"], 27 );
+	assert.equal( f.tally["character-batch actors plain"], 32 );
+	assert.ok( Object.keys( f.tally ).every( key => !/42|99|true|false/.test( key ) ) );
+	f.target.__worldProbeFrameProfiler.begin();
+	assert.equal( f.tally["character-batch groups all"], 0 );
+});
+
+test("shadow census counts actual silhouette draw commands, not filter or ordinary draws", () => {
+	const f = fixture();
+	const shadow = f.command.beginRenderPass( { label: "character-shadow-generate" } );
+	const filter = f.command.beginRenderPass( { label: "character-shadow-filter" } );
+	shadow.drawIndexed();
+	shadow.drawIndexed();
+	filter.drawIndexed();
+	f.pass.drawIndexed();
+	assert.equal( f.tally["shadow silhouette draws"], 2 );
+	assert.equal( f.tally["pass draws"], 4 );
+});
+
+test("ordinary frame timing does not install the batch census", () => {
+	const target = /** @type {any} */ ({ performance: { now: () => 0, timeOrigin: 0 } });
+	runInContext( `(${instrument.toString()})({ counts: false, spans: false })`, createContext( target ) );
+	assert.equal( target.__worldProbeFrameProfiler.characterBatch, undefined );
+});
 
 test("retained bundles charge their draws and state commands on every execution, across frame resets", () => {
 	const f = fixture();

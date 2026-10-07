@@ -2109,6 +2109,13 @@
 		},
 		{
 			"file": "src/engine/runtime/renderer/characters/characters.ts",
+			"expression": "probe?.characterBatch",
+			"function": "prepare",
+			"kind": "callback",
+			"reason": "Optional synchronous frame-owner census of admitted batch variants and submitted geometry. Absent in ordinary timing and production; never changes grouping or draw order."
+		},
+		{
+			"file": "src/engine/runtime/renderer/characters/characters.ts",
 			"expression": "probe?.characterBegin",
 			"function": "prepare",
 			"kind": "callback",
