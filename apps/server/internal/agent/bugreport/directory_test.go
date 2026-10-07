@@ -239,3 +239,37 @@ func TestDirectoryWriteFailureLeavesNothing(t *testing.T) {
 		t.Fatalf("a failed write left %d entries, first %q", len(entries), entries[0].Name())
 	}
 }
+
+/*
+================
+TestDirectoryReportListsAreNeverNull
+
+A report without errors or context writes empty lists, not null.
+================
+*/
+func TestDirectoryReportListsAreNeverNull(t *testing.T) {
+	root := t.TempDir()
+	report := directoryTestReport("BR-261007-0240-ABCD")
+	report.Context, report.Errors, report.Attachment, report.Diagnostics = nil, nil, nil, nil
+	entry, err := writeDirectory(root, report, directoryTestNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := os.ReadFile(filepath.Join(root, entry, directoryReportFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lists struct {
+		Context []json.RawMessage `json:"context"`
+		Errors  []json.RawMessage `json:"errors"`
+		Files   []json.RawMessage `json:"files"`
+	}
+	if err := json.Unmarshal(encoded, &lists); err != nil {
+		t.Fatal(err)
+	}
+	// A JSON null decodes to a nil slice; an empty array to a non-nil one.
+	if lists.Context == nil || lists.Errors == nil || lists.Files == nil ||
+		len(lists.Context)+len(lists.Errors)+len(lists.Files) != 0 {
+		t.Fatalf("want three empty arrays: %s", encoded)
+	}
+}
