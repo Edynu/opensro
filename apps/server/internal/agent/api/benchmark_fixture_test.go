@@ -1,3 +1,13 @@
+/*
+===========================================================================
+
+benchmark_fixture_test.go - the development scenario reset, end to end
+
+Requests go through the authenticated handler into a test authority store:
+the reset's exactness and idempotence, and the optional loadout.
+
+===========================================================================
+*/
 package agentapi
 
 import (
@@ -133,5 +143,118 @@ func TestBenchmarkFixtureResetRequiresSessionWhenEnabled(t *testing.T) {
 	recorder, _ := postBenchmarkFixtureReset(t, api.Handler(), benchmarkFixtureRequest("FixtureHero"))
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated fixture reset = %d, want 401", recorder.Code)
+	}
+}
+
+/*
+================
+TestBenchmarkFixtureLoadoutTeachesSkillsAndDerivesVitals
+
+A probe character gets what a scenario needs (Ghost Walk 114 and 19639 at
+a level and intellect that can pay their MP) without losing a skill it
+knew; stored vitals are cleared so login derives them full; a repeat is a
+no-op; an out-of-range loadout is refused.
+================
+*/
+func TestBenchmarkFixtureLoadoutTeachesSkillsAndDerivesVitals(t *testing.T) {
+	api, authority := newTestAPI(t)
+	api.benchmarkFixtureControl = true
+	api.skillGroup = testSkillGroups
+	handler := authenticatedHandler(t, api, testAccount)
+	postJSON(t, handler, "/character/create", createBody("FixtureHero"))
+	character := authority.Characters().CharactersForDivision(testDivision)[0]
+	hp, mp, maxLevel := int64(40), int64(25), int64(3)
+	authority.MutateCharacter(character, "seed loadout", func() {
+		character.Skills = []uint32{1, 2, 114}
+		character.CurrentHP, character.CurrentMP, character.MaxLevel = &hp, &mp, &maxLevel
+	})
+	body := benchmarkFixtureRequest("FixtureHero")
+	body["loadout"] = map[string]any{"level": 90, "intellect": 109, "skills": []uint32{114, 19639}}
+
+	recorder, response := postBenchmarkFixtureReset(t, handler, body)
+	if recorder.Code != http.StatusOK || response["outcome"] != "reset" {
+		t.Fatalf("loadout reset = %d %#v", recorder.Code, response)
+	}
+	authority.ReadCharacters(testDivision, func([]*domain.Character) {
+		if character.Level == nil || *character.Level != 90 || character.Intellect == nil || *character.Intellect != 109 ||
+			character.MaxLevel == nil || *character.MaxLevel != 90 {
+			t.Fatalf("level/intellect/maxLevel = %v/%v/%v", character.Level, character.Intellect, character.MaxLevel)
+		}
+		if got := character.Skills; len(got) != 4 || got[0] != 1 || got[1] != 2 || got[2] != 114 || got[3] != 19639 {
+			t.Fatalf("skills = %v, want known skills kept and 19639 added once", got)
+		}
+		if character.CurrentHP != nil || character.CurrentMP != nil {
+			t.Fatalf("stored vitals kept: hp %v mp %v", character.CurrentHP, character.CurrentMP)
+		}
+	})
+	if recorder, response = postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusOK || response["outcome"] != "already-reset" {
+		t.Fatalf("repeat = %d %#v, want already-reset", recorder.Code, response)
+	}
+	for _, loadout := range []map[string]any{
+		{"level": 0, "intellect": 109, "skills": []uint32{114}},
+		{"level": 90, "intellect": 0, "skills": []uint32{114}},
+		{"level": benchmarkFixtureMaxLevel + 1, "intellect": 109, "skills": []uint32{114}},
+		{"level": 90, "intellect": 109, "skills": []uint32{0}},
+	} {
+		body["loadout"] = loadout
+		if recorder, _ := postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusBadRequest {
+			t.Fatalf("loadout %v = %d, want 400", loadout, recorder.Code)
+		}
+	}
+}
+
+/*
+================
+testSkillGroups
+
+The real groups of the skills these tests teach: Ghost Walk Phantom ranks
+share 261 and Shadow ranks share 768.
+================
+*/
+func testSkillGroups(id uint32) (uint32, bool) {
+	group, ok := map[uint32]uint32{1: 1, 2: 2, 40: 40, 70: 70, 114: 261, 1287: 261, 19636: 768, 19639: 768}[id]
+	return group, ok
+}
+
+/*
+================
+TestBenchmarkFixtureLoadoutReplacesRankAndRefusesUnknownSkills
+
+A higher rank of a known skill replaces the old rank in place, so the
+character keeps one current id per group; an id the skill data does not
+know, or any skill without a resolver, is refused before anything changes.
+================
+*/
+func TestBenchmarkFixtureLoadoutReplacesRankAndRefusesUnknownSkills(t *testing.T) {
+	api, authority := newTestAPI(t)
+	api.benchmarkFixtureControl = true
+	api.skillGroup = testSkillGroups
+	handler := authenticatedHandler(t, api, testAccount)
+	postJSON(t, handler, "/character/create", createBody("FixtureHero"))
+	character := authority.Characters().CharactersForDivision(testDivision)[0]
+	authority.MutateCharacter(character, "seed ranks", func() { character.Skills = []uint32{1, 19636, 70} })
+
+	body := benchmarkFixtureRequest("FixtureHero")
+	body["loadout"] = map[string]any{"level": 90, "intellect": 109, "skills": []uint32{19639, 1287}}
+	if recorder, response := postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusOK || response["outcome"] != "reset" {
+		t.Fatalf("rank replacement = %d %#v", recorder.Code, response)
+	}
+	authority.ReadCharacters(testDivision, func([]*domain.Character) {
+		if got := character.Skills; len(got) != 4 || got[0] != 1 || got[1] != 19639 || got[2] != 70 || got[3] != 1287 {
+			t.Fatalf("skills = %v, want [1 19639 70 1287]: Shadow rank replaced in place, Phantom appended", got)
+		}
+	})
+	if recorder, response := postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusOK || response["outcome"] != "already-reset" {
+		t.Fatalf("repeat = %d %#v, want already-reset", recorder.Code, response)
+	}
+
+	body["loadout"] = map[string]any{"level": 90, "intellect": 109, "skills": []uint32{999999}}
+	if recorder, _ := postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusBadRequest {
+		t.Fatalf("unknown skill = %d, want 400", recorder.Code)
+	}
+	api.skillGroup = nil
+	body["loadout"] = map[string]any{"level": 90, "intellect": 109, "skills": []uint32{19639}}
+	if recorder, _ := postBenchmarkFixtureReset(t, handler, body); recorder.Code != http.StatusBadRequest {
+		t.Fatalf("skills without a resolver = %d, want 400", recorder.Code)
 	}
 }
