@@ -2,6 +2,8 @@ package enterworld
 
 import (
 	"math"
+
+	log "github.com/sirupsen/logrus"
 	"opensro.online/server/internal/domain"
 	"opensro.online/server/internal/game/world/instance"
 	"opensro.online/server/internal/game/world/simulation"
@@ -133,14 +135,19 @@ func WorldStateForCharacter(c *Character, raceKey string) WorldState {
 	if world != nil {
 		spawnSet = world.SpawnSet
 		movementMode = coerceRunWalkMode(world.MovementMode, MovementModeRun)
-		if world.Spawn != nil {
+		// The saved spawn is taken whole or not at all, as SeedWorldState
+		// takes it: the start region with saved coordinates is a place the
+		// character never stood.
+		if simulation.CompleteWorldSpawn(world.Spawn) {
 			spawn = StartProfile{
-				RegionID: coerceInt(world.Spawn.RegionID, 0, 0xffff, fallback.RegionID),
-				X:        coerceFloat(world.Spawn.X, fallback.X),
-				Y:        coerceFloat(world.Spawn.Y, fallback.Y),
-				Z:        coerceFloat(world.Spawn.Z, fallback.Z),
+				RegionID: *world.Spawn.RegionID,
+				X:        *world.Spawn.X,
+				Y:        *world.Spawn.Y,
+				Z:        *world.Spawn.Z,
 				Angle:    coerceInt(world.Spawn.Angle, 0, 0xffff, fallback.Angle),
 			}
+		} else if world.Spawn != nil {
+			log.WithField("character", c.Name).Warn("enterworld: saved spawn is incomplete; entering at the race start")
 		}
 	}
 	// The enter-world plane must ship the CANONICAL frame: a record persisted
@@ -160,13 +167,6 @@ func WorldStateForCharacter(c *Character, raceKey string) WorldState {
 	spawn.Y = folded.Y
 	spawn.Z = folded.Z
 	return WorldState{Spawn: spawn, MovementMode: movementMode, SpawnSet: spawnSet}
-}
-
-func coerceFloat(value *float64, fallback float64) float64 {
-	if value == nil || *value != *value {
-		return fallback
-	}
-	return *value
 }
 
 // CharacterAppearanceIdentity is the one resolved body identity shared by

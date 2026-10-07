@@ -111,6 +111,9 @@ type Deps struct {
 		stranded bool,
 		rescueFound bool,
 	)
+	// AdoptEntrySpawn commits a spawn the entry moved (lift or rescue) to the
+	// live world and the record, so server and client agree on the stand.
+	AdoptEntrySpawn     func(divisionID, characterName string, spawn simulation.Spawn)
 	CanEnterWorldRegion func(character *Character, regionID uint16) bool
 	PlayerBaseStats     func(character *Character) (wire.BaseStats, error)
 
@@ -286,6 +289,7 @@ func (d *Deps) ReentryPackets(divisionID, characterName string) ([]Packet, bool)
 	projection := *d
 	projection.RestoreEntryEffects = nil // Caller already owns the live actor transaction.
 	projection.PrepareEntry = nil
+	projection.AdoptEntrySpawn = nil
 	result := Build(&projection, BootstrapRequest{
 		DivisionID:    divisionID,
 		CharacterName: characterName,
@@ -320,7 +324,11 @@ func (d *Deps) PrepareReentry(divisionID string, character *Character) (Prepared
 			return PreparedReentry{}, false
 		}
 	}
-	result := buildCharacterProjection(d, divisionID, snapshot)
+	projection := *d
+	// The caller holds the division lock and commits the returned stand only
+	// after preparation succeeds. Login adoption would re-enter that lock.
+	projection.AdoptEntrySpawn = nil
+	result := buildCharacterProjection(&projection, divisionID, snapshot)
 	packets, ok := d.encodeReentry(result)
 	if !ok {
 		return PreparedReentry{}, false
@@ -389,6 +397,7 @@ func (d *Deps) Validate() error {
 	require("SpawnTerrainHeight", d.SpawnTerrainHeight == nil)
 	require("SpawnSurfaceHeight", d.SpawnSurfaceHeight == nil)
 	require("RelocateStrandedSpawn", d.RelocateStrandedSpawn == nil)
+	require("AdoptEntrySpawn", d.AdoptEntrySpawn == nil)
 	require("CanEnterWorldRegion", d.CanEnterWorldRegion == nil)
 	require("PlayerBaseStats", d.PlayerBaseStats == nil)
 	require("CommunitySeedFramesFor", d.CommunitySeedFramesFor == nil)
