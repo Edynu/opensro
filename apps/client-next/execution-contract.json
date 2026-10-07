@@ -1699,7 +1699,14 @@
 			"provider": "src/engine/runtime/renderer/device/device.ts",
 			"functions": [
 				"createColor",
-				"present"
+				"encodePresent"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
+			"provider": "src/engine/runtime/renderer/surface/surface.ts",
+			"functions": [
+				"encodePresent"
 			]
 		},
 		{

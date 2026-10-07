@@ -204,21 +204,19 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 
 						/*
 						================
-						present
+						encodePresent
 
-						Publish the intermediate frame: through the presentation pass
-						when the renderer enabled it, else the byte-exact native copy.
+						Append presentation after all existing frame passes, keeping
+						the finish shader or native copy in the final frame submission.
 						================
 						*/
-						present( target: GPUTexture ) {
+						encodePresent( encoder: GPUCommandEncoder, target: GPUTexture ) {
 							if ( !depthTextures.has( texture ) ) throw Error( "Disposed frame color" );
 							if ( finishEnabled && finish ) {
-								finish.present( texture, target );
+								finish.encode( encoder, texture, target );
 								return;
 							}
-							const encoder = current().createCommandEncoder( { label: "deferred-frame-present" } );
 							encoder.copyTextureToTexture( { texture }, { texture: target }, [ width, height ] );
-							current().queue.submit( [ encoder.finish() ] );
 						},
 
 						/*
