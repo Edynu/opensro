@@ -5,12 +5,12 @@ bugreport.go - in-game bug reports: operator configuration
 
 Package bugreport accepts the bug reports players send from the browser
 client (a description, client context and an optional replay clip or
-screenshot) and posts them to a Discord channel through a webhook.
+screenshot) and delivers them to a Discord channel through a webhook, to a
+local directory, or to both.
 
-The feature is off unless the operator configures it. Three environment
-variables control it; a missing or invalid webhook leaves it disabled
-rather than failing the Agent, because bug reporting is never worth an
-outage. The webhook URL is a credential (anyone holding it can post to the
+The feature is off unless the operator configures a sink. Four environment
+variables control it; a missing or invalid sink leaves it disabled rather
+than failing the Agent, because bug reporting is never worth an outage. The webhook URL is a credential (anyone holding it can post to the
 channel): it is never logged and never sent to clients.
 
 ===========================================================================
@@ -20,12 +20,18 @@ package bugreport
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 const (
+	// DestinationDiscord and DestinationDirectory are the Settings
+	// destination names.
+	DestinationDiscord   = "discord"
+	DestinationDirectory = "directory"
+
 	// EnvDiscordWebhook turns the feature on and names the receiving channel.
 	EnvDiscordWebhook = "SRO_BUG_REPORT_DISCORD_WEBHOOK"
 	// EnvReplayDefault is the replay recording state ("on" or "off") for
@@ -34,6 +40,9 @@ const (
 	// EnvMaxBytes caps one report's attachment. Discord accepts 10 MiB per
 	// file on servers without boosts and more on boosted ones.
 	EnvMaxBytes = "SRO_BUG_REPORT_MAX_BYTES"
+	// EnvDirectory is an absolute directory that receives every report
+	// (directory.go): the sink for a deployment without a Discord channel.
+	EnvDirectory = "SRO_BUG_REPORT_DIRECTORY"
 
 	DefaultMaxBytes int64 = 10 << 20
 	minMaxBytes     int64 = 1 << 20
@@ -53,11 +62,13 @@ var webhookPattern = regexp.MustCompile(
 ================
 Config
 
-Operator settings. An empty WebhookURL means the feature is disabled.
+Operator settings. With neither a WebhookURL nor a Directory the feature is
+disabled.
 ================
 */
 type Config struct {
 	WebhookURL    string
+	Directory     string
 	ReplayDefault bool
 	MaxBytes      int64
 	// Off is the deployer's explicit "off": remove a stored webhook. A
@@ -82,6 +93,19 @@ type Settings struct {
 	// refuses the part as unknown, so a client attaches the archive only when
 	// this is positive.
 	MaxDiagnosticsBytes int64 `json:"maxDiagnosticsBytes"`
+	// Destinations names where an accepted report goes ("discord",
+	// "directory"), so the dialog tells the player the truth about it.
+	// Empty when reports are disabled.
+	Destinations []string `json:"destinations"`
+}
+
+/*
+================
+Config.Enabled
+================
+*/
+func (config Config) Enabled() bool {
+	return config.WebhookURL != "" || config.Directory != ""
 }
 
 /*
@@ -90,14 +114,20 @@ DisabledSettings
 ================
 */
 func DisabledSettings() Settings {
-	return Settings{Enabled: false, ReplayDefault: false, MaxBytes: 0, ReplaySeconds: ReplaySeconds}
+	return Settings{
+		Enabled:       false,
+		ReplayDefault: false,
+		MaxBytes:      0,
+		ReplaySeconds: ReplaySeconds,
+		Destinations:  []string{},
+	}
 }
 
 /*
 ================
 LoadConfig
 
-Reads the three variables through getenv (os.Getenv in service). Every
+Reads the four variables through getenv (os.Getenv in service). Every
 problem becomes a warning and a safe value: an invalid webhook disables the
 feature, an invalid default or size falls back to the documented default.
 The warnings never contain the webhook itself.
@@ -118,6 +148,16 @@ func LoadConfig(getenv func(string) string) (Config, []string) {
 				"%s is not a Discord webhook URL (https://discord.com/api/webhooks/<id>/<token>); bug reports are disabled",
 				EnvDiscordWebhook,
 			))
+		}
+	}
+
+	if raw := strings.TrimSpace(getenv(EnvDirectory)); raw != "" {
+		// A relative path would follow the Agent's working directory, which
+		// Nomad allocates per run: reports would vanish with the allocation.
+		if filepath.IsAbs(raw) {
+			config.Directory = filepath.Clean(raw)
+		} else {
+			warnings = append(warnings, fmt.Sprintf("%s=%q is not an absolute path; ignored", EnvDirectory, raw))
 		}
 	}
 
