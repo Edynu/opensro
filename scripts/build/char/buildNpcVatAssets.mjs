@@ -88,9 +88,11 @@ function npcVatPublicPaths( glbPublicPath ) {
 
 export async function buildNpcVatAssets( options = {} ) {
 	const manifestPath = options.manifestPath ?? npcManifestPath;
+	// No missingResult: the resource lane's model step writes the manifest
+	// immediately before this runs, so a missing file is a failure to raise,
+	// not an empty build to report.
 	return runVatPipeline( {
 		manifestPath,
-		missingResult: { built: 0, reused: 0, shared: 0, skipped: 0, failed: 0, assetCount: 0 },
 		settings: NPC_VAT_SETTINGS,
 		logTag: "npc-vat",
 		// models is a Record keyed by codename (buildNpcModelAssets.mjs), not an array.

@@ -43,6 +43,13 @@ export async function runVatPipeline( {
 	cleanupRoot = null
 } ) {
 	if ( !fs.existsSync( manifestPath ) ) {
+		// A missing manifest is an upstream step that failed or never ran;
+		// silently building nothing let a full build succeed with zero VAT
+		// assets (the 2026-10-09 restoration incident walked exactly this
+		// path). Callers that genuinely tolerate absence pass missingResult.
+		if ( missingResult === undefined ) {
+			throw new Error( `VAT manifest is missing; the upstream model step never wrote ${manifestPath}` );
+		}
 		return missingResult;
 	}
 

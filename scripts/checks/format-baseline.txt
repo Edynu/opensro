@@ -472,7 +472,6 @@ scripts/test/assets/optionalDataAsset.test.mjs
 scripts/test/assets/pythonRun.test.mjs
 scripts/test/assets/rebuildLockInterop.test.mjs
 scripts/test/assets/skillPaneImageReferences.test.mjs
-scripts/test/assets/vatPipeline.test.mjs
 scripts/test/helpers/outdoorRegionPayloadCheck.mjs
 scripts/test/lib/generatedAssetTestMode.mjs
 scripts/test/mission/effectProgramClosure.test.mjs
