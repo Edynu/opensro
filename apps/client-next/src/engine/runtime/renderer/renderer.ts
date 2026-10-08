@@ -773,6 +773,12 @@ export function createRenderer(
 					targetSurface
 				);
 				probe?.renderMark( "submit" );
+				const encodeMs = probe?.renderSpan && device.encodeMs();
+				if ( encodeMs ) {
+					probe!.renderSpan!( "encode-skeletal", encodeMs.animation );
+					probe!.renderSpan!( "encode-particles", encodeMs.particles );
+					probe!.renderSpan!( "encode-shadows", encodeMs.shadows );
+				}
 				if ( pending ) {
 					// The deferred pass records its second command buffer after the
 					// visibility query: the frame stays open until that one is submitted.

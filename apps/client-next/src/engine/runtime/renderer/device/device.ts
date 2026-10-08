@@ -652,6 +652,8 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		================
 		*/
 		geometry: () => geometry?.commands ?? null,
+		// The last frame's CPU time encoding each compute system.
+		encodeMs: () => geometry?.encodeMs ?? null,
 		/*
 		================
 		images

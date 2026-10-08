@@ -1821,7 +1821,14 @@ test("the injected frame probe observes character stages and pose lifetime witho
 		renderer.actors( [ actor( "body" ) ] );
 		renderer.prepare( geometry, images, 1 );
 		const observed = palettes.at( -1 );
-		assert.deepEqual( stages, [ "begin", "character-plan", "character-poses", "character-upload" ] );
+		assert.deepEqual( stages, [
+			"begin",
+			"character-setup",
+			"character-particles",
+			"character-plan",
+			"character-poses",
+			"character-upload"
+		] );
 		assert.ok( counts.some( ( [name, value] ) => name === "pose-created" && value === 1 ) );
 		renderer.actors( [] );
 		renderer.prepare( geometry, images, 1 );

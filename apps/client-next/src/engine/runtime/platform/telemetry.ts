@@ -10,6 +10,7 @@ a local presentation preference, not server authorization.
 ===========================================================================
 */
 import type { FrameTelemetry } from "@/engine/contracts/runtime";
+import { formatFrameReport } from "@/engine/foundation/rendering/frame-report";
 
 /*
 ================
@@ -98,16 +99,7 @@ export function createTelemetry( options: TelemetryOptions ) {
 			fpsReadout.textContent = `${Math.round( sample.fps )} FPS · ${ping} ms`;
 		}
 		if ( !enabled || readout.hidden ) return;
-		const ms = ( value: number ) => `${value.toFixed( value < 10 ? 1 : 0 )} ms`;
-		readout.textContent = [
-			"Developer diagnostics",
-			`${Math.round( sample.fps )} FPS · ${ping} ms ping`,
-			`Frame avg / p95: ${ms( sample.frameMs )} / ${ms( sample.p95FrameMs )}`,
-			`CPU avg / p95: ${ms( sample.cpuMs )} / ${ms( sample.p95CpuMs )}`,
-			`Actors: ${sample.actors} · Draws: ${sample.draws} · Groups: ${sample.visibleGroups}`,
-			...sample.build.lines,
-			sample.build.detail
-		].filter( Boolean ).join( "\n" );
+		readout.textContent = formatFrameReport( sample, ping );
 	}
 
 	/*

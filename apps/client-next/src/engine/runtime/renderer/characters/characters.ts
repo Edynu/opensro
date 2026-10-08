@@ -225,6 +225,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		return random.range( 0, 32768 );
 	}
 	let probe: import("@/engine/contracts/runtime").RenderFrameProbe | undefined;
+	// This prepare times its draws by kind (the probe's sampled frames).
+	let detailDraws = false;
 	// Per-geometry radius work: an assembled character reuses its parts'.
 	const bounds = createCharacterBoundsCache();
 	const models = new Map<string, {
@@ -1515,6 +1517,9 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		particleNeeded: ReadonlySet<number>
 	) {
 		probe?.characterMark( "character-plan" );
+		// The census is the frame's plan: the deferred continuation re-plans
+		// the same actors, and counting it too would double every row.
+		if ( frame.continuation ) return;
 		// Visibility includes admitted emitters, whose particles can outlive an
 		// off-screen source. Keep this distinct from requested pose storage.
 		probe?.characterCount( "character-candidates", frame.frameActors.length );
@@ -2280,6 +2285,26 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	drawTimed
+
+	drawPrimitive under a detail span named for its kind: particle (and
+	ribbon) effects, cloth, or skinned mesh. Developer panel only.
+	================
+	*/
+	function drawTimed( frame: PrepareFrame, group: GroupFrame, p: number ): GeometryDraw {
+		const primitive = group.model.primitives[p]!;
+		const kind = primitive.ribbon || group.batch.particles[p] ?
+			"draw-particles" :
+			primitive.cloth ?
+			"draw-cloth" :
+			"draw-skinned";
+		probe!.detailBegin!( kind );
+		const draw = drawPrimitive( frame, group, p );
+		probe!.detailEnd!( kind );
+		return draw;
+	}
+	/*
+	================
 	prepareGroup
 
 	Build one planned batch's draws into frame.output.
@@ -2321,9 +2346,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			return;
 		}
 		batch.poseKey = poseKey;
+		if ( detailDraws ) probe!.detailBegin!( "batch-rows" );
 		writeBatchRows( frame, group );
+		if ( detailDraws ) probe!.detailEnd!( "batch-rows" );
 		for ( let p = 0; p < group.model.primitives.length; p++ ) {
-			output.push( drawPrimitive( frame, group, p ) );
+			output.push( detailDraws ? drawTimed( frame, group, p ) : drawPrimitive( frame, group, p ) );
 		}
 		probe?.characterBatch?.(
 			id.slice( rows[0]!.model.length ),
@@ -3114,7 +3141,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				opacity: actorOpacity( byGid ),
 				output: []
 			};
+			probe?.characterMark( "character-setup" );
+			detailDraws = !!probe?.detailBegin && !!probe.sampleDetails?.();
 			const particles = advanceParticles( frame );
+			probe?.characterMark( "character-particles" );
 			const visible = selectVisible( frame, particles.accepted, reflectedView );
 			const { grouped, needed } = planBatches( frame, visible, particles );
 			retireUnplanned( frame, grouped, needed );

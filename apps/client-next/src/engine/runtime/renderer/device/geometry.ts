@@ -125,6 +125,8 @@ export function createGeometryResources(
 	const shadowDummyView = shadowDummy.createView();
 	const uploads = createGeometryUploads( created, retire );
 	const packInstances = createInstancePacking();
+	// The last frame's CPU time encoding each compute system (prepare).
+	const encodeMs = { animation: 0, particles: 0, shadows: 0 };
 	const defaultSkin = created.createBuffer( {
 			label: "geometry-default-skin",
 			size: 32,
@@ -1087,13 +1089,23 @@ export function createGeometryResources(
 		/*
 		================
 		prepare
+
+		Encodes the frame's compute work, timing each system's CPU share for
+		the developer panel (encodeMs): three clock reads a frame.
 		================
 		*/
 		prepare( encoder: GPUCommandEncoder, timing?: import("../internal/gpu-contract").GpuTimingFrame ) {
+			const started = performance.now();
 			animation?.encode( encoder, timing );
+			const animated = performance.now();
 			particles?.encode( encoder, timing );
+			const particled = performance.now();
 			shadows?.encode( encoder, timing );
+			encodeMs.animation = animated - started;
+			encodeMs.particles = particled - animated;
+			encodeMs.shadows = performance.now() - particled;
 		},
+		encodeMs,
 		/*
 		================
 		textureOptions

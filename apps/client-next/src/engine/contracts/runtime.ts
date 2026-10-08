@@ -92,6 +92,9 @@ modules never discover diagnostic globals or require rewritten source.
 export interface RenderFrameProbe {
 	renderBegin(): void;
 	renderMark( stage: string ): void;
+	// A measured share of the current render stage (the device's command
+	// encoding, timed where it runs); absent during ordinary timing runs.
+	renderSpan?( stage: string, ms: number ): void;
 	characterBegin(): void;
 	characterMark( stage: string ): void;
 	characterCount( name: string, value?: number ): void;
