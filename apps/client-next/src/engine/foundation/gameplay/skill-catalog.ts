@@ -9,6 +9,7 @@ id lookup UI code uses.
 
 ===========================================================================
 */
+import { parsePressAdmit, percentOf, type PressAdmit } from "./press-admission";
 import type { Progression } from "./progression";
 /*
 ================
@@ -66,6 +67,9 @@ export interface SkillMetadata {
 	// A Force wall's cast: the server never releases its WAIT while the wall
 	// stands, so the caster stays in action state 2, rooted (cast-motion-lock).
 	readonly holdsCaster?: boolean;
+	// The row's 58D8F0 inputs (press-admission.ts): the local press is
+	// predicted only when the server will admit it.
+	readonly admit?: PressAdmit;
 	readonly cooldownGroup?: number;
 	readonly masteries: readonly Requirement[];
 	readonly prerequisites: readonly Requirement[];
@@ -120,7 +124,7 @@ resourceCostAt). A caster whose rate lowers the cost may pay less.
 ================
 */
 export function skillMpCost( skill: SkillMetadata, maxMp: number ): number {
-	return (skill.mp ?? 0) + Math.trunc( maxMp * (skill.mpPercent ?? 0) / 100 );
+	return ((skill.mp ?? 0) + percentOf( maxMp, skill.mpPercent ?? 0 )) | 0;
 }
 export function skillCatalog( value: unknown ): readonly SkillMetadata[] {
 	const source = (value as {
@@ -226,6 +230,7 @@ export function skillCatalog( value: unknown ): readonly SkillMetadata[] {
 			...(ui.mpPercent ? { mpPercent: uint( ui.mpPercent, 65535 ) } : {}),
 			...(ui.targets ? { targets: uint( ui.targets, 0xffff ) } : {}),
 			...(ui.holdsCaster === true ? { holdsCaster: true } : {}),
+			...(ui.admit === undefined ? {} : { admit: parsePressAdmit( ui.admit ) }),
 			cooldownGroup: uint( ui.cooldownGroup ?? 0, 255 ),
 			masteries: requirements( ui.masteries, 2 ),
 			prerequisites: requirements( ui.prerequisites, 3 )
