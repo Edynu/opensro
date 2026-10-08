@@ -7,11 +7,11 @@ import { createHash } from "node:crypto";
 import { publishedAssets } from "../../tools/published-assets.mjs";
 import { launchProbeBrowser } from "../../../../scripts/lib/probeBrowser.mjs";
 import { CLIENT_NEXT_BASE_URL } from "../../../../scripts/lib/probeEndpoints.mjs";
-test( "published compressed transport survives cold decode, warm worker replacement and arbitrary member reads", {
+test( "gzip-stored pack members survive cold decode, warm worker replacement and arbitrary member reads", {
 	timeout: 120000
 }, async () => {
 	const index = JSON.parse( await readFile( CLIENT_PUBLIC_ROOT + "/assets/packs/manifest.json", "utf8" ) );
-	assert.ok( index.assets.some( e => e.transport ), "run the owned asset-delivery publication first" );
+	assert.ok( index.assets.some( e => e.stored ), "build the assets with SROPACK2 stored members first" );
 	let middleware;
 	const requests = [];
 	const server = createServer( ( req, res ) => {
@@ -68,14 +68,17 @@ test( "published compressed transport survives cold decode, warm worker replacem
 		} );
 		requests.length = 0;
 		// Real decode fixtures supplement the generated/randomized format tests.
+		// Equipment models are content-named, so take the first stored one.
+		const equipment = index.assets.find( e => e.stored && e.path.startsWith( "/assets/char/equipment/" ) );
+		assert.ok( equipment, "the build must publish a gzip-stored equipment model" );
 		const paths = [
 			"/assets/char/china/chinaman_monk.glb",
-			"/assets/char/dress/ch_m_clothes_01.glb",
+			equipment.path,
 			"/assets/npc/mob/china/mangnyang.glb"
 		];
 		const entries = paths.map( path => index.assets.find( e => e.path === path ) );
-		assert.ok( entries.every( Boolean ) );
-		const sample = index.assets.filter( e => e.transport ).filter( ( _, i ) => i % 137 === 0 ).slice( 0, 32 ).map(
+		assert.ok( entries.every( Boolean ), "a decode fixture is no longer published" );
+		const sample = index.assets.filter( e => e.stored ).filter( ( _, i ) => i % 137 === 0 ).slice( 0, 32 ).map(
 			e => ({ path: e.path, sha256: e.sha256, length: e.length })
 		);
 		const result = await page.evaluate( async ( { entries, sample } ) => {
@@ -102,7 +105,8 @@ test( "published compressed transport survives cold decode, warm worker replacem
 							clips: row.model.clips.length,
 							images: row.images.length
 						} );
-						for ( const image of row.images ) image.close();
+						// Native (block-compressed) textures own no bitmap; close bitmaps only.
+						for ( const image of row.images ) if ( !("kind" in image) ) image.close();
 					}
 					const cache = await caches.open( "sro-next-verified-v1" ), deadline = performance.now() + 10000;
 					for ( const entry of entries ) {
@@ -154,18 +158,15 @@ test( "published compressed transport survives cold decode, warm worker replacem
 		}, { entries, sample } );
 		assert.deepEqual( result.passes[0].models, result.passes[1].models );
 		for ( const row of result.hashes ) assert.equal( row.hash, sample.find( e => e.path === row.path ).sha256 );
-		assert.ok( result.stats.transportBytes > 0 );
-		assert.ok( result.stats.transportBytes < result.stats.transportDecodedBytes );
-		for ( const entry of entries ) {
-			if ( entry.transport ) {
-				assert.equal(
-					requests.filter( r => r.path === entry.transport.path ).length,
-					1,
-					"warm worker must reuse verified bytes"
-				);
-			}
-		}
+		// Members travelled compressed and the browser's DecompressionStream decoded them.
+		assert.ok( result.stats.storedBytes > 0 );
+		assert.ok( result.stats.storedBytes < result.stats.decodedBytes );
 		assert.ok( requests.every( r => r.status === 200 || r.status === 206 || r.status === 304 ) );
+		// Packs are read by range, so the server must never encode them.
+		// Packs stay raw on the wire so ranges address stored bytes; only the
+		// manifest (a JSON sidecar) may be served gzip-encoded.
+		const packReads = requests.filter( r => /^\/assets\/packs\/.+\.bin$/.test( r.path ) );
+		assert.ok( packReads.length > 0 && packReads.every( r => !r.encoding ) );
 		await mkdir( "temp/artifacts/asset-delivery", { recursive: true } );
 		await writeFile(
 			"temp/artifacts/asset-delivery/browser.json",

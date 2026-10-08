@@ -39,7 +39,6 @@ test(
 			// Exercise the loose-deployment fallback with current middleware, without
 			// restarting the shared application server or altering installed packs.
 			const legacy = JSON.parse( await readFile( CLIENT_PUBLIC_ROOT + "/assets/packs/manifest.json", "utf8" ) );
-			for ( const entry of legacy.assets ) delete entry.transport;
 			await page.context().route(
 				"**/assets/packs/manifest.json",
 				route =>
@@ -57,9 +56,12 @@ test(
 			await page.waitForFunction( () =>
 				document.querySelector( "output" )?.textContent?.includes( "runtime: running" )
 			);
+			// Equipment models are content-named, so take the first published one.
+			const equipment = legacy.assets.find( e => e.path.startsWith( "/assets/char/equipment/" ) );
+			assert.ok( equipment, "the build must publish an equipment model" );
 			const paths = [
 				"/assets/char/china/chinaman_monk.glb",
-				"/assets/char/dress/ch_m_clothes_01.glb",
+				equipment.path,
 				"/assets/npc/mob/china/mangnyang.glb"
 			];
 			const result = await page.evaluate( async paths => {
@@ -102,8 +104,9 @@ test(
 							clips: r.model.clips.length,
 							images: r.images.length
 						} );
+						// Native (block-compressed) textures own no bitmap; close bitmaps only.
 						for ( const image of r.images ) {
-							image.close();
+							if ( !("kind" in image) ) image.close();
 						}
 					}
 				} finally {
