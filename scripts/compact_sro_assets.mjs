@@ -11,10 +11,11 @@ build/world/paths.mjs.
 ===========================================================================
 */
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import * as zlib from "node:zlib";
 
+import { compactRemovals, writeCompactState } from "./build/compactRemovals.mjs";
 import { buildWebAssetManifest } from "./build/webManifest.mjs";
 import { refreshPrecompressedSidecars } from "./build/generatedManifestSidecars.mjs";
 import { compressBrotliSync } from "./build/shared/compressionUtils.mjs";
@@ -29,7 +30,6 @@ import {
 	mediaExtractedRoot,
 	publicAssetsRoot,
 	publicRoot,
-	rebuildRoot,
 	serverGameDataRoot
 } from "./build/world/paths.mjs";
 
@@ -37,7 +37,6 @@ const generatedAssetsRoot = path.join( generatedRoot, "intermediate" );
 const serverGameDataArchivePath = `${serverGameDataRoot}.srogz`;
 const serverGameDataCacheRoot = path.join( path.dirname( serverGameDataRoot ), ".game-data-cache" );
 const packManifestPath = path.join( publicAssetsRoot, "packs", "manifest.json" );
-const compactStatePath = path.join( rebuildRoot, ".state", "compact-assets.json" );
 const dropGeneratedCache = process.argv.includes( "--drop-generated-cache" );
 
 const BOOTSTRAP_PUBLIC_PATHS = new Set(
@@ -71,6 +70,11 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 	if ( typeof zlib.zstdDecompressSync !== "function" ) {
 		throw new Error( "Compact asset validation requires Node.js zstd decompression support." );
 	}
+	// Every tree this run deletes is checked before the first mutation, against
+	// the root that owns it (a worktree resolves the main checkout's trees), so
+	// a refusal leaves the generated tree untouched.
+	compactRemovals( { generatedRoot, serverGameDataRoot, dropGeneratedCache } );
+	if ( dropGeneratedCache ) await requireRegenerationSources();
 
 	// Iteration uses fast lossless encodings. Shipping is the deliberate cold
 	// path: regenerate the retained pack index at maximum compression before
@@ -173,17 +177,13 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 
 	let droppedGeneratedCache = { files: 0, bytes: 0 };
 	if ( dropGeneratedCache ) {
-		await requireRegenerationSources();
 		droppedGeneratedCache = await measureTree( generatedAssetsRoot );
-		assertInside( rebuildRoot, generatedAssetsRoot, "generated image staging cache" );
 		await rm( generatedAssetsRoot, { recursive: true, force: true } );
 	}
 
 	const serverArchive = await validateServerGameDataArchive( serverGameDataArchivePath );
 	const droppedServerProjection = await measureTree( serverGameDataRoot );
-	assertInside( rebuildRoot, serverGameDataRoot, "loose server game-data projection" );
 	await rm( serverGameDataRoot, { recursive: true, force: true } );
-	assertInside( rebuildRoot, serverGameDataCacheRoot, "server game-data extraction cache" );
 	await rm( serverGameDataCacheRoot, { recursive: true, force: true } );
 	const after = await measureAssetFootprint();
 	const publicFiles = (await listFiles( publicAssetsRoot )).map( toPublicPath ).sort();
@@ -200,7 +200,8 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 		removedPublicFiles: removePaths.length,
 		droppedGeneratedCache,
 		serverArchive: {
-			path: path.relative( rebuildRoot, serverGameDataArchivePath ).replaceAll( "\\", "/" ),
+			// Relative to the checkout that owns the generated tree, from any worktree.
+			path: path.relative( path.dirname( generatedRoot ), serverGameDataArchivePath ).replaceAll( "\\", "/" ),
 			bytes: (await stat( serverGameDataArchivePath )).size,
 			fileCount: serverArchive.fileCount,
 			expandedBytes: serverArchive.expandedBytes
@@ -209,8 +210,7 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 		webManifestFiles: webManifest.files.length,
 		publicFiles
 	};
-	await mkdir( path.dirname( compactStatePath ), { recursive: true } );
-	await writeFile( compactStatePath, `${JSON.stringify( state, null, 2 )}\n`, "utf8" );
+	await writeCompactState( generatedRoot, state );
 
 	console.log(
 		`Compact assets OK: ${packs.length} zstd-only packs preserve ${formatBytes( identityPackBytes )} ` +
