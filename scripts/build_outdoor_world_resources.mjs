@@ -10,11 +10,14 @@ build reuses what this writes.
 
 ===========================================================================
 */
+// First: it sizes libuv's thread pool before anything starts it.
+import "./build/shared/buildParallelism.mjs";
 import {
 	OUTDOOR_WORLD_INDEX_PUBLIC_PATH,
 	buildOutdoorWorldRegionResources
 } from "./build/world/buildOutdoorWorldRegionResources.mjs";
 import { runConvertImages } from "./build/shared/convertImagesRunner.mjs";
+import { beginPublication, commitPublication } from "./build/shared/publicationLedger.mjs";
 import { withGeneratedAssetsLock } from "./rebuildLock.mjs";
 import { assertClientInputs } from "./build/shared/clientInputs.mjs";
 
@@ -30,7 +33,7 @@ Options:
   --plan                 Discover and report without writing files.
   --force                Rebuild selected region files and shared resources.
   --force-shared         Rebuild only the shared render/object resource stores.
-  --jobs=N               Concurrent region builders (1-16, default 2).
+  --jobs=N               Concurrent region builders (default SRO_BUILD_JOBS, else cores - 1).
   --region=HEX[,HEX...]  Incrementally build specific valid region ids.
   --no-catalog           Do not update the global world-region catalog.
   --help                 Show this help.
@@ -60,7 +63,10 @@ const runBuild = async () => {
 			throw new Error( `Source image conversion failed with exit status ${sourceImages.status}.` );
 		}
 	}
+	// A --region run claims only its regions and merges into the full record.
+	if ( !options.planOnly ) beginPublication( "outdoor-world", { complete: options.regionIds.length === 0 } );
 	const result = await buildOutdoorWorldRegionResources( options );
+	if ( !options.planOnly ) await commitPublication();
 	if ( result.planOnly ) {
 		console.log(
 			`Outdoor build plan: ${result.sectorCount} valid sectors, ${result.selectedSectorCount} selected.`
@@ -101,7 +107,7 @@ function parseArguments( args ) {
 		force: false,
 		forceShared: false,
 		updateCatalog: true,
-		jobs: 2,
+		jobs: undefined,
 		regionIds: [],
 		help: false
 	};

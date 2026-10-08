@@ -19,20 +19,7 @@ tree untouched.
 */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-
-/*
-================
-assertInsideRoot
-
-Refuse a target outside root, or root itself.
-================
-*/
-function assertInsideRoot( root, target, label ) {
-	const relative = path.relative( path.resolve( root ), path.resolve( target ) );
-	if ( relative === "" || relative.startsWith( ".." ) || path.isAbsolute( relative ) ) {
-		throw new Error( `${label} must stay below ${root}, got ${target}` );
-	}
-}
+import { assertInsideRoot } from "./shared/assetPaths.mjs";
 
 /*
 ================

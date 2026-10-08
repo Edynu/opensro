@@ -10,6 +10,12 @@ build/world/paths.mjs.
 
 ===========================================================================
 */
+// First: it sizes libuv's thread pool, which runs the zstd compression below.
+import { buildJobs } from "./build/shared/buildParallelism.mjs";
+import { assertInsideRoot, containedPublicFile, normalizePublicAssetPath } from "./build/shared/assetPaths.mjs";
+import { createLimiter, settleAll } from "./build/shared/asyncUtils.mjs";
+import { ASSET_PACK_ZSTD_LEVEL, ASSET_PACK_ZSTD_WINDOW_LOG, compressAssetPackZstd } from "./build/assetPacks.mjs";
+import { publishAssetPackManifest } from "./build/assetPackPublication.mjs";
 import { createHash } from "node:crypto";
 import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -76,6 +82,10 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 	compactRemovals( { generatedRoot, serverGameDataRoot, dropGeneratedCache } );
 	if ( dropGeneratedCache ) await requireRegenerationSources();
 
+	// The build writes identity packs only; the zstd-19 copies this release
+	// keeps instead are made here, once, for every pack that lacks one.
+	await ensurePackZstdCopies( manifest, packs );
+
 	// Iteration uses fast lossless encodings. Shipping is the deliberate cold
 	// path: regenerate the retained pack index at maximum compression before
 	// choosing the smallest negotiated representation below.
@@ -84,8 +94,8 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 	let compressedPackBytes = 0;
 	let identityPackBytes = 0;
 	for ( const pack of packs ) {
-		const identityPath = resolvePublicPath( pack.path );
-		const zstdPath = resolvePublicPath( pack.zstdPath );
+		const identityPath = containedPublicFile( publicRoot, pack.path );
+		const zstdPath = containedPublicFile( publicRoot, pack.zstdPath );
 		const zstdStats = await stat( zstdPath );
 		if ( !zstdStats.isFile() || zstdStats.size !== pack.zstdBytes ) {
 			throw new Error( `Pack sidecar size mismatch: ${pack.zstdPath}` );
@@ -96,14 +106,14 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 		if ( identity.byteLength !== pack.bytes || digest !== pack.sha256.toLowerCase() ) {
 			throw new Error( `Pack sidecar does not reproduce the manifest identity bytes: ${pack.zstdPath}` );
 		}
-		assertInside( publicAssetsRoot, identityPath, `pack identity ${pack.path}` );
+		assertInsideRoot( publicAssetsRoot, identityPath, `pack identity ${pack.path}` );
 		compressedPackBytes += compressed.byteLength;
 		identityPackBytes += identity.byteLength;
 	}
 
 	const packedLogicalPaths = new Set();
 	for ( const asset of manifest.assets ) {
-		const normalized = normalizePublicPath( asset.path ).toLowerCase();
+		const normalized = normalizePublicAssetPath( asset.path ).toLowerCase();
 		packedLogicalPaths.add( normalized );
 		if ( normalized.endsWith( ".json.gz" ) ) {
 			packedLogicalPaths.add( normalized.slice( 0, -".gz".length ) );
@@ -117,7 +127,7 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 		if ( typeof pack.zstdPath !== "string" ) {
 			throw new Error( `Pack has no zstd representation: ${pack.path}` );
 		}
-		keepPaths.add( normalizePublicPath( pack.zstdPath ).toLowerCase() );
+		keepPaths.add( normalizePublicAssetPath( pack.zstdPath ).toLowerCase() );
 	}
 
 	for ( const filePath of allPublicFiles ) {
@@ -132,14 +142,14 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 	}
 
 	for ( const bootstrapPath of BOOTSTRAP_PUBLIC_PATHS ) {
-		await requireFile( resolvePublicPath( bootstrapPath ), `bootstrap asset ${bootstrapPath}` );
+		await requireFile( containedPublicFile( publicRoot, bootstrapPath ), `bootstrap asset ${bootstrapPath}` );
 		keepPaths.add( bootstrapPath );
 	}
 
 	// Retain only the smallest fresh negotiated representation for the few JSON
 	// files that remain loose (principally the two manifests).
 	for ( const publicPath of [ ...keepPaths ] ) {
-		const basePath = resolvePublicPath( publicPath );
+		const basePath = containedPublicFile( publicRoot, publicPath );
 		const baseStats = await stat( basePath ).catch( () => undefined );
 		if ( !baseStats?.isFile() ) {
 			continue;
@@ -162,7 +172,7 @@ await withGeneratedAssetsLock( "compact browser asset release", async () => {
 		!keepPaths.has( toPublicPath( filePath ).toLowerCase() )
 	);
 	for ( const filePath of removePaths ) {
-		assertInside( publicAssetsRoot, filePath, "compact asset removal" );
+		assertInsideRoot( publicAssetsRoot, filePath, "compact asset removal" );
 		await rm( filePath, { force: true } );
 	}
 
@@ -306,36 +316,12 @@ async function measureTree( root ) {
 
 /*
 ================
-resolvePublicPath
-================
-*/
-function resolvePublicPath( publicPath ) {
-	const absolutePath = path.resolve( publicRoot, normalizePublicPath( publicPath ).replace( /^\/+/, "" ) );
-	assertInside( publicRoot, absolutePath, `public path ${publicPath}` );
-	return absolutePath;
-}
-
-/*
-================
 toPublicPath
 ================
 */
 function toPublicPath( filePath ) {
-	assertInside( publicRoot, filePath, "public asset" );
+	assertInsideRoot( publicRoot, filePath, "public asset" );
 	return `/${path.relative( publicRoot, filePath ).split( path.sep ).join( "/" )}`;
-}
-
-/*
-================
-normalizePublicPath
-================
-*/
-function normalizePublicPath( value ) {
-	const normalized = `/${String( value ).replaceAll( "\\", "/" ).replace( /^\/+/, "" )}`.replace( /\/{2,}/g, "/" );
-	if ( !normalized.startsWith( "/assets/" ) ) {
-		throw new Error( `Expected a public /assets path, got ${value}` );
-	}
-	return normalized;
 }
 
 /*
@@ -349,21 +335,46 @@ function isSidecarPath( publicPath ) {
 
 /*
 ================
-assertInside
-================
-*/
-function assertInside( root, target, label ) {
-	const relative = path.relative( path.resolve( root ), path.resolve( target ) );
-	if ( relative === "" || relative.startsWith( ".." ) || path.isAbsolute( relative ) ) {
-		throw new Error( `${label} must stay below ${root}, got ${target}` );
-	}
-}
-
-/*
-================
 formatBytes
 ================
 */
 function formatBytes( bytes ) {
 	return `${(bytes / (1024 ** 3)).toFixed( 3 )} GiB (${bytes.toLocaleString( "en-US" )} bytes)`;
+}
+
+/*
+================
+ensurePackZstdCopies
+
+Writes the zstd-19 copy of every pack that has none (or a wrong-size one),
+records it in the pack index and publishes the index. Packs compress in
+parallel under the build's SRO_BUILD_JOBS budget.
+================
+*/
+async function ensurePackZstdCopies( manifest, packs ) {
+	const slots = createLimiter( buildJobs() );
+	let written = 0;
+	// settleAll: a failed copy waits for the others before the lock is released.
+	await settleAll( packs.map( pack =>
+		slots( async () => {
+			const zstdPublicPath = `${pack.path}.zst`;
+			const zstdPath = containedPublicFile( publicRoot, zstdPublicPath );
+			const existing = await stat( zstdPath ).catch( () => undefined );
+			if ( pack.zstdPath === zstdPublicPath && existing?.isFile() && existing.size === pack.zstdBytes ) return;
+			const compressed = await compressAssetPackZstd(
+				await readFile( containedPublicFile( publicRoot, pack.path ) )
+			);
+			await writeFile( zstdPath, compressed );
+			Object.assign( pack, {
+				zstdPath: zstdPublicPath,
+				zstdBytes: compressed.length,
+				zstdLevel: ASSET_PACK_ZSTD_LEVEL,
+				zstdWindowLog: ASSET_PACK_ZSTD_WINDOW_LOG
+			} );
+			written++;
+		} )
+	) );
+	if ( written === 0 ) return;
+	await publishAssetPackManifest( publicRoot, packManifestPath, Buffer.from( JSON.stringify( manifest ) ) );
+	console.log( `[compact] wrote ${written} zstd pack copies` );
 }

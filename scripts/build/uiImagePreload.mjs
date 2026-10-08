@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { toPublicPath as toPublicAssetPath } from "./shared/assetPaths.mjs";
 import { listFiles, pathExists as exists } from "./shared/fsUtils.mjs";
-import { readJsonOrUndefined, writeJsonIfChanged } from "./shared/jsonOut.mjs";
+import { writeJsonIfChanged } from "./shared/jsonOut.mjs";
+import { currentClaims, isClaimed, isPublicationOpen } from "./shared/publicationLedger.mjs";
 
 const scriptDir = path.dirname( fileURLToPath( import.meta.url ) );
 const rebuildRoot = path.resolve( scriptDir, "..", ".." );
@@ -25,21 +26,20 @@ export async function buildUiImagePreloadManifest( options = {} ) {
 	const root = options.imageRoot ?? imageRoot;
 	const targetPath = options.targetPath ?? preloadManifestPath;
 	const rootPublic = options.publicRoot ?? derivePublicRootFromImageRoot( root );
-	const images = await collectUiPreloadImages( root, rootPublic );
+	// Inside a build, only images a current owner produced (currentClaims, the
+	// set the audit uses): a stale PNG an older pipeline or a retired family
+	// left behind would otherwise become a manifest dependency, and the audit
+	// would refuse the build instead of archiving the file.
+	const claimed = options.claimed ?? (isPublicationOpen() ? await currentClaims() : null);
+	const images = await collectUiPreloadImages( root, rootPublic, claimed );
 
-	// Keep the previous timestamp when the manifest is otherwise unchanged so the written
-	// bytes (and the downstream sidecar/pack caches keyed on this file's mtime) stay stable.
-	const existing = await readJsonOrUndefined( targetPath );
-	const stampNeutral = ( value ) => JSON.stringify( { ...value, generatedAt: 0 } );
+	// No timestamp: the same images give the same bytes on every machine, so a
+	// fresh clone packs exactly what this one does (and nothing re-downloads).
 	const manifest = {
 		format: "sro-image-preload-manifest",
 		version: 1,
-		generatedAt: new Date().toISOString(),
 		images
 	};
-	if ( existing && stampNeutral( existing ) === stampNeutral( manifest ) ) {
-		manifest.generatedAt = existing.generatedAt;
-	}
 
 	await writeJsonIfChanged( targetPath, manifest );
 
@@ -52,8 +52,9 @@ export async function buildUiImagePreloadManifest( options = {} ) {
 	};
 }
 
-async function collectUiPreloadImages( root, rootPublic ) {
-	const pngFiles = await listFiles( root, { extensions: [ ".png" ] } );
+async function collectUiPreloadImages( root, rootPublic, claimed ) {
+	const current = ( filePath ) => !claimed || isClaimed( toPublicAssetPath( filePath, rootPublic ), claimed );
+	const pngFiles = (await listFiles( root, { extensions: [ ".png" ] } )).filter( current );
 	const stateFiles = pngFiles.filter( ( filePath ) => INTERACTIVE_IMAGE_PATTERN.test( filePath ) );
 	const byPath = new Map();
 
@@ -67,7 +68,7 @@ async function collectUiPreloadImages( root, rootPublic ) {
 		await addImage( byPath, stateFile, rootPublic, "interactive-state" );
 
 		const normalFile = stateFile.replace( INTERACTIVE_IMAGE_PATTERN, ".png" );
-		if ( await exists( normalFile ) ) {
+		if ( await exists( normalFile ) && current( normalFile ) ) {
 			await addImage( byPath, normalFile, rootPublic, "interactive-normal" );
 		}
 	}

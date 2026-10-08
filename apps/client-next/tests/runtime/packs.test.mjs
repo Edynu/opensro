@@ -245,15 +245,18 @@ test("URL encoded filenames resolve against literal published names", async () =
 function disk( t ) {
 	const rows = new Map();
 	let denied = false, quota = false;
+	// A Cache takes a URL string or a Request (the store's inventory rebuild
+	// passes the Requests keys() returned).
+	const rowKey = request => request instanceof Request ? request.url : String( request );
 	const cache = {
 		async match( url ) {
-			return rows.get( String( url ) )?.clone();
+			return rows.get( rowKey( url ) )?.clone();
 		},
 		async keys() {
 			return [ ...rows.keys() ].map( url => new Request( url ) );
 		},
 		async delete( url ) {
-			return rows.delete( String( url ) );
+			return rows.delete( rowKey( url ) );
 		},
 		async put( url, response ) {
 			if ( denied ) throw Error( "denied" );
@@ -261,7 +264,7 @@ function disk( t ) {
 				quota = false;
 				throw new DOMException( "full", "QuotaExceededError" );
 			}
-			rows.set( String( url ), new Response( await response.arrayBuffer(), { headers: response.headers } ) );
+			rows.set( rowKey( url ), new Response( await response.arrayBuffer(), { headers: response.headers } ) );
 		}
 	};
 	const old = Object.getOwnPropertyDescriptor( globalThis, "caches" );
@@ -373,7 +376,7 @@ test("persistent payload eviction obeys the quota-derived budget without clearin
 		else delete globalThis.navigator;
 	} );
 	const { createPersistentAssets } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" ),
-		owner = createPersistentAssets();
+		owner = createPersistentAssets( quota => quota / 4 );
 	await Promise.all(
 		[ "a", "b", "c" ].map( key => owner.write( "http://localhost", key, Uint8Array.of( 1, 2, 3 ) ) )
 	);
@@ -383,6 +386,85 @@ test("persistent payload eviction obeys the quota-derived budget without clearin
 	assert.equal( owner.stats().evictions, 1 );
 	await owner.write( "http://localhost", "oversized", new Uint8Array( 9 ) );
 	assert.equal( d.rows.size, 2 );
+});
+
+test("the budget is half the quota between 512 MiB and 4 GiB", async () => {
+	const { budgetFromQuota } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" );
+	const MiB = 1024 * 1024, GiB = 1024 * MiB;
+	assert.equal( budgetFromQuota( undefined ), 512 * MiB );
+	assert.equal( budgetFromQuota( 100 * MiB ), 512 * MiB );
+	assert.equal( budgetFromQuota( 3 * GiB ), 1.5 * GiB );
+	assert.equal( budgetFromQuota( 600 * GiB ), 4 * GiB );
+});
+
+/*
+================
+quotaNavigator
+
+A navigator whose storage estimate reports quota bytes; restored after t.
+================
+*/
+function quotaNavigator( t, quota ) {
+	const old = Object.getOwnPropertyDescriptor( globalThis, "navigator" );
+	Object.defineProperty( globalThis, "navigator", {
+		configurable: true,
+		value: { storage: { estimate: async () => ({ quota }) } }
+	} );
+	t.after( () => {
+		if ( old ) Object.defineProperty( globalThis, "navigator", old );
+		else delete globalThis.navigator;
+	} );
+}
+
+test("startup entries survive eviction, also after a reload", async t => {
+	const d = disk( t );
+	quotaNavigator( t, 32 );
+	const { createPersistentAssets } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" );
+	const origin = "http://localhost", bytes = Uint8Array.of( 1, 2, 3 );
+	const first = createPersistentAssets( quota => quota / 4 );
+	first.setStartup( origin, [ "ui" ] );
+	for ( const digest of [ "ui", "world-a", "world-b" ] ) await first.write( origin, digest, bytes );
+	assert.ok( await first.read( origin, "ui", 3 ), "the startup entry outlives the eviction" );
+	assert.equal( await first.read( origin, "world-a", 3 ), null );
+	// A new owner rebuilds its inventory from Cache Storage; the manifest names the startup set again.
+	const second = createPersistentAssets( quota => quota / 4 );
+	second.setStartup( origin, [ "ui" ] );
+	await second.write( origin, "world-c", bytes );
+	assert.ok( await second.read( origin, "ui", 3 ) );
+	assert.equal( d.rows.size, 2 );
+});
+
+test("a write that cannot fit beside the startup entries is skipped, never stored over budget", async t => {
+	const d = disk( t );
+	quotaNavigator( t, 32 );
+	const { createPersistentAssets } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" );
+	const origin = "http://localhost", bytes = Uint8Array.of( 1, 2, 3 );
+	const store = createPersistentAssets( quota => quota / 4 );
+	store.setStartup( origin, [ "ui-a", "ui-b" ] );
+	for ( const digest of [ "ui-a", "ui-b", "world" ] ) await store.write( origin, digest, bytes );
+	const stored = [ ...d.rows.values() ].reduce(
+		( sum, response ) => sum + Number( response.headers.get( "content-length" ) ),
+		0
+	);
+	assert.ok( stored <= 8, `stored ${stored} bytes against an 8-byte budget` );
+	assert.equal( await store.read( origin, "world", 3 ), null );
+	assert.ok( store.stats().skipped >= 1 );
+});
+
+test("a warm entry the manifest names becomes protected; one only an older release named does not", async t => {
+	disk( t );
+	quotaNavigator( t, 32 );
+	const { createPersistentAssets } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" );
+	const origin = "http://localhost", bytes = Uint8Array.of( 1, 2, 3 );
+	const store = createPersistentAssets( quota => quota / 4 );
+	store.setStartup( origin, [ "old-ui" ] );
+	await store.write( origin, "old-ui", bytes );
+	await store.write( origin, "now-ui", bytes );
+	// The next release's manifest: now-ui is a startup entry, old-ui is not.
+	store.setStartup( origin, [ "now-ui" ] );
+	await store.write( origin, "world", bytes );
+	assert.ok( await store.read( origin, "now-ui", 3 ), "the warm entry is protected without a rewrite" );
+	assert.equal( await store.read( origin, "old-ui", 3 ), null, "the obsolete startup entry was evicted" );
 });
 
 test("large packs download verified ranges and persist only demanded members across reload", async t => {
@@ -604,7 +686,7 @@ test("bounded publication drops optional writes under pressure and refreshes LRU
 		else delete globalThis.navigator;
 	} );
 	const { createPersistentAssets } = await load( "src/engine/runtime/assets/worker/packs/persistent.ts" ),
-		owner = createPersistentAssets();
+		owner = createPersistentAssets( quota => quota / 4 );
 	for ( const key of [ "a", "b" ] ) await owner.write( "http://localhost", key, Uint8Array.of( 1, 2, 3 ) );
 	await owner.read( "http://localhost", "a", 3 );
 	await owner.write( "http://localhost", "c", Uint8Array.of( 1, 2, 3 ) );

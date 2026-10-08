@@ -4,7 +4,7 @@
 assetPacks.mjs - build the asset packs and publish their index
 
 Groups the public assets into packs of about the target size, reuses any
-pack whose members are unchanged, compresses each with zstd, and publishes
+pack whose members are unchanged, and publishes
 the pack index (assets/packs/manifest.json) atomically. The same builder
 writes the incremental slot packs, each with its own local index.
 
@@ -16,6 +16,8 @@ up between full builds.
 ===========================================================================
 */
 
+import { assertInsideRoot, containedPublicFile } from "./shared/assetPaths.mjs";
+import { buildJobs } from "./shared/buildParallelism.mjs";
 import { CLIENT_PUBLIC_ROOT } from "../lib/generatedRoot.mjs";
 import { ASSET_SCHEMA } from "./assetSchema.mjs";
 import { prepareAssetDelivery } from "./assetDelivery.mjs";
@@ -31,7 +33,7 @@ import {
 	toPublicPath as toPublicAssetPath
 } from "./shared/assetPaths.mjs";
 import { publishBytesAtomically } from "./shared/atomicPublish.mjs";
-import { mapWithConcurrency } from "./shared/asyncUtils.mjs";
+import { createLimiter, mapWithConcurrency, settleAll } from "./shared/asyncUtils.mjs";
 import { compressZstd, DEFAULT_ZSTD_LEVEL, DEFAULT_ZSTD_WINDOW_LOG } from "./shared/compressionUtils.mjs";
 import { openFileHashCache } from "./shared/fileHashCache.mjs";
 import { listFiles } from "./shared/fsUtils.mjs";
@@ -55,8 +57,6 @@ export const ASSET_PACK_ZSTD_WINDOW_LOG = DEFAULT_ZSTD_WINDOW_LOG;
 const FILE_HASH_CONCURRENCY = 8;
 /** stat() sweeps are cheap syscalls; high fan-out matters on Windows where each is slow. */
 const FILE_STAT_CONCURRENCY = 64;
-/** Packs building in parallel; each holds one pack buffer (+ zstd output) in memory. */
-const PACK_BUILD_CONCURRENCY = 3;
 
 /**
  * zstd fields are optional: reused packs come from a previous manifest, and older
@@ -81,7 +81,7 @@ export async function listPublicAssetFiles( options = {} ) {
 	const files = [];
 
 	for ( const rootPublicPath of roots ) {
-		const absoluteRoot = resolvePublicAssetFile( root, rootPublicPath );
+		const absoluteRoot = containedPublicFile( root, rootPublicPath );
 		const rootStat = await stat( absoluteRoot );
 		if ( rootStat.isFile() ) {
 			const publicPath = normalizePublicPath( rootPublicPath );
@@ -114,7 +114,7 @@ export async function buildAssetPacks( options = {} ) {
 	const defaultTargetBytes = options.targetBytes ?? DEFAULT_ASSET_PACK_TARGET_BYTES;
 	const groups = options.groups ?? [];
 
-	assertInside( root, outputRoot, "asset pack output root" );
+	assertInsideRoot( root, outputRoot, "asset pack output root" );
 	await mkdir( outputRoot, { recursive: true } );
 
 	// Incremental reuse: a pack is fully determined by its ordered member contents plus the
@@ -145,8 +145,14 @@ export async function buildAssetPacks( options = {} ) {
 		assets: []
 	};
 
-	for ( const group of groups ) {
-		const groupResult = await buildAssetPackGroup( {
+	// Every group builds at once under one pack budget: a group of three packs
+	// must not leave the other cores idle while it compresses. Results keep the
+	// caller's group order, so the index is the same whatever finishes first.
+	const packSlots = createLimiter( buildJobs() );
+	// settleAll: a failed group waits for its siblings' writes before the
+	// caller releases the build lock.
+	const groupResults = await settleAll( groups.map( group =>
+		buildAssetPackGroup( {
 			publicRoot: root,
 			outputRoot,
 			group,
@@ -154,8 +160,11 @@ export async function buildAssetPacks( options = {} ) {
 			reusablePacks,
 			hashCache,
 			counters,
-			baselineIndex
-		} );
+			baselineIndex,
+			packSlots
+		} )
+	) );
+	for ( const groupResult of groupResults ) {
 		index.groups.push( groupResult.groupIndex );
 		index.assets.push( ...groupResult.assets );
 	}
@@ -249,12 +258,12 @@ buildAssetPackGroup
 ================
 */
 async function buildAssetPackGroup(
-	{ publicRoot, outputRoot, group, targetBytes, reusablePacks, hashCache, counters, baselineIndex }
+	{ publicRoot, outputRoot, group, targetBytes, reusablePacks, hashCache, counters, baselineIndex, packSlots }
 ) {
 	const name = normalizeGroupName( group.name );
 	const publicPaths = uniquePublicPaths( group.files ?? [] );
 	const files = await mapWithConcurrency( publicPaths, FILE_STAT_CONCURRENCY, async ( publicPath ) => {
-		const absolutePath = resolvePublicAssetFile( publicRoot, publicPath );
+		const absolutePath = containedPublicFile( publicRoot, publicPath );
 		const fileStat = await stat( absolutePath );
 		if ( !fileStat.isFile() ) {
 			throw new Error( `Asset pack input is not a file: ${publicPath}` );
@@ -291,20 +300,21 @@ async function buildAssetPackGroup(
 	/** @type {AssetPackAssetRow[]} */
 	const assets = [];
 
-	const results = await mapWithConcurrency(
-		chunks,
-		PACK_BUILD_CONCURRENCY,
-		( plan ) =>
+	// Each pack in flight holds its buffer and zstd output (about 2 x 50 MiB);
+	// packSlots bounds them across every group.
+	const results = await settleAll( chunks.map( plan =>
+		packSlots( () =>
 			buildOrReusePack( {
 				name,
 				plan,
-				outputRoot: plan.dir ? resolvePublicAssetFile( publicRoot, plan.dir ) : outputRoot,
+				outputRoot: plan.dir ? containedPublicFile( publicRoot, plan.dir ) : outputRoot,
 				publicRoot,
 				reusablePacks,
 				hashCache,
 				counters
 			} )
-	);
+		)
+	) );
 
 	for ( const result of results ) {
 		groupIndex.packs.push( result.packEntry );
@@ -327,7 +337,6 @@ function packContentKey( groupName, members ) {
 		JSON.stringify( {
 			format: ASSET_PACK_MAGIC,
 			version: 1,
-			zstd: [ ASSET_PACK_ZSTD_LEVEL, ASSET_PACK_ZSTD_WINDOW_LOG ],
 			group: groupName,
 			files: members.map( ( member ) => [ member.publicPath, member.sha256, member.length, member.mime ] )
 		} )
@@ -357,7 +366,7 @@ async function indexReusablePacks( indexPath ) {
 	const packsByPath = new Map();
 	for ( const group of previous.groups ) {
 		for ( const pack of group.packs ?? [] ) {
-			if ( typeof pack?.path === "string" && typeof pack.zstdBytes === "number" ) {
+			if ( typeof pack?.path === "string" ) {
 				packsByPath.set( pack.path, { groupName: group.name, pack } );
 			}
 		}
@@ -392,25 +401,38 @@ async function indexReusablePacks( indexPath ) {
 /*
 ================
 packOutputsIntact
+
+Which representation of an unchanged pack is on disk: "identity" when the
+pack is at its recorded size, "zstd" in a compacted tree, which keeps only
+the copy `pnpm assets compact` made, or null when neither is intact.
 ================
 */
 async function packOutputsIntact( publicRoot, pack ) {
 	try {
-		const binPath = resolvePublicAssetFile( publicRoot, pack.path );
-		const zstdPath = resolvePublicAssetFile( publicRoot, pack.zstdPath ?? `${pack.path}.zst` );
-		const [binStat, zstdStat] = await Promise.all( [
-			stat( binPath ).catch( () => undefined ),
-			stat( zstdPath ).catch( () => undefined )
-		] );
-		const identityIntact = binStat?.isFile() && binStat.size === pack.bytes;
-		const zstdIntact = zstdStat?.isFile() && zstdStat.size === pack.zstdBytes;
-
-		// Compact releases intentionally retain only the zstd sidecar. Reuse an
-		// unchanged pack without inflating and recompressing its deleted identity.
-		return Boolean( zstdIntact && (identityIntact || !binStat) );
+		const binStat = await stat( containedPublicFile( publicRoot, pack.path ) ).catch( () => undefined );
+		if ( binStat ) return binStat.isFile() && binStat.size === pack.bytes ? "identity" : null;
+		if ( typeof pack.zstdPath !== "string" ) return null;
+		const zstdStat = await stat( containedPublicFile( publicRoot, pack.zstdPath ) ).catch( () => undefined );
+		return zstdStat?.isFile() && zstdStat.size === pack.zstdBytes ? "zstd" : null;
 	} catch {
-		return false;
+		return null;
 	}
+}
+
+/*
+================
+reusedPackEntry
+
+An unchanged pack's index entry. Beside its identity pack the compact copy
+is dropped from the entry, so archiveStaleOutputs retires the .bin.zst: a
+copy carried forward stayed live forever in an uncompacted tree (1.46 GiB
+of them on 2026-10-08). `pnpm assets compact` makes it again when needed.
+================
+*/
+function reusedPackEntry( pack, representation ) {
+	if ( representation !== "identity" ) return { ...pack };
+	const { zstdPath, zstdBytes, zstdLevel, zstdWindowLog, ...identity } = pack;
+	return identity;
 }
 
 /*
@@ -434,14 +456,15 @@ async function buildOrReusePack(
 	const reusable = reusablePacks.get( plannedKey );
 	// Folder and slot are part of the pack's URL: reuse only a pack built for both.
 	const packDir = toPublicAssetPath( outputRoot, publicRoot );
-	if (
-		reusable && reusable.groupName === name && packSlotOf( reusable.pack.path ) === slot &&
-		reusable.pack.path.slice( 0, reusable.pack.path.lastIndexOf( "/" ) ) === packDir &&
-		(await packOutputsIntact( publicRoot, reusable.pack ))
-	) {
+	const representation = reusable && reusable.groupName === name &&
+			packSlotOf( reusable.pack.path ) === slot &&
+			reusable.pack.path.slice( 0, reusable.pack.path.lastIndexOf( "/" ) ) === packDir ?
+		await packOutputsIntact( publicRoot, reusable.pack ) :
+		null;
+	if ( reusable && representation ) {
 		counters.reused += 1;
 		return {
-			packEntry: { ...reusable.pack },
+			packEntry: reusedPackEntry( reusable.pack, representation ),
 			assetRows: reusable.members.map( ( member ) => ({ ...member }) )
 		};
 	}
@@ -489,21 +512,18 @@ async function buildOrReusePack(
 	}
 	await mkdir( outputRoot, { recursive: true } );
 
-	// zstd runs on the libuv threadpool; overlapping it with the pack write keeps the
-	// (rare, changed-pack-only) compression off the critical path as much as possible.
-	const [zstdSidecar] = await Promise.all( [ compressAssetPackZstd( buffer ), writeFile( packPath, buffer ) ] );
-	await writeFile( `${packPath}.zst`, zstdSidecar );
+	// The identity pack is what every reader serves. Its zstd-19 copy exists only
+	// for the compact release footprint, so `pnpm assets compact` makes it
+	// (compressAssetPackZstd); compressing every changed pack here cost most of a
+	// clean build's pack step.
+	await writeFile( packPath, buffer );
 	counters.built += 1;
 
 	const packEntry = {
 		path: packPublicPath,
 		bytes: buffer.length,
 		sha256: packHash,
-		assetCount: entries.length,
-		zstdPath: `${packPublicPath}.zst`,
-		zstdBytes: zstdSidecar.length,
-		zstdLevel: ASSET_PACK_ZSTD_LEVEL,
-		zstdWindowLog: ASSET_PACK_ZSTD_WINDOW_LOG
+		assetCount: entries.length
 	};
 	const assetRows = entries.map( ( entry ) => ({
 		path: entry.path,
@@ -547,7 +567,7 @@ Soft-archive files under the packs root that the freshly published manifest does
 */
 async function archiveStaleOutputs( publicRoot, outputRoot, index, indexPath ) {
 	// The live set includes the index's precompressed sidecars; deleting them
-	// forced a pointless brotli/gzip/zstd recompression of the manifest every build.
+	// forced a pointless recompression of the manifest every build.
 	const keep = livePackFiles( publicRoot, indexPath, index );
 
 	for ( const filename of await listFiles( outputRoot ) ) {
@@ -566,25 +586,15 @@ async function archiveStaleOutputs( publicRoot, outputRoot, index, indexPath ) {
 /*
 ================
 compressAssetPackZstd
+
+The compact release's at-rest copy of one pack (pnpm assets compact).
 ================
 */
-function compressAssetPackZstd( bytes ) {
+export function compressAssetPackZstd( bytes ) {
 	return compressZstd( bytes, {
 		level: ASSET_PACK_ZSTD_LEVEL,
 		windowLog: ASSET_PACK_ZSTD_WINDOW_LOG
 	} );
-}
-
-/*
-================
-resolvePublicAssetFile
-================
-*/
-function resolvePublicAssetFile( root, publicPath ) {
-	const relative = publicPath.replace( /^\/+/, "" );
-	const absolutePath = path.resolve( root, relative );
-	assertInside( root, absolutePath, `asset ${publicPath}` );
-	return absolutePath;
 }
 
 /*
@@ -622,20 +632,6 @@ function normalizeGroupName( name ) {
 		throw new Error( "Asset pack group is missing a usable name." );
 	}
 	return normalized;
-}
-
-/*
-================
-assertInside
-================
-*/
-function assertInside( root, target, label ) {
-	const relative = path.relative( path.resolve( root ), path.resolve( target ) );
-	if ( relative === "" || (!relative.startsWith( ".." ) && !path.isAbsolute( relative )) ) {
-		return;
-	}
-
-	throw new Error( `${label} must stay inside ${root}, got ${target}` );
 }
 
 /*

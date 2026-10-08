@@ -72,8 +72,8 @@ corepack pnpm install --frozen-lockfile
 py -3 -m pip install -r requirements-build.txt
 corepack pnpm assets prepare            # extract the archives, convert the music (a few minutes)
 corepack pnpm assets doctor             # every input and tool, with the fix for each problem
-corepack pnpm assets build full         # outdoor world, then everything else; roughly 40 minutes
-corepack pnpm assets publish            # families the full build does not produce yet
+corepack pnpm assets build full         # outdoor world, everything else, every family; about 6 minutes on 16 cores
+corepack pnpm assets ledger             # must report nothing unclaimed
 corepack pnpm task build server-game-data
 corepack pnpm assets check integrity
 ```
@@ -85,6 +85,12 @@ correct ones alone. `assets doctor` only reads; run it whenever a build
 refuses to start. The first build must be `assets build full`: plain
 `assets build` reuses the outdoor world of an earlier full build and has
 none on a fresh machine.
+
+The second `assets build` and `assets ledger` check the tree against the
+publication ledger: every packed file must come from a current build step,
+so nothing that only exists on your machine reaches a release.
+[ASSET_DELIVERY.md](ASSET_DELIVERY.md) explains the ledger, and how to
+size the build with `SRO_BUILD_JOBS` (default: every core but one).
 
 The results land in the ignored `.generated/` folder: browser assets in
 `.generated/client-public/assets/`, the server projection in
@@ -232,6 +238,6 @@ file, because a virtual machine without a CPU frequency reads as zero compute.
 | `nomad.exe` missing | Install it as in step 1, or pass `-nomad-binary <path>` to `dev-agent` (only 2.0.7 is accepted). |
 | Port 4647 already in use | Another Nomad is running. Stop it from the terminal or service that owns it, then rerun `dev-agent`. |
 | Jobs slow to become healthy after a rebuild | Antivirus may be scanning the new `agent.exe`/`gameworld.exe`. Wait; the jobs allow several minutes. Check with `sro-nomad status`. |
-| Missing game-data or asset file | Run `pnpm assets doctor`, then rerun `pnpm assets build full`, `pnpm assets publish` and `pnpm task build server-game-data`, and clear any `SRO_SERVER_GAME_DATA_*` environment overrides. |
+| Missing game-data or asset file | Run `pnpm assets doctor`, then rerun `pnpm assets build full` and `pnpm task build server-game-data`, and clear any `SRO_SERVER_GAME_DATA_*` environment overrides. |
 | `INVALID_CREDENTIALS` at login | Use `tester` / `123123`; rerun `sro-bootstrap-development`. If you changed `dev-account.env`, reset the local world (step 6). |
 | A job keeps restarting | `.tools\nomad\2.0.7\nomad.exe alloc logs <alloc-id> gameworld` (with `NOMAD_ADDR=http://127.0.0.1:4646`), fix the reported prerequisite, then `deploy` again. |

@@ -12,9 +12,10 @@ requests.
 
 ===========================================================================
 */
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { imagePublicRoot, imageSourceRoot } from "../world/paths.mjs";
+import { copyIntoPublicTree } from "./publicWrite.mjs";
 
 const IMAGE_PUBLIC_PREFIX = "/assets/images/";
 
@@ -48,9 +49,7 @@ export async function publishConvertedImage( publicPath ) {
 	if ( !source ) {
 		throw new Error( `Converted image missing: ${plain} (run the asset build first)` );
 	}
-	const target = path.join( imagePublicRoot, relative );
-	await mkdir( path.dirname( target ), { recursive: true } );
-	await copyFile( source, target );
+	await copyIntoPublicTree( source, path.join( imagePublicRoot, relative ) );
 	return publicPath;
 }
 

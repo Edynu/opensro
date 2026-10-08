@@ -19,6 +19,7 @@ plus assets/char/roster.json.
 
 ===========================================================================
 */
+import { writeIntoPublicTreeSync } from "../shared/publicWrite.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -41,7 +42,7 @@ import { resolveRoster } from "./resolveCharRoster.mjs";
 import { parseAttachPartLink } from "./formats.mjs";
 import { loadDataAsset } from "../shared/jmxAssetIO.mjs";
 import { writeJsonIfChangedSync } from "../shared/jsonOut.mjs";
-import { runConvertImages } from "../shared/convertImagesRunner.mjs";
+import { convertTextureTrees } from "../shared/convertImagesRunner.mjs";
 import { isMainScript } from "../shared/fsUtils.mjs";
 import { quatMultiply, quatRotateVector } from "../shared/math3d.mjs";
 import { refreshPrecompressedSidecars } from "../generatedManifestSidecars.mjs";
@@ -157,25 +158,6 @@ function previewGlbOutput( model ) {
 
 /*
 ================
-convertTextures
-
-Convert material textures via convert_images.py (all prim/mtrl/* trees).
-================
-*/
-async function convertTextures() {
-	if ( process.env.SRO_SKIP_TEXTURE_CONVERT === "1" ) {
-		console.log( "[roster] skipping texture conversion (SRO_SKIP_TEXTURE_CONVERT=1)" );
-		return;
-	}
-	console.log( "[roster] converting textures (prim/mtrl) ..." );
-	const res = await runConvertImages( [ "prim/mtrl" ] );
-	if ( res.status !== 0 ) {
-		throw new Error( `[roster] texture conversion exited ${res.status}` );
-	}
-}
-
-/*
-================
 buildHwanHairSets
 
 Retail8E9060 attaches these two race-specific resources on body mode1.
@@ -193,8 +175,7 @@ export async function buildHwanHairSets() {
 		if ( !avatar.clips.some( c => c.role === "stand" ) ) throw new Error( `Missing Hwan animation ${gender}` );
 		const publicPath = `/assets/char/hwan/${key.toLowerCase()}.glb`,
 			diskPath = path.join( publicAssets, publicPath.slice( "/assets/".length ) );
-		fs.mkdirSync( path.dirname( diskPath ), { recursive: true } );
-		fs.writeFileSync( diskPath, avatarToGlb( avatar ) );
+		writeIntoPublicTreeSync( diskPath, avatarToGlb( avatar ) );
 		entries[key] = {
 			glb: publicPath,
 			parts: [ "HWAN_HAIR" ],
@@ -273,7 +254,7 @@ buildRoster
 ================
 */
 export async function buildRoster( { skipTextures = false } = {} ) {
-	if ( !skipTextures ) await convertTextures();
+	if ( !skipTextures ) await convertTextureTrees( "roster", [ "prim/mtrl" ] );
 
 	const manifestPath = path.join( publicAssets, "char", "roster.json" );
 	const { resolved, missing } = resolveRoster( textdataDir );
@@ -316,8 +297,7 @@ export async function buildRoster( { skipTextures = false } = {} ) {
 				inPlaceHorizontalRootMotionRoles: [ "walk", "run" ]
 			};
 			const glb = avatarToGlb( runtimeAvatar );
-			fs.mkdirSync( path.dirname( diskPath ), { recursive: true } );
-			fs.writeFileSync( diskPath, glb );
+			writeIntoPublicTreeSync( diskPath, glb );
 			entry.bytes = glb.length;
 			entry.bones = avatar.skeleton.boneCount;
 			entry.hasClip = runtimeAvatar.clips.length > 0;
@@ -340,8 +320,7 @@ export async function buildRoster( { skipTextures = false } = {} ) {
 				if ( previewClips.length === 0 ) throw new Error( `${model.codename} has no required preview clips` );
 				const previewAvatar = { ...avatar, clips: previewClips };
 				const previewGlb = avatarToGlb( previewAvatar );
-				fs.mkdirSync( path.dirname( previewOut.diskPath ), { recursive: true } );
-				fs.writeFileSync( previewOut.diskPath, previewGlb );
+				writeIntoPublicTreeSync( previewOut.diskPath, previewGlb );
 				entry.previewGlb = previewOut.publicPath;
 				entry.previewBytes = previewGlb.length;
 				entry.previewClips = (previewAvatar.clips ?? []).map( ( c ) => c.role );

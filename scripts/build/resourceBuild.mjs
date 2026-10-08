@@ -15,6 +15,7 @@ summary it prints from formatResourceBuildSummary.
 ===========================================================================
 */
 
+import { produceAllFamilies } from "./families/looseFamilies.mjs";
 import { buildAudioResources } from "./audio.mjs";
 import { buildCifResources } from "./cif.mjs";
 import { buildConfigResources } from "./config.mjs";
@@ -69,29 +70,10 @@ import { rebuildRoot } from "./world/paths.mjs";
 
 import { formatOptimizationSummary } from "./jsonAssetCompression.mjs";
 import { packPublicTree } from "./packPublicTree.mjs";
+import { buildJobs } from "./shared/buildParallelism.mjs";
+import { claimPublicPaths } from "./shared/publicationLedger.mjs";
 
 const RETAIL_CURSOR_IDS = [ "0x95", "0x96", "0x97", "0x98", "0x99", "0x9a", "0xa0", "0xa1", "0xa3" ];
-const DEFAULT_RESOURCE_BUILD_LANES = 2;
-
-/*
-================
-resourceBuildLaneCount
-
-Bound parallel build lanes using the explicit resource-build setting.
-================
-*/
-function resourceBuildLaneCount() {
-	const configured = Number( process.env.SRO_RESOURCE_BUILD_LANES ?? DEFAULT_RESOURCE_BUILD_LANES );
-	if ( !Number.isInteger( configured ) || configured < 1 || configured > 8 ) {
-		throw new Error(
-			`SRO_RESOURCE_BUILD_LANES must be an integer from 1 through 8; got ${
-				JSON.stringify( process.env.SRO_RESOURCE_BUILD_LANES )
-			}`
-		);
-	}
-	return configured;
-}
-
 /*
 ================
 extractRetailCursors
@@ -112,6 +94,8 @@ async function extractRetailCursors() {
 	);
 	const output = result.stdout.trim();
 	if ( output ) console.log( output );
+	// The Python extractor writes the cursors; this step owns them.
+	claimPublicPaths( RETAIL_CURSOR_IDS.map( id => `/assets/cursors/sro_client_cursor_${id}.cur` ) );
 	return { count: RETAIL_CURSOR_IDS.length };
 }
 
@@ -164,6 +148,7 @@ export const RESOURCE_BUILD_STEPS = Object.freeze( {
 	buildWorldRegionCatalog,
 	loadOutdoorWorldRegionResourceGroup,
 	extractRetailCursors,
+	produceAllFamilies,
 	packTree: packPublicTree
 } );
 
@@ -172,7 +157,7 @@ export const RESOURCE_BUILD_STEPS = Object.freeze( {
 buildSroResources
 
 Runs every producer in dependency order and returns their results.
-options.laneCount overrides SRO_RESOURCE_BUILD_LANES; options.log receives
+options.laneCount overrides SRO_BUILD_JOBS (shared/buildParallelism.mjs); options.log receives
 progress lines (console.log by default).
 ================
 */
@@ -194,7 +179,7 @@ export async function buildSroResources( steps = RESOURCE_BUILD_STEPS, options =
 			throw error;
 		}
 	};
-	const resourceLaneCount = options.laneCount ?? resourceBuildLaneCount();
+	const resourceLaneCount = options.laneCount ?? buildJobs();
 	const runResourceTasks = ( tasks ) => mapWithConcurrency( tasks, resourceLaneCount, ( task ) => task() );
 	log( `[resource-build] worker lanes: ${resourceLaneCount}` );
 
@@ -414,10 +399,6 @@ export async function buildSroResources( steps = RESOURCE_BUILD_STEPS, options =
 		animatedWorldObjects
 	} = worldResults;
 
-	// Every lane above has finished publishing before this sweep over
-	// assets/images/** runs (native-interface preload membership must see the
-	// final image tree).
-	const uiImagePreload = await timed( "uiImagePreload", () => steps.buildUiImagePreloadManifest() );
 	// WIP skill-effect data plane (f0902c effect-record table -> effectRecords.json,
 	// read by the bridge's loadWipSkillEffectRecords at mission init): must run
 	// BEFORE JSON optimization + asset packs so the JSON gets compression sidecars
@@ -481,6 +462,16 @@ export async function buildSroResources( steps = RESOURCE_BUILD_STEPS, options =
 	// EnterWorld v2 sends semantic ids only. This client projection is generated
 	// after NPC/item builders settle and owns every presentation resource path.
 	const missionPresentation = steps.buildMissionPresentationAsset();
+	// The focused families extend every producer's output (code-selected art,
+	// catalog patches, effect closures, world sky state) and read the data
+	// planes above (effect records and programs, skill and mastery data), so
+	// they run after all of them, each as its own ledger owner. One full build
+	// therefore makes a complete tree (families/looseFamilies.mjs).
+	const families = await timed( "families", () => steps.produceAllFamilies() );
+	// The native-interface preload sweep over assets/images/** runs once every
+	// producer, the families included, has published (their code-selected UI
+	// art belongs in the startup set).
+	const uiImagePreload = await timed( "uiImagePreload", () => steps.buildUiImagePreloadManifest() );
 	// Every producing lane has finished: list what the client installs in the
 	// background after world entry, so it is packed with the other game data.
 	const backgroundInstall = await timed( "backgroundInstall", () => steps.buildBackgroundInstallAsset() );
@@ -491,13 +482,15 @@ export async function buildSroResources( steps = RESOURCE_BUILD_STEPS, options =
 	const packed = await steps.packTree( {
 		timed,
 		retireSidecars: true,
+		auditClaims: true,
 		groupInputs: {
 			uiImagePreloadPaths: uiImagePreload.images.map( ( image ) => image.path ),
 			missionMinimapTilePaths: missionMinimapTiles.map( ( tile ) => tile.publicPath ),
 			includeOutdoorWorld: Boolean( outdoorWorldRegion )
 		}
 	} );
-	const { jsonOptimization, packGroups, assetPacks, sidecarRetirement, manifest, finalJsonOptimization } = packed;
+	const { jsonOptimization, packGroups, claimAudit, assetPacks, sidecarRetirement, manifest, finalJsonOptimization } =
+		packed;
 	return {
 		stepTimings,
 		fontCatalog,
@@ -546,7 +539,9 @@ export async function buildSroResources( steps = RESOURCE_BUILD_STEPS, options =
 		missionPresentation,
 		skillStageModels,
 		backgroundInstall,
+		families,
 		packGroups,
+		claimAudit,
 		jsonOptimization,
 		assetPacks,
 		sidecarRetirement,
@@ -728,6 +723,26 @@ export function formatResourceBuildSummary( results ) {
 			`and packed ${assetPacks.assetCount} assets into ${assetPacks.packCount} browser asset pack(s) ` +
 			`with ${assetPacks.zstdSidecarCount} zstd19/w23 sidecar(s).`
 	);
+	if ( results.families ) {
+		out.push(
+			`Ran ${results.families.length} focused families (${
+				results.families.reduce( ( sum, row ) => sum + row.files, 0 )
+			} files) inside the build.`
+		);
+	}
+	if ( results.claimAudit ) {
+		const audit = results.claimAudit, mib = bytes => (bytes / 1048576).toFixed( 1 );
+		const verdict = audit.archived ?
+			"soft-archived to temp/archives and left out of the packs" :
+			`kept: no publication record for ${audit.missingOwners.join( ", " )} ` +
+			"(run `pnpm assets build full`)";
+		out.push(
+			`Publication ledger: ${audit.files} file(s), ${mib( audit.bytes )} MiB, claimed by no build owner; ` +
+				`${verdict}. Report: .generated/unclaimed-assets.json` +
+				audit.folders.slice( 0, 8 ).map( f => `\n  ${f.folder}: ${f.files} file(s), ${mib( f.bytes )} MiB` )
+					.join( "" )
+		);
+	}
 	out.push( formatOptimizationSummary( jsonOptimization ) );
 	if ( finalJsonOptimization.minifiedFiles > 0 || finalJsonOptimization.compressionJobs > 0 ) {
 		out.push( formatOptimizationSummary( finalJsonOptimization ) );

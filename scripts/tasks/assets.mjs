@@ -20,9 +20,9 @@ Re-publish one pack family into an existing generated tree.
 ================
 */
 /**
- * @param {"refresh"|"publish"} kind @param {string} family @param {string} script @param {string} description
+ * @param {"refresh"|"publish"} kind @param {string} family @param {string[]} args @param {string} description
  */
-function familyTask( kind, family, script, description ) {
+function familyTask( kind, family, args, description ) {
 	return commandTask( {
 		name: `assets:${kind}:${family}`,
 		description,
@@ -31,28 +31,33 @@ function familyTask( kind, family, script, description ) {
 		requires: [ "licensed-client-extraction", "generated-assets" ],
 		timeoutClass: "long",
 		command: "node",
-		args: [ script ]
+		args
 	} );
 }
 
-const REFRESH_FAMILIES = [
+// The rows of scripts/build/families/looseFamilies.mjs, run by
+// scripts/refresh_asset_family.mjs (assetFamilyTasks.test.mjs keeps the lists equal).
+export const REFRESH_FAMILIES = [
 	"character-info",
 	"effect",
 	"entity-bsr",
 	"footprint",
 	"guide",
+	"item-mall",
 	"native-audio",
 	"native-window",
 	"overlay",
 	"quick-status",
 	"quickslot",
 	"restriction-text",
-	"return-scroll"
+	"return-scroll",
+	"slot-effect",
+	"world-map-markers"
 ];
 
-// Standalone publishers: `assets build` does not run them, so run `assets publish` after it.
+// The publish rows of the same table (kind: "publish"), run by the same runner.
 // Monster material variants are published by the full build (group game-models).
-const PUBLISH_FAMILIES = [
+export const PUBLISH_FAMILIES = [
 	"dungeon-worlds",
 	"flares",
 	"minimap-coverage",
@@ -61,21 +66,12 @@ const PUBLISH_FAMILIES = [
 	"weather-assets"
 ];
 
-// A fresh tree needs the focused families too: the full build does not
-// produce the code-selected images and data they publish (party status icons,
-// RGB16 window art, restriction text and the rest), and each is idempotent.
-const PUBLISH_TASK_NAMES = [
-	...PUBLISH_FAMILIES.map( ( family ) => `assets:publish:${family}` ),
-	...REFRESH_FAMILIES.map( ( family ) => `assets:refresh:${family}` ),
-	"assets:refresh:world-map-markers"
-];
-
 export const ASSET_TASKS = [
 	...REFRESH_FAMILIES.map( ( family ) =>
 		familyTask(
 			"refresh",
 			family,
-			`scripts/refresh_${family.replaceAll( "-", "_" )}_asset_packs.mjs`,
+			[ "scripts/refresh_asset_family.mjs", family ],
 			`Refresh ${family} asset packs`
 		)
 	),
@@ -83,7 +79,7 @@ export const ASSET_TASKS = [
 		familyTask(
 			"publish",
 			family,
-			`apps/client-next/tools/publish-${family}.mjs`,
+			[ "scripts/refresh_asset_family.mjs", family ],
 			`Publish ${family} assets outside the full build`
 		)
 	),
@@ -106,15 +102,6 @@ export const ASSET_TASKS = [
 		timeoutClass: "long",
 		command: "node",
 		args: [ "scripts/rebuild_asset_packs_from_public.mjs" ]
-	} ),
-	seriesTask( {
-		name: "assets:publish",
-		description: "Run every standalone publisher and focused family after the full build",
-		kind: "assets",
-		ci: false,
-		requires: [ "licensed-client-extraction", "generated-assets" ],
-		timeoutClass: "long",
-		tasks: PUBLISH_TASK_NAMES
 	} ),
 	commandTask( {
 		name: "assets:prepare",
@@ -216,16 +203,6 @@ export const ASSET_TASKS = [
 		args: [ "scripts/refresh_world_map_asset_packs.mjs" ]
 	} ),
 	commandTask( {
-		name: "assets:refresh:world-map-markers",
-		description: "Refresh code-selected world-map marker textures",
-		kind: "assets",
-		ci: false,
-		requires: [ "generated-assets" ],
-		timeoutClass: "medium",
-		command: "node",
-		args: [ "scripts/refresh_world_map_marker_asset_packs.mjs" ]
-	} ),
-	commandTask( {
 		name: "assets:gc",
 		description: "Soft-archive asset-pack outputs the published index no longer uses (--apply)",
 		kind: "assets",
@@ -234,6 +211,16 @@ export const ASSET_TASKS = [
 		timeoutClass: "short",
 		command: "node",
 		args: [ "scripts/gc_asset_packs.mjs" ]
+	} ),
+	commandTask( {
+		name: "assets:ledger",
+		description: "Report packed assets no build owner claims (read-only; see docs/ASSET_DELIVERY.md)",
+		kind: "assets",
+		ci: false,
+		requires: [ "generated-assets" ],
+		timeoutClass: "short",
+		command: "node",
+		args: [ "scripts/report_publication_ledger.mjs" ]
 	} ),
 	commandTask( {
 		name: "assets:lock",

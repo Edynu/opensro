@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathExists } from "../shared/fsUtils.mjs";
 import { writeJsonIfChanged } from "../shared/jsonOut.mjs";
+import { claimPublicFile } from "../shared/publicationLedger.mjs";
 import { publicRoot } from "./paths.mjs";
 
 /**
@@ -9,14 +10,15 @@ import { publicRoot } from "./paths.mjs";
  * Minified is the file's final form anyway (optimizePublicJsonAssets rewrites pretty JSON
  * in place), and the unchanged-skip keeps mtimes stable so the minify/sidecar/pack caches
  * hold across rebuilds - re-writing the multi-MB region JSONs every run forced minutes of
- * brotli/zstd sidecar recompression for byte-identical content.
+ * sidecar recompression for byte-identical content.
  */
 export const writeJson = writeJsonIfChanged;
 
-export async function writePublicFile(publicPath, bytes) {
-  const targetPath = path.join(publicRoot, publicPath.replace(/^\/+/, ""));
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, bytes);
+export async function writePublicFile( publicPath, bytes ) {
+	const targetPath = path.join( publicRoot, publicPath.replace( /^\/+/, "" ) );
+	await mkdir( path.dirname( targetPath ), { recursive: true } );
+	await writeFile( targetPath, bytes );
+	claimPublicFile( targetPath );
 }
 
 export const exists = pathExists;
