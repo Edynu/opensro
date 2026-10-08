@@ -32,6 +32,8 @@ export interface ExperimentalOptions {
 	readonly distanceAnimation: boolean;
 	// Cloth solver steps on the GPU (float32: not bit-exact to the native solver).
 	readonly gpuCloth: boolean;
+	// The renderer runs on a second thread; applies at the next client start.
+	readonly renderThread: boolean;
 }
 
 /*
@@ -66,7 +68,8 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		texturedHorizon: enabled( "texturedHorizon" ),
 		floatBloom: enabled( "floatBloom" ),
 		distanceAnimation: enabled( "distanceAnimation" ),
-		gpuCloth: enabled( "gpuCloth" )
+		gpuCloth: enabled( "gpuCloth" ),
+		renderThread: enabled( "renderThread" )
 	};
 }
 

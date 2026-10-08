@@ -38,7 +38,11 @@ export const CHARACTER_RESIDENT_BYTES = 268435456;
 export const CHARACTER_SOURCE_BYTES = 16777216;
 // Additional renderer storage, separate from decoded source residency. Includes
 // CPU poses/palettes and GPU copies, padded instances and expanded draw geometry.
-export const CHARACTER_RENDER_BYTES = 67108864;
+// The charge is a worst case: every cloth wearer owns a batch charged with its
+// whole mesh. A 2026-10-08 town crowd of 207 players (232 actors) charged the
+// former 64 MiB full and left 28 visible actors undrawn; the native client
+// draws every player in view, so the bound holds a crowd several times that.
+export const CHARACTER_RENDER_BYTES = 268435456;
 /*
 ================
 characterPoseBytes

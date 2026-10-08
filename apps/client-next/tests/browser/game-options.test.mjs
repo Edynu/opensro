@@ -287,7 +287,8 @@ test(
 					texturedHorizon: false,
 					floatBloom: false,
 					distanceAnimation: false,
-					gpuCloth: false
+					gpuCloth: false,
+					renderThread: false
 				}
 			);
 			await page.keyboard.press( "Escape" );
@@ -327,7 +328,8 @@ test(
 					texturedHorizon: false,
 					floatBloom: false,
 					distanceAnimation: false,
-					gpuCloth: false
+					gpuCloth: false,
+					renderThread: false
 				}
 			);
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );

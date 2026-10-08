@@ -21,8 +21,8 @@ packRecord
 Writes one GPU record (28 floats) for a plain quad, or for glyph of a text
 run: the run's fields with rect = origin + offset and the glyph's own uv,
 as expandTextRuns would make it. Element stores, not typed-array copies:
-labels repack hundreds of records a frame. True when any word differs from
-the uploaded copy.
+labels repack hundreds of records a frame. Widens changed (first, last
+float) to every word that differs from the uploaded copy.
 ================
 */
 function packRecord(
@@ -30,8 +30,9 @@ function packRecord(
 	uploaded: Float32Array,
 	at: number,
 	quad: UiQuad,
-	glyph: NonNullable<UiQuad["run"]>["glyphs"][number] | undefined
-): boolean {
+	glyph: NonNullable<UiQuad["run"]>["glyphs"][number] | undefined,
+	changed: [number, number]
+) {
 	const rect = quad.rect, uv = glyph ? glyph.uv : quad.uv, color = quad.color, clip = quad.clip;
 	const mask = quad.mask?.rect ?? NO_MASK, right = quad.rightColor ?? color;
 	values[at] = glyph ? rect[0] + glyph.x : rect[0];
@@ -49,8 +50,11 @@ function packRecord(
 	values[at + 21] = quad.alphaCutoff ?? 0;
 	values[at + 22] = quad.rotation ?? 0;
 	values[at + 23] = quad.depth ?? 0;
-	for ( let k = at; k < at + 28; k++ ) if ( values[k] !== uploaded[k] ) return true;
-	return false;
+	for ( let k = at; k < at + 28; k++ ) {
+		if ( values[k] === uploaded[k] ) continue;
+		changed[0] = Math.min( changed[0], k );
+		changed[1] = k;
+	}
 }
 
 // Device-owned UI resources. Stable instance storage and draw bundles survive data edits.
@@ -334,7 +338,8 @@ fs
 				values.set( uploaded );
 			}
 			const next: UiDraw[] = [];
-			let first = needed, lastChanged = -1;
+			// The first and last float that differ from the uploaded copy.
+			const changed: [number, number] = [ needed, -1 ];
 			let previous: GPUBindGroup | null = null;
 			let record = 0;
 			for ( const quad of scene.quads ) {
@@ -384,10 +389,7 @@ fs
 					const index = record + i;
 					if ( packed[index] === quad && packedGlyph[index] === i ) continue;
 					const at = index * 28;
-					if ( packRecord( values, uploaded, at, quad, run ? run.glyphs[i]! : undefined ) ) {
-						first = Math.min( first, at );
-						lastChanged = Math.max( lastChanged, at + 27 );
-					}
+					packRecord( values, uploaded, at, quad, run ? run.glyphs[i]! : undefined, changed );
 					packed[index] = quad;
 					packedGlyph[index] = i;
 				}
@@ -405,10 +407,10 @@ fs
 			}
 			packed.length = records;
 			packedGlyph.length = records;
-			if ( lastChanged >= first ) {
-				const changed = values.subarray( first, lastChanged + 1 );
-				device.queue.writeBuffer( storage, first * 4, changed );
-				uploaded.set( changed, first );
+			if ( changed[1] >= changed[0] ) {
+				const bytes = values.subarray( changed[0], changed[1] + 1 );
+				device.queue.writeBuffer( storage, changed[0] * 4, bytes );
+				uploaded.set( bytes, changed[0] );
 			}
 			if ( viewportValues[0] !== scene.width || viewportValues[1] !== scene.height ) {
 				viewportValues[0] = scene.width;

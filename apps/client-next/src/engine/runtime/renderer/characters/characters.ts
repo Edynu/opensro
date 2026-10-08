@@ -215,6 +215,16 @@ const CLOTH_SIMULATION_LOD = .25;
 // its model's shared batch. Only a jump of 100 units in one frame skips the
 // band, and the game shows such a jump (teleport) as a fresh spawn.
 const CLOTH_STATE_LOD = .375;
+// A batch whose actors all left the view keeps its GPU storage this many
+// frames: a camera sweeping across a crowd would otherwise rebuild and
+// re-upload every batch (each cloth wearer owns one) as it leaves and
+// re-enters the view, several each frame. The budget charges idle batches
+// and releases them first when it is short.
+const BATCH_IDLE_FRAMES = 300;
+// A padded batch keeps its storage while it holds at least 1/this of its
+// capacity, so a group's visible count crossing a power of two does not
+// rebuild it. Growing still rebuilds at once.
+const BATCH_CAPACITY_SLACK = 4;
 // Experimental distance animation rate (port-only, not native): skeletons
 // beyond 160 units of the camera (LOD fraction .2) sample at 20 Hz, beyond
 // 320 units (.4) at 10 Hz. Nearer ones, and every one with the option off,
@@ -401,7 +411,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		// the Experimental GPU cloth runs it (drawClothGpu).
 		clothGpu?: Map<number, ClothGpuClock>;
 		poseKey?: string;
+		// The poseFrame the batch last had no rows in (BATCH_IDLE_FRAMES).
+		idleSince?: number;
 	}>();
+	// Idle batches are released this frame: the last plan refused an actor.
+	let idleOverBudget = false;
 	// ownedModels counts the owned entries of models (decoded sources); the
 	// rest are borrowed or assembled views, so their count is the difference.
 	let residentBytes = 0, ownedModels = 0, renderBytes = 0, deferredActors = 0;
@@ -649,10 +663,13 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		const resource = models.get( actor.model ), model = resource?.model;
 		if ( !model ) return null;
 		const resolved = poses.get( actor.gid );
-		if ( resolved && resolved.model === actor.model && posedFrames.get( actor.gid ) === poseFrame ) {
-			return resolved.pose;
-		}
-		posedFrames.set( actor.gid, poseFrame );
+		// Only within a prepare (framePoses set): a query between frames, such
+		// as a socket for the next frame's presentation, carries newer inputs.
+		if (
+			framePoses && resolved && resolved.model === actor.model && posedFrames.get( actor.gid ) === poseFrame
+		) return resolved.pose;
+		if ( framePoses ) posedFrames.set( actor.gid, poseFrame );
+		else posedFrames.delete( actor.gid );
 		const share = framePoses && !resource!.plan.emission &&
 			(!actor.animationLod || !actor.animationLod.crowded || actor.animationLod.fraction < .75);
 		const candidates = share ? framePoses!.get( actor.model )?.get( actor.time ) : undefined;
@@ -1149,6 +1166,39 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	retireModels
+
+	Drop the models no retained or framed actor uses (with their dependencies
+	kept), closing owned images; release frees what a model's batch holds.
+	================
+	*/
+	function retireModels( frameActors: readonly CharacterActor[], release: ( id: string ) => void ) {
+		if ( !retained ) return;
+		const keep = new Set( [
+			...retained,
+			...frameActors.map( actor => actor.model ),
+			...portraits.map( actor => actor.model )
+		] );
+		for ( const id of keep ) {
+			for ( const dependency of models.get( id )?.dependencies ?? [] ) {
+				keep.add( dependency );
+			}
+		}
+		for ( const [id, resource] of models ) {
+			if ( keep.has( id ) ) continue;
+			release( id );
+			if ( resource.owned ) {
+				for ( const image of resource.images ) {
+					if ( !("kind" in image) ) image.close();
+				}
+				ownedModels--;
+			}
+			models.delete( id );
+			residentBytes -= resource.bytes;
+		}
+	}
+	/*
+	================
 	retireResidency
 
 	Release models, batches and textures no retained or framed actor uses.
@@ -1160,33 +1210,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		frameActors: readonly CharacterActor[]
 	) {
 		residencyPasses++;
-		if ( retained ) {
-			const keep = new Set( [
-				...retained,
-				...frameActors.map( actor => actor.model ),
-				...portraits.map( actor => actor.model )
-			] );
-			for ( const id of keep ) {
-				for ( const dependency of models.get( id )?.dependencies ?? [] ) {
-					keep.add( dependency );
-				}
-			}
-			for ( const [id, resource] of models ) {
-				if ( !keep.has( id ) ) {
-					const batch = batches.get( id );
-					if ( batch ) releaseBatch( geometry, batch );
-					batches.delete( id );
-					if ( resource.owned ) {
-						for ( const image of resource.images ) {
-							if ( !("kind" in image) ) image.close();
-						}
-						ownedModels--;
-					}
-					models.delete( id );
-					residentBytes -= resource.bytes;
-				}
-			}
-		}
+		retireModels( frameActors, id => {
+			const batch = batches.get( id );
+			if ( batch ) releaseBatch( geometry, batch );
+			batches.delete( id );
+		} );
 		const liveImages = new Set( [ ...models.values() ].flatMap( resource => resource.images ) );
 		for ( const [bitmap, draw] of textures ) {
 			if ( !liveImages.has( bitmap ) ) {
@@ -1498,6 +1526,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		// A rejected actor leaves capacity available for cheaper frameActors that follow it.
 		const grouped = new Map<string, CharacterActor[]>(), needed = new Set<number>( particles.needed );
 		renderBytes = particles.bytes + materialClocks.bytes();
+		if ( !frame.continuation && !idleOverBudget ) renderBytes += idleBatchBytes();
 		if ( !frame.continuation && hasDeferred ) {
 			for ( const batch of batches.values() ) {
 				if ( retainedDeferred( frame, batch ) ) {
@@ -1520,6 +1549,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				);
 			if ( !Number.isSafeInteger( extra ) || extra < 0 || renderBytes + extra > CHARACTER_RENDER_BYTES ) {
 				deferredActors++;
+				if ( !frame.continuation ) idleOverBudget = true;
 				continue;
 			}
 			renderBytes += extra;
@@ -1547,14 +1577,23 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		for ( const [id, batch] of batches ) {
 			if ( retainedDeferred( frame, batch ) || frame.continuation && submitted.has( id ) ) continue;
 			const rows = grouped.get( id );
-			const capacity = rows ? models.get( rows[0]!.model )!.plan.capacity( rows.length ) : 0;
+			if ( !rows ) {
+				if ( !keepsIdle( frame, batch ) ) {
+					releaseBatch( frame.geometry, batch );
+					batches.delete( id );
+				}
+				continue;
+			}
+			const plan = models.get( rows[0]!.model )!.plan;
 			if (
-				!rows || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
+				!keepsCapacity( plan, batch.capacity, plan.capacity( rows.length ) ) ||
+				!batch.signature.startsWith( String( frame.preview ) + ":" )
 			) {
 				releaseBatch( frame.geometry, batch );
 				batches.delete( id );
 			}
 		}
+		if ( !frame.continuation ) idleOverBudget = false;
 		for ( const gid of poses.keys() ) {
 			if ( !needed.has( gid ) ) {
 				poses.delete( gid );
@@ -1676,6 +1715,52 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	keepsCapacity
+
+	Whether storage of capacity held serves a group that needs needed: the
+	same, or (padded plans only; ribbons keep exact strips) a larger one
+	within BATCH_CAPACITY_SLACK.
+	================
+	*/
+	function keepsCapacity( plan: ModelResource["plan"], held: number, needed: number ) {
+		if ( held === needed ) return true;
+		return plan.capacity( 3 ) !== 3 && held > needed && held <= needed * BATCH_CAPACITY_SLACK;
+	}
+	/*
+	================
+	keepsIdle
+
+	Whether a batch with no rows this frame keeps its storage: a main pass
+	marks it idle; it stays until BATCH_IDLE_FRAMES pass or the budget is
+	short. A continuation leaves the first pass's decision standing.
+	================
+	*/
+	function keepsIdle( frame: PrepareFrame, batch: CharacterBatch ) {
+		if ( frame.continuation ) return batch.idleSince !== undefined;
+		// A despawned actor's batch goes at once: nothing can bring it back.
+		if ( idleOverBudget || frame.preview || !batch.gids.some( gid => frame.byGid.has( gid ) ) ) return false;
+		batch.idleSince ??= poseFrame;
+		return poseFrame - batch.idleSince < BATCH_IDLE_FRAMES;
+	}
+	/*
+	================
+	idleBatchBytes
+
+	The budget charge of the batches kept idle.
+	================
+	*/
+	function idleBatchBytes() {
+		let bytes = 0;
+		for ( const batch of batches.values() ) {
+			if ( batch.idleSince === undefined ) continue;
+			const actor = snapshots.index.get( batch.gids[0]! ), resource = actor && models.get( actor.model );
+			// An idle batch whose model or actor is gone is released by retireUnplanned.
+			if ( resource ) bytes += resource.plan.batchBytes( batch.capacity );
+		}
+		return bytes;
+	}
+	/*
+	================
 	releaseUngrouped
 
 	Release batches the plan left without rows, except the ones this frame
@@ -1685,7 +1770,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	function releaseUngrouped( frame: PrepareFrame, grouped: ReadonlyMap<string, CharacterActor[]> ) {
 		for ( const [id, batch] of batches ) {
 			if (
-				!grouped.has( id ) && !retainedDeferred( frame, batch ) && !(frame.continuation && submitted.has( id ))
+				!grouped.has( id ) && !retainedDeferred( frame, batch ) &&
+				!(frame.continuation && submitted.has( id )) && !keepsIdle( frame, batch )
 			) {
 				releaseBatch( frame.geometry, batch );
 				batches.delete( id );
@@ -1814,12 +1900,26 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	) {
 		const { model, plan } = resource;
 		const signature = String( frame.preview ) + ":" + rows.map( row => row.gid ).join( "," );
-		const capacity = plan.capacity( rows.length );
+		const needed = plan.capacity( rows.length );
 		let batch = batches.get( id );
-		const membershipChanged = batch?.signature !== signature;
+		let membershipChanged = batch?.signature !== signature;
+		if ( batch && batch.idleSince !== undefined ) {
+			// Back from idle: its cloth starts from the skeleton, as a new batch's,
+			// and its instances are written again even for the same members (their
+			// placement, scale or tint may have changed while it was idle).
+			batch.idleSince = undefined;
+			batch.cloth = undefined;
+			membershipChanged = true;
+		}
 		if (
-			!batch || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
+			!batch || !keepsCapacity( plan, batch.capacity, needed ) ||
+			!batch.signature.startsWith( String( frame.preview ) + ":" )
 		) {
+			const capacity = needed;
+			// A new batch uploads its whole mesh: worth watching while the camera turns.
+			probe?.characterCount(
+				(batch ? "batch-rebuilt" : "batch-created") + (id.includes( "\0cloth" ) ? " cloth" : "")
+			);
 			if ( batch ) releaseBatch( frame.geometry, batch );
 			const streams = plan.sharedPalette ?
 				createPaletteStreams( model, capacity ) :
@@ -1852,6 +1952,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			};
 			batches.set( id, batch );
 		}
+		const capacity = batch.capacity;
 		if ( membershipChanged ) {
 			batch.signature = signature;
 			batch.gids = rows.map( row => row.gid );
@@ -2164,6 +2265,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		paletteOffsets?: Uint32Array,
 		cloth?: ClothUpload
 	) {
+		probe?.characterCount( "primitive-uploads" );
 		const { preview, view } = frame, { rows, fading, resource } = group;
 		const primitive = group.model.primitives[p]!;
 		const authored = group.modifierClocks?.[p]?.material ?? primitive.geometry.material,
@@ -3062,6 +3164,28 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				liveOwnedCpuEvaluations,
 				cpuEvaluations: retiredCpuEvaluations + liveOwnedCpuEvaluations
 			};
+		},
+		/*
+		================
+		settle
+
+		Residency for an owner that never prepares: the render thread's
+		main-thread mirror, which only answers socket and placement queries.
+		Drops the models no retained or listed actor uses and the poses of
+		actors no longer listed.
+		================
+		*/
+		settle( frameActors: readonly CharacterActor[] ) {
+			if ( residencyDirty ) retireModels( frameActors, () => {} );
+			residencyDirty = false;
+			const live = new Set( frameActors.map( actor => actor.gid ) );
+			for ( const [gid, state] of ownedPoses ) {
+				if ( live.has( gid ) ) continue;
+				retiredCpuEvaluations += state.pose.cpuEvaluations();
+				ownedPoses.delete( gid );
+				poses.delete( gid );
+				posedFrames.delete( gid );
+			}
 		},
 		/*
 		================

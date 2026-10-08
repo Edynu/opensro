@@ -19,6 +19,9 @@ const runtime = "src/engine/runtime/";
 // Modules whose job is asynchronous I/O. Everything else runs synchronously
 // inside the frame or its owner's step.
 const ASYNC_OWNERS = [
+	// The render thread awaits the renderer's frame (a visibility readback)
+	// before it replies; one frame is in flight at a time.
+	runtime + "renderer/thread/entry.ts",
 	runtime + "simulation/worker/session/http/http.ts",
 	runtime + "assets/worker/loader.ts",
 	"src/engine/foundation/assets/read-bytes.ts",
@@ -102,16 +105,30 @@ export const rules = {
 		bugTrimmer
 	],
 	// The picking mask readback, shared by the renderer and the asset worker.
-	OffscreenCanvas: [ "src/engine/foundation/rendering/pick-alpha.ts", bugRecorder ],
+	// The render thread (port-only, Experimental): the canvas the renderer
+	// draws from a worker, its surface and the message carrying it there.
+	OffscreenCanvas: [
+		"src/engine/foundation/rendering/pick-alpha.ts",
+		bugRecorder,
+		runtime + "renderer/renderer.ts",
+		runtime + "renderer/surface/surface.ts",
+		"src/engine/contracts/render-thread.ts"
+	],
 	AudioContext: [ runtime + "audio/audio.ts" ],
 	decodeAudioData: [ runtime + "audio/audio.ts" ],
 	createPanner: [ runtime + "audio/audio.ts" ],
 	createBufferSource: [ runtime + "audio/audio.ts" ],
 	createGain: [ runtime + "audio/audio.ts" ],
-	requestAnimationFrame: [ runtime + "runtime.ts" ],
+	// The render thread draws on its OffscreenCanvas's display clock.
+	requestAnimationFrame: [ runtime + "runtime.ts", runtime + "renderer/thread/entry.ts" ],
 	cancelAnimationFrame: [ runtime + "runtime.ts" ],
-	// The asset loader owns one trailing progress timer, cleared on dispose.
-	setTimeout: [ runtime + "simulation/worker/clock/clock.ts", runtime + "assets/worker/loader.ts" ],
+	// The asset loader owns one trailing progress timer, cleared on dispose; the
+	// render thread one draw timer that gathers the frames already queued.
+	setTimeout: [
+		runtime + "simulation/worker/clock/clock.ts",
+		runtime + "assets/worker/loader.ts",
+		runtime + "renderer/thread/entry.ts"
+	],
 	clearTimeout: [ runtime + "simulation/worker/clock/clock.ts", runtime + "assets/worker/loader.ts" ],
 	setInterval: [],
 	createRenderBundleEncoder: [ device ],
@@ -171,7 +188,7 @@ export const rules = {
 	],
 	WebSocket: [ runtime + "simulation/worker/network/network.ts" ],
 	WebTransport: [],
-	Worker: [ runtime + "simulation/host.ts", runtime + "assets/assets.ts" ]
+	Worker: [ runtime + "simulation/host.ts", runtime + "assets/assets.ts", runtime + "renderer/thread/host.ts" ]
 };
 // A geometry pipeline for a native state no scene precompiles is compiled
 // at its first upload, as D3D9 applies any render state at once.

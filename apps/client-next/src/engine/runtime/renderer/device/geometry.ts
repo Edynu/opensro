@@ -101,7 +101,8 @@ export function createGeometryResources(
 	const packInstances = createInstancePacking();
 	// Port-only, not native: the Experimental GPU cloth solver. It skins from
 	// GPU palettes, so it exists only beside the GPU animation owner.
-	const cloth = animation ? createGpuCloth( created, retire ) : undefined;
+	// Created on first use, so its shader compiles only once the option asks.
+	let cloth: ReturnType<typeof createGpuCloth> | undefined;
 	const defaultSkin = created.createBuffer( {
 			label: "geometry-default-skin",
 			size: 32,
@@ -325,9 +326,19 @@ export function createGeometryResources(
 			);
 			return shadows.prepare( requests, blob );
 		},
-		...(cloth ?
+		...(animation ?
 			{
-				gpuClothAvailable: cloth.available,
+				/*
+				================
+				gpuClothAvailable
+
+				The first ask starts the solver's compilation; false until ready.
+				================
+				*/
+				gpuClothAvailable() {
+					cloth ??= createGpuCloth( created, retire );
+					return cloth.available();
+				},
 				/*
 				================
 				stepGpuCloth
@@ -343,6 +354,7 @@ export function createGeometryResources(
 					current();
 					const palette = sharedPalettes.get( request.bones );
 					if ( !palette || !metadata.get( draw ) ) throw Error( "Unknown GPU cloth draw" );
+					if ( !cloth?.available() ) throw Error( "GPU cloth unavailable" );
 					cloth.step( draw.vertices, { ...request, palettes: palette.buffer } );
 				}
 			} :
@@ -725,7 +737,7 @@ export function createGeometryResources(
 				const vertices = buffer(
 						"geometry-vertices",
 						interleaved,
-						GPUBufferUsage.VERTEX | (data.material?.clothPins && cloth ? GPUBufferUsage.STORAGE : 0)
+						GPUBufferUsage.VERTEX | (data.material?.clothPins && animation ? GPUBufferUsage.STORAGE : 0)
 					),
 					indices = buffer( "geometry-indices", data.indices, GPUBufferUsage.INDEX ),
 					uniform = buffer( "geometry-transform", data.transform, GPUBufferUsage.UNIFORM );
@@ -1001,7 +1013,7 @@ export function createGeometryResources(
 		*/
 		endFrame: uploads.endFrame,
 		commands,
-		ready: Promise.all( [ animation?.ready, particles?.ready, cloth?.ready ] ),
+		ready: Promise.all( [ animation?.ready, particles?.ready ] ),
 		/*
 		================
 		prepare

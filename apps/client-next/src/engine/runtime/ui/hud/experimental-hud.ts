@@ -137,6 +137,12 @@ export const EXPERIMENTAL_TABS: readonly {
 				id: "experimental-gpu-cloth",
 				label: "GPU cloth",
 				description: "Cloth physics on the graphics card; faster crowds."
+			},
+			{
+				key: "renderThread",
+				id: "experimental-render-thread",
+				label: "Render thread",
+				description: "Draws on a second CPU core. Applies after restart."
 			}
 		]
 	}

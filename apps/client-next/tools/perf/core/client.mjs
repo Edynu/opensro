@@ -112,6 +112,12 @@ export function instrument( { counts, spans, target = globalThis } ) {
 		characterCount( name, value = 1 ) {
 			add( name, value );
 		},
+		renderCount( name, value ) {
+			add( name, value );
+		},
+		renderSpans( spans ) {
+			for ( const key in spans ) add( "@thread:" + key.slice( key.indexOf( ":" ) + 1 ), spans[key] );
+		},
 		/*
 		================
 		characterBatch

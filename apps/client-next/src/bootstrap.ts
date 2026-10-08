@@ -13,6 +13,25 @@ the modules under engine/.
 
 import { requestPersistentStorage } from "./engine/foundation/assets/persistent-storage";
 import { startRuntime } from "./engine/runtime/runtime";
+import { experimentalOptions } from "./engine/foundation/ui/experimental-options";
+
+/*
+================
+savedRenderThread
+
+Port-only, not native: the Experimental "Render thread" preference as the
+last session saved it. A canvas handed to a worker cannot come back, so the
+choice is read here, once, before the runtime takes the canvas.
+================
+*/
+function savedRenderThread() {
+	try {
+		const stored = localStorage.getItem( "sro:v1150:experimental-options:1" );
+		return experimentalOptions( stored === null ? null : JSON.parse( stored ) ).renderThread;
+	} catch {
+		return false;
+	}
+}
 
 /*
 ================
@@ -24,14 +43,21 @@ from the page URL so a local run can flip probes without a rebuild.
 */
 function diagnosticsFromQuery() {
 	if ( import.meta.env.MODE === "beta" ) {
-		return { gpuAnimation: true, stages: false, gpuTiming: false, hoverPicking: true };
+		return {
+			gpuAnimation: true,
+			stages: false,
+			gpuTiming: false,
+			hoverPicking: true,
+			renderThread: savedRenderThread()
+		};
 	}
 	const query = new URLSearchParams( location.search );
 	return {
 		gpuAnimation: query.get( "gpu-animation" ) !== "0",
 		stages: query.get( "frame-stages" ) === "1",
 		gpuTiming: query.get( "gpu-timing" ) === "1",
-		hoverPicking: query.get( "hover-picking" ) !== "0"
+		hoverPicking: query.get( "hover-picking" ) !== "0",
+		renderThread: query.get( "render-thread" ) === "1" || savedRenderThread()
 	};
 }
 

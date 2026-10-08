@@ -30,6 +30,7 @@ import { createStaleDrawGuard } from "./frame/stale-draws";
 import type { Renderer } from "@/engine/contracts/runtime";
 import type { SurfaceOwner, FrameOwner, ImageDraw, GeometryDraw } from "./internal/gpu-contract";
 import { hypot3 } from "@/engine/foundation/math/hypot";
+import { createRenderThread } from "./thread/host";
 const INVENTORY_DOLL_WIDTH = 176;
 const INVENTORY_DOLL_HEIGHT = 318;
 
@@ -39,11 +40,17 @@ createRenderer
 ================
 */
 export function createRenderer(
-	canvas: HTMLCanvasElement,
+	canvas: HTMLCanvasElement | OffscreenCanvas,
 	random?: PresentationRandom,
 	sound?: ( event: import("@/engine/contracts/audio").SoundEvent ) => void,
 	diagnostics: import("@/engine/contracts/runtime").RuntimeDiagnostics = {}
 ): Renderer {
+	// Port-only, not native: the Experimental render thread draws this canvas
+	// from a worker (thread/host.ts); the worker builds the real renderer.
+	if (
+		diagnostics.renderThread && typeof HTMLCanvasElement !== "undefined" && canvas instanceof HTMLCanvasElement &&
+		typeof canvas.transferControlToOffscreen === "function"
+	) return createRenderThread( canvas, createCharacters(), sound, diagnostics );
 	let video = defaultVideoOptions();
 	// Experimental > Video, all off (native) until the saved preference arrives.
 	let experimental = experimentalVideo( experimentalOptions() );

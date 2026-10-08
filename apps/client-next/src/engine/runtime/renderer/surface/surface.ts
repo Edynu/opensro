@@ -21,7 +21,7 @@ createSurface
 ================
 */
 export function createSurface(
-	canvas: HTMLCanvasElement,
+	canvas: HTMLCanvasElement | OffscreenCanvas,
 	commands: SurfaceCommands,
 	format: GPUTextureFormat
 ): SurfaceOwner {

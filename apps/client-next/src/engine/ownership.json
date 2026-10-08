@@ -164,7 +164,9 @@
     "src/engine/runtime/characters/presentation-finalize.ts": "src/engine/runtime/characters/characters.ts",
     "src/engine/runtime/characters/presentation-auxiliary.ts": "src/engine/runtime/characters/characters.ts",
     "src/engine/runtime/characters/spawn-fades.ts": "src/engine/runtime/characters/characters.ts",
-    "src/engine/runtime/characters/appearance-lookup.ts": "src/engine/runtime/characters/characters.ts"
+    "src/engine/runtime/characters/appearance-lookup.ts": "src/engine/runtime/characters/characters.ts",
+    "src/engine/runtime/renderer/thread/host.ts": "src/engine/runtime/renderer/renderer.ts",
+    "src/engine/runtime/renderer/thread/entry.ts": "src/engine/runtime/renderer/thread/host.ts"
   },
   "internals": {
     "src/engine/runtime/platform/telemetry.ts": "src/engine/runtime/platform/platform.ts",
@@ -208,7 +210,8 @@
   },
   "workers": {
     "src/engine/runtime/simulation/worker/entry.ts": "src/engine/runtime/simulation/host.ts",
-    "src/engine/runtime/assets/worker/entry.ts": "src/engine/runtime/assets/assets.ts"
+    "src/engine/runtime/assets/worker/entry.ts": "src/engine/runtime/assets/assets.ts",
+    "src/engine/runtime/renderer/thread/entry.ts": "src/engine/runtime/renderer/thread/host.ts"
   },
   "contracts": {
     "src/engine/runtime/assets/worker/packs/internal/pack-contract.ts": "src/engine/runtime/assets/worker/packs/packs.ts",
@@ -216,5 +219,12 @@
     "src/engine/runtime/assets/worker/world/internal/resource-contract.ts": "src/engine/runtime/assets/worker/world/world.ts",
     "src/engine/runtime/ui/title/internal/title-contract.ts": "src/engine/runtime/ui/title/title.ts",
     "src/engine/runtime/characters/internal/presentation-contract.ts": "src/engine/runtime/characters/characters.ts"
+  },
+  "workerImports": {
+    "src/engine/runtime/renderer/thread/entry.ts": [
+      "src/engine/runtime/renderer/renderer.ts",
+      "src/engine/runtime/random/random.ts",
+      "src/engine/runtime/stage-probe.ts"
+    ]
   }
 }

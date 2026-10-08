@@ -82,6 +82,12 @@ export function createStageProbe(): StageProbe {
 		characterBegin: () => void (begun.character = performance.now()),
 		characterMark: stage => span( "character", CHARACTER_STAGE_PREFIX, stage ),
 		characterCount: () => {},
+		renderSpans: spans => {
+			for ( const key in spans ) {
+				totals[key] = (totals[key] ?? 0) + spans[key]!;
+				frame[key] = (frame[key] ?? 0) + spans[key]!;
+			}
+		},
 		renderCount: ( name, value ) => {
 			const key = COUNT_STAGE_PREFIX + name;
 			totals[key] = (totals[key] ?? 0) + value;

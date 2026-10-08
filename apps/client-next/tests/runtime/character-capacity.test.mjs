@@ -418,7 +418,7 @@ test("the owned model count follows admission, eviction and disposal", () => {
 		owner.dispose( gpu, null );
 	}
 });
-test("capacity changes retire obsolete batches before allocating replacement bands", () => {
+test("capacity growth retires obsolete batches before allocating replacement bands; a shrink within slack keeps its band", () => {
 	const owner = createCharacters();
 	owner.model( "a", model, [] );
 	owner.model( "b", model, [] );
@@ -451,8 +451,10 @@ test("capacity changes retire obsolete batches before allocating replacement ban
 		assert.equal( held, 12 );
 		owner.actors( population( "b", 8, "a", 4 ) );
 		owner.prepare( gpu, {}, 257 );
-		assert.equal( held, 12 );
-		assert.equal( peak, 12 );
+		// a shrinks 8 to 4 within BATCH_CAPACITY_SLACK and keeps its 8 slots;
+		// b grows 4 to 8 and releases its 4 before allocating the 8.
+		assert.equal( held, 16 );
+		assert.equal( peak, 16 );
 	} finally {
 		owner.dispose( gpu, null );
 	}

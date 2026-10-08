@@ -355,6 +355,25 @@ export function startRuntime(
 		================
 		*/
 		function worldClick( x: number, y: number, click: WorldClickInput = {} ) {
+			// Port-only, not native: with the Experimental render thread a pick
+			// answers one frame late; a click at a point not answered yet runs
+			// again once it is. The probe asks every pick this click may make.
+			if (
+				renderer.deferPick?.( () => {
+					if ( frontend.isRace() ) renderer.pickFrontendRace( x, y );
+					else if ( frontend.isDock() ) {
+						renderer.pickFrontendCharacter(
+							x,
+							y,
+							(sessionState?.characters ?? []).slice( 0, 4 ).map( row => row.id )
+						);
+					} else {
+						renderer.pickEntity( x, y, presentation.gameplay()?.localGid ?? 0, input.blindHeld() );
+						renderer.pickEntity( x, y, 0, input.blindHeld() );
+						renderer.pickGround( x, y );
+					}
+				}, () => worldClick( x, y, click ) )
+			) return;
 			const doubleClick = click.double ?? false, shift = click.shift ?? false;
 			if ( doubleClick && frontend.snapshot().phase !== "world" ) return;
 			if ( frontend.isRace() ) {
@@ -950,8 +969,9 @@ export function startRuntime(
 					return;
 				}
 				// The frame owner measures its own loop: RAF spacing is the presented
-				// frame cost; the callback span is this runtime's share of it.
-				if ( lastFrameAt ) sample( frameHistory, now - lastFrameAt );
+				// frame cost; the callback span is this runtime's share of it. A
+				// renderer presenting on its own thread reports its own spacing.
+				if ( lastFrameAt ) sample( frameHistory, renderer.presentedFrameMs?.() ?? now - lastFrameAt );
 				lastFrameAt = now;
 				const cpuMs = performance.now() - cpuStart - waitMs;
 				sample( cpuHistory, cpuMs );

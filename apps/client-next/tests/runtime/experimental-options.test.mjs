@@ -31,7 +31,8 @@ const OFF = Object.freeze( {
 	texturedHorizon: false,
 	floatBloom: false,
 	distanceAnimation: false,
-	gpuCloth: false
+	gpuCloth: false,
+	renderThread: false
 } );
 
 test("only an explicit boolean enables chat timestamps", () => {
@@ -169,7 +170,7 @@ Tabs
 ================
 */
 test("the window's tabs cover every preference once and Open returns to Image", () => {
-	assert.deepEqual( EXPERIMENTAL_TABS.map( tab => tab.title ), [ "Image", "World", "Chat", "Developer" ] );
+	assert.deepEqual( EXPERIMENTAL_TABS.map( tab => tab.title ), [ "Image", "World", "Chat", "Developer", "Speed" ] );
 	const keys = EXPERIMENTAL_TABS.flatMap( tab => tab.rows.map( row => row.key ) ).sort();
 	assert.deepEqual( keys, Object.keys( OFF ).sort() );
 	const ids = EXPERIMENTAL_TABS.flatMap( tab => tab.rows.map( row => row.id ) );

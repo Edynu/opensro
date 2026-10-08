@@ -1096,7 +1096,8 @@ test("repeated mesh references share one cumulative decoder expansion budget", (
 		};
 	assert.throws( () => createCharacterDecoder().decode( document ), /expansion exceeds/ );
 });
-test("renderer budgets expanded instances across models and frees old batches before replacement", () => {
+test("renderer budgets expanded instances across models and frees old batches before replacement", async () => {
+	const { CHARACTER_RENDER_BYTES } = await load( "src/engine/foundation/animation/character-budget.ts" );
 	const characters = createCharacters(), heavy = model();
 	heavy.images = [];
 	heavy.nodes = Array.from( { length: 512 }, ( _, i ) => ({ ...heavy.nodes[0], name: String( i ) }) );
@@ -1190,7 +1191,7 @@ test("renderer budgets expanded instances across models and frees old batches be
 	const first = characters.prepare( gpu, images, 1 );
 	assert.ok( first.length > 1 );
 	assert.ok( characters.stats().deferredActors > 0 );
-	assert.ok( characters.stats().renderBytes <= 64 << 20 );
+	assert.ok( characters.stats().renderBytes <= CHARACTER_RENDER_BYTES );
 	assert.equal( first.at( -1 ).bytes, 128, "small actor still renders after expensive actors exhaust capacity" );
 	const initial = held;
 	characters.actors( population( 1000 ) );

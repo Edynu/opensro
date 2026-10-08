@@ -97,6 +97,9 @@ export interface RenderFrameProbe {
 	characterCount( name: string, value?: number ): void;
 	// Renderer counts per frame (bundles re-recorded, draws recorded).
 	renderCount?( name: string, value: number ): void;
+	// Stage times measured elsewhere (the render thread), keyed as this probe
+	// publishes them (RENDER_STAGE_PREFIX and the others), added to this frame.
+	renderSpans?( spans: Readonly<Record<string, number>> ): void;
 	// Optional census of admitted batches; absent during ordinary timing runs.
 	characterBatch?( variant: string, actors: number, draws: number ): void;
 	// World preparation stages and detail spans (renderer/world/world.ts).
@@ -130,6 +133,9 @@ export interface RuntimeDiagnostics {
 	readonly gpuTiming?: boolean;
 	readonly hoverPicking?: boolean;
 	readonly stages?: boolean;
+	// Port-only, not native (Experimental "Render thread"): the renderer runs
+	// in a worker on an OffscreenCanvas. Read once at boot.
+	readonly renderThread?: boolean;
 }
 /*
 ================
@@ -281,6 +287,13 @@ export interface Renderer extends Disposable {
 		offset: readonly [number, number, number]
 	): import("./character").CharacterActor["pose"] | null;
 	pickEntity( x: number, y: number, excluded: number, blindHeld?: boolean ): number | null;
+	/** Port-only, not native (render thread): picks answer one frame late. probe asks the
+	 * picks a click needs; when one is not answered yet, retry runs once it is and this
+	 * returns true (the caller returns). A retry itself is never deferred. */
+	deferPick?( probe: () => void, retry: () => void ): boolean;
+	/** Port-only, not native (render thread): the interval between frames the canvas
+	 * actually presented, when another thread presents them; undefined otherwise. */
+	presentedFrameMs?(): number | undefined;
 	setWeather( value: import("@/engine/foundation/gameplay/weather").WeatherOptions | null ): void;
 	setWorldClock( value: { timeOfDay: number; lunarDay: number; } | null ): void;
 	setUi( scene: import("./ui").UiScene | null ): void;

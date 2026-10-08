@@ -2135,6 +2135,261 @@
 				"read",
 				"rider"
 			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/characters.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"presentationCamera",
+				"setCharacterActors"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/footprints.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"setFootprints"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/resources/resources.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"retainCharacterModels",
+				"setCharacterAnimation",
+				"setCharacterModel"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frontend/frontend.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"characterStats",
+				"frontendRaceCenters",
+				"pickFrontendCharacter",
+				"pickFrontendRace",
+				"setWorld",
+				"setWorldCamera"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frontend/stage/stage.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"adoptWorld",
+				"cancelWorldUpdate",
+				"neededWorldTextures",
+				"setWorldTexture",
+				"worldStats"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/stage-probe.ts",
+			"functions": [
+				"createStageProbe",
+				"take"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/renderer/renderer.ts",
+			"functions": [
+				"adoptWorld",
+				"audioListener",
+				"createRenderer",
+				"dispose",
+				"error",
+				"frame",
+				"gpuTiming",
+				"neededWorldTextures",
+				"phase",
+				"pickDestination",
+				"pickEntity",
+				"pickFrontendCharacter",
+				"pickFrontendRace",
+				"pickGround",
+				"presentationCamera",
+				"presentationNight",
+				"readbackWaitMs",
+				"setUi",
+				"worldStats",
+				"worldView"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"adoptWorld",
+				"audioListener",
+				"characterParticleSnapshot",
+				"characterParticleTime",
+				"characterStats",
+				"dispose",
+				"error",
+				"frame",
+				"frontendRaceCenters",
+				"gpuTiming",
+				"neededWorldTextures",
+				"phase",
+				"pickDestination",
+				"pickEntity",
+				"pickFrontendCharacter",
+				"pickFrontendRace",
+				"pickGround",
+				"presentationCamera",
+				"presentationNight",
+				"readbackWaitMs",
+				"scenery",
+				"setCharacterActors",
+				"setUi",
+				"worldStats",
+				"worldView"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"actors",
+				"particleSnapshot",
+				"particleTime",
+				"stats"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/renderer/world/world.ts",
+			"functions": [
+				"interfaceCenters",
+				"scenery"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/entry.ts",
+			"provider": "src/engine/runtime/random/random.ts",
+			"functions": [
+				"createPresentationRandom"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/host.ts",
+			"provider": "src/engine/runtime/audio/audio.ts",
+			"functions": [
+				"enqueue"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/host.ts",
+			"provider": "src/engine/runtime/runtime.ts",
+			"functions": [
+				"callback:deferPick:0",
+				"callback:deferPick:1"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/host.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"animation",
+				"assembly",
+				"dispose",
+				"model",
+				"retain",
+				"settle",
+				"stats"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/host.ts",
+			"provider": "src/engine/runtime/assets/world-lease.ts",
+			"functions": [
+				"takeWorld"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/thread/host.ts",
+			"provider": "src/engine/runtime/stage-probe.ts",
+			"functions": [
+				"renderBegin",
+				"renderCount",
+				"renderMark",
+				"renderSpans"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/weather/weather.ts",
+			"provider": "src/engine/runtime/renderer/thread/entry.ts",
+			"functions": [
+				"callback:createRenderer:2"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/world/world.ts",
+			"provider": "src/engine/runtime/renderer/thread/entry.ts",
+			"functions": [
+				"takeWorld"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/runtime.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"audioListener",
+				"characterActors",
+				"characterStats",
+				"deferPick",
+				"dispose",
+				"error",
+				"experimentalVideo",
+				"frame",
+				"gpuTiming",
+				"phase",
+				"pickEntity",
+				"pickFrontendCharacter",
+				"pickFrontendRace",
+				"pickGround",
+				"presentedFrameMs",
+				"readbackWaitMs",
+				"setCharacterPreview",
+				"setDamageText",
+				"setFrameWork",
+				"setSelectionDecal",
+				"setTeleportGates",
+				"setWeather",
+				"setWorldClock",
+				"videoOptions",
+				"worldStats",
+				"worldView"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/resources/resources.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"setUiTexture"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/ui.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"setUi"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/world/world.ts",
+			"provider": "src/engine/runtime/renderer/thread/host.ts",
+			"functions": [
+				"adoptWorld",
+				"cancelWorldUpdate",
+				"neededWorldTextures",
+				"setWorld",
+				"setWorldCamera",
+				"setWorldTexture",
+				"worldStats"
+			]
 		}
 	],
 	"boundaries": [
@@ -2158,6 +2413,34 @@
 			"function": "sendToHost",
 			"kind": "worker-port",
 			"reason": "Typed DedicatedWorker port projection; transferred messages cross the parent/worker boundary."
+		},
+		{
+			"file": "src/engine/runtime/renderer/thread/entry.ts",
+			"expression": "port.postMessage",
+			"function": "sendToHost",
+			"kind": "worker-port",
+			"reason": "Typed DedicatedWorker port projection; the render thread replies to its host (port-only, Experimental render thread)."
+		},
+		{
+			"file": "src/engine/runtime/renderer/thread/entry.ts",
+			"expression": "port.close",
+			"function": "closePort",
+			"kind": "worker-port",
+			"reason": "The render thread ends itself after disposing the renderer."
+		},
+		{
+			"file": "src/engine/runtime/renderer/thread/entry.ts",
+			"expression": "method",
+			"function": "replay",
+			"kind": "callback",
+			"reason": "Replays a queued Renderer call by name on the worker renderer, in the order the main thread made it (render thread proxy)."
+		},
+		{
+			"file": "src/engine/runtime/renderer/thread/entry.ts",
+			"expression": "displayFrame",
+			"function": "schedule",
+			"kind": "callback",
+			"reason": "The worker's requestAnimationFrame: the render thread draws on its OffscreenCanvas's display clock (port-only, Experimental render thread)."
 		},
 		{
 			"file": "src/engine/runtime/renderer/characters/characters.ts",
@@ -3574,7 +3857,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "5be069431439222bd45525efc8de3d8d6b53f0adfc8aa8fc784c9e22830e90dc",
+			"sourceSha256": "605bc169591147051818d29bb8cf8d72679a363a4254e02ebb013a146d1d26a2",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. Device disposal cancels pending mapping.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,
