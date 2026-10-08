@@ -53,6 +53,10 @@ type Session struct {
 
 	hub *Hub
 
+	// Dispatch spans the complete handler, including publication. Attach may
+	// replace the reader while an old handler still owns a committed result.
+	dispatchMu sync.Mutex
+
 	mu              sync.Mutex
 	cond            *sync.Cond
 	conn            Conn // nil while detached
@@ -264,7 +268,23 @@ sendSceneBatch
 ================
 */
 func (s *Session) sendSceneBatch(frames []Frame, revision *uint64, reset bool) error {
-	return s.sendSceneObjectBatch(frames, revision, reset, 0, nil)
+	return s.sendSceneObjectBatch(frames, sceneBatchOptions{revision: revision, reset: reset})
+}
+
+/*
+================
+sceneBatchOptions
+
+Private receipts may follow an already queued bootstrap while its scene is
+loading. Visibility producers retain the active-scene requirement.
+================
+*/
+type sceneBatchOptions struct {
+	revision     *uint64
+	reset        bool
+	observedGID  uint32
+	changes      []ObjectScopeChange
+	allowLoading bool
 }
 
 /*
@@ -272,9 +292,9 @@ func (s *Session) sendSceneBatch(frames []Frame, revision *uint64, reset bool) e
 sendSceneObjectBatch
 ================
 */
-func (s *Session) sendSceneObjectBatch(frames []Frame, revision *uint64, reset bool, observedGID uint32, changes []ObjectScopeChange) error {
+func (s *Session) sendSceneObjectBatch(frames []Frame, options sceneBatchOptions) error {
 	// Copy before appending: callers retain ownership of their metadata.
-	changes = append([]ObjectScopeChange(nil), changes...)
+	changes := append([]ObjectScopeChange(nil), options.changes...)
 	for _, frame := range frames {
 		changes = append(changes, frame.Scope...)
 	}
@@ -302,13 +322,13 @@ func (s *Session) sendSceneObjectBatch(frames []Frame, revision *uint64, reset b
 		batchBytes += frameBytes
 	}
 	s.mu.Lock()
-	if observedGID != 0 {
-		if _, observed := s.observedObjects[observedGID]; !observed || s.sceneLoading {
+	if options.observedGID != 0 {
+		if _, observed := s.observedObjects[options.observedGID]; !observed || s.sceneLoading {
 			s.mu.Unlock()
 			return nil
 		}
 	}
-	if revision != nil && (s.sceneLoading || s.sceneRevision != *revision) {
+	if options.revision != nil && ((!options.allowLoading && s.sceneLoading) || s.sceneRevision != *options.revision) {
 		s.mu.Unlock()
 		return nil
 	}
@@ -328,7 +348,7 @@ func (s *Session) sendSceneObjectBatch(frames []Frame, revision *uint64, reset b
 			return ErrSessionEvicted
 		}
 	}
-	if reset {
+	if options.reset {
 		s.sceneRevision++
 		s.sceneLoading = true
 		clear(s.observedObjects)
@@ -805,8 +825,7 @@ func (s *Session) writeLoop() {
 }
 
 // readLoop pulls frames off one attachment. Transport-control frames are
-// handled here; game frames go to the hub dispatcher, serially, so one
-// session's handlers never race each other.
+// handled here; application dispatch is serialized across all attachments.
 /*
 ================
 readLoop
@@ -865,10 +884,30 @@ func (s *Session) readLoop(conn Conn, gen int, ctx context.Context) {
 				// Control-extension opcodes (EnterWorld, sidecars, future)
 				// go through normal dispatch; unknown ones fall out as
 				// unhandled there, which keeps forward compatibility.
-				s.hub.dispatch(s, f)
+				s.dispatchGeneration(gen, f)
 			}
 			continue
 		}
+		s.dispatchGeneration(gen, f)
+	}
+}
+
+/*
+================
+dispatchGeneration
+
+An admitted handler finishes publishing before a resumed EnterWorld can
+replace its snapshot. Readers superseded while waiting must not dispatch.
+Neither socket reads nor writes run under this lock; Send only queues.
+================
+*/
+func (s *Session) dispatchGeneration(gen int, f Frame) {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+	s.mu.Lock()
+	current := !s.closed && gen == s.gen
+	s.mu.Unlock()
+	if current {
 		s.hub.dispatch(s, f)
 	}
 }
