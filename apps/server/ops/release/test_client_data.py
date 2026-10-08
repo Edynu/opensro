@@ -168,6 +168,39 @@ class DataStoreTests(DataFixture, unittest.TestCase):
 			client_data.store_payload(self.config, forged)
 
 	# ================
+	# test_a_rerun_skips_payloads_the_host_stores
+	#
+	# The inventory names only stored payloads at their declared length and
+	# keeps them from the 14-day prune; the next bundle leaves them out.
+	# ================
+	def test_a_rerun_skips_payloads_the_host_stores(self):
+		needed = client_data.needed_payloads(self.root / "next", self.base)
+		self.assertEqual([row["sha256"] for row in needed], [sha(b"new publication")])
+		self.assertEqual(client_data.payload_inventory(self.config, {"files": needed}), {"present": []})
+		client_data.store_payload(self.config, self.bundle()[0])
+		stored = Path(self.config["payload_store"]) / needed[0]["sha256"]
+		old = stored.stat().st_mtime - 10 * 24 * 3600
+		os.utime(stored, (old, old))
+		self.assertEqual(client_data.payload_inventory(self.config, {"files": needed}), {"present": [needed[0]["sha256"]]})
+		self.assertGreater(stored.stat().st_mtime, old + 24 * 3600)
+		# A stored file of another length is not offered as present.
+		wrong = [{"sha256": needed[0]["sha256"], "length": needed[0]["length"] + 1}]
+		self.assertEqual(client_data.payload_inventory(self.config, {"files": wrong}), {"present": []})
+		# Nor is a damaged one of the right length: the rerun must resend it.
+		intact = stored.read_bytes()
+		stored.write_bytes(bytes(len(intact)))
+		self.assertEqual(client_data.payload_inventory(self.config, {"files": needed}), {"present": []})
+		stored.write_bytes(intact)
+		again = client_data.bundle(self.root / "next", self.base, self.plan, self.root / "again",
+			present={needed[0]["sha256"]})
+		self.assertEqual(again, [])
+		for bad in ({"files": [{"sha256": "../x", "length": 1}]}, {"files": [{"sha256": "a" * 64, "length": -1}]},
+				{"files": ["a" * 64]},
+				{"files": [{"sha256": "a" * 64, "length": 1}] * (client_data.MAX_INVENTORY_FILES + 1)}, {}):
+			with self.assertRaises(ValueError):
+				client_data.payload_inventory(self.config, bad)
+
+	# ================
 	# test_a_build_that_is_not_the_declared_release_is_refused
 	# ================
 	def test_a_build_that_is_not_the_declared_release_is_refused(self):
