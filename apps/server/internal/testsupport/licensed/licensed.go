@@ -55,25 +55,55 @@ RequireGameData
 Skips (or, under SRO_REQUIRE_GAME_DATA=1, fails) the test unless the
 verified server projection, the raw client extraction and the published
 browser assets are all present. Call it first in any test that reads them.
+A resolver error always fails: see gameDataVerdict.
 ==================
 */
 func RequireGameData(t testing.TB) {
 	t.Helper()
 	missing, err := checkedGameData()
-	if err == nil && len(missing) == 0 {
-		return
+	switch verdict, reason := gameDataVerdict(missing, err, os.Getenv(RequireEnv) == "1"); verdict {
+	case gameDataFail:
+		t.Fatal(reason)
+	case gameDataSkip:
+		t.Skip(reason)
+	}
+}
+
+// gameDataVerdict outcomes.
+const (
+	gameDataReady = iota
+	gameDataSkip
+	gameDataFail
+)
+
+/*
+==================
+gameDataVerdict
+
+What RequireGameData does with one check. Only absent data may skip, and
+only while SRO_REQUIRE_GAME_DATA is off. A resolver error is never absent
+data: a worktree holding its own generated tree, an unreadable worktree
+link or a relative override names a broken setup, and skipping on it let a
+plain `go test ./...` in such a worktree pass with every licensed test
+skipped.
+==================
+*/
+func gameDataVerdict(missing []string, err error, require bool) (int, string) {
+	if err != nil {
+		return gameDataFail, "licensed game data cannot be located: " + err.Error()
+	}
+	if len(missing) == 0 {
+		return gameDataReady, ""
 	}
 	reason := "licensed game data is not available"
-	if err != nil {
-		reason += ": " + err.Error()
-	}
 	for _, path := range missing {
 		reason += "\n\tmissing " + path
 	}
-	if os.Getenv(RequireEnv) == "1" {
-		t.Fatalf("%s (%s=1 requires it)", reason, RequireEnv)
+	if require {
+		return gameDataFail, fmt.Sprintf("%s (%s=1 requires it)", reason, RequireEnv)
 	}
-	t.Skipf("%s; build it with `pnpm assets build` (set %s=1 to fail instead of skip)", reason, RequireEnv)
+	return gameDataSkip, fmt.Sprintf("%s; build it with `pnpm assets build` (set %s=1 to fail instead of skip)",
+		reason, RequireEnv)
 }
 
 var (
