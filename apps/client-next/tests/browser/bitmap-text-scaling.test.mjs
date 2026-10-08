@@ -28,7 +28,9 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 		await page.goto( CLIENT_NEXT_BASE_URL );
 		const session = await page.context().newCDPSession( page );
 		const captured = [];
-		for ( const ratio of [ .8, .9, 1, 1.1, 1.25, 1.5, 1.75, 2, .9, 1 ] ) {
+		// GPU readbacks cover each enlargement and representative fractional DPRs.
+		// The cheaper DOM test below exercises both sides of rounding thresholds.
+		for ( const ratio of [ .8, 1, 1.25, 1.5, 1.75, 2, 2.5, 3 ] ) {
 			await session.send( "Emulation.setDeviceMetricsOverride", {
 				width: 800,
 				height: 600,
@@ -55,8 +57,18 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 				bitmap.close();
 				const results = [];
 				try {
-					for ( const sceneWidth of [ 640, 641 ] ) {
-						const sceneHeight = 80;
+					// Large enough that every tested ratio keeps its rounded enlargement:
+					// below the original's smallest mode (800x600) the platform steps
+					// down to one physical pixel per native pixel.
+					const sizes = [ [ 1100, 820 ], [ 1101, 821 ] ];
+					// Both axes deliberately remain fractional in logical UI coordinates.
+					if ( devicePixelRatio === 2 || devicePixelRatio === 3 ) {
+						sizes.push( [
+							(800 * devicePixelRatio + 1) / devicePixelRatio,
+							(600 * devicePixelRatio + 1) / devicePixelRatio
+						] );
+					}
+					for ( const [sceneWidth, sceneHeight] of sizes ) {
 						const canvas = document.createElement( "canvas" ), status = document.createElement( "output" );
 						canvas.style.width = sceneWidth + "px";
 						canvas.style.height = sceneHeight + "px";
@@ -69,18 +81,19 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 						await new Promise( requestAnimationFrame );
 						await new Promise( requestAnimationFrame );
 						const physical = { ...platform.readViewport() };
+						const logical = { ...platform.readUiViewport() };
 						const scene = {
 							revision: 1,
-							width: Math.round( platform.canvasSize().width / platform.displayScale() ),
-							height: Math.round( platform.canvasSize().height / platform.displayScale() ),
+							...logical,
 							quads: titleText( font, "Lacrimosa  Jangan  123456", [ 20, 20, 500, 25 ], [
 								0,
 								0,
-								sceneWidth,
-								sceneHeight
+								logical.width,
+								logical.height
 							], [ 1, 1, 1, 1 ] )
 						};
 						for ( const ratio of [ devicePixelRatio ] ) {
+							const factor = Math.max( 1, Math.round( ratio ) );
 							const { width, height } = physical;
 							const stride = Math.ceil( width * 4 / 256 ) * 256;
 							const color = device.createTexture( {
@@ -103,7 +116,7 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 						================
 						*/
 							async function render( publication ) {
-								const draws = ui.prepare( publication, { width, height } );
+								const draws = ui.prepare( publication );
 								const encoder = device.createCommandEncoder();
 								const pass = encoder.beginRenderPass( {
 									colorAttachments: [ {
@@ -148,7 +161,7 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 									} ) :
 									retained;
 								const nativeEqual = retained.every( ( value, i ) => value === old[i] );
-								let reference = "", changes = 0, blurred = 0, lit = 0;
+								let reference = "", changes = 0, blurred = 0, lit = 0, replicationErrors = 0;
 								for ( let offset = 0; offset < 8; offset++ ) {
 									const quads = scene.quads.map( q => ({
 										...q,
@@ -169,12 +182,24 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 										}
 									}
 									const crop = [];
-									for ( let y = top; y <= bottom; y++ ) {
-										for ( let x = left; x <= right; x++ ) {
-											crop.push( pixels[y * stride + x * 4] );
+									const inkWidth = right - left + 1, inkHeight = bottom - top + 1;
+									if ( inkWidth % factor || inkHeight % factor ) replicationErrors++;
+									// Every original texel must produce one uniform K-by-K block;
+									// merely sampling every Kth pixel would miss interpolated edges.
+									for ( let y = top; y <= bottom; y += factor ) {
+										for ( let x = left; x <= right; x += factor ) {
+											const value = pixels[y * stride + x * 4];
+											crop.push( value );
+											for ( let dy = 0; dy < factor; dy++ ) {
+												for ( let dx = 0; dx < factor; dx++ ) {
+													if ( pixels[(y + dy) * stride + (x + dx) * 4] !== value ) {
+														replicationErrors++;
+													}
+												}
+											}
 										}
 									}
-									const signature = JSON.stringify( [ right - left, bottom - top, crop ] );
+									const signature = JSON.stringify( [ inkWidth / factor, inkHeight / factor, crop ] );
 									if ( offset === 0 ) reference = signature;
 									else if ( reference !== signature ) changes++;
 								}
@@ -186,7 +211,11 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 									changes,
 									blurred,
 									lit,
-									physicalMatch: scene.width === width && scene.height === height,
+									factor,
+									replicationErrors,
+									physical,
+									logical,
+									physicalMatch: scene.width === width / factor && scene.height === height / factor,
 									ink: reference
 								} );
 							} finally {
@@ -211,11 +240,22 @@ test( "bitmap text stays sharp and motion-stable through browser scaling", { tim
 		await mkdir( "temp/artifacts/bitmap-text-scaling", { recursive: true } );
 		await writeFile( "temp/artifacts/bitmap-text-scaling/gpu.json", JSON.stringify( result, null, 2 ) );
 		assert.deepEqual( result.errors, [] );
+		for ( const factor of [ 2, 3 ] ) {
+			const oddWidth = 800 * factor + 1, oddHeight = 600 * factor + 1;
+			const odd = result.results.find( row => row.ratio === factor && row.physical.width === oddWidth );
+			assert.ok( odd, "Missing odd physical extent at enlargement " + factor );
+			assert.equal( odd.logical.width, oddWidth / factor );
+			assert.equal( odd.physical.height, oddHeight );
+			assert.equal( odd.logical.height, oddHeight / factor );
+			assert.ok( !Number.isInteger( odd.logical.width ) );
+			assert.ok( !Number.isInteger( odd.logical.height ) );
+		}
 		for ( const row of result.results ) {
 			const context = JSON.stringify( row );
 			assert.ok( row.lit > 0, context );
 			assert.equal( row.blurred, 0, context );
 			assert.equal( row.changes, 0, context );
+			assert.equal( row.replicationErrors, 0, context );
 			assert.ok( row.retainedEqual, context );
 			assert.ok( row.nativeEqual, context );
 			assert.ok( row.physicalMatch, context );
@@ -245,6 +285,17 @@ test(
 			await page.evaluate( async () => {
 				const path = "/src/engine/runtime/platform/platform.ts";
 				const { createPlatform } = await import( path );
+				// CDP changes density without delivering MediaQueryList change events.
+				// Retain the real query objects so the fixture can deliver that event;
+				// matching, platform code, DOM layout and pointer input stay real.
+				/** @type {MediaQueryList[]} */
+				const densityQueries = [];
+				const match = window.matchMedia.bind( window );
+				window.matchMedia = query => {
+					const media = match( query );
+					if ( query.startsWith( "(resolution:" ) ) densityQueries.push( media );
+					return media;
+				};
 				/** @type {any[]} */
 				const events = [], hits = [];
 				const canvas = document.querySelector( "canvas" );
@@ -277,27 +328,75 @@ test(
 					} ]
 				};
 				platform.presentUi( semantics );
-				/** @type {any} */ (globalThis).scalingFixture = { platform, canvas, semantics, events, hits };
+				/** @type {any} */ (globalThis).scalingFixture = {
+					platform,
+					canvas,
+					semantics,
+					events,
+					hits,
+					densityQueries
+				};
 			} );
 			const session = await page.context().newCDPSession( page );
-			for ( const ratio of [ 1, .9, 1.25, .8, 1.5, 2, 1 ] ) {
+			/*
+			================
+			notifyDensity
+
+			Deliver only the density notification omitted by CDP. The new query
+			must match the actual browser density after the production rearm.
+			================
+			*/
+			async function notifyDensity() {
+				const rearmed = await page.evaluate( () => {
+					const queries = /** @type {any} */ (globalThis).scalingFixture.densityQueries;
+					const query = queries.at( -1 );
+					if ( !query.matches ) {
+						query.dispatchEvent(
+							new MediaQueryListEvent( "change", {
+								matches: false,
+								media: query.media
+							} )
+						);
+					}
+					return queries.at( -1 ).matches;
+				} );
+				assert.equal( rearmed, true, "Density watcher must rearm at the new density" );
+			}
+			for (
+				const [ratio, factor] of [
+					[ 1, 1 ],
+					[ .9, 1 ],
+					[ 1.25, 1 ],
+					[ .8, 1 ],
+					[ 1.49, 1 ],
+					[ 1.5, 2 ],
+					[ 1.51, 2 ],
+					[ 2, 2 ],
+					[ 2.49, 2 ],
+					[ 2.5, 3 ],
+					[ 2.51, 3 ],
+					[ 3, 3 ],
+					[ 1, 1 ]
+				]
+			) {
 				await session.send( "Emulation.setDeviceMetricsOverride", {
-					width: Math.round( 1600 / ratio ),
-					height: Math.round( 900 / ratio ),
+					width: 1512,
+					height: 982,
 					deviceScaleFactor: ratio,
 					mobile: false
 				} );
-				await page.waitForFunction( ratio => {
+				await notifyDensity();
+				await page.waitForFunction( ( { ratio, factor } ) => {
 					const button = document.querySelector( '[data-ui-id="scaling-button"]' );
-					return button && Math.abs( button.getBoundingClientRect().width * ratio - 120 ) < .1;
-				}, ratio );
+					return button && Math.abs( button.getBoundingClientRect().width * ratio - 120 * factor ) < .1;
+				}, { ratio, factor } );
 				await page.evaluate( () => {
 					const f = /** @type {any} */ (globalThis).scalingFixture;
 					f.events.length = 0;
 					f.hits.length = 0;
 				} );
-				await page.mouse.click( 160 / ratio, 95 / ratio );
-				await page.mouse.click( 500 / ratio, 300 / ratio );
+				await page.mouse.click( 160 * factor / ratio, 95 * factor / ratio );
+				await page.mouse.click( 500 * factor / ratio, 300 * factor / ratio );
 				const result = await page.evaluate( () => {
 					const f = /** @type {any} */ (globalThis).scalingFixture;
 					const editor = document.querySelector( '[data-ui-id="scaling-editor"]' );
@@ -308,6 +407,14 @@ test(
 						activated: f.events.some( e => e.kind === "activate" && e.id === "scaling-button" ),
 						hit: f.hits.at( -1 ),
 						viewport: f.platform.readViewport(),
+						uiViewport: f.platform.readUiViewport(),
+						scale: f.platform.displayScale(),
+						editorRect: [
+							editor.getBoundingClientRect().x,
+							editor.getBoundingClientRect().y,
+							editor.getBoundingClientRect().width,
+							editor.getBoundingClientRect().height
+						],
 						fontSize: parseFloat( getComputedStyle( editor ).fontSize ),
 						padding: [ "paddingLeft", "paddingTop", "paddingRight", "paddingBottom" ].map(
 							key => parseFloat( getComputedStyle( editor )[key] )
@@ -315,12 +422,27 @@ test(
 					};
 				} );
 				assert.ok( result.activated );
-				assert.ok( Math.abs( result.fontSize * ratio - 12 ) < .001 );
-				for ( const [index, inset] of [ 3, 1, 5, 2 ].entries() ) {
-					assert.ok( Math.abs( result.padding[index] * ratio - inset ) < .001 );
+				// Chromium exposes emulated fractional density through a float32.
+				assert.ok( Math.abs( result.scale * ratio - factor ) < .000001 );
+				assert.deepEqual( result.uiViewport, {
+					width: result.viewport.width / factor,
+					height: result.viewport.height / factor
+				} );
+				if ( ratio === 2 ) {
+					assert.deepEqual( result.viewport, { width: 3024, height: 1964 } );
+					assert.deepEqual( result.uiViewport, { width: 1512, height: 982 } );
 				}
-				assert.ok( Math.abs( result.hit[0] - 500 ) <= 1, JSON.stringify( result ) );
-				assert.ok( Math.abs( result.hit[1] - 300 ) <= 1, JSON.stringify( result ) );
+				for ( const [index, value] of [ 100, 130, 160, 20 ].entries() ) {
+					assert.ok( Math.abs( result.editorRect[index] * ratio - value * factor ) < .1 );
+				}
+				assert.ok( Math.abs( result.fontSize * ratio - 12 * factor ) < .001 );
+				for ( const [index, inset] of [ 3, 1, 5, 2 ].entries() ) {
+					assert.ok( Math.abs( result.padding[index] * ratio - inset * factor ) < .001 );
+				}
+				// Browser mousedown coordinates truncate to CSS pixels. Measure its
+				// one-pixel quantization in CSS units, not enlarged logical UI units.
+				assert.ok( Math.abs( result.hit[0] - 500 ) * result.scale <= 1, JSON.stringify( result ) );
+				assert.ok( Math.abs( result.hit[1] - 300 ) * result.scale <= 1, JSON.stringify( result ) );
 			}
 			const fixed = await page.evaluate( async () => {
 				const f = /** @type {any} */ (globalThis).scalingFixture;
@@ -330,23 +452,80 @@ test(
 				return { ...f.platform.readViewport() };
 			} );
 			assert.deepEqual( fixed, { width: 800, height: 600 } );
+			for ( const ratio of [ 1.25, 2, 3, 1 ] ) {
+				await session.send( "Emulation.setDeviceMetricsOverride", {
+					width: 1280,
+					height: 720,
+					deviceScaleFactor: ratio,
+					mobile: false
+				} );
+				await notifyDensity();
+				await page.waitForFunction( ratio => {
+					const f = /** @type {any} */ (globalThis).scalingFixture;
+					const button = document.querySelector( '[data-ui-id="scaling-button"]' );
+					return Math.abs( f.canvas.getBoundingClientRect().width * ratio - 800 ) < .1 &&
+						button && Math.abs( button.getBoundingClientRect().width * ratio - 120 ) < .1;
+				}, ratio );
+				const origin = await page.evaluate( () => {
+					const f = /** @type {any} */ (globalThis).scalingFixture;
+					f.events.length = 0;
+					f.hits.length = 0;
+					const box = f.canvas.getBoundingClientRect();
+					return { x: box.x, y: box.y };
+				} );
+				await page.mouse.click( origin.x + 160 / ratio, origin.y + 95 / ratio );
+				await page.mouse.click( origin.x + 500 / ratio, origin.y + 300 / ratio );
+				const scaled = await page.evaluate( () => {
+					const f = /** @type {any} */ (globalThis).scalingFixture;
+					return {
+						viewport: { ...f.platform.readViewport() },
+						uiViewport: { ...f.platform.readUiViewport() },
+						scale: f.platform.displayScale(),
+						activated: f.events.some( e => e.kind === "activate" && e.id === "scaling-button" ),
+						hit: f.hits.at( -1 )
+					};
+				} );
+				assert.deepEqual( scaled.viewport, fixed );
+				assert.deepEqual( scaled.uiViewport, fixed );
+				assert.equal( scaled.scale, 1 / ratio );
+				assert.ok( scaled.activated );
+				assert.ok( Math.abs( scaled.hit[0] - 500 ) * scaled.scale <= 1 );
+				assert.ok( Math.abs( scaled.hit[1] - 300 ) * scaled.scale <= 1 );
+			}
 			await session.send( "Emulation.setDeviceMetricsOverride", {
 				width: 1280,
 				height: 720,
-				deviceScaleFactor: 1.25,
+				deviceScaleFactor: 2,
 				mobile: false
 			} );
-			await page.waitForFunction( () => {
+			await notifyDensity();
+			await page.evaluate( async () => {
+				const path = "/src/engine/foundation/rendering/video-options.ts";
+				const { defaultVideoOptions } = await import( path );
 				const f = /** @type {any} */ (globalThis).scalingFixture;
-				return Math.abs( f.canvas.getBoundingClientRect().width - 640 ) < .1;
+				f.platform.saveVideoOptions( defaultVideoOptions() );
+				// The runtime publishes its newly laid-out UI after a video preference.
+				f.platform.presentUi( f.semantics );
 			} );
-			const scaled = await page.evaluate( () => {
-				const f = /** @type {any} */ (globalThis).scalingFixture;
-				const result = { ...f.platform.readViewport() };
-				f.platform.dispose();
+			await page.waitForFunction( () => {
+				const editor = document.querySelector( '[data-ui-id="scaling-editor"]' );
+				return editor?.getBoundingClientRect().width === 160;
+			} );
+			const restored = await page.evaluate( () => {
+				const p = /** @type {any} */ (globalThis).scalingFixture.platform;
+				const result = {
+					physical: { ...p.readViewport() },
+					logical: { ...p.readUiViewport() },
+					scale: p.displayScale()
+				};
+				p.dispose();
 				return result;
 			} );
-			assert.deepEqual( scaled, fixed );
+			assert.deepEqual( restored, {
+				physical: { width: 2560, height: 1440 },
+				logical: { width: 1280, height: 720 },
+				scale: 1
+			} );
 		} finally {
 			await browser.close();
 		}
