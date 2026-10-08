@@ -26,6 +26,7 @@
     "src/engine/runtime/ui/hud/stall-hud.ts": "src/engine/runtime/ui/ui.ts",
     "src/engine/runtime/ui/hud/stall-network-categories.ts": "src/engine/runtime/ui/ui.ts",
     "src/engine/runtime/ui/hud/grant-power-hud.ts": "src/engine/runtime/ui/ui.ts",
+    "src/engine/runtime/ui/hud/composite-item-hud.ts": "src/engine/runtime/ui/ui.ts",
     "src/engine/runtime/ui/hud/guild-manager-hud.ts": "src/engine/runtime/ui/ui.ts",
     "src/engine/runtime/ui/hud/magic-option-hud.ts": "src/engine/runtime/ui/ui.ts",
     "src/engine/runtime/ui/hud/slot-effects.ts": "src/engine/runtime/ui/ui.ts",

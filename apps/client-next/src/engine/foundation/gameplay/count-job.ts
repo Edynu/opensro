@@ -20,6 +20,13 @@ all (0xCC), a use left (0xC6), the player alive (0x89; for /Resurrection
 dead, 0x87), no transport out (0x5E) and not in PvP state 2 (0x75). Each
 refusal is a category-1 notice the client raises itself.
 
+A click on the package's board slot (6E2840, slot kind 5) opens its
+package window, CIFCompositeItemWnd (6AF780): one button per limited
+item, "%s(%d)" with the uses left, disabled at zero. A button (6AFB40)
+runs the same player checks for its own row and sends 0x76FD; a reverse
+return first opens the type 0x24 box for its point. The window closes
+either way.
+
 INFERENCE: the native client compares the command's first word only, so
 the two-word English "/Reverse Return" never matches; the port compares the
 whole command.
@@ -200,12 +207,65 @@ export function premiumCommandAdmission(
 	const row = rows.find( r => ((typeFlags( r.itemRefObjId ) ?? 0) & TYPE_MASK) === type );
 	if ( !row ) return { code: COUNT_JOB_NONE };
 	if ( row.uses === 0 ) return { code: COUNT_JOB_USED_UP };
+	const code = commandRefusal( command, facts );
+	return code === null ? { row } : { code };
+}
+
+/*
+================
+commandRefusal
+
+The player checks both openers share once a row is chosen (6AD990 and
+the package window's 6AFB40, in the same order): alive (dead for a
+resurrection), no transport out, not in PvP state 2.
+================
+*/
+function commandRefusal( command: PremiumCommand, facts: CountJobFacts ): number | null {
 	if ( command === "resurrection" ) {
-		if ( facts.alive ) return { code: COUNT_JOB_ALIVE };
-	} else if ( !facts.alive ) return { code: COUNT_JOB_DEAD };
-	if ( facts.transportOut ) return { code: COUNT_JOB_TRANSPORT };
-	if ( facts.pvpState === 2 ) return { code: COUNT_JOB_PVP };
-	return { row };
+		if ( facts.alive ) return COUNT_JOB_ALIVE;
+	} else if ( !facts.alive ) return COUNT_JOB_DEAD;
+	if ( facts.transportOut ) return COUNT_JOB_TRANSPORT;
+	if ( facts.pvpState === 2 ) return COUNT_JOB_PVP;
+	return null;
+}
+
+/*
+================
+commandOfType
+
+The command a limited item's type word runs; null for any other item.
+================
+*/
+export function commandOfType( typeFlags: number ): PremiumCommand | null {
+	switch ( typeFlags & TYPE_MASK ) {
+		case RETURN_SCROLL_TYPE:
+			return "return";
+		case REVERSE_RETURN_TYPE:
+			return "reverse-return";
+		case RESURRECTION_TYPE:
+			return "resurrection";
+	}
+	return null;
+}
+
+/*
+================
+rowAdmission
+
+The package window's button (CIFCompositeItemWnd 6AFB40): the clicked
+row runs its item's checks. A row without uses is a disabled button
+(6AF780), so it sends nothing and raises nothing.
+================
+*/
+export function rowAdmission(
+	row: CountJobRow,
+	typeFlags: number | undefined,
+	facts: CountJobFacts
+): { readonly row: CountJobRow; readonly command: PremiumCommand; } | { readonly code: number; } | null {
+	const command = commandOfType( typeFlags ?? 0 );
+	if ( !command || row.uses === 0 ) return null;
+	const code = commandRefusal( command, facts );
+	return code === null ? { row, command } : { code };
 }
 
 /*
@@ -306,6 +366,18 @@ export function createCountJobs() {
 		*/
 		admit( command: PremiumCommand, facts: CountJobFacts ) {
 			return premiumCommandAdmission( command, rows, id => references.get( id )?.typeFlags, facts );
+		},
+		/*
+		================
+		admitRow
+
+		The package window's checks for one row; null when the row is gone
+		or has nothing to run.
+		================
+		*/
+		admitRow( packageRefObjId: number, itemRefObjId: number, facts: CountJobFacts ) {
+			const row = rows.find( r => r.packageRefObjId === packageRefObjId && r.itemRefObjId === itemRefObjId );
+			return row ? rowAdmission( row, references.get( itemRefObjId )?.typeFlags, facts ) : null;
 		},
 		/*
 		================

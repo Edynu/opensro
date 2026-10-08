@@ -306,6 +306,8 @@ export type GameplayCommand =
 		readonly choice?: number;
 	}
 	| { readonly kind: "premium-command-cancel"; }
+	// A package window button (count-job.ts rowAdmission): one row's use.
+	| { readonly kind: "count-job-use"; readonly packageRefObjId: number; readonly itemRefObjId: number; }
 	| { readonly kind: "mount"; readonly gid: number; }
 	| { readonly kind: "pickup"; readonly gid: number; }
 	// The pickup shortcut: the worker chooses the item (pickup-nearest.ts).

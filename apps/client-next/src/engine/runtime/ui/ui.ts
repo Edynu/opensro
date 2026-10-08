@@ -176,6 +176,7 @@ import { createStallNetworkCategories } from "./hud/stall-network-categories";
 import { STALL_CHAT_CHANNEL, STALL_SLOTS, type StallListing } from "@/engine/foundation/gameplay/stall";
 import { textAllowed } from "@/engine/foundation/ui/character-create";
 import { createGrantPowerHud, GRANT_RIGHTS } from "./hud/grant-power-hud";
+import { compositeItemCaption, compositeItemLayout, createCompositeItemHud } from "./hud/composite-item-hud";
 import { allianceButtons, allianceLeader } from "@/engine/foundation/ui/alliance-guild";
 import {
 	fortressWarDates,
@@ -734,6 +735,7 @@ export function createUi(
 	const exchangeHud = createExchangeHud();
 	const stallHud = createStallHud();
 	const grantPowerHud = createGrantPowerHud();
+	const compositeItemHud = createCompositeItemHud();
 	const guildManagerHud = createGuildManagerHud();
 	const magicOptionHud = createMagicOptionHud();
 	const slotEffects = createSlotEffectClock();
@@ -3054,7 +3056,26 @@ export function createUi(
 		} else if ( id.startsWith( "premium-reverse:" ) ) {
 			sendGameplay( { kind: "premium-command", command: "reverse-return", choice: Number( id.slice( 16 ) ) } );
 		} else if ( id === "premium-reverse-cancel" ) sendGameplay( { kind: "premium-command-cancel" } );
-		else if ( id === "chat-send" && !view.gameplay?.chat?.pending ) {
+		else if ( id.startsWith( "count-job:" ) ) {
+			// 6E2840: a package slot (kind 5) opens its package window.
+			compositeItemHud.open( Number( id.slice( "count-job:".length ) ) );
+			dirty = true;
+		} else if ( id.startsWith( "composite-item:" ) ) {
+			// 6AFB40: the button runs its row, then the window closes.
+			const packageRefObjId = compositeItemHud.packageId();
+			compositeItemHud.close();
+			dirty = true;
+			if ( packageRefObjId !== null ) {
+				sendGameplay( {
+					kind: "count-job-use",
+					packageRefObjId,
+					itemRefObjId: Number( id.slice( "composite-item:".length ) )
+				} );
+			}
+		} else if ( id === "composite-item-cancel" || id === "composite-item-close" ) {
+			compositeItemHud.close();
+			dirty = true;
+		} else if ( id === "chat-send" && !view.gameplay?.chat?.pending ) {
 			const draft = composeChat(
 				panel === "Chat" ?
 					(chatChannel === 2 ?
@@ -4420,6 +4441,12 @@ export function createUi(
 			}
 			if ( event.kind === "key" && questDetails && event.code === "Escape" ) {
 				questDetails = false;
+				dirty = true;
+				return;
+			}
+			if ( event.kind === "key" && event.code === "Escape" && compositeItemHud.packageId() !== null ) {
+				// 69F450: Escape closes the package window.
+				compositeItemHud.close();
 				dirty = true;
 				return;
 			}
@@ -6166,6 +6193,11 @@ export function createUi(
 					sendGameplay( { kind: "auto-potion-input", blocked, itemMallOpen } );
 				}
 			}
+			const compositePackage = compositeItemHud.packageId();
+			if (
+				compositePackage !== null &&
+				!(phase === "world" && next.gameplay?.countJobs?.some( r => r.packageRefObjId === compositePackage ))
+			) compositeItemHud.close();
 			if ( phase !== "world" ) cosHud.reset();
 			else if (
 				cosHud.reconcile(
@@ -7781,7 +7813,9 @@ export function createUi(
 							label: icon.label,
 							helpText: icon.helpText,
 							helpSource: icon.helpSource,
-							kind: "region",
+							// A package slot is clicked open (6E2840, the board's
+							// vtable +0x70 left-button handler); the rest only hover.
+							kind: icon.id.startsWith( "count-job:" ) ? "button" : "region",
 							rightActivate: !!icon.cancel,
 							rect: r
 						} );
@@ -11167,6 +11201,62 @@ export function createUi(
 						] ] as const
 					) button( id, hudCopy( key ), r[0], r[1], r[2] );
 					endWindow( admission, "quest-abandon" );
+				}
+				const compositePackage = compositeItemHud.packageId(),
+					compositeRoot = hudData?.root.GDR_COMPOSITE_ITEM,
+					compositeNodes = hudData?.windows.ifcompositeitemwnd;
+				if ( compositePackage !== null && game && compositeRoot && compositeNodes ) {
+					// CIFCompositeItemWnd (6AF780): centred (69F0F0), one sys_button
+					// per limited item and a cancel button, grown to their count.
+					const rows = (game.countJobs ?? []).filter( r => r.packageRefObjId === compositePackage ),
+						box = compositeItemLayout( rows.length ),
+						width = compositeRoot.rect[2],
+						px = Math.max( 0, Math.floor( (w - width) / 2 ) ),
+						py = Math.max( 0, Math.floor( (h - box.height) / 2 ) ),
+						tile = compositeNodes.GDR_COMPOSITE_BGTILE!,
+						frame = compositeNodes.GDR_COMPOSITE_FRAME!,
+						admission = beginWindow();
+					windowBox( hudCopy( compositeRoot.text ), px, py, width, box.height );
+					closeButton( px + width - 26, py + 10, "composite-item-close" );
+					authoredChrome(
+						{ ...tile, rect: [ tile.rect[0], tile.rect[1], tile.rect[2], box.tileHeight ] },
+						px,
+						py
+					);
+					authoredChrome(
+						{ ...frame, rect: [ frame.rect[0], frame.rect[1], frame.rect[2], box.frameHeight ] },
+						px,
+						py
+					);
+					const buttonNode = ( r: UiRect ): AuthoredControl => ({
+						...frame,
+						type: "CIFButton",
+						texture: ROOT + "interface/system/sys_button.png",
+						rect: r,
+						client: [ 0, 0, 0, 0 ],
+						text: "",
+						color: white,
+						hAlign: 1,
+						vAlign: 1
+					});
+					rows.forEach( ( row, i ) => {
+						authoredLabeledButton(
+							buttonNode( box.buttons[i]! ),
+							px,
+							py,
+							"composite-item:" + row.itemRefObjId,
+							compositeItemCaption( row.itemName ?? "", row.uses ),
+							row.uses === 0
+						);
+					} );
+					authoredLabeledButton(
+						buttonNode( box.buttons[rows.length]! ),
+						px,
+						py,
+						"composite-item-cancel",
+						hudCopy( "UIIT_CTL_CANCEL" )
+					);
+					endWindow( admission, "composite-item" );
 				}
 				if ( game?.reverseReturnChoice ) {
 					// 6AD990's type 0x24 confirm box: the reverse return's two points.

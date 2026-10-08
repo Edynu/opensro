@@ -2056,25 +2056,34 @@ state here before a command can claim a native wire conversation.
 				}
 				return inventory.use( command.slot, now, context );
 			}
-			if ( command.kind === "premium-command" ) {
-				// 6AD990: the client's own checks raise their notice; a reverse
+			if ( command.kind === "premium-command" || command.kind === "count-job-use" ) {
+				// The chat command (6AD990) finds its row by item type; the
+				// package window's button (6AFB40) names its own row. Either way
+				// the client's own checks raise their notice, and a reverse
 				// return then waits for its point (the type 0x24 confirm box).
 				const chosen = countJobs.choosing();
-				if ( command.command === "reverse-return" && command.choice !== undefined && chosen ) {
+				if (
+					command.kind === "premium-command" && command.command === "reverse-return" &&
+					command.choice !== undefined && chosen
+				) {
 					countJobs.choose( null );
 					return countJobUseRequest( chosen, command.choice );
 				}
-				const admission = countJobs.admit( command.command, {
+				const facts = {
 					alive: potionFacts.alive,
 					transportOut: [ ...cosRecords.values() ].some( c => c.band === 2 && !c.dead ),
 					pvpState: local?.pvpState ?? 0
-				} );
+				};
+				const admission = command.kind === "premium-command" ?
+					{ ...countJobs.admit( command.command, facts ), command: command.command } :
+					countJobs.admitRow( command.packageRefObjId, command.itemRefObjId, facts );
+				if ( !admission ) return null;
 				if ( "code" in admission ) {
 					const notice = constantNativeNotice( 1, admission.code );
 					if ( notice ) notices = [ ...notices.slice( -99 ), { ...notice, sequence: ++noticeSequence } ];
 					return null;
 				}
-				if ( command.command === "reverse-return" ) {
+				if ( admission.command === "reverse-return" ) {
 					countJobs.choose( admission.row );
 					return null;
 				}

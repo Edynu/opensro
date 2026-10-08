@@ -4,7 +4,8 @@
 count-job.test.mjs - a premium package's limited uses
 
 Expectations follow 76F820/76F920/770820 (the three packets) and 6AD990
-(the chat commands' own checks); they are worked from those, not read back.
+(the chat commands' own checks) and 6AFB40 (the package window's button);
+they are worked from those, not read back.
 
 ===========================================================================
 */
@@ -14,6 +15,7 @@ import assert from "node:assert/strict";
 
 const {
 	createCountJobs,
+	commandOfType,
 	countJobFraction,
 	countJobUseRequest,
 	premiumCommand,
@@ -119,4 +121,39 @@ test("the board bar counts the package's period down", () => {
 	assert.equal( row.reference.periodSec, 2419200 );
 	assert.equal( countJobFraction( row, 2419200, 0 ), 1 );
 	assert.equal( countJobFraction( row, 2419200, 1209600 * 1000 ), 0.5 );
+});
+
+test("6AFB40: a package window button checks its own row", () => {
+	const jobs = owner(), REVERSE = 4002;
+	jobs.reference( { refObjId: REVERSE, typeFlags: 0x19ec, name: "Reverse return" } );
+	jobs.receive( {
+		opcode: 0x3021,
+		payload: Uint8Array.of( ...u32( PACKAGE ), ...u32( 2419200 ), ...u32( REVERSE ), 0 )
+	}, 0 );
+	const admitted = jobs.admitRow( PACKAGE, RETURN, facts );
+	assert.ok( admitted && "row" in admitted );
+	assert.equal( admitted.command, "return" );
+	assert.equal( admitted.row.itemRefObjId, RETURN );
+	assert.deepEqual( jobs.admitRow( PACKAGE, RETURN, { ...facts, alive: false } ), { code: COUNT_JOB_DEAD } );
+	assert.deepEqual( jobs.admitRow( PACKAGE, RETURN, { ...facts, transportOut: true } ), {
+		code: COUNT_JOB_TRANSPORT
+	} );
+	assert.deepEqual( jobs.admitRow( PACKAGE, RETURN, { ...facts, pvpState: 2 } ), { code: COUNT_JOB_PVP } );
+	assert.deepEqual( jobs.admitRow( PACKAGE, RESURRECTION, facts ), { code: COUNT_JOB_ALIVE } );
+	const revived = jobs.admitRow( PACKAGE, RESURRECTION, { ...facts, alive: false } );
+	assert.ok( revived && "row" in revived );
+	assert.equal( revived.command, "resurrection" );
+	// A used-up row is a disabled button: nothing is sent and nothing raised.
+	assert.equal( jobs.admitRow( PACKAGE, REVERSE, facts ), null );
+	// A row of another package, or one that ended, is gone.
+	assert.equal( jobs.admitRow( PACKAGE + 1, RETURN, facts ), null );
+	jobs.receive( { opcode: 0x36fc, payload: Uint8Array.of( ...u32( PACKAGE ), ...u32( RETURN ) ) }, 0 );
+	assert.equal( jobs.admitRow( PACKAGE, RETURN, facts ), null );
+});
+
+test("the reverse return runs from its type word", () => {
+	assert.equal( commandOfType( 0x19ec ), "reverse-return" );
+	assert.equal( commandOfType( 0x09ec | 3 ), "return" );
+	assert.equal( commandOfType( 0x36ec ), "resurrection" );
+	assert.equal( commandOfType( 0x72ec ), null );
 });
