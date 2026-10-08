@@ -157,13 +157,15 @@ func (r *ItemRef) TypeFlags() uint16 {
 ==================
 ItemRefSource
 
-ItemRefSource resolves itemdata rows by codename. The itemdata extraction
-is shared cross-lane state; the bootstrap only reads it. A nil source
-behaves like the Node server with MISSION_EQUIP_ITEMS=0 (no wire items).
+ItemRefSource resolves itemdata rows by codename and reference id. The
+itemdata extraction is shared cross-lane state; the bootstrap only reads it.
+A nil source behaves like the Node server with MISSION_EQUIP_ITEMS=0
+(no wire items).
 ==================
 */
 type ItemRefSource interface {
 	ItemRefByCodename(codename string) (*ItemRef, bool)
+	ItemRefByID(id uint32) (*ItemRef, bool)
 }
 
 /*

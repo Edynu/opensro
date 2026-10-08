@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"opensro.online/server/internal/game/action"
 	"opensro.online/server/internal/game/world/monster"
 	"opensro.online/server/internal/game/world/simulation"
 	"opensro.online/server/internal/security/auth"
@@ -37,7 +38,7 @@ Compose action, transient-object, quest and party phases before admission.
 All world lifetimes share the coordinator's simulation clock.
 ================
 */
-func (game *gameplayPlane) newMissionTicker() *simulation.Ticker {
+func (game *gameplayPlane) newMissionTicker(peerReferences *action.PeerReferenceCatalog) *simulation.Ticker {
 	// The ticker and bootstrap must see the same NPC roster. Shipped static
 	// rows have Patrol=false; this also prevents the old three-fixture ticker
 	// from broadcasting movements for objects production never spawned.
@@ -68,7 +69,7 @@ func (game *gameplayPlane) newMissionTicker() *simulation.Ticker {
 	ticker.Source.(*worldsession.Bridge).PopulationLease = game.items.CharacterPopulationLease
 	ticker.BeforeHooks = []simulation.TickHook{game.items.MonsterActionTickHook()}
 	// A peer's spawn row is preceded by the item references it names (#340).
-	ticker.ItemReferences = game.items.PeerItemReferences
+	ticker.ItemReferences = peerReferences.Frames
 	ticker.PlayerMap = simulation.BetaPlayerMapEnabled()
 	if ticker.PlayerMap {
 		log.Infof("simulation: beta world map roster ON (%s)", simulation.EnvBetaPlayerMap)
