@@ -34,7 +34,7 @@ func TestCosPeriodicDamageEchoOnlyReachesCreditedPlayer(t *testing.T) {
 	for _, departed := range []bool{false, true} {
 		for _, damage := range []uint32{7, 300} {
 			rt, clock, rider, _ := newCombatTestRuntime(t, 100)
-			equipCombatTestPet(t, rt, rider, 4)
+			equipCombatTestPet(t, rt, rider, 3)
 			rider.ActiveCOS.CurrentHP = 10
 			source := *rider
 			source.ID, source.Name, source.ActiveCOS = rider.ID+1, "PeriodicCaster", nil
@@ -93,7 +93,7 @@ func TestCosPeriodicStatusesDebitIndependentVitals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		rt, clock, character, source := newCombatTestRuntime(t, 100)
-		ref := equipCombatTestPet(t, rt, character, 4)
+		ref := equipCombatTestPet(t, rt, character, 3)
 		ref.MaxHP = 1000
 		character.ActiveCOS.CurrentHP, character.ActiveCOS.CurrentMP = 500, 300
 		record := abnormal.Record{Status: tc.status, Level: 1, Grade: 1, DurationMs: 10000,
@@ -163,7 +163,7 @@ TestCosFreezeStopsFollowerAndBlocksFurtherMovement
 */
 func TestCosFreezeStopsFollowerAndBlocksFurtherMovement(t *testing.T) {
 	rt, clock, character, source := newCombatTestRuntime(t, 100)
-	equipCombatTestPet(t, rt, character, 4)
+	equipCombatTestPet(t, rt, character, 3)
 	rt.CompanionSurfaceHeight = func(_ uint16, _ float64, y float64, _ float64) (float64, bool) { return y, true }
 	rt.ConstrainMovement = func(_ string, _, to simulation.Spawn) (simulation.Spawn, *simulation.MoveError) { return to, nil }
 	rt.BindPetSession(testDivision, character, 1)
@@ -252,7 +252,7 @@ func TestPetPotionUsesOwnRecoveryReductions(t *testing.T) {
 	for _, kind := range []int64{4, 5, 7} {
 		for _, zombie := range []bool{false, true} {
 			rt, clock, character, source := newCombatTestRuntime(t, 100)
-			ref := equipCombatTestPet(t, rt, character, 4)
+			ref := equipCombatTestPet(t, rt, character, 3)
 			ref.MaxHP, ref.MaxMP = 1000, 1000
 			character.MissionInventory = nil
 			pet := character.ActiveCOS

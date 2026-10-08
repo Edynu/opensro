@@ -66,3 +66,25 @@ follows the original server.
 5. Disable Other items and repeat the potion drop: it should stay on the ground.
 6. Transfer a collected item to your own inventory, dismiss and resummon, and
    verify the remaining bag contents and settings survive.
+
+## Clock of Reincarnation
+
+Right-click the clock to arm the retail yellow cursor (A6), then left-click
+a previously summoned grab-pet item in your bag and confirm Yes. Escape or
+right-click cancels targeting without consuming the clock. The
+standard ITEM_COS_P_EXTENSION adds 28 days; ITEM_COS_P_EXTENSION_1D adds one
+day, using the retail item parameter in minutes. A valid use consumes one
+clock and adds time to max(current expiry, now). It preserves the pet name,
+settings and stored items; a dormant pet stays dormant until summoned.
+
+The clock accepts grab pets only. Clicking any occupied item slot opens the
+confirmation; confirming an unsuitable item produces the native chat refusal
+without sending an item-use packet. Grass of Life requires a dead attack pet
+and cannot renew a grab pet. Grab pets retain their native target health gauge
+but ignore periodic damage and resource debits. Rental expiry still dismisses
+them. Renewal changes rental time without resetting health or mana.
+
+The [historical official Q&A reproduced here](https://www.silkroadonline.de/silkroadonline-allgemein/anleitungen-guides/1878-alle-q-a-von-sro-net-zusammengefasst/)
+describes the clock renewing the monkey for four weeks and Grass of Life
+reviving the wolf. Durations and item families above are checked against the
+installed v1.150 textdata, rather than inferred from that forum alone.

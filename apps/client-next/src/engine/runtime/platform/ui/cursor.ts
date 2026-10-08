@@ -43,6 +43,7 @@ function hotspotOf( value: WorldCursor ): string {
 	if ( value === 0x98 ) return "2 26";
 	if ( value === 0x99 ) return "9 6";
 	if ( value === 0x9a ) return "9 4";
+	if ( value === 0xa6 ) return "0 0";
 	if ( value === 0xa1 ) return "0 0";
 	if ( value === 0xa3 ) return "15 15";
 	return "2 1";

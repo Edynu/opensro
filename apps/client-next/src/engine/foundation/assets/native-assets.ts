@@ -20,11 +20,11 @@ const BOOT_IMAGES = "/assets/images/Media_extracted/interface/";
 ================
 worldCursors
 
-Retail cursor resources 0x95-0xA3 (WorldCursor), extracted one file each.
+Retail cursor resources 0x95-0xA6 (WorldCursor), extracted one file each.
 ================
 */
 export function worldCursors(): WorldCursor[] {
-	return [ 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0xa0, 0xa1, 0xa3 ];
+	return [ 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0xa0, 0xa1, 0xa3, 0xa6 ];
 }
 
 /*

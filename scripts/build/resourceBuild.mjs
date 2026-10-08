@@ -73,7 +73,7 @@ import { packPublicTree } from "./packPublicTree.mjs";
 import { buildJobs } from "./shared/buildParallelism.mjs";
 import { claimPublicPaths } from "./shared/publicationLedger.mjs";
 
-const RETAIL_CURSOR_IDS = [ "0x95", "0x96", "0x97", "0x98", "0x99", "0x9a", "0xa0", "0xa1", "0xa3" ];
+const RETAIL_CURSOR_IDS = [ "0x95", "0x96", "0x97", "0x98", "0x99", "0x9a", "0xa0", "0xa1", "0xa3", "0xa6" ];
 /*
 ================
 extractRetailCursors

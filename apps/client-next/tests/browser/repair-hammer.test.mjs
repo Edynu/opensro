@@ -1,7 +1,7 @@
 /*
 ===========================================================================
 
-repair-hammer.test.mjs - repair mode overrides real inventory pointer input
+repair-hammer.test.mjs - item targeting overrides real inventory pointer input
 
 Uses the shipped UI and browser platform with published assets. Captures
 commands to distinguish repair clicks from pickup, sale and equipment use.
@@ -230,6 +230,39 @@ test( "repair hammer consumes pickup, modifier clicks and right-button equipment
 		);
 		await mkdir( "temp/artifacts/repair-hammer", { recursive: true } );
 		await page.screenshot( { path: "temp/artifacts/repair-hammer/restored-input.png" } );
+		await page.evaluate( () => {
+			inventoryFixture.state.gameplay.inventory.push( {
+				...inventoryFixture.state.gameplay.inventory[1],
+				slot: 13,
+				refObjId: 8985,
+				typeFlags: 0x66ec,
+				name: "Clock of Reincarnation"
+			} );
+			inventoryFixture.ui.event( { kind: "activate", id: "open-window:Inventory" } );
+			inventoryFixture.draw();
+		} );
+		for ( const slot of [ 6, 14 ] ) {
+			await page.evaluate( () => inventoryFixture.commands.length = 0 );
+			await page.locator( '[data-ui-id="slot:13"]' ).click( { button: "right" } );
+			await draw();
+			assert.equal( await page.evaluate( () => inventoryFixture.ui.cursor() ), 0xa6 );
+			const target = await page.locator( `[data-ui-id="slot:${slot}"]` ).boundingBox();
+			assert.ok( target );
+			await page.mouse.move( target.x + 12, target.y + 12 );
+			await page.mouse.down();
+			await page.mouse.move( target.x + 14, target.y + 14 );
+			await page.mouse.up();
+			await draw();
+			assert.equal( await page.evaluate( () => inventoryFixture.ui.cursor() ), null );
+			assert.equal( await page.locator( '[data-ui-id="cos-renew-confirm"]' ).count(), 1 );
+			assert.deepEqual( await page.evaluate( () => inventoryFixture.commands ), [] );
+			await page.locator( '[data-ui-id="cos-renew-confirm"]' ).click();
+			await draw();
+			assert.deepEqual( await page.evaluate( () => inventoryFixture.commands ), [ {
+				kind: "gameplay",
+				command: { kind: "item-use", slot: 13, summonerSlot: slot }
+			} ] );
+		}
 		await page.evaluate( () => inventoryFixture.dispose() );
 	} finally {
 		await browser.close();

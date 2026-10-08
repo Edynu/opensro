@@ -11,6 +11,8 @@ package action
 import (
 	"encoding/binary"
 
+	"opensro.online/server/internal/domain"
+
 	"opensro.online/server/internal/game/abnormal"
 	"opensro.online/server/internal/game/combat"
 	"opensro.online/server/internal/game/enterworld"
@@ -88,7 +90,8 @@ livePet
 */
 func (rt *Runtime) livePet(character *enterworld.Character, gid uint32) bool {
 	pet := character.CompanionByGID(gid)
-	return pet != nil && pet.Summoned && pet.CurrentHP > 0 && pet.GID == gid && pet.GID != 0
+	ref, valid := rt.cosReference(pet)
+	return valid && ref.TidWord>>11 != domain.PickupPetBand && pet != nil && pet.Summoned && pet.CurrentHP > 0 && pet.GID == gid && pet.GID != 0
 }
 
 /*

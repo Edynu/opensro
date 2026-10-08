@@ -18,7 +18,7 @@ outside a war they change nothing.
 import type { EntityState } from "@/engine/contracts/world";
 import { HOVER_ATTACK_ALT, HOVER_ATTACK_PLAIN } from "@/engine/foundation/gameplay/player-attack";
 
-export type WorldCursor = 0x95 | 0x96 | 0x97 | 0x98 | 0x99 | 0x9a | 0xa0 | 0xa1 | 0xa3;
+export type WorldCursor = 0x95 | 0x96 | 0x97 | 0x98 | 0x99 | 0x9a | 0xa0 | 0xa1 | 0xa3 | 0xa6;
 
 // STALL_TITLE_MODE is CICharactor +0x461 (appearanceState[6]) with a stall
 // open; a player there who cannot be attacked shows the stall cursor 0xA3.

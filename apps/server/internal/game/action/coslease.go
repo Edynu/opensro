@@ -83,6 +83,8 @@ func (rt *Runtime) extendCompanionLease(use companionLeaseUse, result *OpResult)
 		return false
 	}
 	pet.RentalExpiresAtUnix = base + seconds
+	// 49DABC -> 4497D0 changes expiry; 49DACE -> 44A7A0 changes
+	// the alive bit only. Renewal preserves retained HP and MP.
 	pet.StateFlags |= 1
 	pet.RefreshRentalTimes(use.nowUnix)
 	remaining := rt.consumeItemUseRow(use.character, use.row)

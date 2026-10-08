@@ -17,8 +17,8 @@ import { isSkinChangeScroll, skinChangeTail, type SkinChoice } from "./skin-chan
 ================
 CosItemUseContext
 
-The selected companion wins. With no selection, a sole eligible companion is
-unambiguous; several candidates require an explicit selection.
+For live-pet recovery, the selected companion wins and a sole eligible pet
+is unambiguous. Grass and Clock always require an explicit inventory target.
 ================
 */
 export interface CosItemUseContext {
@@ -27,9 +27,46 @@ export interface CosItemUseContext {
 	readonly targetGid?: number;
 	readonly revivalSlot?: number;
 	readonly summonerSlot?: number;
+	// Resolved character reference of the explicitly targeted summoner.
+	readonly summonedCharacterTypeFlags?: number;
 	readonly skin?: SkinChoice;
 	// The bag item an armour gender change tool was dropped on.
 	readonly targetSlot?: number;
+}
+
+/*
+================
+companionItemUseNotice
+
+696490 and 6968BA..696913 validate Grass/Clock targets before composing the
+slot byte. Expected refusals are category-5 notices, not protocol failures.
+Character reference classifies the pet; the item subtype is not that proof.
+================
+*/
+export function companionItemUseNotice(
+	flags: number,
+	items: readonly InventoryItem[],
+	context?: CosItemUseContext
+): SystemNotice | null {
+	if ( (flags & 0x7c) !== 0x6c ) return null;
+	const group = flags >>> 7 & 15, subtype = flags >>> 11 & 31;
+	const grass = group === 1 && subtype === 6;
+	if ( !grass && !isCompanionLeaseItem( flags ) ) return null;
+	const slot = grass ? context?.revivalSlot : context?.summonerSlot;
+	const unavailable: SystemNotice = { key: "UIIT_MSG_COSPETERR_CANT_USEITEM", value: 0, nativeType: 5 };
+	const wrongObject: SystemNotice = { key: "UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT", value: 0, nativeType: 5 };
+	if ( slot === undefined ) return wrongObject;
+	if ( !Number.isInteger( slot ) || slot < 0 || slot > 255 ) throw Error( "Invalid companion target slot" );
+	const matches = items.filter( item => item.slot === slot );
+	if ( matches.length > 1 ) throw Error( "Duplicate companion target slot" );
+	const target = matches[0], character = context?.summonedCharacterTypeFlags;
+	if ( !target || (target.typeFlags & 0x7fe) !== 0xcc || !target.summon ) return wrongObject;
+	// Grass's missing-character branch reaches 696311; Clock instead refuses
+	// it. 5500B0/F0 inspect the character's 16-bit family and subtype masks.
+	if ( character === undefined ) return grass ? null : wrongObject;
+	if ( (character & 0x7fe) !== 0x1c6 || (character & 0xf800) !== (grass ? 0x1800 : 0x2000) ) return wrongObject;
+	if ( grass && target.summon.state !== 4 ) return unavailable;
+	return null;
 }
 
 /*
@@ -63,25 +100,11 @@ export function cosItemUseTail(
 		new DataView( tail.buffer ).setUint32( 0, context?.targetGid ?? 0, true );
 		return tail;
 	}
-	if ( group === 1 && subtype === 6 ) {
-		const candidates = items.filter( row =>
-			row.slot >= 13 && row.summon?.state === 4 &&
-			(context?.revivalSlot === undefined || row.slot === context.revivalSlot)
-		);
-		if ( candidates.length !== 1 ) throw Error( "Select a dead companion's summoner item" );
-		return Uint8Array.of( candidates[0]!.slot );
-	}
-	if ( group === 13 && subtype === 12 ) {
-		// 6961B0's extension arm targets the retained pickup summoner, including
-		// expired items. A fresh item has no companion record to extend.
-		const candidates = items.filter( row =>
-			row.slot >= 13 && row.summon !== undefined && row.summon.state !== 1 &&
-			(row.typeFlags >>> 5 & 3) === 2 && (row.typeFlags >>> 7 & 15) === 1 &&
-			(row.typeFlags >>> 11 & 31) === 2 &&
-			(context?.summonerSlot === undefined || row.slot === context.summonerSlot)
-		);
-		if ( candidates.length !== 1 ) throw Error( "Select a pickup companion's summoner item" );
-		return Uint8Array.of( candidates[0]!.slot );
+	if ( group === 1 && subtype === 6 || group === 13 && subtype === 12 ) {
+		// The worker publishes expected refusals before reaching this strict
+		// encoder. Never infer a target from a sole inventory candidate.
+		if ( companionItemUseNotice( flags, items, context ) ) throw Error( "Companion target was not admitted" );
+		return Uint8Array.of( (group === 1 ? context?.revivalSlot : context?.summonerSlot)! );
 	}
 	const targeted = group === 1 && [ 4, 5, 7, 9 ].includes( subtype ) || group === 2 && subtype === 7;
 	if ( !targeted ) return new Uint8Array();
@@ -107,30 +130,38 @@ export function cosItemUseTail(
 
 /*
 ================
-companionItemTargetCommand
+isCompanionLeaseItem
 
-Native 6961B0 accepts a dragged revival/extension item on a summoner slot.
-Click-carry and drag-drop enter the same inventory intent route.
+561D50 checks the inventory-targetable mall family; subtype 12 is the clock.
+================
+*/
+export function isCompanionLeaseItem( flags: number ): boolean {
+	return (flags & 0x7c) === 0x6c && (flags >>> 7 & 15) === 13 && (flags >>> 11 & 31) === 12;
+}
+
+/*
+================
+companionItemTargetCommand
 ================
 */
 export function companionItemTargetCommand(
 	source: InventoryItem,
 	target: InventoryItem
 ): GameplayCommand | null {
-	if ( source.slot < 13 || target.slot < 13 ) return null;
+	if ( source.slot < 13 ) return null;
 	const flags = source.typeFlags;
 	if ( (flags & 0x7c) !== 0x6c ) return null;
 	const group = flags >>> 7 & 15, subtype = flags >>> 11 & 31;
 	// The gender change tool dropped on a bag item uses itself on it.
-	if ( group === 13 && subtype === 8 ) return { kind: "item-use", slot: source.slot, targetSlot: target.slot };
-	if ( !target.summon ) return null;
-	if ( group === 1 && subtype === 6 && target.summon.state === 4 ) {
+	if ( group === 13 && subtype === 8 && target.slot >= 13 ) {
+		return { kind: "item-use", slot: source.slot, targetSlot: target.slot };
+	}
+	// A wrong occupied target is still item use: the worker owns its notice.
+	// Returning null here would turn the attempted use into an inventory swap.
+	if ( group === 1 && subtype === 6 ) {
 		return { kind: "item-use", slot: source.slot, revivalSlot: target.slot };
 	}
-	if (
-		group === 13 && subtype === 12 && target.summon.state !== 1 &&
-		(target.typeFlags & 0x7fc) === 0xcc && (target.typeFlags >>> 11 & 31) === 2
-	) {
+	if ( group === 13 && subtype === 12 ) {
 		return { kind: "item-use", slot: source.slot, summonerSlot: target.slot };
 	}
 	return null;

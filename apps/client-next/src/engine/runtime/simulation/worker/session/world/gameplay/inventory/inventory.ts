@@ -8,7 +8,11 @@ Child owners handle process-specific state while this owner commits item rows.
 
 ===========================================================================
 */
-import { cosItemUseTail, type CosItemUseContext } from "@/engine/foundation/gameplay/cos-item-use";
+import {
+	companionItemUseNotice,
+	cosItemUseTail,
+	type CosItemUseContext
+} from "@/engine/foundation/gameplay/cos-item-use";
 import { planContainerMove, sameStackIdentity, stackable } from "@/engine/foundation/gameplay/container-transfer";
 import { createMall } from "./mall/mall";
 import { createCompanionRentals } from "./companion-rentals";
@@ -225,6 +229,24 @@ slot
 			throw new Error( "Invalid inventory slot" );
 		}
 		return n;
+	}
+	/*
+================
+companionContext
+
+7892D0 reads the retained object reference, not the item reference association.
+Never synthesize a character reference for a fresh summoner.
+================
+	*/
+	function companionContext( flags: number, context?: CosItemUseContext ): CosItemUseContext {
+		const targetSlot = (flags >>> 7 & 15) === 1 ? context?.revivalSlot : context?.summonerSlot;
+		const target = targetSlot === undefined ? undefined : slots.get( targetSlot );
+		const character = target?.summon?.refObjId;
+		return {
+			records: [],
+			...context,
+			summonedCharacterTypeFlags: character === undefined ? undefined : objRefs.get( character )
+		};
 	}
 	/*
 ================
@@ -1232,7 +1254,11 @@ use
 				throw new Error( "Item use unavailable" );
 			}
 			if ( itemCooldown( itemCooldowns, item.typeFlags, now ) ) return null;
-			const tail = cosItemUseTail( item.typeFlags, [ ...slots.values() ], context );
+			const tail = cosItemUseTail(
+				item.typeFlags,
+				[ ...slots.values() ],
+				companionContext( item.typeFlags, context )
+			);
 			const p = new Uint8Array( 3 + tail.length );
 			p.set( tail, 3 );
 			p[0] = n;
@@ -1242,6 +1268,22 @@ use
 			pending = { opcode: 0xb5bd, source: n, deadline: now + 10000 };
 			error = null;
 			return frame;
+		},
+		/*
+================
+useNotice
+
+Expected Grass/Clock target failures do not send or acquire the pending lane.
+================
+		*/
+		useNotice( n: number, context?: CosItemUseContext ) {
+			const item = slots.get( slot( n ) );
+			if ( !item ) return null;
+			return companionItemUseNotice(
+				item.typeFlags,
+				[ ...slots.values() ],
+				companionContext( item.typeFlags, context )
+			);
 		},
 		/*
 ================

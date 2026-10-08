@@ -128,6 +128,7 @@ def main() -> int:
         0xA0,
         0xA1,
         0xA3,
+        0xA6,
     ]
     pe = pefile.PE(str(CLIENT_EXE))
     OUT_DIR.mkdir(parents=True, exist_ok=True)

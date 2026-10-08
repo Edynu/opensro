@@ -629,6 +629,11 @@ reuse gate as manual activation. Recovery completion is server-owned.
 			return;
 		}
 		if ( inventory.state().inventoryPending ) return;
+		const refusal = inventory.useNotice( slot, context );
+		if ( refusal ) {
+			api.notice( refusal );
+			return;
+		}
 		inventory.use( slot, now, context );
 		dirty = true;
 	}
@@ -2030,7 +2035,7 @@ state here before a command can claim a native wire conversation.
 				return null;
 			}
 			if ( command.kind === "item-use" ) {
-				return inventory.use( command.slot, now, {
+				const context = {
 					records: [ ...cosRecords.values() ],
 					selectedGid: command.companionGid ?? (cosSelection.selected() || undefined),
 					targetGid: targeting.state().target ?? 0,
@@ -2038,7 +2043,13 @@ state here before a command can claim a native wire conversation.
 					summonerSlot: command.summonerSlot,
 					skin: command.skin,
 					targetSlot: command.targetSlot
-				} );
+				};
+				const refusal = inventory.useNotice( command.slot, context );
+				if ( refusal ) {
+					api.notice( refusal );
+					return null;
+				}
+				return inventory.use( command.slot, now, context );
 			}
 			if ( command.kind === "premium-command" ) {
 				// 6AD990: the client's own checks raise their notice; a reverse

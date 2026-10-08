@@ -12,8 +12,10 @@ the executor raises (6A2350 case 5). The UI draws from it every frame.
 
 ===========================================================================
 */
-import type { CosRecord } from "@/engine/contracts/gameplay";
+import type { GameplayCommand, InventoryItem, CosRecord } from "@/engine/contracts/gameplay";
 import { cosClass } from "@/engine/foundation/ui/cos-command";
+
+const COMPANION_LEASE_CURSOR = 0xa6;
 
 /*
 ================
@@ -22,7 +24,83 @@ createCosHud
 */
 export function createCosHud() {
 	let selected = 0, open = true, cleanConfirm: number | null = null;
+	let clock: InventoryItem | null = null, renewal: GameplayCommand | null = null;
 	return {
+		/*
+		================
+		armClock
+
+		561D50 stores the selected inventory slot (596B50), then sets cursor A6
+		at 5621D4. Arming never sends item use or chooses a pet automatically.
+		================
+		*/
+		armClock( item: InventoryItem ) {
+			clock = item;
+			renewal = null;
+		},
+		/*
+		================
+		clockCursor
+		================
+		*/
+		clockCursor(): 0xa6 | null {
+			return clock && !renewal ? COMPANION_LEASE_CURSOR : null;
+		},
+		/*
+		================
+		chooseClockTarget
+
+		567372 checks cursor A6: any occupied inventory or equipment slot opens
+		the type-1F confirmation (5673A7) and clears the cursor. On confirmation,
+		the worker applies the client's target checks from 6968BA before sending.
+		================
+		*/
+		chooseClockTarget( item: InventoryItem | undefined ) {
+			if ( !clock || !item || renewal ) return false;
+			renewal = { kind: "item-use", slot: clock.slot, summonerSlot: item.slot };
+			return true;
+		},
+		/*
+		================
+		renewal
+		================
+		*/
+		renewal() {
+			return renewal;
+		},
+		/*
+		================
+		takeRenewal
+		================
+		*/
+		takeRenewal() {
+			const command = renewal;
+			clock = null;
+			renewal = null;
+			return command;
+		},
+		/*
+		================
+		reconcileClock
+
+		The native cursor is global: hotbar use can arm it with inventory closed.
+		A changed source slot or departure from the world cancels the selection.
+		================
+		*/
+		reconcileClock( items: readonly InventoryItem[], visible: boolean ) {
+			const source = clock;
+			if (
+				!source ||
+				visible && items.some( item =>
+						item.slot === source.slot && item.refObjId === source.refObjId &&
+						item.typeFlags === source.typeFlags && item.quantity > 0
+					)
+			) return false;
+			clock = null;
+			renewal = null;
+			return true;
+		},
+
 		/*
 		================
 		reconcile
@@ -57,6 +135,8 @@ reset
 			selected = 0;
 			open = true;
 			cleanConfirm = null;
+			clock = null;
+			renewal = null;
 		},
 		/*
 ================

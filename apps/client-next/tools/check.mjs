@@ -68,6 +68,9 @@ function sourceGates() {
 		"tools/run-tests.mjs",
 		...architecture,
 		"tests/runtime/beta-release.test.mjs",
+		"tests/runtime/application-release.test.mjs",
+		"tests/runtime/cos-item-use.test.mjs",
+		"tests/runtime/cos-hud.test.mjs",
 		"tests/runtime/release-smoke.test.mjs"
 	];
 	return [ [ "source tests", tests ], ...GATES.filter( ( [name] ) => SOURCE_GATE_NAMES.has( name ) ) ];

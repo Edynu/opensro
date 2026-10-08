@@ -86,7 +86,7 @@ func TestShippedPetPotionHealsThePetNotThePlayer(t *testing.T) {
 	if !ok || potion.TypeIDs != [4]int64{3, 3, 1, 4} || potion.RecoveryHP != 360 {
 		t.Fatalf("shipped pet potion row = %+v", potion)
 	}
-	equipShippedPet(t, rt, c, items, "COS_P_RABBIT")
+	equipShippedPet(t, rt, c, items, "COS_P_WOLF_001")
 	c.Level = testInt64(1)
 	c.Strength = testInt64(20)
 	c.Intellect = testInt64(20)
@@ -96,9 +96,9 @@ func TestShippedPetPotionHealsThePetNotThePlayer(t *testing.T) {
 		TypeFlags: potion.TypeFlags(), StackCount: 1,
 	}}
 	// (20/416 + 1) * 1.02^(1-1) * 360 = 377.307, truncated to 377.
-	// COS_P_RABBIT's shipped maximum is below that, so the credit clamps.
+	// COS_P_WOLF_001's shipped maximum is below that, so the credit clamps.
 	const unclamped = 377
-	petRef, _ := items.CharacterRefByCodename("COS_P_RABBIT")
+	petRef, _ := items.CharacterRefByCodename("COS_P_WOLF_001")
 	if petRef.MaxHP >= 1+unclamped {
 		t.Fatalf("rabbit max %d does not exercise the pet clamp", petRef.MaxHP)
 	}
@@ -136,7 +136,7 @@ func TestShippedPetCureHitsThePetBlock(t *testing.T) {
 	if !ok || cure.CureLevels != [6]int64{36, 36, 36, 36, 36, 36} {
 		t.Fatalf("shipped pet cure levels %+v", cure)
 	}
-	equipShippedPet(t, rt, c, items, "COS_P_RABBIT")
+	equipShippedPet(t, rt, c, items, "COS_P_WOLF_001")
 	record := abnormal.Record{Status: abnormal.Burn, DurationMs: 1000, Level: 1, SourceGID: m.Gid}
 	owner := rt.newCosAbnormalOwner(testDivision, c, clock.NowMs())
 	owner.sources = rt.captureAbnormalSources(testDivision, owner.block, []abnormal.Record{record})
@@ -185,11 +185,11 @@ func TestShippedPetRevivalRestoresRefVitals(t *testing.T) {
 	if !ok || scroll.TypeIDs != [4]int64{3, 3, 1, 6} {
 		t.Fatal("revival row missing")
 	}
-	ref, ok := items.CharacterRefByCodename("COS_P_RABBIT")
+	ref, ok := items.CharacterRefByCodename("COS_P_WOLF_001")
 	if !ok {
-		t.Fatal("rabbit ref missing")
+		t.Fatal("wolf ref missing")
 	}
-	equipShippedPet(t, rt, c, items, "COS_P_RABBIT")
+	equipShippedPet(t, rt, c, items, "COS_P_WOLF_001")
 	c.ActiveCOS.CurrentHP = 0
 	c.ActiveCOS.Summoned = false
 	c.ActiveCOS.StateFlags = 0

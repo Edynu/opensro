@@ -5005,6 +5005,23 @@ test("an attack pet shows its mini window under the player mini window", () => {
 		f.state.gameplay.cosRecords = [ { ...f.state.gameplay.cosRecords[0], band: 4 } ];
 		for ( let i = 0; i < 5; i++ ) f.ui.step( f.state, 1100 + i );
 		assert.ok( !f.hasText( "Fang" ), "a pickup pet has no mini window" );
+		f.state.entities = [ ...f.state.entities, {
+			...f.state.entities[0],
+			gid: 7,
+			kind: "cos",
+			refObjId: 100,
+			name: "Fang",
+			maxHp: 100
+		} ];
+		f.state.gameplay.target = 7;
+		f.state.gameplay.vitals = [ ...f.state.gameplay.vitals, { gid: 7, hp: 50, mp: 0 } ];
+		for ( let i = 0; i < 20; i++ ) f.ui.step( f.state, 1200 + i );
+		assert.ok( f.hasText( "Fang" ), "the selected grab pet still has its name" );
+		// 5823B0: a non-combat COS target keeps the NPC window's 168x4 gauge.
+		assert.ok(
+			f.scenes.at( -1 ).quads.some( q => q.rect[1] === 44 && q.rect[3] === 4 ),
+			"a selected grab pet shows the native target gauge"
+		);
 	} finally {
 		f.dispose();
 	}
@@ -5041,6 +5058,98 @@ test("the player panel draws native siege rank and guild status and removes them
 			!semantics.controls.some( c => [ "GDR_PMI_BATTLE_GRADE", "GDR_PMI_FORTRESS_INFO" ].includes( c.id ) ),
 			JSON.stringify( semantics.controls.filter( c => c.id.includes( "PMI" ) ) )
 		);
+	} finally {
+		f.dispose();
+	}
+});
+
+/*
+================
+Clock of Reincarnation targets a pet through the retail yellow cursor
+================
+*/
+test("right-clicking a rental clock arms the yellow cursor and confirms the clicked grab pet", () => {
+	const sent = [], f = uiFixture( command => sent.push( command ) );
+	try {
+		const clock = {
+			slot: 13,
+			refObjId: 8985,
+			typeFlags: 0x66ec,
+			quantity: 1,
+			plus: 0,
+			durability: 0,
+			variance: "0",
+			magic: []
+		};
+		const pet = { ...clock, slot: 14, refObjId: 901, typeFlags: 0x10cc, summon: { state: 4, rentals: [] } };
+		f.state.gameplay.inventory = [ clock, pet, { ...pet, slot: 15, typeFlags: 0x08cc }, {
+			...clock,
+			slot: 6,
+			typeFlags: 0x032c
+		} ];
+		f.state.gameplay.inventorySlotCount = 45;
+		f.ui.step( f.state, 0 );
+		f.ui.event( { kind: "key", code: "KeyI" } );
+		let scene;
+		for ( let t = 100; t <= 2000; t += 100 ) scene = f.ui.step( f.state, t ) ?? scene;
+		f.ui.event( { kind: "right-activate", id: "slot:13" } );
+		assert.equal( f.ui.cursor(), 0xa6 );
+		assert.equal( sent.length, 0, "arming never picks a pet or spends the clock" );
+		scene = f.ui.step( f.state, 2100 ) ?? scene;
+		const targets = defined( scene ).controls.filter( row => [ "slot:6", "slot:14" ].includes( row.id ) );
+		assert.equal( targets.length, 2 );
+		assert.ok( targets.every( row => !row.draggable && !row.carry ), "clock targets cannot capture a drag" );
+		// 567290: any occupied slot opens the confirmation and clears the
+		// cursor; the worker checks the target when the user confirms.
+		f.ui.event( { kind: "activate", id: "slot:15" } );
+		assert.equal( f.ui.cursor(), null );
+		for ( let t = 2200; t <= 2600; t += 100 ) scene = f.ui.step( f.state, t ) ?? scene;
+		assert.ok( defined( scene ).controls.some( row => row.id === "cos-renew-confirm" ) );
+		f.ui.event( { kind: "activate", id: "cos-renew-confirm" } );
+		assert.deepEqual( sent.splice( 0 ).at( -1 ), {
+			kind: "gameplay",
+			command: { kind: "item-use", slot: 13, summonerSlot: 15 }
+		} );
+		f.ui.step( f.state, 2700 );
+		f.ui.event( { kind: "right-activate", id: "slot:13" } );
+		f.ui.event( { kind: "activate", id: "slot:14" } );
+		for ( let t = 2800; t <= 3000; t += 100 ) scene = f.ui.step( f.state, t ) ?? scene;
+		assert.ok( defined( scene ).controls.some( row => row.id === "cos-renew-confirm" ) );
+		assert.equal( sent.length, 0, "choosing a pet waits for confirmation" );
+		f.ui.event( { kind: "activate", id: "cos-renew-cancel" } );
+		f.ui.step( f.state, 3100 );
+		assert.equal( sent.length, 0 );
+		f.ui.event( { kind: "right-activate", id: "slot:13" } );
+		f.ui.event( { kind: "activate", id: "slot:14" } );
+		f.ui.step( f.state, 3200 );
+		f.ui.event( { kind: "activate", id: "cos-renew-confirm" } );
+		assert.deepEqual( sent.at( -1 ), {
+			kind: "gameplay",
+			command: { kind: "item-use", slot: 13, summonerSlot: 14 }
+		} );
+		assert.equal( f.ui.cursor(), null );
+		f.ui.step( f.state, 3300 );
+		f.ui.event( { kind: "right-activate", id: "slot:13" } );
+		f.ui.event( { kind: "key", code: "Escape" } );
+		assert.equal( f.ui.cursor(), null );
+		assert.equal( sent.length, 1, "Escape never sends a renewal" );
+		f.ui.event( { kind: "activate", id: "close" } );
+		f.state.gameplay.quickSlots = [ { slot: 1, kind: 0x46, payload: 0 } ];
+		f.ui.step( f.state, 3400 );
+		f.ui.event( { kind: "key", code: "Digit1" } );
+		f.ui.step( f.state, 3500 );
+		assert.equal( f.ui.cursor(), 0xa6, "hotbar use retains targeting with the inventory closed" );
+		assert.equal( sent.length, 1, "hotbar activation cannot spend a clock without its target" );
+		f.ui.event( { kind: "key", code: "KeyI" } );
+		for ( let t = 3600; t <= 3900; t += 100 ) f.ui.step( f.state, t );
+		f.ui.event( { kind: "activate", id: "slot:14" } );
+		f.ui.step( f.state, 4000 );
+		f.ui.event( { kind: "activate", id: "cos-renew-confirm" } );
+		assert.deepEqual( sent.at( -1 ), {
+			kind: "gameplay",
+			command: { kind: "item-use", slot: 13, summonerSlot: 14 }
+		} );
+		assert.equal( sent.length, 2 );
 	} finally {
 		f.dispose();
 	}

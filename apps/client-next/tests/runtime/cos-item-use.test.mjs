@@ -8,10 +8,16 @@ cos-item-use.test.mjs - pet item wire targets and satiety publication
 import "../helpers/native-source-loader.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-const { cosItemUseTail, companionItemTargetCommand, autoPotionTarget, autoPotionTargetNotice, createCosSelection } =
-	await import(
-		"../../src/engine/foundation/gameplay/cos-item-use.ts"
-	);
+const {
+	cosItemUseTail,
+	companionItemUseNotice,
+	companionItemTargetCommand,
+	autoPotionTarget,
+	autoPotionTargetNotice,
+	createCosSelection
+} = await import(
+	"../../src/engine/foundation/gameplay/cos-item-use.ts"
+);
 
 const { createGameplay } = await import(
 	"../../src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts"
@@ -51,7 +57,7 @@ test("revival identifies the dead summoner slot and never appends a live GID", (
 	const item = {
 		slot: 21,
 		refObjId: 1,
-		typeFlags: 0xcc,
+		typeFlags: 0x08cc,
 		quantity: 1,
 		plus: 0,
 		durability: 0,
@@ -59,11 +65,21 @@ test("revival identifies the dead summoner slot and never appends a live GID", (
 		magic: [],
 		summon: { state: 4, rentals: [] }
 	};
-	assert.deepEqual( cosItemUseTail( flags( 1, 6 ), [ item ] ), Uint8Array.of( 21 ) );
-	assert.throws( () => cosItemUseTail( flags( 1, 6 ), [ { ...item, summon: { state: 3, rentals: [] } } ] ) );
+	assert.throws( () => cosItemUseTail( flags( 1, 6 ), [ item ] ), /not admitted/ );
+	assert.throws( () =>
+		cosItemUseTail( flags( 1, 6 ), [ { ...item, summon: { state: 3, rentals: [] } } ], {
+			records: [],
+			revivalSlot: 21,
+			summonedCharacterTypeFlags: 0x19c6
+		} )
+	);
 	assert.throws( () => cosItemUseTail( flags( 1, 6 ), [ item, { ...item, slot: 22 } ] ) );
 	assert.deepEqual(
-		cosItemUseTail( flags( 1, 6 ), [ item, { ...item, slot: 22 } ], { records: [], revivalSlot: 22 } ),
+		cosItemUseTail( flags( 1, 6 ), [ item, { ...item, slot: 22 } ], {
+			records: [],
+			revivalSlot: 22,
+			summonedCharacterTypeFlags: 0x19c6
+		} ),
 		Uint8Array.of( 22 )
 	);
 });
@@ -144,7 +160,7 @@ test("a growing pet's next form replaces its record reference and fills satiety"
 	gameplay.dispose();
 });
 
-test("renewal and revival drag targets use owned summoner slots", () => {
+test("companion drags retain explicit targets even when they are incompatible", () => {
 	const source = {
 		slot: 25,
 		refObjId: 998,
@@ -155,21 +171,197 @@ test("renewal and revival drag targets use owned summoner slots", () => {
 		variance: "0",
 		magic: []
 	};
-	const target = { ...source, slot: 24, typeFlags: 0x10cc, summon: { state: 4, rentals: [] } };
-	assert.deepEqual( companionItemTargetCommand( source, target ), { kind: "item-use", slot: 25, summonerSlot: 24 } );
-	assert.deepEqual( cosItemUseTail( source.typeFlags, [ target ] ), Uint8Array.of( 24 ) );
-	assert.throws( () => cosItemUseTail( source.typeFlags, [ target, { ...target, slot: 26 } ] ) );
-	assert.deepEqual(
-		cosItemUseTail( source.typeFlags, [ target, { ...target, slot: 26 } ], { records: [], summonerSlot: 26 } ),
-		Uint8Array.of( 26 )
-	);
-	assert.equal( companionItemTargetCommand( source, { ...target, typeFlags: 0x08cc } ), null );
-	assert.equal( companionItemTargetCommand( source, { ...target, summon: { state: 1, rentals: [] } } ), null );
-	assert.deepEqual( companionItemTargetCommand( { ...source, typeFlags: flags( 1, 6 ) }, target ), {
-		kind: "item-use",
-		slot: 25,
-		revivalSlot: 24
+	for (
+		const target of [
+			{ ...source, slot: 24, typeFlags: 0x10cc, summon: { state: 4, rentals: [] } },
+			{ ...source, slot: 24, typeFlags: 0x08cc, summon: { state: 1, rentals: [] } },
+			{ ...source, slot: 1 }
+		]
+	) {
+		assert.deepEqual( companionItemTargetCommand( source, target ), {
+			kind: "item-use",
+			slot: 25,
+			summonerSlot: target.slot
+		} );
+		assert.deepEqual( companionItemTargetCommand( { ...source, typeFlags: flags( 1, 6 ) }, target ), {
+			kind: "item-use",
+			slot: 25,
+			revivalSlot: target.slot
+		} );
+	}
+});
+
+/*
+================
+companionUseFixture
+
+Real item bodies resolve retained character references independently of the
+summoner item's subtype. Fresh bodies have no retained character reference.
+================
+*/
+function companionUseFixture( t, input ) {
+	const sent = [], gameplay = createGameplay( frame => sent.push( frame ) );
+	t.after( () => gameplay.dispose() );
+	const target = [ 2, 0, 0, 0, input.state ];
+	if ( input.state !== 1 ) {
+		target.push( 3, 0, 0, 0, 0, 0 );
+		if ( input.character === 0x21c6 ) target.push( 0, 0, 0, 0 );
+		target.push( 0 );
+	}
+	gameplay.bootstrap( {
+		refObjSnapshot: [ { kind: "cos", refObjId: 3, tidWord: input.character } ],
+		refItemSnapshot: [
+			{ refObjId: 1, typeFlags: input.source },
+			{ refObjId: 2, typeFlags: input.item }
+		],
+		equipItems: [
+			{ refObjId: 1, slot: 13, body: [ 1, 0, 0, 0, 1, 0 ] },
+			{ refObjId: 2, slot: 14, body: target }
+		]
 	} );
+	gameplay.seed( {
+		gid: 1,
+		refObjId: 1,
+		kind: "local-player",
+		regionId: 257,
+		x: 0,
+		y: 0,
+		z: 0,
+		heading: 0,
+		name: "Owner"
+	} );
+	gameplay.take();
+	return { gameplay, sent };
+}
+
+for ( const family of [ "grass", "clock" ] ) {
+	for ( const character of [ 0x19c6, 0x21c6 ] ) {
+		for ( const state of [ 1, 2, 3, 4 ] ) {
+			test(`${family} resolves character ${character} in rental state ${state}`, t => {
+				const grass = family === "grass", source = grass ? flags( 1, 6 ) : flags( 13, 12 );
+				const { gameplay, sent } = companionUseFixture( t, {
+					source,
+					character,
+					state,
+					// Deliberately opposite: item subtype must not classify the pet.
+					item: character === 0x19c6 ? 0x10cc : 0x08cc
+				} );
+				gameplay.command(
+					{
+						kind: "item-use",
+						slot: 13,
+						...(grass ? { revivalSlot: 14 } : { summonerSlot: 14 })
+					},
+					1,
+					undefined
+				);
+				const wrong = state === 1 ? !grass : character !== (grass ? 0x19c6 : 0x21c6);
+				const refused = wrong || grass && state !== 1 && state !== 4;
+				const published = gameplay.take();
+				assert.ok( published );
+				if ( refused ) {
+					assert.deepEqual( sent, [] );
+					assert.equal( published.inventoryPending, false );
+					const notice = published.notices?.at( -1 );
+					assert.equal(
+						notice?.key,
+						wrong ? "UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT" : "UIIT_MSG_COSPETERR_CANT_USEITEM"
+					);
+					assert.equal( notice?.nativeType, 5 );
+				} else {
+					assert.deepEqual( sent, [ {
+						opcode: 0x75bd,
+						payload: Uint8Array.of( 13, source & 255, source >>> 8, 14 )
+					} ] );
+					assert.equal( published.inventoryPending, true );
+				}
+			});
+		}
+	}
+}
+
+test("Grass requires explicit targeting and missing Clock references refuse without sending", t => {
+	const { gameplay, sent } = companionUseFixture( t, {
+		source: flags( 1, 6 ),
+		character: 0x19c6,
+		state: 4,
+		item: 0x08cc
+	} );
+	gameplay.command( { kind: "item-use", slot: 13 }, 1, undefined );
+	assert.deepEqual( sent, [] );
+	assert.equal( gameplay.take()?.notices?.at( -1 )?.key, "UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT" );
+	const target = {
+		slot: 14,
+		refObjId: 2,
+		typeFlags: 0x10cc,
+		quantity: 1,
+		plus: 0,
+		durability: 0,
+		variance: "0",
+		magic: [],
+		summon: { state: 1, rentals: [] }
+	};
+	assert.equal(
+		companionItemUseNotice( flags( 13, 12 ), [ target ], { records: [], summonerSlot: 14 } )?.key,
+		"UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT"
+	);
+	assert.throws(
+		() => companionItemUseNotice( flags( 13, 12 ), [ target ], { records: [], summonerSlot: 256 } ),
+		/Invalid companion target slot/
+	);
+});
+
+test("Grass passes a missing character reference while Clock refuses it", () => {
+	const target = {
+		slot: 14,
+		refObjId: 2,
+		typeFlags: 0x10cc,
+		quantity: 1,
+		plus: 0,
+		durability: 0,
+		variance: "0",
+		magic: [],
+		summon: { state: 4, refObjId: 999, rentals: [] }
+	};
+	assert.equal( companionItemUseNotice( flags( 1, 6 ), [ target ], { records: [], revivalSlot: 14 } ), null );
+	assert.deepEqual(
+		cosItemUseTail( flags( 1, 6 ), [ target ], { records: [], revivalSlot: 14 } ),
+		Uint8Array.of( 14 )
+	);
+	assert.equal(
+		companionItemUseNotice( flags( 13, 12 ), [ target ], { records: [], summonerSlot: 14 } )?.key,
+		"UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT"
+	);
+	for ( const state of [ 1, 2, 3, 4 ] ) {
+		assert.equal(
+			companionItemUseNotice( flags( 13, 12 ), [ { ...target, summon: { ...target.summon, state } } ], {
+				records: [],
+				summonerSlot: 14,
+				summonedCharacterTypeFlags: 0x21c6
+			} ),
+			null,
+			"a resolved pickup character is accepted independently of rental state"
+		);
+	}
+	assert.equal(
+		companionItemUseNotice( flags( 1, 6 ), [ target ], { records: [], revivalSlot: 99 } )?.key,
+		"UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT"
+	);
+});
+
+test("wrong occupied targets publish refusal without taking the inventory lane", t => {
+	const { gameplay, sent } = companionUseFixture( t, {
+		source: flags( 13, 12 ),
+		character: 0x21c6,
+		state: 4,
+		item: 0x10cc
+	} );
+	gameplay.command( { kind: "item-use", slot: 13, summonerSlot: 13 }, 1, undefined );
+	assert.deepEqual( sent, [] );
+	assert.equal( gameplay.take()?.notices?.at( -1 )?.key, "UIIT_MSG_COSPETERR_CANT_USE_WRONGOBJECT" );
+	gameplay.command( { kind: "item-use", slot: 13, summonerSlot: 14 }, 2, undefined );
+	assert.equal( sent.length, 1 );
+	assert.throws( () => gameplay.receive( { opcode: 0x3645, payload: Uint8Array.of( 14, 64 ) }, 3 ), /Truncated/ );
 });
 
 test("automatic pet use requires the selected compatible companion and preserves retries", () => {

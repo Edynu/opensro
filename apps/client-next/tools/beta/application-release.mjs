@@ -12,10 +12,11 @@ references until a verified local package or the staging host supplies them.
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { buildApplication } from "./build.mjs";
+import { buildApplication, requireNativeAssets } from "./build.mjs";
 import { compressRoutes } from "./compression.mjs";
 import { files, releaseIdentity, sha } from "./policy.mjs";
 import { ASSET_SCHEMA, RELEASE_PROTOCOL } from "../../src/engine/foundation/release/protocol.ts";
+import { nativeAssetUrls } from "../../src/engine/foundation/assets/native-assets.ts";
 
 /*
 ================
@@ -31,6 +32,15 @@ export async function buildApplicationRelease( { manifest, source, destination, 
 	}
 	if ( manifest.assetSchema !== ASSET_SCHEMA ) {
 		throw Error( "Asset base schema differs from the compiled client; build a data release" );
+	}
+	const retainedRoutes = manifest.routes.filter( row => !row.file.startsWith( "application/" ) );
+	// A new browser-loaded asset can be required without changing the data
+	// format. Only routes surviving application replacement can satisfy it.
+	try {
+		requireNativeAssets( new Map(), new Set( nativeAssetUrls() ), new Set( retainedRoutes.map( row => row.url ) ) );
+	} catch ( error ) {
+		const reason = error instanceof Error ? error.message : String( error );
+		throw Error( `Asset base lacks a required native route; build a data release. ${reason}` );
 	}
 	await mkdir( destination, { recursive: false } );
 	const packageRoot = path.join( destination, "package" );
@@ -62,7 +72,7 @@ export async function buildApplicationRelease( { manifest, source, destination, 
 		sourceHash: sha( JSON.stringify( source ) ),
 		privateMaps: maps.size,
 		files: [ ...manifest.files.filter( row => row.kind !== "application" ), ...application.files ],
-		routes: [ ...manifest.routes.filter( row => !row.file.startsWith( "application/" ) ), ...application.routes ]
+		routes: [ ...retainedRoutes, ...application.routes ]
 	};
 	result.files.sort( ( first, second ) => first.path.localeCompare( second.path ) );
 	result.routes.sort( ( first, second ) => first.url.localeCompare( second.url ) );
