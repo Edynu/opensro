@@ -23,7 +23,6 @@ apps/client-next/src/engine/foundation/animation/bsr-particle-transform.ts
 apps/client-next/src/engine/foundation/animation/character-selection.ts
 apps/client-next/src/engine/foundation/animation/combat-stance.ts
 apps/client-next/src/engine/foundation/animation/damage-anchor.ts
-apps/client-next/src/engine/foundation/animation/default-wear-policy.ts
 apps/client-next/src/engine/foundation/animation/disappear.ts
 apps/client-next/src/engine/foundation/animation/effect-material.ts
 apps/client-next/src/engine/foundation/animation/effect-script.ts
@@ -400,7 +399,6 @@ apps/server-observatory/tests/security.test.mjs
 apps/server-observatory/tools/browser-probe.mjs
 apps/server-observatory/tools/items-browser-probe.mjs
 apps/server/internal/game/world/simulation/testdata/gen_parity_vectors.mjs
-scripts/build/artifacts/generatedArtifactArchive.mjs
 scripts/build/assetPackIndexValidation.mjs
 scripts/build/char/animationUtils.mjs
 scripts/build/char/attachedMotionClips.mjs

@@ -11,7 +11,13 @@ thread boundary.
 
 ===========================================================================
 */
-import { sightMode, thirdPersonYaw, type SightMode } from "@/engine/foundation/rendering/camera-options";
+import {
+	initialCameraPitch,
+	initialCameraYaw,
+	sightMode,
+	thirdPersonYaw,
+	type SightMode
+} from "@/engine/foundation/rendering/camera-options";
 import type { InputOwner, InputCommand, RawInput } from "@/engine/contracts/input";
 import { zoomCamera } from "@/engine/foundation/rendering/camera-wheel";
 import { virtualKey } from "@/engine/foundation/ui/input-options";
@@ -22,6 +28,7 @@ const DRAG_RADIANS_PER_PIXEL = .005;
 const PITCH_LIMIT = 1.0707963705062866;
 const DEFAULT_DROP_KEY = 90;
 const DEFAULT_BLIND_KEY = 86;
+const ALT_VIRTUAL_KEY = 18;
 
 /*
 ================
@@ -34,7 +41,11 @@ export function createInput(): InputOwner {
 	// Either Alt key, as GetKeyState(VK_MENU) reads it (6FCD50).
 	let altLeft = false, altRight = false;
 	let sight: SightMode = 0, mouseMode: 0 | 1 = 0;
-	let pointer: { x: number; y: number; } | null = null, buttons = 0, yaw = 0, pitch = Math.PI / 18, distance = 80;
+	let pointer: { x: number; y: number; } | null = null,
+		buttons = 0,
+		yaw = initialCameraYaw(),
+		pitch = initialCameraPitch(),
+		distance = 80;
 	return {
 		/*
 		================
@@ -136,10 +147,15 @@ export function createInput(): InputOwner {
 				dropHeld = false;
 				blindHeld = false;
 				altLeft = altRight = false;
-			} else if ( event.code === "AltLeft" ) altLeft = event.down;
-			else if ( event.code === "AltRight" ) altRight = event.down;
-			else if ( dropKey && virtualKey( event.code ) === dropKey ) dropHeld = event.down;
-			else if ( blindKey && virtualKey( event.code ) === blindKey ) blindHeld = event.down;
+			} else {
+				if ( event.code === "AltLeft" ) altLeft = event.down;
+				else if ( event.code === "AltRight" ) altRight = event.down;
+				// Alt remains bindable: its native VK_MENU state must update both
+				// the PvP modifier and an assigned hold action, including two keys.
+				const key = virtualKey( event.code ), held = key === ALT_VIRTUAL_KEY ? altLeft || altRight : event.down;
+				if ( dropKey && key === dropKey ) dropHeld = held;
+				else if ( blindKey && key === blindKey ) blindHeld = held;
+			}
 			queue.push( { ...event, sequence: ++sequence } );
 		},
 		/*
