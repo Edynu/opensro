@@ -59,9 +59,13 @@ resolveSkyTextures
 export function resolveSkyTextures() {
 	return {
 		nativeSkyDistance: 3500,
+		// Each row names the file that ships: a flare publishes only its native
+		// container, so its row points there rather than at a PNG it no longer has.
 		textures: SKYBOX_TEXTURES.map( ( texture ) => ({
 			...texture,
-			publicPath: skyImagePublicPath( texture.sourcePath )
+			publicPath: texture.role === "flare" ?
+				skyImagePublicPath( texture.sourcePath ).replace( /\.png$/, ".texture" ) :
+				skyImagePublicPath( texture.sourcePath )
 		}) ),
 		glowTexturePublicPath: skyImagePublicPath( "skybox/glow.ddj" ),
 		cloudTexturePublicPath: skyImagePublicPath( "skybox/cloud1.ddj" ),
@@ -81,10 +85,12 @@ export function resolveSkyTextures() {
 /*
 ================
 copyReferencedSkyImages
+
+The lens prerequisite is injectable so isolated tests drive the copy alone.
 ================
 */
-export async function copyReferencedSkyImages( skyTextures ) {
-	await buildNativeLensResources();
+export async function copyReferencedSkyImages( skyTextures, lensBuild = buildNativeLensResources ) {
+	await lensBuild();
 	for ( const texture of skyTextures.textures ) {
 		const relativeImagePath = skyImageRelativePath( texture.sourcePath );
 		const source = path.join( imageSourceRoot, "Map_extracted", ...relativeImagePath.split( "/" ) );
@@ -94,7 +100,14 @@ export async function copyReferencedSkyImages( skyTextures ) {
 			throw new Error( `Missing converted sky texture ${source}; run the DDJ image conversion first.` );
 		}
 
-		await copyIntoPublicTree( source, target );
+		// The flares bind their native containers (flareTexturePublicPaths
+		// below); their PNG conversions have no consumer, so only the sun
+		// disc (lens2, role "sun") publishes a PNG beside its container.
+		// Publishing the other seven packed them into the game-images
+		// startup group for nothing (issue #273, delivery duplicates).
+		if ( texture.role !== "flare" ) {
+			await copyIntoPublicTree( source, target );
+		}
 		if ( FLARE_TEXTURE_SOURCES.includes( texture.sourcePath ) ) {
 			const resource = source.replace( /\.png$/, ".texture" );
 			if ( !(await exists( resource )) ) throw Error( `Native lens generation did not publish ${resource}` );

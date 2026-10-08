@@ -154,8 +154,11 @@ test("flare publication retains native mip resources and the shared original sun
 		Array.from( { length: 8 }, ( _, i ) => `/assets/images/Map_extracted/sun/lens${i + 1}.texture` )
 	);
 	assert.equal( new Set( sky.textures.map( t => t.sourcePath ) ).size, sky.textures.length );
-	for ( const publicPath of sky.flareTexturePublicPaths ) {
-		assert.ok( sky.textures.some( t => t.publicPath === publicPath.replace( /\.texture$/, ".png" ) ) );
+	// The sun disc (lens2) ships its PNG beside its container; the other flares
+	// ship only their containers, and their rows name exactly those.
+	for ( const [index, publicPath] of sky.flareTexturePublicPaths.entries() ) {
+		const shipped = index === 1 ? publicPath.replace( /\.texture$/, ".png" ) : publicPath;
+		assert.ok( sky.textures.some( t => t.publicPath === shipped ), shipped );
 	}
 	assert.equal( sky.sunTexturePublicPath, sky.flareTexturePublicPaths[1].replace( /\.texture$/, ".png" ) );
 });
