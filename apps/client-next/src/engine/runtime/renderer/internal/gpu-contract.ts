@@ -111,6 +111,8 @@ export interface DeviceOwner extends Disposable {
 	thunder( color: readonly number[] ): ImageDraw;
 	flares( input: FlareInput, depth: GPUTextureView ): FlareDraw;
 	geometry(): GeometryCommands | null;
+	/** The last frame's CPU time encoding each compute system (developer panel). */
+	encodeMs(): { readonly animation: number; readonly particles: number; readonly shadows: number; } | null;
 	images(): ImageCommands | null;
 	recoverable(): boolean;
 	phase(): RuntimePhase;

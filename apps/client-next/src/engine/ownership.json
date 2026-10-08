@@ -170,6 +170,7 @@
     "src/engine/runtime/platform/telemetry.ts": "src/engine/runtime/platform/platform.ts",
     "src/engine/runtime/runtime-errors.ts": "src/engine/runtime/runtime.ts",
     "src/engine/runtime/frame-probes.ts": "src/engine/runtime/runtime.ts",
+    "src/engine/runtime/stage-probe.ts": "src/engine/runtime/runtime.ts",
     "src/engine/runtime/renderer/device/pipelines.ts": "src/engine/runtime/renderer/device/device.ts",
     "src/engine/runtime/renderer/device/images.ts": "src/engine/runtime/renderer/device/device.ts",
     "src/engine/runtime/renderer/device/geometry.ts": "src/engine/runtime/renderer/device/device.ts",

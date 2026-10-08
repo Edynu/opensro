@@ -465,13 +465,17 @@ The same uniform scale as loadingScreenQuads keeps both owners aligned.
 
 /* Developer diagnostics are a separate, console-enabled neighbor of FPS. */
 #developer-toggle { width: 24px; }
+/* The frame report is aligned columns (frame-report.ts): monospace, spaces kept. */
 .sro-developer-readout {
 	width: max-content;
-	max-width: min(280px, calc(100vw - var(--telemetry-right, 8px) - 8px));
-	max-height: min(480px, calc(100vh - var(--telemetry-top, 8px) - 32px));
+	max-width: min(480px, calc(100vw - var(--telemetry-right, 8px) - 8px));
+	max-height: calc(100vh - var(--telemetry-top, 8px) - 32px);
 	overflow: auto;
 	box-sizing: border-box;
 	text-align: left;
-	overflow-wrap: anywhere;
+	white-space: pre;
+	font-family: ui-monospace, Consolas, "Courier New", monospace;
+	font-size: 11px;
+	line-height: 1.25;
 	user-select: text;
 }

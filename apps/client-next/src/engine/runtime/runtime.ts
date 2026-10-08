@@ -40,6 +40,7 @@ import { frameProbe } from "./frame-probes";
 import { createFrameWork } from "./frame-work";
 import { createFramePacing } from "./frame-pacing";
 import { createRenderer } from "./renderer/renderer";
+import { createStageProbe } from "./stage-probe";
 import { createSimulationHost } from "./simulation/host";
 import type { RuntimeControl } from "@/engine/contracts/runtime";
 
@@ -478,13 +479,26 @@ export function startRuntime(
 		let lastFrameAt = 0, lastTelemetry = 0;
 		const stageTotals: Record<string, number> = {};
 		let stageAt = 0, stageFrames = 0;
+		// ?frame-stages=1 without a benchmark's probe: the panel's own, which
+		// keeps every owner's phases, details and counts (stage-probe.ts).
+		const stageProbe = diagnostics.stages && !frameProbe() ? createStageProbe() : undefined;
+		/*
+		================
+		probeOf
+
+		The frame probe every owner reports to: a benchmark's, else the panel's.
+		================
+		*/
+		function probeOf() {
+			return frameProbe() ?? stageProbe?.probe;
+		}
 		/*
 		================
 		markStage
 		================
 		*/
 		function markStage( name: string ) {
-			frameProbe()?.mark( name );
+			probeOf()?.mark( name );
 			if ( !diagnostics.stages ) return;
 			const at = performance.now();
 			stageTotals[name] = (stageTotals[name] ?? 0) + at - stageAt;
@@ -561,7 +575,7 @@ export function startRuntime(
 			let waitMs = 0;
 			frameId++;
 			stageAt = cpuStart;
-			frameProbe()?.begin( frameId );
+			probeOf()?.begin( frameId );
 			if ( diagnostics.stages ) stageFrames++;
 			try {
 				// Worker death is terminal for this runtime. Reload creates fresh owners;
@@ -724,7 +738,7 @@ export function startRuntime(
 				markStage( "input-state-frontend" );
 				world.pumpCameraScripts( now );
 				presentation.step( simulationTimeMs );
-				characters.profile( frameProbe() );
+				characters.profile( probeOf() );
 				characters.mallOutfit(
 					worldPresented ? ui.mallPreview() : null,
 					worldPresented ? ui.skinPreview() : null
@@ -774,7 +788,7 @@ export function startRuntime(
 					} );
 				}
 				if ( movement?.pose ) {
-					frameProbe()?.movement?.( {
+					probeOf()?.movement?.( {
 						atMs: now,
 						workerAtMs: movement.poseAtMs ?? simulationTimeMs,
 						workerDebtMs,
@@ -857,7 +871,7 @@ export function startRuntime(
 						worldReady: readySent || worldReady
 					},
 					now,
-					frameProbe()
+					probeOf()
 				);
 				if ( semantics ) {
 					platform.presentUi( semantics );
@@ -899,7 +913,7 @@ export function startRuntime(
 				// Hidden maintenance still acknowledges every ordered publication, but
 				// cannot display a frame. Avoid GPU preparation and visibility queries.
 				const rendered = visible ?
-					renderer.frame( platform.readViewport(), now / 1000, frameId, frameProbe() ) :
+					renderer.frame( platform.readViewport(), now / 1000, frameId, probeOf() ) :
 					undefined;
 				if ( rendered ) {
 					await rendered;
@@ -953,16 +967,16 @@ export function startRuntime(
 				const cpuMs = performance.now() - cpuStart - waitMs;
 				sample( cpuHistory, cpuMs );
 				frameWork.recordCpu( cpuMs );
-				frameProbe()?.characterCount( "cpu-ms", cpuMs );
-				frameProbe()?.characterCount( "readback-wait-ms", waitMs );
-				frameProbe()?.characterCount( "cosmetic-level", frameWork.level() );
+				probeOf()?.characterCount( "cpu-ms", cpuMs );
+				probeOf()?.characterCount( "readback-wait-ms", waitMs );
+				probeOf()?.characterCount( "cosmetic-level", frameWork.level() );
 				if ( frameHistory.length && now - lastTelemetry >= TELEMETRY_INTERVAL_MS ) {
 					lastTelemetry = now;
 					const frameMs = average( frameHistory ), drawn = renderer.characterStats();
 					platform.presentTelemetry( {
 						overload: frameWork.stats(),
 						frameId,
-						stages: diagnostics.stages ?
+						stages: stageProbe ? stageProbe.take() : diagnostics.stages ?
 							Object.fromEntries(
 								Object.entries( stageTotals ).map( ( [name, total] ) => [ name, total / stageFrames ] )
 							) :
@@ -1011,7 +1025,7 @@ World: ${
 					}
 World admission: ${renderer.worldStats().sceneId ?? "none"}; ${renderer.worldStats().pendingGroups} pending groups` );
 				}
-				frameProbe()?.end();
+				probeOf()?.end();
 				raf = requestAnimationFrame( displayFrame );
 				hiddenFrame( frameToken, now );
 			} catch ( error ) {
