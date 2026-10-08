@@ -157,8 +157,9 @@ func (rt *Runtime) HandleGachaRoll(
 	if err != nil {
 		return nil, err.Error()
 	}
+	// The wire shape bound; the authority door checks the character's capacity.
 	if request.InventorySlot < inventory.EquipmentSlotEnd ||
-		request.InventorySlot >= inventory.BagSlotEnd {
+		request.InventorySlot >= inventory.MaxBagEnd {
 		return nil, fmt.Sprintf("inventory slot %d is outside the bag", request.InventorySlot)
 	}
 
@@ -184,7 +185,7 @@ func (rt *Runtime) HandleGachaRoll(
 	failure := "ticket row changed before commit"
 	var frames []wire.Frame
 	committed := rt.deps.Update(character, "gacha-roll", func() bool {
-		if character.DeletePending {
+		if character.DeletePending || !inventory.IsBagSlot(request.InventorySlot, inventory.BagEnd(character)) {
 			return false
 		}
 		rowIndex := -1

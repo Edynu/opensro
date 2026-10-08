@@ -310,6 +310,9 @@ PreparedReentry
 type PreparedReentry struct {
 	Packets []Packet
 	Spawn   simulation.Spawn
+	// InventorySize is the capacity the packets present; the committing
+	// owner adopts it on the live record (domain.AdoptInventorySize).
+	InventorySize uint8
 }
 
 /*
@@ -331,6 +334,7 @@ func (d *Deps) PrepareReentry(divisionID string, character *Character) (Prepared
 	// The caller holds the division lock and commits the returned stand only
 	// after preparation succeeds. Login adoption would re-enter that lock.
 	projection.AdoptEntrySpawn = nil
+	snapshot.PresentInventoryExpansion()
 	result := buildCharacterProjection(&projection, divisionID, snapshot)
 	packets, ok := d.encodeReentry(result)
 	if !ok {
@@ -339,7 +343,7 @@ func (d *Deps) PrepareReentry(divisionID string, character *Character) (Prepared
 	spawn := result.LocalPlayerEntry.StartProfile
 	return PreparedReentry{Packets: packets, Spawn: simulation.Spawn{
 		RegionID: uint16(spawn.RegionID), X: spawn.X, Y: spawn.Y, Z: spawn.Z, Angle: uint16(spawn.Angle),
-	}}, true
+	}, InventorySize: snapshot.InventoryCapacity()}, true
 }
 
 /*
@@ -364,7 +368,29 @@ func (d *Deps) encodeReentry(result *BootstrapResult) ([]Packet, bool) {
 	packets := make([]Packet, 0, len(result.Packets)+1)
 	packets = append(packets, result.Packets[0], NewPacket(transport.OpEnterWorldResult, payload))
 	packets = append(packets, result.Packets[1:]...)
+	d.adoptEncodedInventory(result)
 	return packets, true
+}
+
+/*
+================
+adoptEncodedInventory
+
+Only the complete encoded entry can make pending slots usable. The authority
+door preserves any additional quest reward paid since preparation began.
+Prepared resurrection entries have no live owner and commit in their caller.
+================
+*/
+func (d *Deps) adoptEncodedInventory(result *BootstrapResult) {
+	if result.inventoryOwner == nil {
+		return
+	}
+	owner := result.inventoryOwner
+	presented := result.Character.InventoryCapacity()
+	d.Mutate(owner, "inventory-expansion", func() {
+		owner.AdoptInventorySize(presented)
+	})
+	result.inventoryOwner = nil
 }
 
 // Validate rejects incomplete production composition before gameplay starts.
