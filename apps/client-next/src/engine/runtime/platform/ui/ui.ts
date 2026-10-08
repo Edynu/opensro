@@ -643,6 +643,11 @@ export function createUiBridge(
 					if ( el.step !== "1" ) el.step = "1";
 				}
 				if ( el.getAttribute( "aria-label" ) !== control.label ) el.setAttribute( "aria-label", control.label );
+				if ( control.valueText !== undefined ) {
+					if ( el.getAttribute( "aria-valuetext" ) !== control.valueText ) {
+						el.setAttribute( "aria-valuetext", control.valueText );
+					}
+				} else if ( el.hasAttribute( "aria-valuetext" ) ) el.removeAttribute( "aria-valuetext" );
 				// A locked text edit is read-only, never disabled: the browser takes
 				// focus away from a disabled element and does not give it back, so a
 				// lock that lasted one network round trip left the edit unfocused.

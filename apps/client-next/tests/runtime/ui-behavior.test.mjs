@@ -2666,7 +2666,8 @@ test("Audio sliders preview, Cancel restores saved mix, and Default is scoped to
 		let state;
 		for ( let i = 1; i < 20; i++ ) state = f.ui.step( f.state, i * 100 ) ?? state;
 		assert.equal( state.controls.filter( c => c.id.startsWith( "option-audio:" ) ).length, 3 );
-		f.ui.event( { kind: "edit", id: "option-audio:bgm", value: "83", start: 0, end: 0, composing: false } );
+		// Slider position 132 is level 83: the first 50 positions are the quiet range.
+		f.ui.event( { kind: "edit", id: "option-audio:bgm", value: "132", start: 0, end: 0, composing: false } );
 		assert.equal( changes.at( -1 ).value.bgm, 83 );
 		assert.equal( changes.at( -1 ).commit, false );
 		f.ui.event( { kind: "activate", id: "option-mute:muteEnvironment" } );

@@ -351,6 +351,19 @@ nativeItem
 		// 8F9710 -> 8F9280(null position): master effects volume only.
 		pending.set( id, { id, path: row.path, gain: 1, x: 0, y: 0, z: 0, expires: at + .5, spatial: false } );
 	}
+	/*
+================
+applyPreferences
+
+Gain changes preserve live source identity, authored weighting and timers.
+================
+	*/
+	function applyPreferences() {
+		music.volume(
+			audioAmplitude( preferences.bgm, preferences.muteBgm )
+		);
+		for ( const voice of voiceGains.values() ) voice.gain.gain.value = mixGain( voice.level, voice.ambient );
+	}
 	return {
 		/*
 ================
@@ -359,8 +372,7 @@ options
 		*/
 		options( value: AudioOptions ) {
 			preferences = audioOptions( value );
-			music.volume( audioAmplitude( preferences.bgm, preferences.muteBgm ) );
-			for ( const voice of voiceGains.values() ) voice.gain.gain.value = mixGain( voice.level, voice.ambient );
+			applyPreferences();
 		},
 		/*
 ================

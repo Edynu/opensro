@@ -19,6 +19,7 @@ import {
 	type MusicRequest
 } from "@/engine/foundation/audio/music";
 import type { AssetOwner } from "@/engine/contracts/assets";
+const NATIVE_MINIMUM_AMPLITUDE = audioAmplitude( 1, false );
 // One compressed stream for title and mission BGM. No decoded long-track cache.
 /*
 ================
@@ -139,7 +140,9 @@ volume
 			if ( value === volume ) return;
 			const wasMuted = volume === 0;
 			volume = value;
-			volumeDb = value ? Math.round( 2000 * Math.log10( value ) ) : -10000;
+			// Port-only, not native: quiet streams fade against level 1's reference
+			// so their lower starting gain cannot trip the native -50 dB stop early.
+			volumeDb = value ? Math.round( 2000 * Math.log10( Math.max( value, NATIVE_MINIMUM_AMPLITUDE ) ) ) : -10000;
 			fadeDb = volumeDb;
 			if ( element ) element.volume = mode === "audible" ? value : 0;
 			// 8F05D0: unmute reissues the retained name with repeat=1.
@@ -278,8 +281,11 @@ step
 						release();
 						current = null;
 					} else if ( element ) {
+						const amplitude = Math.pow( 10, fadeDb / 2000 );
 						element.volume = mode === "audible" && volume > 0 ?
-							Math.pow( 10, fadeDb / 2000 ) :
+							(volume < NATIVE_MINIMUM_AMPLITUDE ?
+								amplitude * (volume / NATIVE_MINIMUM_AMPLITUDE) :
+								amplitude) :
 							0;
 					}
 				}

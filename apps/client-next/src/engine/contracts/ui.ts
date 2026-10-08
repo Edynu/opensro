@@ -129,6 +129,7 @@ UiControl
 ================
 */
 export interface UiControl {
+	readonly valueText?: string;
 	readonly whisperTarget?: string;
 	readonly textAlign?: "left" | "center" | "right";
 	readonly textInsets?: UiRect;

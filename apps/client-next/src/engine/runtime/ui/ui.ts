@@ -354,6 +354,13 @@ import {
 	audioOptions,
 	type AudioOptions
 } from "@/engine/foundation/audio/options";
+import {
+	AUDIO_SLIDER_MAX,
+	audioSliderLevel,
+	audioSliderPosition,
+	stepAudioLevel,
+	audioLevelText
+} from "@/engine/foundation/audio/volume-control";
 import { chatScrollbar } from "@/engine/foundation/ui/chat-scrollbar";
 import { overheadLayout } from "@/engine/foundation/ui/overhead-layout";
 import { vitalWarning } from "@/engine/foundation/ui/vital-warning";
@@ -2286,10 +2293,10 @@ export function createUi(
 			}
 		} else if ( id.startsWith( "option-audio-step:" ) ) {
 			const [, key, delta] = id.split( ":" );
-			if ( key === "bgm" || key === "effects" || key === "environment" ) {
+			if ( (key === "bgm" || key === "effects" || key === "environment") && (delta === "-1" || delta === "1") ) {
 				updateAudioDraft( {
 					...audioDraft,
-					[key]: Math.max( 0, Math.min( 100, audioDraft[key] + Number( delta ) ) )
+					[key]: stepAudioLevel( audioDraft[key], Number( delta ) )
 				} );
 			}
 		} else if ( id === "option-default" ) {
@@ -5462,8 +5469,8 @@ export function createUi(
 					const key = event.id.slice( 13 ), n = Number( event.value );
 					if (
 						(key === "bgm" || key === "effects" || key === "environment") && Number.isInteger( n ) &&
-						n >= 0 && n <= 100
-					) updateAudioDraft( { ...audioDraft, [key]: n } );
+						n >= 0 && n <= AUDIO_SLIDER_MAX
+					) updateAudioDraft( { ...audioDraft, [key]: audioSliderLevel( n ) } );
 				} else if ( event.id.startsWith( "potion-percent:" ) ) {
 					const key = event.id.slice( 15 ), percent = Number( event.value );
 					if (
@@ -9593,6 +9600,8 @@ export function createUi(
 								c = authoredRect( check, ox, oy ),
 								path = ROOT + "interface/ifcommon/com_radiobutton_" +
 									(audioDraft[mute] ? "on" : "off") + ".png";
+							const position = audioSliderPosition( audioDraft[key] ), max = AUDIO_SLIDER_MAX;
+							const valueText = audioLevelText( audioDraft[key], audioDraft[mute] );
 							paths.push( path );
 							if ( resources.has( path ) ) rect( c, white, path );
 							authoredText( muteLabel, ox, oy, hudCopy( muteLabel.text ) );
@@ -9609,14 +9618,16 @@ export function createUi(
 								kind: "range",
 								rect: [ r[0], r[1], 202, 16 ],
 								min: 0,
-								max: 100,
-								value: String( audioDraft[key] )
+								max,
+								value: String( position ),
+								valueText,
+								helpText: valueText
 							} );
 							const thumb = ROOT + "interface/ifcommon/com_scroll_button.png";
 							paths.push( thumb );
 							if ( resources.has( thumb ) ) {
 								rect(
-									[ r[0] + Math.trunc( audioDraft[key] * 186 / 100 ), r[1], 16, 16 ],
+									[ r[0] + Math.trunc( position * 186 / max ), r[1], 16, 16 ],
 									white,
 									thumb
 								);
@@ -9635,7 +9646,7 @@ export function createUi(
 											" +"),
 									kind: "button",
 									rect: a,
-									disabled: delta < 0 ? audioDraft[key] === 0 : audioDraft[key] === 100
+									disabled: delta < 0 ? position === 0 : position === max
 								} );
 							}
 						}

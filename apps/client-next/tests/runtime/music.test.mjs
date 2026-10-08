@@ -401,3 +401,87 @@ test("muting during a region fade never restores a nonzero music gain", async t 
 	}
 	f.music.dispose();
 });
+
+/*
+================
+native fade compatibility
+================
+*/
+test("all native volume levels retain every fade sample and stop notification", async t => {
+	for ( let level = 1; level <= 100; level++ ) {
+		const f = fixture( t ), amplitude = Math.pow( 10, (20 * level - 2000) / 2000 );
+		f.music.volume( amplitude );
+		const media = worldTrack( f );
+		await settle();
+		media.currentTime = 10;
+		f.music.regional( field, 0 );
+		let factor = 1, db = Math.round( 2000 * Math.log10( amplitude ) );
+		for ( let notification = 1; notification < 1000; notification++ ) {
+			factor = Math.fround( factor - 0.00800000037997961 );
+			db = Math.trunc( factor * (db + 10000) ) - 10000;
+			media.currentTime = 10 + notification * .25;
+			f.music.step();
+			assert.equal( media.paused, db <= -5000 );
+			if ( db <= -5000 ) break;
+			assert.equal( media.volume, Math.pow( 10, db / 2000 ) );
+		}
+		assert.equal( media.paused, true );
+		f.music.dispose();
+	}
+});
+
+/*
+================
+quiet fade lifecycle
+================
+*/
+test("sub-minimum music fades over multiple notifications and stays below its selected volume", async t => {
+	for ( const lowLevel of [ .02, .1, .98 ] ) {
+		const f = fixture( t ), minimum = Math.pow( 10, -.99 ), amplitude = lowLevel * minimum;
+		f.music.volume( amplitude );
+		const media = worldTrack( f );
+		await settle();
+		assert.equal( media.volume, amplitude );
+		media.currentTime = 10;
+		f.music.regional( field, 0 );
+		let factor = 1, db = -1980, count = 0;
+		for ( let notification = 1; notification < 100; notification++ ) {
+			const next = musicFade( factor, db );
+			factor = next.factor;
+			db = next.db;
+			media.currentTime = 10 + notification * .25;
+			f.music.step();
+			assert.equal( media.paused, next.stop );
+			if ( next.stop ) break;
+			count++;
+			assert.equal( media.volume, Math.pow( 10, db / 2000 ) * (amplitude / minimum) );
+			assert.ok( media.volume > 0 && media.volume <= amplitude );
+		}
+		assert.ok( count > 1 );
+		f.music.dispose();
+	}
+});
+
+/*
+================
+quiet changes during fades
+================
+*/
+test("live quiet/native/mute changes preserve the stream and zero remains silent", async t => {
+	const f = fixture( t ), media = worldTrack( f );
+	await settle();
+	media.currentTime = 10;
+	f.music.regional( field, 0 );
+	for ( const amplitude of [ .002, .1, .5, .002, 0 ] ) {
+		const at = media.currentTime;
+		f.music.volume( amplitude );
+		assert.equal( f.music.element(), media );
+		assert.equal( media.currentTime, at );
+		assert.equal( media.volume, amplitude );
+		media.currentTime += .25;
+		f.music.step();
+		assert.ok( media.volume <= amplitude );
+		if ( amplitude === 0 ) assert.equal( media.volume, 0 );
+	}
+	f.music.dispose();
+});
