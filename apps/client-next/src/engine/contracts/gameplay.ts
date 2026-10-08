@@ -5,7 +5,9 @@ gameplay.ts - commands and immutable world gameplay publications
 
 Simulation owns these values. UI and presentation consume snapshots and
 submit intents; they never mutate inventory, learned ranks or server state.
-Optional publication fields retain their previous value until a full reset.
+Only skillCatalog, social and an omitted shop retain their previous values
+until a full reset (foundation/gameplay/gameplay-snapshot.ts). An explicitly
+undefined shop closes it; other fields belong to the newest snapshot.
 
 ===========================================================================
 */
@@ -536,6 +538,14 @@ export interface BetaMapPlayer {
 	readonly z: number;
 	readonly name: string;
 }
+/*
+================
+GameplayState
+
+Worker publications may omit unchanged catalog, social and shop values.
+Presentation owns the derived skillIndex; it never travels back to simulation.
+================
+*/
 export interface GameplayState {
 	readonly itemMall?: import("./item-mall").MallState;
 	readonly betaPlayers?: readonly BetaMapPlayer[];
@@ -588,7 +598,7 @@ export interface GameplayState {
 	readonly masteryTotalOverride?: number;
 	readonly trainingPending?: boolean;
 	readonly trainingError?: string | null;
-	// Journal omission retains the previous projection; reset sends a complete replacement.
+	// Included with the dynamic snapshot; omission does not retain an older fortress.
 	readonly fortress?: import("@/engine/foundation/gameplay/fortress").FortressState;
 	// The official's last answer; sequence advances with every answer, which
 	// opens or refreshes the application window.

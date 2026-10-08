@@ -33,6 +33,7 @@ import {
 import { createEntityMotion } from "./motion/motion";
 import type { EntityState, WorldBatch, WorldEvent } from "@/engine/contracts/world";
 import { journalCost } from "@/engine/foundation/gameplay/journal-cost";
+import { mergeGameplaySnapshots } from "@/engine/foundation/gameplay/gameplay-snapshot";
 import type { WireFrame } from "@/engine/contracts/network";
 import { SYSTEM_PET_APPEAR } from "@/engine/contracts/orb";
 // The kinds whose spawn builds a CICharactor (players, NPCs, monsters, COS,
@@ -143,13 +144,7 @@ export function createEntities(
 			pendingGameplay = { index: events.length - 1, size };
 			return;
 		}
-		const older = queued.state, newer = event.state;
-		const state: import("@/engine/contracts/gameplay").GameplayState = {
-			...newer,
-			skillCatalog: newer.skillCatalog ?? older.skillCatalog,
-			social: newer.social ?? older.social,
-			...(!("shop" in newer) && "shop" in older ? { shop: older.shop } : {})
-		};
+		const state = mergeGameplaySnapshots( queued.state, event.state );
 		const merged: WorldEvent = { kind: "gameplay", state }, size = cost( merged );
 		const nextBytes = bytes - pendingGameplay.size + size;
 		if ( nextBytes + stagedBytes > journalByteLimit ) {
