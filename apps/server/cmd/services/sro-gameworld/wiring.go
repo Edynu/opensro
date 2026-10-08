@@ -256,7 +256,11 @@ func newGameWorldApplication(
 	if err != nil {
 		return nil, err
 	}
-	application.ticker = gameplay.newMissionTicker()
+	peerReferences, err := gameplay.items.PreparePeerItemReferences(authority.textdata.Items.ItemCommandReferences())
+	if err != nil {
+		return nil, fmt.Errorf("peer item references: %w", err)
+	}
+	application.ticker = gameplay.newMissionTicker(peerReferences)
 	gameplay.installFollowFixture(authority.agentAPI, application.ticker)
 	authority.agentAPI.InstallPassiveCriticalFixture(gameplay.passiveCriticalReader())
 	installMonsterQuery(authority.agentAPI, gameplay.deps.MonsterState, ownedShard.ID)

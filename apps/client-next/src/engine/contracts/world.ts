@@ -160,8 +160,11 @@ export interface EntityState {
 ================
 WorldEvent
 
-Events retain their wire order across worker batches. Native envelopes stay
-available for packet families that do not yet own a semantic projection.
+Lifecycle and feedback events retain their wire order across worker batches.
+Queued gameplay snapshots may merge at the first snapshot's position until
+a reset or batch handoff; consumers read gameplay after applying the whole
+batch. Native envelopes stay available for packet families that do not yet
+own a semantic projection.
 ================
 */
 export type WorldEvent =

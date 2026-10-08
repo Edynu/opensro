@@ -9,10 +9,10 @@ runtime_lifecycle.go - the action runtime's tick hooks
 package action
 
 import (
-	"opensro.online/server/internal/domain"
 	"strings"
 	"time"
 
+	"opensro.online/server/internal/domain"
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/grounditem"
 	"opensro.online/server/internal/game/item/loot"
@@ -141,20 +141,6 @@ func (rt *Runtime) TickHook() simulation.TickHook {
 }
 
 /*
-================
-pendingPickupDelivery
-
-Packet delivery leaves the division operation lock before touching sessions.
-================
-*/
-type pendingPickupDelivery struct {
-	divisionID    string
-	characterName string
-	frames        []wire.Frame
-	broadcast     []wire.Frame
-}
-
-/*
 ==================
 advancePendingPickups
 
@@ -169,31 +155,94 @@ packet halves are routed without duplicating the public frames to the actor.
 func (rt *Runtime) advancePendingPickups(nowMs int64) []simulation.DivisionFrames {
 	var recipients []simulation.DivisionFrames
 	now := time.UnixMilli(nowMs)
-	var deliveries []pendingPickupDelivery
 	for _, pending := range rt.Pending.Due(now) {
-		unlock := rt.lockDivision(pending.DivisionID)
-		result, character := rt.completePendingPickup(pending, now)
-		recipients = append(recipients, recipientDivisionFrames(pending.DivisionID, result.Recipients)...)
-		unlock()
-		if character == nil || (len(result.Frames) == 0 && len(result.Broadcast) == 0) {
-			continue
-		}
-		deliveries = append(deliveries, pendingPickupDelivery{
-			divisionID:    pending.DivisionID,
-			characterName: character.Name,
-			frames:        result.Frames,
-			broadcast:     result.Broadcast,
-		})
-	}
-	for _, delivery := range deliveries {
-		if rt.PushCharacterFrames != nil && len(delivery.frames) > 0 {
-			rt.PushCharacterFrames(delivery.divisionID, delivery.characterName, delivery.frames)
-		}
-		if rt.PushDivisionPeerFrames != nil && len(delivery.broadcast) > 0 {
-			rt.PushDivisionPeerFrames(delivery.divisionID, delivery.characterName, delivery.broadcast)
-		}
+		recipients = append(recipients, rt.publishPendingPickup(pending, now)...)
 	}
 	return recipients
+}
+
+/*
+================
+publishPendingPickup
+
+Keep one division's commit and all private receipts ordered against request
+handlers. Queue admission runs after the operation lock is released so a
+slow consumer can close and reenter gameplay cleanup safely.
+================
+*/
+func (rt *Runtime) publishPendingPickup(pending grounditem.Pending, now time.Time) []simulation.DivisionFrames {
+	unlockPublication := rt.LockPublication(pending.DivisionID)
+	defer unlockPublication()
+	var publishActor func([]wire.Frame)
+	var publishRecipients []func([]wire.Frame)
+	result, character := func() (OpResult, *enterworld.Character) {
+		unlock := rt.lockDivision(pending.DivisionID)
+		defer unlock()
+		result, character := rt.completePendingPickup(pending, now)
+		if rt.CaptureCharacterFrames == nil {
+			return result, character
+		}
+		// The commit is complete, but relocation cannot replace its scene
+		// until all recipients have been captured and this lock is released.
+		owners := make(map[int64]func([]wire.Frame))
+		if character != nil && len(result.Frames) > 0 {
+			publishActor = rt.CaptureCharacterFrames(pending.DivisionID, character.Name)
+			owners[character.ID] = publishActor
+		}
+		publishRecipients = make([]func([]wire.Frame), len(result.Recipients))
+		for index, recipient := range result.Recipients {
+			if len(recipient.Frames) == 0 {
+				continue
+			}
+			if publish, found := owners[recipient.CharacterID]; found {
+				publishRecipients[index] = publish
+				continue
+			}
+			var owner *enterworld.Character
+			if character != nil && character.ID == recipient.CharacterID {
+				owner = character
+			} else if source, ok := rt.deps.(domain.CharacterLookup); ok {
+				owner = source.CharacterByID(pending.DivisionID, recipient.CharacterID)
+			} else {
+				for _, candidate := range rt.deps.CharactersForDivision(pending.DivisionID) {
+					if candidate != nil && candidate.ID == recipient.CharacterID {
+						owner = candidate
+						break
+					}
+				}
+			}
+			var publish func([]wire.Frame)
+			if owner != nil {
+				publish = rt.CaptureCharacterFrames(pending.DivisionID, owner.Name)
+			}
+			owners[recipient.CharacterID] = publish
+			publishRecipients[index] = publish
+		}
+		return result, character
+	}()
+	// Preserve native publication order even when the actor also receives a
+	// party receipt: actor burst, public pickup, then recipient-private tails.
+	if publishActor != nil {
+		publishActor(result.Frames)
+	}
+	if character != nil {
+		if rt.CaptureCharacterFrames == nil && rt.PushCharacterFrames != nil && len(result.Frames) > 0 {
+			rt.PushCharacterFrames(pending.DivisionID, character.Name, result.Frames)
+		}
+		if rt.PushDivisionPeerFrames != nil && len(result.Broadcast) > 0 {
+			rt.PushDivisionPeerFrames(pending.DivisionID, character.Name, result.Broadcast)
+		}
+	}
+	if rt.CaptureCharacterFrames == nil {
+		// Transport-free runtimes retain the existing returned routing contract.
+		return recipientDivisionFrames(pending.DivisionID, result.Recipients)
+	}
+	for index, publish := range publishRecipients {
+		if publish != nil {
+			publish(result.Recipients[index].Frames)
+		}
+	}
+	return nil
 }
 
 /*

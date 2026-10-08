@@ -1,32 +1,179 @@
-import {gachaPrizes,isGachaTicket} from '@/engine/foundation/gameplay/gacha-catalog';
-import type {GachaState} from '@/engine/contracts/item-process';
-import type {InventoryItem} from '@/engine/contracts/gameplay';
-import type {UiSoundHandle} from '@/engine/foundation/ui/sound-catalog';
-export function createGacha(){
- let state:GachaState={visible:false,phase:'closed',npc:0,slot:null,entry:0,started:0,result:null,error:null};
- return {
-  open(gid:number){if(!Number.isInteger(gid)||gid<=0||gid>0xffffffff||state.phase==='rolling'||state.phase==='waiting')throw Error('Magic Pop unavailable');const payload=new Uint8Array(8),v=new DataView(payload.buffer);v.setUint32(0,gid,true);v.setUint32(4,0x10000,true);state={...state,phase:'opening',npc:gid,error:null};return {opcode:0x7338,payload};},
-  opened(p:Uint8Array){if(p[0]!==1){if(state.phase!=='opening')return false;if(p.length!==2)throw Error('Invalid NPC interaction rejection');state={...state,phase:'closed',error:p[1]!};return true;}if(p.length!==5)throw Error('Invalid NPC interaction result');if(!(new DataView(p.buffer,p.byteOffset,p.byteLength).getUint32(1,true)&0x10000))return false;if(state.phase!=='opening')return true;state={...state,visible:true,phase:'idle'};return true;},
-  close(){if(state.phase==='rolling'||state.phase==='waiting')return false;state={...state,visible:false,phase:'closed'};return true;},
-  start(entry:number,slot:number,item:InventoryItem|undefined,now:number):readonly UiSoundHandle[]{
-   const flags=item?.typeFlags??0;
-   if(!state.visible||!['idle','result'].includes(state.phase)||!gachaPrizes().some(prize=>prize.entry===entry)||!item||slot<13||slot>255||item.slot!==slot||item.quantity<=0||!isGachaTicket(flags))throw Error('Magic Pop roll unavailable');
-   state={...state,phase:'rolling',entry,slot,started:now,result:null,reward:undefined,error:null};return ['SND_GACHA_MOVE','SND_GACHA_TURN'];
-  },
-  step(now:number,item:InventoryItem|undefined){if(state.phase!=='rolling'||now-state.started<4000)return null;if(!item||item.slot!==state.slot||item.quantity<=0||!isGachaTicket(item.typeFlags)){state={...state,phase:'idle',slot:null};return null;}const payload=new Uint8Array(9),v=new DataView(payload.buffer);v.setUint32(0,state.npc,true);v.setUint32(4,state.entry,true);payload[8]=state.slot!;state={...state,phase:'waiting'};return {opcode:0x7053,payload};},
-  result(p:Uint8Array,item:InventoryItem|undefined):readonly UiSoundHandle[]{
-   if(p.length!==2)throw Error('Invalid Magic Pop result');
-   // 766A4E jumps directly to the system-notice dispatcher on failure;
-   // it never calls CIFGhaCha_ApplyResult or changes this window's state.
-   if(p[0]!==1)return [];
-   if(!state.visible||!item)return [];
-   if(p[1]!==1){state={...state,phase:'result',result:'lose',error:null};return ['SND_GACHA_END'];}
-   if(item.magic.length!==2)return [];
-   // CSOItem's indexed magic map contains the two raw values for result cards.
-   const refObjId=Number(BigInt(item.magic[0]!)&0xffffffffn),quantity=Number(BigInt(item.magic[1]!)&0xffffffffn);
-   state={...state,phase:'result',result:'win',reward:{refObjId,quantity},error:null};return ['SND_GACHA_WIN'];
-  },
-  state:()=>state,
-  reset(){state={visible:false,phase:'closed',npc:0,slot:null,entry:0,started:0,result:null,error:null};}
- };
+/*
+===========================================================================
+
+gacha.ts - the Magic Pop window session and roll lifecycle
+
+Owns opening, ticket selection, roll timing and result sounds. Shared NPC
+acknowledgements are validated before the Magic Pop service is selected.
+
+===========================================================================
+*/
+import { gachaPrizes, isGachaTicket } from "@/engine/foundation/gameplay/gacha-catalog";
+import { npcInteractionMask } from "@/engine/foundation/gameplay/npc-dialogue";
+import type { GachaState } from "@/engine/contracts/item-process";
+import type { InventoryItem } from "@/engine/contracts/gameplay";
+import type { UiSoundHandle } from "@/engine/foundation/ui/sound-catalog";
+const GACHA_FUNCTION = 0x10000;
+const OP_NPC_ACTION = 0x7338;
+const OP_GACHA_ROLL = 0x7053;
+const ROLL_DURATION_MS = 4000;
+const FIRST_BAG_SLOT = 13;
+const MAX_SLOT = 255;
+const MAX_GID = 0xffffffff;
+const LOW_WORD_MASK = 0xffffffffn;
+const NPC_REQUEST_BYTES = 8;
+const ROLL_REQUEST_BYTES = 9;
+
+/*
+================
+createGacha
+================
+*/
+export function createGacha() {
+	let state: GachaState = {
+		visible: false,
+		phase: "closed",
+		npc: 0,
+		slot: null,
+		entry: 0,
+		started: 0,
+		result: null,
+		error: null
+	};
+	return {
+		/*
+		================
+		open
+		================
+		*/
+		open( gid: number ) {
+			if (
+				!Number.isInteger( gid ) || gid <= 0 || gid > MAX_GID || state.phase === "rolling" ||
+				state.phase === "waiting"
+			) throw Error( "Magic Pop unavailable" );
+			const payload = new Uint8Array( NPC_REQUEST_BYTES ), v = new DataView( payload.buffer );
+			v.setUint32( 0, gid, true );
+			v.setUint32( 4, GACHA_FUNCTION, true );
+			state = { ...state, phase: "opening", npc: gid, error: null };
+			return { opcode: OP_NPC_ACTION, payload };
+		},
+		/*
+		================
+		opened
+
+		B338 is shared with other services, including special trade's six-byte
+		acknowledgement. Validate its service grammar before routing by mask.
+		================
+		*/
+		opened( p: Uint8Array ) {
+			const mask = npcInteractionMask( p, 0 );
+			if ( mask === null ) {
+				if ( state.phase !== "opening" ) return false;
+				state = { ...state, phase: "closed", error: p[1]! };
+				return true;
+			}
+			if ( !(mask & GACHA_FUNCTION) ) return false;
+			if ( state.phase !== "opening" ) return true;
+			state = { ...state, visible: true, phase: "idle" };
+			return true;
+		},
+		/*
+		================
+		close
+		================
+		*/
+		close() {
+			if ( state.phase === "rolling" || state.phase === "waiting" ) return false;
+			state = { ...state, visible: false, phase: "closed" };
+			return true;
+		},
+		/*
+		================
+		start
+		================
+		*/
+		start( entry: number, slot: number, item: InventoryItem | undefined, now: number ): readonly UiSoundHandle[] {
+			const flags = item?.typeFlags ?? 0;
+			if (
+				!state.visible || ![ "idle", "result" ].includes( state.phase ) ||
+				!gachaPrizes().some( prize => prize.entry === entry ) || !item || slot < FIRST_BAG_SLOT ||
+				slot > MAX_SLOT || item.slot !== slot || item.quantity <= 0 ||
+				!isGachaTicket( flags )
+			) throw Error( "Magic Pop roll unavailable" );
+			state = {
+				...state,
+				phase: "rolling",
+				entry,
+				slot,
+				started: now,
+				result: null,
+				reward: undefined,
+				error: null
+			};
+			return [ "SND_GACHA_MOVE", "SND_GACHA_TURN" ];
+		},
+		/*
+		================
+		step
+		================
+		*/
+		step( now: number, item: InventoryItem | undefined ) {
+			if ( state.phase !== "rolling" || now - state.started < ROLL_DURATION_MS ) return null;
+			if ( !item || item.slot !== state.slot || item.quantity <= 0 || !isGachaTicket( item.typeFlags ) ) {
+				state = { ...state, phase: "idle", slot: null };
+				return null;
+			}
+			const payload = new Uint8Array( ROLL_REQUEST_BYTES ), v = new DataView( payload.buffer );
+			v.setUint32( 0, state.npc, true );
+			v.setUint32( 4, state.entry, true );
+			payload[8] = state.slot!;
+			state = { ...state, phase: "waiting" };
+			return { opcode: OP_GACHA_ROLL, payload };
+		},
+		/*
+		================
+		result
+		================
+		*/
+		result( p: Uint8Array, item: InventoryItem | undefined ): readonly UiSoundHandle[] {
+			if ( p.length !== 2 ) throw Error( "Invalid Magic Pop result" );
+			// 766A4E jumps directly to the system-notice dispatcher on failure;
+			// it never calls CIFGhaCha_ApplyResult or changes this window's state.
+			if ( p[0] !== 1 ) return [];
+			if ( !state.visible || !item ) return [];
+			if ( p[1] !== 1 ) {
+				state = { ...state, phase: "result", result: "lose", error: null };
+				return [ "SND_GACHA_END" ];
+			}
+			if ( item.magic.length !== 2 ) return [];
+			// CSOItem's indexed magic map contains the two raw values for result cards.
+			const refObjId = Number( BigInt( item.magic[0]! ) & LOW_WORD_MASK ),
+				quantity = Number( BigInt( item.magic[1]! ) & LOW_WORD_MASK );
+			state = { ...state, phase: "result", result: "win", reward: { refObjId, quantity }, error: null };
+			return [ "SND_GACHA_WIN" ];
+		},
+		/*
+		================
+		state
+		================
+		*/
+		state: () => state,
+		/*
+		================
+		reset
+		================
+		*/
+		reset() {
+			state = {
+				visible: false,
+				phase: "closed",
+				npc: 0,
+				slot: null,
+				entry: 0,
+				started: 0,
+				result: null,
+				error: null
+			};
+		}
+	};
 }

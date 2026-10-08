@@ -10,9 +10,16 @@ indexes the skill catalog once per catalog for per-frame UI lookups.
 ===========================================================================
 */
 import { createEffectiveHp } from "./effective-hp";
+import { mergeGameplaySnapshots } from "@/engine/foundation/gameplay/gameplay-snapshot";
 import type { EntityState, WorldBatch, WorldEvent } from "@/engine/contracts/world";
-// Main-thread projection owns no simulation decisions. Apply a complete batch
-// before acknowledging it, and never use coalesced frame snapshots for lifecycle.
+/*
+================
+createPresentation
+
+Apply a complete batch before acknowledging it. Ordered lifecycle and
+feedback events remain independent of coalesced gameplay snapshots.
+================
+*/
 export function createPresentation() {
 	const hp = createEffectiveHp();
 	const finishingCasts = new Map<number, import("@/engine/contracts/gameplay").CastState>();
@@ -37,6 +44,11 @@ export function createPresentation() {
 		readonly catalog: readonly import("@/engine/foundation/gameplay/skill-catalog").SkillMetadata[];
 		readonly index: ReadonlyMap<number, import("@/engine/foundation/gameplay/skill-catalog").SkillMetadata>;
 	} | null = null;
+	/*
+	================
+	skillIndex
+	================
+	*/
 	const skillIndex = (
 		catalog: readonly import("@/engine/foundation/gameplay/skill-catalog").SkillMetadata[] | undefined
 	) => {
@@ -48,11 +60,21 @@ export function createPresentation() {
 	};
 	let entities = new Map<number, EntityState>(), unhandled: WorldEvent[] = [];
 	return {
+		/*
+		================
+		apply
+		================
+		*/
 		apply( batch: WorldBatch ) {
 			if ( disposed ) throw new Error( "Presentation disposed" );
 			if ( batch.sequence !== sequence + 1 ) throw new Error( "Presentation journal gap" );
 			const nextSounds = [ ...sounds ], nextOrbs = [ ...orbs ];
 			let next = entities;
+			/*
+			================
+			writable
+			================
+			*/
 			const writable = () => {
 				if ( next === entities ) next = new Map( entities );
 				return next;
@@ -84,13 +106,11 @@ export function createPresentation() {
 				else if ( event.kind === "ui-sound" || event.kind === "item-sound" || event.kind === "buff-ended" ) {
 					nextSounds.push( event );
 				} else if ( event.kind === "gameplay" ) {
-					const catalog = event.state.skillCatalog ?? nextGameplay?.skillCatalog;
+					const state = mergeGameplaySnapshots( nextGameplay, event.state );
 					nextGameplay = {
-						...event.state,
-						skillCatalog: catalog,
-						skillIndex: skillIndex( catalog ),
-						social: event.state.social ?? nextGameplay?.social,
-						shop: "shop" in event.state ? event.state.shop : nextGameplay?.shop
+						...state,
+						skillIndex: skillIndex( state.skillCatalog ),
+						shop: state.shop
 					};
 				} else if ( event.kind === "movement-diagnostic" ) { /* Runtime journals this ordered evidence. */ }
 				else if ( event.kind === "cast-finalize" ) { /* Retained across coalesced gameplay snapshots. */ }
@@ -144,12 +164,27 @@ export function createPresentation() {
 			unhandledBytes = bytes;
 			return reset;
 		},
+		/*
+		================
+		travel
+		================
+		*/
 		travel: () => travel,
+		/*
+		================
+		takeFeedback
+		================
+		*/
 		takeFeedback() {
 			const result = orbs;
 			orbs = [];
 			return result;
 		},
+		/*
+		================
+		takeSounds
+		================
+		*/
 		takeSounds() {
 			const result = sounds;
 			sounds = [];
@@ -157,6 +192,11 @@ export function createPresentation() {
 		},
 		impact: hp.impact,
 		currentResult: hp.currentResult,
+		/*
+		================
+		finishedCasts
+		================
+		*/
 		finishedCasts() {
 			if ( finishingCasts.size ) {
 				finishingCasts.clear();
@@ -166,6 +206,11 @@ export function createPresentation() {
 		release: hp.release,
 		dead: hp.dead,
 		step: hp.step,
+		/*
+		================
+		dispose
+		================
+		*/
 		dispose() {
 			hp.clear();
 			finishingCasts.clear();
@@ -181,10 +226,35 @@ export function createPresentation() {
 			bootstrap = null;
 			gameplay = null;
 		},
+		/*
+		================
+		entities
+		================
+		*/
 		entities: () => rows,
+		/*
+		================
+		read
+		================
+		*/
 		read: ( gid: number ) => entities.get( gid ),
+		/*
+		================
+		count
+		================
+		*/
 		count: () => entities.size,
+		/*
+		================
+		bootstrap
+		================
+		*/
 		bootstrap: () => bootstrap,
+		/*
+		================
+		gameplay
+		================
+		*/
 		gameplay() {
 			const source = gameplay, hpRevision = hp.revision();
 			if ( !source ) return null;
@@ -209,6 +279,11 @@ export function createPresentation() {
 			}
 			return projection.value;
 		},
+		/*
+		================
+		takeNative
+		================
+		*/
 		takeNative() {
 			const result = unhandled;
 			unhandled = [];

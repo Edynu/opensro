@@ -22,7 +22,6 @@ and the commerce deltas carry, so a repeat is harmless (#340).
 package action
 
 import (
-	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/item/inventory"
 	"opensro.online/server/internal/game/item/wire"
 	"opensro.online/server/internal/game/world/simulation"
@@ -65,10 +64,8 @@ table is the same one every reference row is built from.
 ================
 */
 func (rt *Runtime) itemReferencesByID(ids []uint32) []wire.Frame {
-	source, ok := rt.deps.ItemReferences().(interface {
-		ItemRefByID(uint32) (*enterworld.ItemRef, bool)
-	})
-	if !ok {
+	source := rt.deps.ItemReferences()
+	if source == nil {
 		return nil
 	}
 	items := make([]inventory.Item, 0, len(ids))

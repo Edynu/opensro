@@ -21,6 +21,7 @@ import {
 	type AvatarMagicOptionPart
 } from "@/engine/foundation/gameplay/avatar-magic-option";
 import type { ItemMagicReference } from "@/engine/foundation/gameplay/item-tooltip-reference";
+import { npcInteractionMask } from "@/engine/foundation/gameplay/npc-dialogue";
 import type { InventoryItem } from "@/engine/contracts/gameplay";
 import type { MagicOptionGrantState } from "@/engine/contracts/item-process";
 
@@ -80,14 +81,12 @@ export function createMagicOptionGrant() {
 		================
 		*/
 		opened( p: Uint8Array ) {
+			const mask = npcInteractionMask( p, 0 );
 			if ( state.phase !== "opening" ) return false;
-			if ( p[0] !== 1 ) {
-				if ( p.length !== 2 ) throw Error( "Invalid NPC interaction rejection" );
+			if ( mask === null ) {
 				state = { ...state, phase: "closed", error: p[1]! };
 				return true;
 			}
-			if ( p.length !== 5 ) throw Error( "Invalid NPC interaction result" );
-			const mask = new DataView( p.buffer, p.byteOffset, p.byteLength ).getUint32( 1, true );
 			if ( !(mask & AVATAR_MAGIC_OPTION_FUNCTION) ) return false;
 			state = { ...state, visible: true, phase: "idle" };
 			return true;
