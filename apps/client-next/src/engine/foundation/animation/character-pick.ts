@@ -37,18 +37,30 @@ selectPickCandidate
 
 69282B: a center hit may replace an off-center winner; a closer subsequent
 hit still wins, including off-center. Candidates keep actor order.
+
+admit, when given, filters the candidates, asked only for one whose hits
+would change the running winner: a candidate that changes nothing selects
+the same with or without it. The answer equals selecting from the admitted
+candidates, without testing every one (each test may pose a mesh).
 ================
 */
-export function selectPickCandidate( candidates: readonly PickCandidate[] ) {
-	let result: { candidate: PickCandidate; gid: number; depth: number; ray: number; } | null = null,
-		best = Infinity;
+export function selectPickCandidate(
+	candidates: readonly PickCandidate[],
+	admit?: ( candidate: PickCandidate ) => boolean
+) {
+	type Winner = { candidate: PickCandidate; gid: number; depth: number; ray: number; } | null;
+	let result: Winner = null, best = Infinity;
 	for ( const candidate of candidates ) {
+		let next: Winner = result, nextBest = best;
 		for ( const hit of candidate.hits ) {
-			if ( hit.distance < best || (result?.ray !== CENTER_RAY && hit.ray === CENTER_RAY) ) {
-				best = hit.distance;
-				result = { candidate, gid: candidate.actor.gid, depth: hit.depth, ray: hit.ray };
+			if ( hit.distance < nextBest || (next?.ray !== CENTER_RAY && hit.ray === CENTER_RAY) ) {
+				nextBest = hit.distance;
+				next = { candidate, gid: candidate.actor.gid, depth: hit.depth, ray: hit.ray };
 			}
 		}
+		if ( next === result || admit && !admit( candidate ) ) continue;
+		result = next;
+		best = nextBest;
 	}
 	return result;
 }

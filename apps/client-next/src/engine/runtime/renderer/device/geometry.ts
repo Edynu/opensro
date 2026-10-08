@@ -18,6 +18,7 @@ import { DeviceDraw } from "./device-draw";
 import { createGeometryUploads } from "./geometry-uploads";
 import type { createParticlePresentation } from "./particles";
 import type { createGpuAnimationResources } from "./animation";
+import { createGpuCloth } from "./cloth";
 import { DEFAULT_BLEND, type GeometryPipelineState } from "./pipelines";
 import { D3DBLEND_SRCCOLOR, D3DBLEND_ZERO, type BlendPair } from "@/engine/foundation/rendering/blend-state";
 import type { Geometry } from "@/engine/contracts/geometry";
@@ -98,6 +99,9 @@ export function createGeometryResources(
 	created.queue.writeTexture( { texture: white }, Uint8Array.of( 255, 255, 255, 255 ), { bytesPerRow: 4 }, [ 1, 1 ] );
 	const uploads = createGeometryUploads( created, retire );
 	const packInstances = createInstancePacking();
+	// Port-only, not native: the Experimental GPU cloth solver. It skins from
+	// GPU palettes, so it exists only beside the GPU animation owner.
+	const cloth = animation ? createGpuCloth( created, retire ) : undefined;
 	const defaultSkin = created.createBuffer( {
 			label: "geometry-default-skin",
 			size: 32,
@@ -321,6 +325,28 @@ export function createGeometryResources(
 			);
 			return shadows.prepare( requests, blob );
 		},
+		...(cloth ?
+			{
+				gpuClothAvailable: cloth.available,
+				/*
+				================
+				stepGpuCloth
+
+				Queue one frame of GPU cloth for a pins draw: its shared palette
+				(bones, the stream it was uploaded with) is what the solver skins.
+				================
+				*/
+				stepGpuCloth(
+					draw: GeometryDraw,
+					request: import("../internal/gpu-contract").GpuClothRequest
+				) {
+					current();
+					const palette = sharedPalettes.get( request.bones );
+					if ( !palette || !metadata.get( draw ) ) throw Error( "Unknown GPU cloth draw" );
+					cloth.step( draw.vertices, { ...request, palettes: palette.buffer } );
+				}
+			} :
+			{}),
 		...(animation ?
 			{
 				gpuAnimationStats: () => ({ ...animation.stats(), cpuUploadBytes: mixedCpuUploadBytes }),
@@ -341,7 +367,9 @@ export function createGeometryResources(
 						!Number.isSafeInteger( revision ) || revision < 0 || revision < palette.revision
 					) throw Error( "Invalid GPU palette revision" );
 					if ( palette.revision === revision ) return true;
-					if ( !animation.prepare( source, palette.buffer, model, primitive, samples ) ) return false;
+					if ( !animation.prepare( source, palette.buffer, model, primitive, samples, uploads.write ) ) {
+						return false;
+					}
 					// CPU writes and GPU jobs own disjoint canonical pose slots.
 					const stride = primitive.joints.length * 64;
 					for ( let i = 0; i < samples.length; ) {
@@ -352,12 +380,10 @@ export function createGeometryResources(
 						const first = i;
 						while ( i < samples.length && samples[i] === null ) i++;
 						const bytes = (i - first) * stride;
-						current().queue.writeBuffer(
+						uploads.write(
 							palette.buffer,
 							first * stride,
-							source.buffer as ArrayBuffer,
-							source.byteOffset + first * stride,
-							bytes
+							source.subarray( first * stride / 4, i * stride / 4 )
 						);
 						mixedCpuUploadBytes += bytes;
 					}
@@ -695,7 +721,12 @@ export function createGeometryResources(
 				const interleaved = data.vertices?.length === data.positions.length / 3 * 14 ?
 					data.vertices :
 					packGeometryVertices( data );
-				const vertices = buffer( "geometry-vertices", interleaved, GPUBufferUsage.VERTEX ),
+				// A cloth pins draw's free vertices may be written by the GPU cloth.
+				const vertices = buffer(
+						"geometry-vertices",
+						interleaved,
+						GPUBufferUsage.VERTEX | (data.material?.clothPins && cloth ? GPUBufferUsage.STORAGE : 0)
+					),
 					indices = buffer( "geometry-indices", data.indices, GPUBufferUsage.INDEX ),
 					uniform = buffer( "geometry-transform", data.transform, GPUBufferUsage.UNIFORM );
 				const instances = data.instances ??
@@ -824,8 +855,9 @@ export function createGeometryResources(
 						...packTextureStage( mat?.textureStage ),
 						// The stage policy: x, DIFFUSE is the BSR shader's oD0.
 						mat?.shaderDiffuse ? 1 : 0,
-						0,
-						0,
+						// y, cloth shading (no renormalized normal); z, cloth pins.
+						mat?.clothShading || mat?.clothPins ? 1 : 0,
+						mat?.clothPins ? 1 : 0,
 						0,
 						// D3DRS_TEXTUREFACTOR, read by a stage's TFACTOR argument.
 						...(mat?.textureFactor ?? [ 1, 1, 1, 1 ])
@@ -848,6 +880,7 @@ export function createGeometryResources(
 					{
 						deferredParticle: mat?.deferredParticle,
 						blended: data.material?.sky ? false : data.material?.blend ?? false,
+						isolated: data.isolated,
 						pipeline: selected,
 						vertices,
 						indices,
@@ -937,6 +970,7 @@ export function createGeometryResources(
 			if ( meta?.image ) images.drop( meta.image );
 			if ( meta?.environmentImage ) images.drop( meta.environmentImage );
 			particles?.release( draw );
+			cloth?.release( draw.vertices );
 			geometryBuffers.delete( draw );
 			metadata.delete( draw );
 		}
@@ -967,7 +1001,7 @@ export function createGeometryResources(
 		*/
 		endFrame: uploads.endFrame,
 		commands,
-		ready: Promise.all( [ animation?.ready, particles?.ready ] ),
+		ready: Promise.all( [ animation?.ready, particles?.ready, cloth?.ready ] ),
 		/*
 		================
 		prepare
@@ -975,6 +1009,7 @@ export function createGeometryResources(
 		*/
 		prepare( encoder: GPUCommandEncoder, timing?: import("../internal/gpu-contract").GpuTimingFrame ) {
 			animation?.encode( encoder, timing );
+			cloth?.encode( encoder, timing );
 			particles?.encode( encoder, timing );
 			shadows?.encode( encoder, timing );
 		},
@@ -1029,6 +1064,7 @@ export function createGeometryResources(
 			waterReflection.dispose();
 			shadows?.dispose();
 			animation?.dispose();
+			cloth?.dispose();
 			particles?.dispose();
 			for ( const buffers of geometryBuffers.values() ) {
 				for ( const buffer of buffers ) {

@@ -34,7 +34,7 @@ const I = () => Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 
 fixture
 ================
 */
-function fixture( { reject = false, failBinding = false } = {} ) {
+function fixture( { reject = false, failBinding = false, staticBudget = undefined } = {} ) {
 	const buffers = [],
 		writes = [],
 		gpu = {
@@ -134,7 +134,7 @@ function fixture( { reject = false, failBinding = false } = {} ) {
 		primitive,
 		clip,
 		model,
-		owner: createGpuAnimationResources( gpu ),
+		owner: createGpuAnimationResources( gpu, undefined, staticBudget ),
 		source: new Float32Array( 16 ),
 		output: { size: 64 }
 	};
@@ -284,5 +284,35 @@ test("models on the same clips share one clip buffer until the last one is relea
 	assert.equal( clips.destroyed, 1 );
 	assert.equal( f.owner.stats().clipSets, 0 );
 	assert.equal( f.owner.stats().staticBytes, 0 );
+	f.owner.dispose();
+});
+test("a model refused for the static budget is retried once another model's inputs are released", async () => {
+	// The bytes one model with its own clip set occupies.
+	const probe = fixture();
+	await probe.owner.ready;
+	assert.ok(
+		probe.owner.prepare( probe.source, probe.output, probe.model, probe.primitive, [ {
+			clip: probe.clip,
+			time: 0
+		} ] )
+	);
+	const oneModel = probe.owner.stats().staticBytes;
+	probe.owner.dispose();
+	const f = fixture( { staticBudget: oneModel } );
+	await f.owner.ready;
+	// Its own clip set, so admitting it needs a second model's worth of bytes.
+	const clip = { ...f.clip, channels: [ ...f.clip.channels ] }, other = new Float32Array( 16 );
+	const second = { ...f.model, nodes: [ ...f.model.nodes ], clips: [ clip ], primitives: [ { ...f.primitive } ] };
+	const sample = { clip, time: 0 };
+	assert.ok( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ) );
+	assert.equal( f.owner.prepare( other, f.output, second, second.primitives[0], [ sample ] ), false );
+	assert.equal( f.owner.prepare( other, f.output, second, second.primitives[0], [ sample ] ), false );
+	assert.equal( f.owner.stats().models, 1 );
+	f.owner.release( f.source );
+	assert.ok(
+		f.owner.prepare( other, f.output, second, second.primitives[0], [ sample ] ),
+		"a full budget is not a property of the model"
+	);
+	assert.equal( f.owner.stats().models, 1 );
 	f.owner.dispose();
 });

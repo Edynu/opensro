@@ -41,6 +41,7 @@ import { createFrameWork } from "./frame-work";
 import { createFramePacing } from "./frame-pacing";
 import { createRenderer } from "./renderer/renderer";
 import { createSimulationHost } from "./simulation/host";
+import { createStageProbe } from "./stage-probe";
 import type { RuntimeControl } from "@/engine/contracts/runtime";
 
 // The build's ordered background install list (buildBackgroundInstallAsset.mjs).
@@ -477,6 +478,8 @@ export function startRuntime(
 		const frameHistory: number[] = [], cpuHistory: number[] = [];
 		let lastFrameAt = 0, lastTelemetry = 0;
 		const stageTotals: Record<string, number> = {};
+		// Renderer phases for the diagnostics panel; a benchmark probe takes precedence.
+		const stageProbe = diagnostics.stages ? createStageProbe() : undefined;
 		let stageAt = 0, stageFrames = 0;
 		/*
 		================
@@ -899,7 +902,7 @@ export function startRuntime(
 				// Hidden maintenance still acknowledges every ordered publication, but
 				// cannot display a frame. Avoid GPU preparation and visibility queries.
 				const rendered = visible ?
-					renderer.frame( platform.readViewport(), now / 1000, frameId, frameProbe() ) :
+					renderer.frame( platform.readViewport(), now / 1000, frameId, frameProbe() ?? stageProbe?.probe ) :
 					undefined;
 				if ( rendered ) {
 					await rendered;
@@ -963,9 +966,14 @@ export function startRuntime(
 						overload: frameWork.stats(),
 						frameId,
 						stages: diagnostics.stages ?
-							Object.fromEntries(
-								Object.entries( stageTotals ).map( ( [name, total] ) => [ name, total / stageFrames ] )
-							) :
+							{
+								...Object.fromEntries(
+									Object.entries( stageTotals ).map( (
+										[name, total]
+									) => [ name, total / stageFrames ] )
+								),
+								...stageProbe?.take( stageFrames )
+							} :
 							undefined,
 						gpu: renderer.gpuTiming(),
 						fps: frameMs > 0 ? 1000 / frameMs : 0,

@@ -23,8 +23,72 @@ export function createClothVertices( primitive: { geometry: Geometry; cloth?: Cl
 	const anchors = new Float32Array( mesh.positions.length );
 	const vertices = packGeometryVertices( mesh );
 	const skinned = !!mesh.joints && !!mesh.weights;
+	// The GPU-skinned stream between solver steps: pins at rest (the shader
+	// skins them), free vertices at their simulated model-space positions and
+	// normals, refreshed after every CPU update. Free vertices get no bone
+	// weight, so a clothPins draw passes them through unskinned.
+	const pinned = packGeometryVertices( mesh );
+	let freeWeights: Float32Array | null | undefined;
 	let lastTime: number | undefined, lastEnabled = false;
 	return {
+		/*
+		================
+		restart
+
+		The next update starts from the anchors as the first did: the GPU cloth
+		moved this cloth while it ran, so the CPU state is stale.
+		================
+		*/
+		restart() {
+			lastTime = undefined;
+			simulation.restart();
+		},
+		/*
+		================
+		cpuDue
+
+		True when this frame needs the CPU update: the first one, a change of
+		enabled, or a solver step falling due. Otherwise the last update's free
+		vertices stand and pinnedVertices draws the pins on the GPU.
+		================
+		*/
+		cpuDue( seconds: number, enabled: boolean ): boolean {
+			if ( lastTime === undefined || enabled !== lastEnabled || !enabled ) return true;
+			return simulation.stepDue( Math.trunc( seconds * 1000 ) - Math.trunc( lastTime * 1000 ) );
+		},
+		/*
+		================
+		pinnedVertices
+
+		The GPU-skinned stream as of the last update.
+		================
+		*/
+		pinnedVertices(): Float32Array {
+			return pinned;
+		},
+		/*
+		================
+		pinnedWeights
+
+		The mesh's bone weights with every free vertex's zeroed; undefined when
+		the pins cannot be skinned on the GPU exactly. The CPU skins a pin with
+		no weight to the origin, where the pins draw would pass it through.
+		================
+		*/
+		pinnedWeights(): Float32Array | undefined {
+			if ( !mesh.joints || !mesh.weights ) return undefined;
+			if ( freeWeights === undefined ) {
+				const weights = new Float32Array( mesh.weights );
+				let exact = true;
+				for ( let i = 0; i < data.pins.length; i++ ) {
+					const at = i * 4;
+					if ( data.pins[i] === 0 ) weights.fill( 0, at, at + 4 );
+					else if ( !weights[at] && !weights[at + 1] && !weights[at + 2] && !weights[at + 3] ) exact = false;
+				}
+				freeWeights = exact ? weights : null;
+			}
+			return freeWeights ?? undefined;
+		},
 		/*
 		================
 		hold
@@ -134,6 +198,9 @@ export function createClothVertices( primitive: { geometry: Geometry; cloth?: Cl
 				vertices[i * 14] = positions[i * 3]!;
 				vertices[i * 14 + 1] = positions[i * 3 + 1]!;
 				vertices[i * 14 + 2] = positions[i * 3 + 2]!;
+				if ( data.pins[i] !== 0 ) continue;
+				// Free vertices: the simulated position and the normal they carry.
+				for ( let c = 0; c < 6; c++ ) pinned[i * 14 + c] = vertices[i * 14 + c]!;
 			}
 			return vertices;
 		}

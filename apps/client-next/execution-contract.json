@@ -51,6 +51,13 @@
 			]
 		},
 		{
+			"consumer": "src/engine/foundation/animation/character-pick.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"callback:selectPickCandidate:1"
+			]
+		},
+		{
 			"consumer": "src/engine/runtime/world/terrain-parts.ts",
 			"provider": "src/engine/runtime/world/world.ts",
 			"functions": [
@@ -1947,6 +1954,32 @@
 			]
 		},
 		{
+			"consumer": "src/engine/runtime/renderer/renderer.ts",
+			"provider": "src/engine/runtime/stage-probe.ts",
+			"functions": [
+				"renderBegin",
+				"renderCount",
+				"renderMark"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/world/world.ts",
+			"provider": "src/engine/runtime/stage-probe.ts",
+			"functions": [
+				"worldBegin",
+				"worldMark"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
+			"provider": "src/engine/runtime/stage-probe.ts",
+			"functions": [
+				"characterBegin",
+				"characterCount",
+				"characterMark"
+			]
+		},
+		{
 			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
 			"functions": [
@@ -2134,6 +2167,20 @@
 			"reason": "Device-owned optional GPU animation telemetry callback, retained from GeometryCommands during prepare."
 		},
 		{
+			"file": "src/engine/runtime/renderer/characters/characters.ts",
+			"expression": "geometry.gpuClothAvailable",
+			"function": "drawCloth",
+			"kind": "callback",
+			"reason": "Port-only, not native: optional GeometryCommands GPU cloth readiness; absent or false keeps the CPU cloth solver."
+		},
+		{
+			"file": "src/engine/runtime/renderer/characters/characters.ts",
+			"expression": "frame.geometry.stepGpuCloth!",
+			"function": "drawClothGpu",
+			"kind": "callback",
+			"reason": "Port-only, not native: the Experimental GPU cloth job, reached only after gpuClothAvailable confirmed the device owner."
+		},
+		{
 			"file": "src/engine/runtime/renderer/characters/palette-streams.ts",
 			"expression": "gpu!",
 			"function": "update",
@@ -2146,6 +2193,13 @@
 			"function": "encode",
 			"kind": "callback",
 			"reason": "Optional device-owned GpuTimingFrame callback for the skeletal compute pass."
+		},
+		{
+			"file": "src/engine/runtime/renderer/device/cloth.ts",
+			"expression": "timing?.pass",
+			"function": "encode",
+			"kind": "callback",
+			"reason": "Optional device-owned GpuTimingFrame callback for the GPU cloth compute pass."
 		},
 		{
 			"file": "src/engine/runtime/renderer/device/particles.ts",
@@ -3520,7 +3574,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "7cd72749cd82e603d506f977041a9fc9a65761cf4710981a84d699b29973f8db",
+			"sourceSha256": "5be069431439222bd45525efc8de3d8d6b53f0adfc8aa8fc784c9e22830e90dc",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. Device disposal cancels pending mapping.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

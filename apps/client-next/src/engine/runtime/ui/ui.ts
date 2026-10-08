@@ -9114,7 +9114,9 @@ export function createUi(
 					const layout = hudData.windows.ifoption!, slot = hudData.windows.ifgameoptionslot!;
 					windowBox( "Experimental", px, py, width, height );
 					closeButton( px + width - 26, py + 10 );
-					const tabWidth = 78, tabStart = (width - (EXPERIMENTAL_TABS.length * tabWidth - 2)) / 2;
+					// Five tabs fit the Options-width window only a little narrower.
+					const tabWidth = EXPERIMENTAL_TABS.length > 4 ? 72 : 78,
+						tabStart = (width - (EXPERIMENTAL_TABS.length * tabWidth - 2)) / 2;
 					for ( let i = 0; i < EXPERIMENTAL_TABS.length; i++ ) {
 						nativeTab(
 							"experimental-tab:" + i,

@@ -12,6 +12,47 @@ import type { UiScene, UiQuad } from "@/engine/contracts/ui";
 import type { UiDraw } from "@/engine/runtime/renderer/internal/gpu-contract";
 import { uiRecordCount, UI_RECORD_LIMIT } from "@/engine/foundation/rendering/text-run";
 import { destroyNow, type Retire } from "./retirement";
+// A quad without a mask samples the whole white mask texture.
+const NO_MASK = [ 0, 0, 1, 1 ] as const;
+/*
+================
+packRecord
+
+Writes one GPU record (28 floats) for a plain quad, or for glyph of a text
+run: the run's fields with rect = origin + offset and the glyph's own uv,
+as expandTextRuns would make it. Element stores, not typed-array copies:
+labels repack hundreds of records a frame. True when any word differs from
+the uploaded copy.
+================
+*/
+function packRecord(
+	values: Float32Array,
+	uploaded: Float32Array,
+	at: number,
+	quad: UiQuad,
+	glyph: NonNullable<UiQuad["run"]>["glyphs"][number] | undefined
+): boolean {
+	const rect = quad.rect, uv = glyph ? glyph.uv : quad.uv, color = quad.color, clip = quad.clip;
+	const mask = quad.mask?.rect ?? NO_MASK, right = quad.rightColor ?? color;
+	values[at] = glyph ? rect[0] + glyph.x : rect[0];
+	values[at + 1] = glyph ? rect[1] + glyph.y : rect[1];
+	values[at + 2] = glyph ? glyph.width : rect[2];
+	values[at + 3] = glyph ? glyph.height : rect[3];
+	for ( let c = 0; c < 4; c++ ) {
+		values[at + 4 + c] = uv[c]!;
+		values[at + 8 + c] = color[c]!;
+		values[at + 12 + c] = clip[c]!;
+		values[at + 16 + c] = mask[c]!;
+		values[at + 24 + c] = right[c]!;
+	}
+	values[at + 20] = quad.uvTurn ?? 0;
+	values[at + 21] = quad.alphaCutoff ?? 0;
+	values[at + 22] = quad.rotation ?? 0;
+	values[at + 23] = quad.depth ?? 0;
+	for ( let k = at; k < at + 28; k++ ) if ( values[k] !== uploaded[k] ) return true;
+	return false;
+}
+
 // Device-owned UI resources. Stable instance storage and draw bundles survive data edits.
 /*
 ================
@@ -181,7 +222,7 @@ fs
 	// The glyph a packed record holds (-1 or unused for a plain quad).
 	const packedGlyph: number[] = [];
 	let values = new Float32Array( 0 ), uploaded = new Float32Array( 0 );
-	const viewportValues = new Float32Array( 4 ), noMask = [ 0, 0, 1, 1 ] as const;
+	const viewportValues = new Float32Array( 4 );
 	let last: UiScene | null = null, draws: readonly UiDraw[] = [], resourceRevision = 0, recordedResources = -1;
 	/*
 	================
@@ -343,30 +384,9 @@ fs
 					const index = record + i;
 					if ( packed[index] === quad && packedGlyph[index] === i ) continue;
 					const at = index * 28;
-					if ( run ) {
-						const glyph = run.glyphs[i]!;
-						values[at] = quad.rect[0] + glyph.x;
-						values[at + 1] = quad.rect[1] + glyph.y;
-						values[at + 2] = glyph.width;
-						values[at + 3] = glyph.height;
-						values.set( glyph.uv, at + 4 );
-					} else {
-						values.set( quad.rect, at );
-						values.set( quad.uv, at + 4 );
-					}
-					values.set( quad.color, at + 8 );
-					values.set( quad.clip, at + 12 );
-					values.set( quad.mask?.rect ?? noMask, at + 16 );
-					values[at + 20] = quad.uvTurn ?? 0;
-					values[at + 21] = quad.alphaCutoff ?? 0;
-					values[at + 22] = quad.rotation ?? 0;
-					values[at + 23] = quad.depth ?? 0;
-					values.set( quad.rightColor ?? quad.color, at + 24 );
-					for ( let k = at; k < at + 28; k++ ) {
-						if ( values[k] !== uploaded[k] ) {
-							first = Math.min( first, k );
-							lastChanged = k;
-						}
+					if ( packRecord( values, uploaded, at, quad, run ? run.glyphs[i]! : undefined ) ) {
+						first = Math.min( first, at );
+						lastChanged = Math.max( lastChanged, at + 27 );
 					}
 					packed[index] = quad;
 					packedGlyph[index] = i;

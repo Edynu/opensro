@@ -177,6 +177,8 @@ export interface FrameOwner {
 		reflection?: { encode( encoder: GPUCommandEncoder ): void; },
 		presentation?: SurfaceOwner
 	): void | Promise<void>;
+	// The last draw call's geometry bundles re-recorded and the draws they hold.
+	recorded(): { readonly bundles: number; readonly draws: number; };
 }
 
 /*
@@ -210,6 +212,8 @@ GeometryDraw
 export interface GeometryDraw {
 	readonly deferredParticle?: boolean;
 	readonly blended?: boolean;
+	// Recorded in a render bundle of its own (Geometry.isolated).
+	readonly isolated?: boolean;
 	readonly pipeline: GPURenderPipeline;
 	readonly binding: GPUBindGroup;
 	readonly vertices: GPUBuffer;
@@ -222,6 +226,26 @@ export interface GeometryDraw {
 // Indexed palettes share the exact source storage supplied at upload. Offsets
 // are matrix indices, one per instance; updateBones requires a monotonic revision
 // and returns actual uploaded bytes (zero for an already published revision).
+/*
+================
+GpuClothRequest
+
+One frame of a cloth pins draw's GPU solver (device/cloth.ts GpuClothJob):
+bones is the shared palette source the draw was uploaded with, paletteAt
+its actor's matrix index there.
+================
+*/
+export interface GpuClothRequest {
+	readonly cloth: import("@/engine/foundation/animation/cloth").ClothData;
+	readonly mesh: import("@/engine/contracts/geometry").Geometry;
+	readonly bones: Float32Array;
+	readonly paletteAt: number;
+	readonly reset: boolean;
+	readonly steps: number;
+	readonly gusts: Uint32Array;
+	readonly direction: readonly number[];
+	readonly wind: number;
+}
 /*
 ================
 CharacterShadowRequest
@@ -302,6 +326,10 @@ export interface GeometryCommands {
 		)[],
 		revision: number
 	): boolean;
+	// Port-only, not native (Experimental "GPU cloth"): the GPU solver for
+	// a cloth pins draw. Exists with GPU animation; available once compiled.
+	gpuClothAvailable?(): boolean;
+	stepGpuCloth?( draw: GeometryDraw, request: GpuClothRequest ): void;
 	gpuAnimationStats?(): {
 		enabled: boolean;
 		ready: boolean;

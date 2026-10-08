@@ -75,6 +75,15 @@ export interface WorldMaterial {
 	 * fixed-function vertex diffuse (effects).
 	 */
 	readonly shaderDiffuse?: boolean;
+	/**
+	 * A cloth mesh skinned on the GPU. The native client draws cloth as a CPU
+	 * skinned dynamic copy (A77B30) through the unskinned shader, so its blended
+	 * normals are never renormalized; clothShading keeps that lighting.
+	 * clothPins also passes vertices with no bone weight through unskinned:
+	 * the simulated (free) vertices, already in model space.
+	 */
+	readonly clothShading?: boolean;
+	readonly clothPins?: boolean;
 	/** Native stage-0 colour/alpha ops (effects B153A0, BSR material modifiers sub_aed240). */
 	readonly textureStage?: import("@/engine/foundation/rendering/texture-stage").TextureStage;
 }

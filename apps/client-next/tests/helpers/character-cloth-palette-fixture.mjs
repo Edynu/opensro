@@ -5,6 +5,9 @@ character-cloth-palette-fixture.mjs - rendered cloth and palette equivalence
 
 Capture semantic GPU inputs in draw order, independent of storage aliasing.
 The shared presentation RNG trace makes cloth scheduling changes observable.
+A cloth drawn between solver steps by GPU-skinned pins (material clothPins)
+is hashed as the vertices its shader produces, computed with the CPU path's
+own formula, so it compares against the CPU-skinned copy it stands in for.
 The baseline runs the shipped renderer, with no source rewriting or private
 renderer implementation.
 
@@ -177,15 +180,19 @@ function captureGeometry( tags, gpuAvailable ) {
 		upload( source, texture, offsets ) {
 			assert.ok( tags.has( source.positions[0] ), "every upload belongs to a fixture primitive" );
 			const deviceDraw = device.resources.commands.upload( source, texture, offsets );
+			const pins = !!source.material?.clothPins;
 			return {
 				...deviceDraw,
 				deviceDraw,
 				tag: tags.get( source.positions[0] ),
-				material: source.material,
+				// The pins draw stands in for the CPU copy: compare the material it
+				// would have had, and keep its skin inputs for the shader emulation.
+				material: pins ? withoutClothPins( source.material ) : source.material,
+				pins: pins ? { joints: source.joints.slice(), weights: source.weights.slice() } : undefined,
 				instances: source.instances.slice(),
 				bones: source.bones?.slice(),
 				offsets: offsets?.slice(),
-				capturedVertices: undefined,
+				capturedVertices: pins ? source.vertices.slice() : undefined,
 				fade: undefined,
 				appearance: undefined,
 				lights: undefined,
@@ -347,6 +354,78 @@ function captureGeometry( tags, gpuAvailable ) {
 
 /*
 ================
+withoutClothPins
+================
+*/
+function withoutClothPins( material ) {
+	const { clothPins, ...rest } = material;
+	assert.equal( clothPins, true );
+	return rest;
+}
+
+/*
+================
+pinsVertices
+
+What the pins draw's vertex shader produces for its one instance: weighted
+vertices skinned by the instance's palette, unweighted ones passed through.
+The skinning repeats cloth-vertices.ts update term for term (double
+accumulation per axis, one float32 store) so equal inputs hash equal.
+================
+*/
+function pinsVertices( draw ) {
+	assert.equal( draw.instances.length, 16, "a cloth batch draws one actor" );
+	const out = draw.capturedVertices.slice(), { joints, weights } = draw.pins;
+	const palette = draw.bones, offset = (draw.offsets?.[0] ?? 0) * 16;
+	for ( let i = 0; i < out.length / 14; i++ ) {
+		const w = weights.subarray( i * 4, i * 4 + 4 );
+		if ( !w[0] && !w[1] && !w[2] && !w[3] ) continue;
+		const at = i * 14, x = out[at], y = out[at + 1], z = out[at + 2];
+		const nx = out[at + 3], ny = out[at + 4], nz = out[at + 5];
+		let px = 0, py = 0, pz = 0, normalX = 0, normalY = 0, normalZ = 0;
+		for ( let joint = 0; joint < 4; joint++ ) {
+			const weight = w[joint];
+			if ( !weight ) continue;
+			const base = offset + joints[i * 4 + joint] * 16;
+			let ax = palette[base + 12], ay = palette[base + 13], az = palette[base + 14];
+			let bx = 0, by = 0, bz = 0;
+			ax += palette[base] * x;
+			ay += palette[base + 1] * x;
+			az += palette[base + 2] * x;
+			bx += palette[base] * nx;
+			by += palette[base + 1] * nx;
+			bz += palette[base + 2] * nx;
+			ax += palette[base + 4] * y;
+			ay += palette[base + 5] * y;
+			az += palette[base + 6] * y;
+			bx += palette[base + 4] * ny;
+			by += palette[base + 5] * ny;
+			bz += palette[base + 6] * ny;
+			ax += palette[base + 8] * z;
+			ay += palette[base + 9] * z;
+			az += palette[base + 10] * z;
+			bx += palette[base + 8] * nz;
+			by += palette[base + 9] * nz;
+			bz += palette[base + 10] * nz;
+			px += ax * weight;
+			py += ay * weight;
+			pz += az * weight;
+			normalX += bx * weight;
+			normalY += by * weight;
+			normalZ += bz * weight;
+		}
+		out[at] = px;
+		out[at + 1] = py;
+		out[at + 2] = pz;
+		out[at + 3] = normalX;
+		out[at + 4] = normalY;
+		out[at + 5] = normalZ;
+	}
+	return out;
+}
+
+/*
+================
 drawDigest
 
 Hash float storage bytes, preserving signed zero and exact float32 results.
@@ -358,12 +437,14 @@ function drawDigest( draws, randomTrace ) {
 	for ( const draw of draws ) {
 		hash.update( JSON.stringify( { tag: draw.tag, material: draw.material } ) );
 		for ( const key of [ "instances", "vertices", "fade", "appearance", "lights", "transform" ] ) {
-			const values = key === "vertices" ? draw.capturedVertices : draw[key];
+			const values = key === "vertices" ? (draw.pins ? pinsVertices( draw ) : draw.capturedVertices) : draw[key];
 			hash.update( `${key}:${values?.byteLength ?? -1}:` );
 			if ( values ) hash.update( Buffer.from( values.buffer, values.byteOffset, values.byteLength ) );
 		}
-		hash.update( draw.bones ? "bones:" : "no-bones:" );
-		if ( draw.bones ) {
+		// The CPU copy a pins draw stands in for binds no palette.
+		const bones = draw.pins ? undefined : draw.bones;
+		hash.update( bones ? "bones:" : "no-bones:" );
+		if ( bones ) {
 			for ( let instance = 0; instance < draw.instances.length / 16; instance++ ) {
 				const offset = (draw.offsets?.[instance] ?? instance * JOINTS) * 16;
 				const palette = draw.bones.subarray( offset, offset + JOINTS * 16 );
@@ -379,15 +460,25 @@ function drawDigest( draws, randomTrace ) {
 /*
 ================
 captureClothPalettes
+
+lod, when given, is each actor's animation LOD fraction by frame and gid
+(distance / 800); without it every actor stands at the camera.
+distanceAnimation turns on the Experimental distance animation rate.
 ================
 */
+/**
+ * @param {boolean} [gpuAvailable]
+ * @param {boolean} [admitUnusedClip]
+ * @param {{ moving?: boolean, variants?: boolean, lod?: ( frame: number, gid: number ) => number, distanceAnimation?: boolean }} [options]
+ */
 export function captureClothPalettes(
 	gpuAvailable = false,
 	admitUnusedClip = false,
-	{ moving = false, variants = false } = {}
+	{ moving = false, variants = false, lod = undefined, distanceAnimation = false } = {}
 ) {
 	const random = createPresentationRandom( RANDOM_SEED, 1, 100000 );
 	const owner = createCharacters( random ), tags = new Map();
+	owner.distanceAnimation( distanceAnimation );
 	owner.model( "body-first", model( false, tags ), [] );
 	owner.model( "cloth-first", model( true, tags ), [] );
 	const geometry = captureGeometry( tags, gpuAvailable ), clock = clothVertexCase( true, true );
@@ -432,6 +523,7 @@ export function captureClothPalettes(
 					z: 100,
 					yaw: radians( gid / 10 + (moving ? frame / 200 : 0) )
 				},
+				animationLod: lod ? { fraction: lod( frame, gid ), crowded: false } : undefined,
 				opacity: frame % 11 < 3 && gid === 1 ? .5 : undefined,
 				materialTint: frame % 7 === 0 ? [ .25, .5, .75 ] : undefined,
 				pointLight: variants && frame % 9 < 4 ?
@@ -500,8 +592,11 @@ export function captureClothPalettes(
 			frames.push( {
 				clothPlacementWrites: geometry.clothPlacementWrites( draws ),
 				poseEligibility: owner.stats( true ).poseEligibility,
+				poseEvaluations: owner.stats().poseEvaluations,
 				digest: drawDigest( draws, trace ),
 				draws: draws.length,
+				pinsDraws: draws.filter( draw => draw.pins ).length,
+				clothShadingDraws: draws.filter( draw => draw.material?.clothShading ).length,
 				randomCalls: trace.length,
 				primitives: Object.fromEntries(
 					PRIMITIVE_NAMES.map( name => [ name, drawDigest( draws.filter( draw => draw.tag === name ), [] ) ] )

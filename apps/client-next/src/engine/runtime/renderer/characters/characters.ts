@@ -6,6 +6,7 @@ characters.ts - admitted character models, world batches and separate portrait s
 ===========================================================================
 */
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
+import { clothWind, createClothSchedule } from "@/engine/foundation/animation/cloth";
 import type { WorldTexture } from "@/engine/contracts/texture";
 import { shadowProjection, SHADOW_LIMIT, SHADOW_DISTANCE } from "@/engine/foundation/rendering/character-shadow";
 import { appendEquipmentSockets } from "@/engine/foundation/animation/equipment-sockets";
@@ -202,6 +203,46 @@ interface RibbonBuffers {
 	readonly indices: Uint32Array;
 }
 const MAX_ATTACHMENT_DEPTH = 8;
+// Cloth runs its solver only under this animation LOD fraction (distance /
+// 800, entity-lod.ts): the 200 units drawCloth has always used.
+const CLOTH_SIMULATION_LOD = .25;
+// Cloth keeps its own batch and solver state under this fraction (300
+// units). A cloth that is not simulating is reset to its skeleton every frame
+// and draws no random numbers (cloth.ts advance), so the only state the first
+// simulating frame inherits is the previous frame's skeleton and time. The
+// band between the two fractions keeps that state for every actor that can
+// reach 200 units on the next frame; farther cloth is plain GPU skinning in
+// its model's shared batch. Only a jump of 100 units in one frame skips the
+// band, and the game shows such a jump (teleport) as a fresh spawn.
+const CLOTH_STATE_LOD = .375;
+// Experimental distance animation rate (port-only, not native): skeletons
+// beyond 160 units of the camera (LOD fraction .2) sample at 20 Hz, beyond
+// 320 units (.4) at 10 Hz. Nearer ones, and every one with the option off,
+// sample every frame as the native client does. 160 units clears the
+// camera's farthest zoom (150, camera-wheel.ts), so the player's own
+// character always animates at full rate.
+const DISTANCE_RATE_NEAR_LOD = .2;
+const DISTANCE_RATE_FAR_LOD = .4;
+const DISTANCE_RATE_NEAR_SECONDS = 1 / 20;
+const DISTANCE_RATE_FAR_SECONDS = 1 / 10;
+// Spreads the actors' sample instants over the interval (golden ratio), so
+// a crowd that appeared together does not sample on one frame.
+const DISTANCE_RATE_PHASE = .6180339887498949;
+
+/*
+================
+ClothGpuClock
+
+Port-only, not native: one cloth primitive's GPU solver clock, its gust
+bits for the next job, the time and frame it last advanced at.
+================
+*/
+type ClothGpuClock = {
+	schedule: ReturnType<typeof createClothSchedule>;
+	gusts: Uint32Array;
+	lastTime?: number;
+	frame: number;
+};
 
 /*
 ================
@@ -294,6 +335,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		model: string;
 		pose: ReturnType<typeof createCharacterPose>;
 	}>();
+	// The poseFrame each actor's poses entry was last resolved in. The deferred
+	// continuation and repeat consumers of one frame reuse it: the inputs
+	// cannot change within a frame.
+	const posedFrames = new Map<number, number>();
 	// Borrowing an identical frame result must not replace an actor's scratch.
 	// At most one owned evaluator per needed actor, already charged by the
 	// frame's characterPoseBytes reservation. Both maps retire together.
@@ -311,6 +356,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	let poseFrame = 0;
 	let frameWork: import("@/engine/contracts/runtime").FrameWork | undefined;
 	let poseSeconds = 0;
+	let distanceAnimation = false;
+	let gpuCloth = false;
 	const poseOrder: CharacterActor[] = [];
 	// Birth transforms belong to the actor lifetime, not GPU batches. Keep them
 	// across culling, batch membership changes and device recreation.
@@ -344,6 +391,15 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		// vertex count the last frame wrote.
 		ribbons: (RibbonBuffers | undefined)[];
 		cloth?: Map<number, ReturnType<typeof createClothVertices>>;
+		// A simulated cloth primitive's two draws: the CPU-stepped copy (solver
+		// step frames) and the GPU-skinned pins (frames between steps), with
+		// the CPU palette scratch of the step frames. draws[p] is the one shown.
+		clothCpu?: (GeometryDraw | undefined)[];
+		clothPins?: (GeometryDraw | undefined)[];
+		clothPalettes?: (Float32Array | undefined)[];
+		// Port-only, not native: a cloth primitive's GPU solver clock while
+		// the Experimental GPU cloth runs it (drawClothGpu).
+		clothGpu?: Map<number, ClothGpuClock>;
 		poseKey?: string;
 	}>();
 	// ownedModels counts the owned entries of models (decoded sources); the
@@ -592,6 +648,11 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		poseRequests++;
 		const resource = models.get( actor.model ), model = resource?.model;
 		if ( !model ) return null;
+		const resolved = poses.get( actor.gid );
+		if ( resolved && resolved.model === actor.model && posedFrames.get( actor.gid ) === poseFrame ) {
+			return resolved.pose;
+		}
+		posedFrames.set( actor.gid, poseFrame );
 		const share = framePoses && !resource!.plan.emission &&
 			(!actor.animationLod || !actor.animationLod.crowded || actor.animationLod.fraction < .75);
 		const candidates = share ? framePoses!.get( actor.model )?.get( actor.time ) : undefined;
@@ -650,6 +711,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		// A cold evaluator contains only rest transforms. Resource replacement,
 		// action entry and protected actors must initialize before any LOD gate.
 		if ( !mustSample && !lodAllowed ) return state.pose;
+		if ( distanceAnimation && distanceRateHolds( actor, state, catalogChanged ) ) return state.pose;
 		const started = optional && frameWork ? performance.now() : 0;
 		state.pose.bodyVolume( actor.bodyVolume?.index, actor.bodyVolume?.female );
 		if (
@@ -1020,6 +1082,17 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	ClothUpload
+
+	How uploadPrimitive draws a cloth primitive (see there).
+	================
+	*/
+	type ClothUpload =
+		| { readonly kind: "cpu"; }
+		| { readonly kind: "pins"; readonly weights: Float32Array; readonly vertices: Float32Array; };
+	type PaletteStream = ReturnType<typeof createPaletteStreams>["streams"][number];
+	/*
+	================
 	PrimitiveRows
 
 	Per-row instance streams one primitive's draw consumes.
@@ -1101,11 +1174,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			for ( const [id, resource] of models ) {
 				if ( !keep.has( id ) ) {
 					const batch = batches.get( id );
-					if ( batch ) {
-						for ( const draw of batch.draws ) {
-							geometry.release( draw );
-						}
-					}
+					if ( batch ) releaseBatch( geometry, batch );
 					batches.delete( id );
 					if ( resource.owned ) {
 						for ( const image of resource.images ) {
@@ -1389,7 +1458,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	*/
 	function batchKey( frame: PrepareFrame, actor: CharacterActor, plan: ModelResource["plan"] ) {
 		const opacity = frame.opacity;
-		const variant = (plan.cloth ?
+		const variant = (plan.cloth && clothOwnsState( actor ) ?
 			"\0cloth:" + actor.gid :
 			"") +
 			(actor.deferredParticle ? "\0deferred" : "") +
@@ -1482,15 +1551,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			if (
 				!rows || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
 			) {
-				for ( const draw of batch.draws ) {
-					frame.geometry.release( draw );
-				}
+				releaseBatch( frame.geometry, batch );
 				batches.delete( id );
 			}
 		}
 		for ( const gid of poses.keys() ) {
 			if ( !needed.has( gid ) ) {
 				poses.delete( gid );
+				posedFrames.delete( gid );
 			}
 		}
 		for ( const [gid, state] of ownedPoses ) {
@@ -1528,6 +1596,29 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			}
 			probe?.characterCount( "character-visible-bodies", bodies );
 		}
+	}
+	/*
+	================
+	distanceRateHolds
+
+	Port-only, not native (Experimental "Distant animation rate"): whether a
+	distant actor keeps its last sample this frame. Its sample instants are
+	the interval's boundaries shifted by a per-actor phase, so it samples
+	once per interval. A new clip or event layer samples at once.
+	================
+	*/
+	function distanceRateHolds(
+		actor: CharacterActor,
+		state: { sampled?: number; clip?: string; },
+		catalogChanged: boolean
+	) {
+		const fraction = actor.animationLod?.fraction ?? 0;
+		if ( fraction < DISTANCE_RATE_NEAR_LOD || state.sampled === undefined || catalogChanged ) return false;
+		if ( state.clip !== actor.clip || actor.layers?.some( layer => layer.lane === "event" ) ) return false;
+		const interval = fraction < DISTANCE_RATE_FAR_LOD ? DISTANCE_RATE_NEAR_SECONDS : DISTANCE_RATE_FAR_SECONDS;
+		const phase = (actor.gid * DISTANCE_RATE_PHASE) % 1;
+		return poseSeconds >= state.sampled &&
+			Math.floor( poseSeconds / interval + phase ) === Math.floor( state.sampled / interval + phase );
 	}
 	/*
 	================
@@ -1596,9 +1687,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			if (
 				!grouped.has( id ) && !retainedDeferred( frame, batch ) && !(frame.continuation && submitted.has( id ))
 			) {
-				for ( const draw of batch.draws ) {
-					frame.geometry.release( draw );
-				}
+				releaseBatch( frame.geometry, batch );
 				batches.delete( id );
 			}
 		}
@@ -1673,6 +1762,43 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	releaseBatch
+
+	Every draw a batch owns, once: its shown draws and both cloth draws.
+	================
+	*/
+	function releaseBatch( geometry: GeometryCommands, batch: CharacterBatch ) {
+		const owned = new Set<GeometryDraw>( batch.draws );
+		for ( const draw of batch.clothCpu ?? [] ) if ( draw ) owned.add( draw );
+		for ( const draw of batch.clothPins ?? [] ) if ( draw ) owned.add( draw );
+		for ( const draw of owned ) geometry.release( draw );
+	}
+	/*
+	================
+	clothSimulates
+
+	Whether an actor's cloth runs the solver this frame: the dynamic animation
+	video option, within 200 units of the camera (the LOD fraction under .25).
+	Otherwise its cloth only follows the skeleton, which is GPU skinning.
+	================
+	*/
+	function clothSimulates( frame: PrepareFrame, actor: CharacterActor ) {
+		return frame.dynamicAnimation && (actor.animationLod?.fraction ?? 0) < CLOTH_SIMULATION_LOD;
+	}
+	/*
+	================
+	clothOwnsState
+
+	Whether an actor's cloth keeps its own batch and solver state (within 300
+	units, CLOTH_STATE_LOD), whatever the video option: the option can turn
+	on in any frame, and must find the state the native solver would have.
+	================
+	*/
+	function clothOwnsState( actor: CharacterActor ) {
+		return (actor.animationLod?.fraction ?? 0) < CLOTH_STATE_LOD;
+	}
+	/*
+	================
 	admitBatch
 
 	The batch's storage for these rows. Visibility changes active rows, not
@@ -1694,11 +1820,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		if (
 			!batch || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
 		) {
-			if ( batch ) {
-				for ( const draw of batch.draws ) {
-					frame.geometry.release( draw );
-				}
-			}
+			if ( batch ) releaseBatch( frame.geometry, batch );
 			const streams = plan.sharedPalette ?
 				createPaletteStreams( model, capacity ) :
 				undefined;
@@ -1801,9 +1923,9 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				if ( !state || state.model !== actor.model ) throw Error( "Missing prepared character pose" );
 				return state.pose;
 			} ),
-			// Cloth reads the palette on the CPU. Keep canonical bindings shared
-			// with the body, but never hand this storage to GPU-only sampling.
-			plan.cloth ? undefined : geometry.prepareGpuBones,
+			// Cloth batches sample on the GPU too: the body and the cloth pins
+			// read the GPU palette; solver steps take their own CPU palette.
+			geometry.prepareGpuBones,
 			model
 		);
 		for ( let i = 0; i < rows.length; i++ ) {
@@ -1998,6 +2120,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		if ( !draw ) {
 			draw = geometry.upload( {
 				dynamicVertices: true,
+				// Its index count follows the live elements every frame.
+				isolated: true,
 				positions,
 				colors,
 				uvs,
@@ -2026,7 +2150,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	uploadPrimitive
 
 	The primitive's draw for this batch, with its material
-	policy (blend, fade, tint, deferral) and textures.
+	policy (blend, fade, tint, deferral) and textures. A cloth primitive is
+	drawn three ways: cpu, the solver's CPU-skinned copy (unskinned draw);
+	pins, GPU-skinned pins with the free vertices passed through; and, given
+	no cloth mode, GPU skinned whole with cloth shading (no solver running).
 	================
 	*/
 	function uploadPrimitive(
@@ -2034,7 +2161,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		group: GroupFrame,
 		p: number,
 		instances: Float32Array,
-		paletteOffsets?: Uint32Array
+		paletteOffsets?: Uint32Array,
+		cloth?: ClothUpload
 	) {
 		const { preview, view } = frame, { rows, fading, resource } = group;
 		const primitive = group.model.primitives[p]!;
@@ -2057,13 +2185,21 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 							{ instanceFade: true, depthWrite: false } :
 							{ blend: true, instanceFade: true } :
 						{}),
-					...(preview ? { fogDisabled: true } : {})
+					...(preview ? { fogDisabled: true } : {}),
+					...(primitive.cloth && cloth?.kind !== "cpu" ?
+						cloth?.kind === "pins" ? { clothPins: true } : { clothShading: true } :
+						{})
 				},
 				instances,
 				bones: group.batch.palettes[p],
-				...(primitive.cloth ?
-					{ joints: undefined, weights: undefined, bones: undefined, dynamicVertices: true } :
+				...(cloth?.kind === "cpu" ?
+					{ joints: undefined, weights: undefined, bones: undefined, dynamicVertices: true, isolated: true } :
 					{}),
+				...(cloth?.kind === "pins" ?
+					{ weights: cloth.weights, vertices: cloth.vertices, dynamicVertices: true, isolated: true } :
+					{}),
+				// A particle stream's instance count follows its live particles.
+				...(primitive.emission ? { isolated: true } : {}),
 				transform: preview ? view! : identity()
 			},
 			resource.textures[primitive.image],
@@ -2147,8 +2283,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	================
 	drawCloth
 
-	A cloth primitive: its instance streams, then CPU cloth vertices from the
-	batch palette.
+	A simulated cloth primitive (its actor's own batch). A frame on which the
+	solver steps (20 Hz, cloth.ts) runs the native CPU path: the pose's
+	palette, skinned anchors, the solver, and the CPU-skinned copy drawn
+	unskinned. Between steps the free vertices keep their positions and the
+	pins only follow the skeleton, so the pins draw skins them on the GPU from
+	the batch's GPU palette and the CPU does no pose or vertex work. Both
+	draws are uploaded isolated: the frame keeps each in a render bundle
+	of its own, so switching between them re-records nothing.
 	================
 	*/
 	function drawCloth( frame: PrepareFrame, group: GroupFrame, p: number, streams: PrimitiveRows ): GeometryDraw {
@@ -2161,9 +2303,19 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			cloth = createClothVertices( primitive, clothRandom );
 			batch.cloth.set( p, cloth );
 		}
-		let draw = batch.draws[p];
-		const placementChanged = !draw || group.instancesChanged || fading || appearance || pointLights;
-		if ( !draw ) draw = uploadPrimitive( frame, group, p, batch.instances );
+		const stream = batch.streams?.streams[p], enabled = clothSimulates( frame, rows[0]! );
+		const weights = stream && enabled ? cloth.pinnedWeights() : undefined;
+		if ( gpuCloth && stream && weights && geometry.gpuClothAvailable?.() ) {
+			return drawClothGpu( frame, group, p, streams, stream, cloth, weights );
+		}
+		if ( stream && weights && !cloth.cpuDue( frame.seconds, enabled ) ) {
+			return drawClothPins( frame, group, p, streams, stream, cloth, weights );
+		}
+		batch.clothCpu ??= [];
+		let draw = batch.clothCpu[p];
+		const placementChanged = !draw || draw !== batch.draws[p] || group.instancesChanged || fading || appearance ||
+			pointLights;
+		if ( !draw ) draw = uploadPrimitive( frame, group, p, batch.instances, undefined, { kind: "cpu" } );
 		// Cloth vertices change independently of the actor placement. These
 		// unskinned draws never enter the particle compute writer.
 		if ( placementChanged ) {
@@ -2175,18 +2327,147 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				pointLights
 			);
 		}
+		batch.clothCpu[p] = draw;
 		batch.draws[p] = draw;
 		geometry.writeVertices(
 			draw,
 			0,
 			cloth.update(
-				batch.palettes[p]!,
+				stream ? clothPalette( group, p, stream ) : batch.palettes[p]!,
 				frame.seconds,
-				frame.dynamicAnimation && (rows[0]!.animationLod?.fraction ?? 0) < .25,
+				enabled,
 				// CIObject 853C40 initializes +C4 to zero; 85DEBB clears it each tick.
 				{ direction: [ instances[8]!, instances[9]!, -instances[10]! ], speed: 0 }
 			)
 		);
+		// The pins draw shows the free vertices this step left, until the next.
+		const pins = batch.clothPins?.[p];
+		if ( pins ) geometry.writeVertices( pins, 0, cloth.pinnedVertices() );
+		if ( preview ) geometry.updateTransform( draw, view! );
+		updateModifiers( geometry, group, draw, p, true );
+		return draw;
+	}
+	/*
+	================
+	drawClothGpu
+
+	Port-only, not native (Experimental "GPU cloth"): a simulating cloth
+	whose solver runs on the GPU. The CPU keeps the solver clock and draws
+	the native gust numbers in order (createClothSchedule); the GPU skins
+	the anchors from the batch's GPU palette, steps the solver and writes the
+	free vertices into the pins draw, which skins the pins. No CPU palette,
+	anchor or vertex work. A clock not advanced last frame (the cloth was
+	off, out of range or on the CPU) starts again from the anchors, and the
+	CPU solver restarts likewise when it takes the cloth back.
+	================
+	*/
+	function drawClothGpu(
+		frame: PrepareFrame,
+		group: GroupFrame,
+		p: number,
+		streams: PrimitiveRows,
+		stream: PaletteStream,
+		cloth: ReturnType<typeof createClothVertices>,
+		weights: Float32Array
+	): GeometryDraw {
+		const primitive = group.model.primitives[p]!, data = primitive.cloth!, instances = streams.instances;
+		group.batch.clothGpu ??= new Map();
+		let clock = group.batch.clothGpu.get( p );
+		if ( !clock ) {
+			clock = { schedule: createClothSchedule( data ), gusts: new Uint32Array( data.pins.length ), frame: -1 };
+			group.batch.clothGpu.set( p, clock );
+		}
+		if ( clock.frame < poseFrame - 1 ) {
+			clock.schedule.restart();
+			clock.lastTime = undefined;
+		}
+		const deltaMs = clock.lastTime === undefined ?
+			0 :
+			Math.trunc( frame.seconds * 1000 ) - Math.trunc( clock.lastTime * 1000 );
+		clock.lastTime = frame.seconds;
+		clock.frame = poseFrame;
+		const { reset, steps } = clock.schedule.advance( deltaMs, clothRandom, clock.gusts );
+		cloth.restart();
+		const pins = drawClothPins( frame, group, p, streams, stream, cloth, weights );
+		if ( reset || steps ) {
+			frame.geometry.stepGpuCloth!( pins, {
+				cloth: data,
+				mesh: primitive.geometry,
+				bones: stream.data,
+				paletteAt: stream.offsets[0]!,
+				reset,
+				steps,
+				gusts: clock.gusts,
+				// CIObject 853C40 initializes +C4 to zero; 85DEBB clears it each tick.
+				direction: [ instances[8]!, instances[9]!, -instances[10]! ],
+				wind: clothWind( 0 )
+			} );
+		}
+		return pins;
+	}
+	/*
+	================
+	clothPalette
+
+	The batch actor's CPU palette for a cloth primitive on a solver step.
+	The batch's stream is GPU sampled, so its CPU storage is not current.
+	================
+	*/
+	function clothPalette( group: GroupFrame, p: number, stream: PaletteStream ) {
+		const state = poses.get( group.rows[0]!.gid );
+		if ( !state || state.model !== group.rows[0]!.model ) throw Error( "Missing prepared character pose" );
+		group.batch.clothPalettes ??= [];
+		const palette = group.batch.clothPalettes[p] ??= new Float32Array( stream.primitive.joints.length * 16 );
+		state.pose.palette( stream.primitive, palette, 0 );
+		return palette;
+	}
+	/*
+	================
+	drawClothPins
+
+	The cloth between solver steps: pins skinned by the GPU palette, free
+	vertices passed through at the positions the last step left.
+	================
+	*/
+	function drawClothPins(
+		frame: PrepareFrame,
+		group: GroupFrame,
+		p: number,
+		streams: PrimitiveRows,
+		stream: PaletteStream,
+		cloth: ReturnType<typeof createClothVertices>,
+		weights: Float32Array
+	): GeometryDraw {
+		const geometry = frame.geometry;
+		const { preview, view } = frame, { rows, batch, fading } = group;
+		const { instances, appearance, pointLights } = streams;
+		batch.clothPins ??= [];
+		let draw = batch.clothPins[p];
+		const fresh = !draw;
+		if ( !draw ) {
+			draw = uploadPrimitive( frame, group, p, batch.instances, stream.offsets, {
+				kind: "pins",
+				weights,
+				vertices: new Float32Array( cloth.pinnedVertices() )
+			} );
+		}
+		if (
+			fresh || draw !== batch.draws[p] || group.instancesChanged || fading || appearance || pointLights ||
+			stream.mappingChanged
+		) {
+			draw = geometry.updateInstances(
+				draw,
+				instances,
+				group.opacities,
+				appearance?.subarray( 0, instances.length / 2 ),
+				pointLights,
+				stream.offsets.subarray( 0, rows.length )
+			);
+		}
+		batch.clothPins[p] = draw;
+		batch.draws[p] = draw;
+		boneUploadBytes += geometry.updateBones( draw, stream.data.subarray( 0, stream.length ), stream.revision ) ??
+			0;
 		if ( preview ) geometry.updateTransform( draw, view! );
 		updateModifiers( geometry, group, draw, p, true );
 		return draw;
@@ -2275,7 +2556,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			instances: group.batch.instances.subarray( 0, group.rows.length * 16 ),
 			pointLights: group.pointLights
 		};
-		if ( primitive.cloth ) return drawCloth( frame, group, p, streams );
+		if ( primitive.cloth && clothOwnsState( group.rows[0]! ) ) return drawCloth( frame, group, p, streams );
 		return drawSkinned( frame, group, p, streams );
 	}
 	/*
@@ -2566,10 +2847,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			};
 			let result = selectPickCandidate( candidates );
 			if ( result && candidates.length > 1 && !confirmed( result.candidate ) ) {
-				const rivals = candidates.filter( candidate =>
-					candidate !== result!.candidate && confirmed( candidate )
+				// The confirmed rivals' winner, confirming only the rivals that
+				// would change it: a crowd under the cursor poses one or two.
+				const box = result.candidate;
+				const rival = selectPickCandidate(
+					candidates,
+					candidate => candidate !== box && confirmed( candidate )
 				);
-				if ( rivals.length ) result = selectPickCandidate( rivals );
+				if ( rival ) result = rival;
 			}
 			if ( !result ) return null;
 			// 692680: a mounted winner answers with its rider, as does a linked ride.
@@ -3051,6 +3336,26 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		completeDeferred: deferred.complete,
 		/*
 		================
+		distanceAnimation
+
+		Port-only, not native: the Experimental distance animation rate.
+		================
+		*/
+		distanceAnimation( enabled: boolean ) {
+			distanceAnimation = enabled;
+		},
+		/*
+		================
+		gpuCloth
+
+		Port-only, not native: the Experimental GPU cloth solver.
+		================
+		*/
+		gpuCloth( enabled: boolean ) {
+			gpuCloth = enabled;
+		},
+		/*
+		================
 		prepare
 
 		Retire unwanted resources, evaluate visible actors and reuse bounded GPU batches.
@@ -3184,6 +3489,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			batches.clear();
 			models.clear();
 			poses.clear();
+			posedFrames.clear();
 			for ( const state of ownedPoses.values() ) retiredCpuEvaluations += state.pose.cpuEvaluations();
 			ownedPoses.clear();
 			cullFrame.valid = false;

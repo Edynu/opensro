@@ -20,7 +20,6 @@ import { createTextureMotion } from "@/engine/foundation/rendering/texture-motio
 import { createTextureAtlas } from "@/engine/foundation/rendering/texture-atlas";
 import { createTextureFactorPulse } from "@/engine/foundation/rendering/texture-factor-pulse";
 
-
 /*
 ================
 createModelMaterialClocks
@@ -36,6 +35,9 @@ export function createModelMaterialClocks() {
 		}
 	>();
 	const dynamic = new WeakMap<CharacterModel, boolean>();
+	// Each model's clock storage, a pure function of the immutable model:
+	// every actor is charged every frame.
+	const clockBytes = new WeakMap<CharacterModel, number>();
 	let bytes = 0, deltaFor = createModifierDelta();
 	return {
 		step(
@@ -47,7 +49,13 @@ export function createModelMaterialClocks() {
 			let required = 0;
 			for ( const actor of actors ) {
 				const resource = model( actor.model );
-				if ( resource ) required += characterMaterialClockBytes( resource );
+				if ( !resource ) continue;
+				let charge = clockBytes.get( resource );
+				if ( charge === undefined ) {
+					charge = characterMaterialClockBytes( resource );
+					clockBytes.set( resource, charge );
+				}
+				required += charge;
 			}
 			if ( required > CHARACTER_RENDER_BYTES ) throw Error( "Material clock budget exceeded" );
 			bytes = required;
@@ -87,7 +95,9 @@ export function createModelMaterialClocks() {
 									m?.uvAtlas ?
 									createTextureAtlas( m.uvAtlas ) :
 									undefined,
-								pulse: m?.textureFactorPulse ? createTextureFactorPulse( m.textureFactorPulse ) : undefined,
+								pulse: m?.textureFactorPulse ?
+									createTextureFactorPulse( m.textureFactorPulse ) :
+									undefined,
 								flags: m?.colorTimeline?.flags ?? 0,
 								colorChanged: false,
 								textureChanged: false,

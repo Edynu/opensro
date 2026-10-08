@@ -39,7 +39,8 @@ EXPERIMENTAL_TABS
 Port-only, not native. The window's tabs, Options style, at most four rows each: Image holds the
 frame-wide stages (edges, filtering, glow), World the lighting and
 atmosphere stages that deviate from the 2005 look, Chat and Developer the
-earlier additions.
+earlier additions, Speed the crowd shortcuts that trade native exactness
+for frame time.
 ================
 */
 export const EXPERIMENTAL_TABS: readonly {
@@ -120,6 +121,24 @@ export const EXPERIMENTAL_TABS: readonly {
 			label: "Developer diagnostics",
 			description: "Show a diagnostics icon beside FPS."
 		} ]
+	},
+	{
+		title: "Speed",
+		section: "Performance",
+		rows: [
+			{
+				key: "distanceAnimation",
+				id: "experimental-distance-animation",
+				label: "Distant animation rate",
+				description: "Far characters animate less often; faster crowds."
+			},
+			{
+				key: "gpuCloth",
+				id: "experimental-gpu-cloth",
+				label: "GPU cloth",
+				description: "Cloth physics on the graphics card; faster crowds."
+			}
+		]
 	}
 ];
 

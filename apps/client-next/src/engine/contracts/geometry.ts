@@ -32,6 +32,11 @@ export interface Geometry {
 	// (updatePositions). Only such meshes keep a CPU mirror of their packed
 	// vertices; every other mesh drops it once the GPU holds the bytes.
 	readonly dynamicVertices?: boolean;
+	// The draw changes most frames: another draw takes its place on some
+	// frames (a cloth's CPU copy and its GPU pins), or its counts move
+	// (particles, ribbons). The frame records it in a render bundle of its
+	// own, so the change re-records no other draw.
+	readonly isolated?: boolean;
 	// The packed vertex stream (14 floats a vertex, packGeometryVertices) of a
 	// dynamicVertices mesh, already built by the asset worker. The renderer
 	// uploads it and keeps it as the mirror instead of packing on its thread.

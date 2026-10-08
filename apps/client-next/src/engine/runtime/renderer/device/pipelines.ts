@@ -318,7 +318,7 @@ struct WaterPass {matrix:mat4x4f,plane:vec4f,bump:vec4f,projection:vec4f}
 struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin(position) position:vec4f,@location(0) uv:vec2f,@location(1) normal:vec3f,@location(2) color:vec4f,@location(3) maskUV:vec2f,@location(4) viewZ:f32,@location(5) objectLighting:vec3f,@location(6) @interpolate(flat) opacity:f32,@location(7) worldXZ:vec2f,@location(8) @interpolate(flat) materialTint:vec3f,@location(9) sphereUV:vec2f,@location(10) equipmentUV:vec2f}
 @vertex fn vs(@location(0) position:vec3f,@location(1) normal:vec3f,@location(2) uv:vec2f,@location(3) color:vec4f,@location(4) maskUV:vec2f,@builtin(instance_index) i:u32,@builtin(vertex_index) vertex:u32)->Out {
  var o:Out;let instance=instances[i].matrix;o.opacity=instances[i].opacity.x;var p=vec4f(position,1);var n=vec4f(normal,0);
- if(material.skin.x!=0){let v=skinVertices[vertex];let base=select(select(i*u32(abs(material.skin.x)),0u,material.skin.x<0),u32(instances[i].opacity.y),instances[i].opacity.z>0);let skin=bones[base+v.joints.x]*v.weights.x+bones[base+v.joints.y]*v.weights.y+bones[base+v.joints.z]*v.weights.z+bones[base+v.joints.w]*v.weights.w;p=skin*p;n=skin*n;}
+ if(material.skin.x!=0){let v=skinVertices[vertex];let base=select(select(i*u32(abs(material.skin.x)),0u,material.skin.x<0),u32(instances[i].opacity.y),instances[i].opacity.z>0);let skin=bones[base+v.joints.x]*v.weights.x+bones[base+v.joints.y]*v.weights.y+bones[base+v.joints.z]*v.weights.z+bones[base+v.joints.w]*v.weights.w;if(material.stagePolicy.z<0.5||dot(v.weights,vec4f(1))!=0.0){p=skin*p;n=skin*n;}}
  o.worldY=(instance*p).y;
  o.worldXZ=(instance*p).xz;o.position=transform*instance*p;o.normal=(instance*n).xyz;let movingUV=vec2f(dot(vec3f(uv,1),material.uvU.xyz),dot(vec3f(uv,1),material.uvV.xyz));o.uv=(movingUV*material.window.xy+material.window.zw)*instances[i].window.xy+instances[i].window.zw;o.materialTint=select(vec3f(1),instances[i].color.rgb,material.policy.w>0.5);o.color=color*select(instances[i].color,vec4f(1,1,1,instances[i].color.a),material.policy.w>0.5);o.maskUV=maskUV;o.viewZ=o.position.w;
  // Undo only projection scaling to recover the native camera-space position.
@@ -327,7 +327,8 @@ struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin
  // Native vs_1_1 oD0: light and saturate each vertex before interpolation.
  var lightingNormal=n.xyz;
  // Data.pk2 vss2.c normalizes the blended normal; vss0.c does not.
- if(material.skin.x!=0){lightingNormal=normalize(lightingNormal);}
+ // Cloth keeps the unskinned shader's raw normal (stagePolicy.y; see clothShading).
+ if(material.skin.x!=0&&material.stagePolicy.y<0.5){lightingNormal=normalize(lightingNormal);}
  // A61887 + A5F103: transpose(world*view*diag(.8,.8,1));
  // native shader SPEC adds .5 after transforming, without renormalizing.
  o.equipmentUV=uv+material.equipmentUV.xy;
@@ -350,7 +351,7 @@ struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin
  let light=instances[i];
  if(nativeCharacterLighting&&(any(light.pointAmbient.rgb!=vec3f(0))||any(light.pointDiffuse.rgb!=vec3f(0)))){
   let localLight=transpose(cofactors)*(light.pointPosition.xyz-instance[3].xyz)/select(1.0,determinant,determinant!=0.0);
-  let delta=localLight-p.xyz;let distance=length(delta);let normalObject=select(n.xyz,normalize(n.xyz),material.skin.x!=0);
+  let delta=localLight-p.xyz;let distance=length(delta);let normalObject=select(n.xyz,normalize(n.xyz),material.skin.x!=0&&material.stagePolicy.y<0.5);
   let lambert=select(0.0,max(0.0,dot(normalObject,delta/max(distance,0.000001)))/max(light.pointPosition.w*distance,0.000001),distance>0.0);
   illumination+=light.pointAmbient.rgb+diffuseFactor*light.pointDiffuse.rgb*lambert;
  }

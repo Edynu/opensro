@@ -52,6 +52,7 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 	// The frame's drawable geometry, refilled every frame.
 	const live: GeometryDraw[] = [];
 	let recordedImage: ImageDraw | undefined, imageBundle: GPURenderBundle | null = null;
+	const recorded = { bundles: 0, draws: 0 };
 	/*
 	================
 	bundleCurrent
@@ -76,6 +77,7 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 		return true;
 	}
 	return {
+		recorded: () => recorded,
 		/*
 		================
 		draw
@@ -151,11 +153,15 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 			if ( geometry && geometry.indexCount > 0 && geometry.instanceCount > 0 ) live.push( geometry );
 			for ( const draw of world ) if ( draw.indexCount > 0 && draw.instanceCount > 0 ) live.push( draw );
 			nextAnchors.clear();
+			recorded.bundles = recorded.draws = 0;
 			for ( let start = 0; start < live.length; ) {
 				let end = start + 1;
-				while ( end < live.length && end - start < 32 && (end - start < 16 || !anchors.has( live[end]! )) ) {
-					end++;
-				}
+				// An isolated draw is a run of its own: a stand-in keeps its own
+				// cached bundle, and a swap or a count change re-records only it.
+				while (
+					!live[start]!.isolated && end < live.length && !live[end]!.isolated && end - start < 32 &&
+					(end - start < 16 || !anchors.has( live[end]! ))
+				) end++;
 				const first = live[start]!;
 				let cached = geometryBundles.get( first );
 				if ( !cached || !bundleCurrent( cached, start, end ) ) {
@@ -184,6 +190,8 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 						encoder.drawIndexed( draw.indexCount, draw.instanceCount, 0, 0, 0 );
 					}
 					cached = { draws, counts, bindings: draws.map( draw => draw.binding ), bundle: encoder.finish() };
+					recorded.bundles++;
+					recorded.draws += draws.length;
 					geometryBundles.set( first, cached );
 				}
 				bundles.push( cached.bundle );

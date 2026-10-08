@@ -77,7 +77,11 @@ type Stream = {
 	words: Uint32Array;
 	count: number;
 };
-const STATIC_BYTES = 32 << 20, STREAM_BYTES = 8 << 20;
+// Skeletons and keyframe clips of every admitted model. A town crowd of
+// varied costumes measured about 60 MB; at the former 32 MB a third of
+// its palettes fell back to the CPU. Stays under the 128 MiB default
+// maxStorageBufferBindingSize (each buffer is far smaller anyway).
+const STATIC_BYTES = 128 << 20, STREAM_BYTES = 8 << 20;
 // The Configuration uniform of animation-shader.ts.
 const CONFIGURATION_BYTES = 48;
 
@@ -89,7 +93,11 @@ Device owns every GPU reference. Geometry owns output palettes; this owner
 borrows them only while their source stream is live. No readback is needed.
 ================
 */
-export function createGpuAnimationResources( device: GPUDevice, retire: Retire = destroyNow ) {
+export function createGpuAnimationResources(
+	device: GPUDevice,
+	retire: Retire = destroyNow,
+	staticBudget = STATIC_BYTES
+) {
 	let failure: string | null = null;
 	let disposed = false,
 		pipeline: GPUComputePipeline | undefined,
@@ -102,6 +110,11 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		streams = new Map<Float32Array, Stream>(),
 		pending = new Set<Stream>(),
 		unsupported = new WeakSet<CharacterModel>();
+	// A model refused for the static budget, with the release epoch it was
+	// refused at: retried once a model's static inputs have been released,
+	// never marked unsupported (the budget frees as models leave).
+	const budgetRefused = new WeakMap<CharacterModel, number>();
+	let releaseEpoch = 0;
 	// CPU-side plans. A model whose current clip is not GPU-eligible is refused
 	// before admission; without these it rebuilt its plan every frame. A null
 	// entry records a clip set or skeleton the GPU must not run.
@@ -180,6 +193,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 	function retireModel( key: CharacterModel, model: Model ) {
 		retire( model.buffer );
 		staticBytes -= model.bytes;
+		releaseEpoch++;
 		models.delete( key );
 		if ( !--model.clips.refs ) {
 			retire( model.clips.buffer );
@@ -200,6 +214,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 	function admit( model: CharacterModel ): Model | null {
 		const admitted = models.get( model );
 		if ( admitted ) return admitted;
+		if ( budgetRefused.get( model ) === releaseEpoch ) return null;
 		const clipPlan = clipPlanFor( model.clips );
 		const skeletonPlan = clipPlan ? skeletonPlanFor( model, clipPlan.nodes ) : null;
 		if ( !clipPlan || !skeletonPlan ) {
@@ -208,8 +223,8 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		}
 		const shared = clipSets.get( model.clips );
 		const bytes = skeletonPlan.data.byteLength + (shared ? 0 : clipPlan.data.byteLength);
-		if ( staticBytes + bytes > STATIC_BYTES ) {
-			unsupported.add( model );
+		if ( staticBytes + bytes > staticBudget ) {
+			budgetRefused.set( model, releaseEpoch );
 			return null;
 		}
 		let clips = shared;
@@ -279,7 +294,8 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		prepare
 
 		Queues the bones of samples into source's palette; false leaves them to
-		the CPU path.
+		the CPU path. write, when given, stages the input upload (the geometry
+		owner's arena: one queue write a frame instead of one a stream).
 		================
 		*/
 		prepare(
@@ -287,7 +303,8 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 			output: GPUBuffer,
 			model: CharacterModel,
 			primitive: CharacterPrimitive,
-			samples: readonly (Sample | null)[]
+			samples: readonly (Sample | null)[],
+			write?: ( buffer: GPUBuffer, offset: number, data: Float32Array ) => void
 		): boolean {
 			if ( disposed ) throw Error( "Disposed GPU animation owner" );
 			if (
@@ -386,7 +403,8 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 				row.data[at + 2] = i;
 			}
 			row.count = count;
-			device.queue.writeBuffer( row.input, 0, row.data.buffer, 0, count * 16 );
+			if ( write ) write( row.input, 0, row.data.subarray( 0, count * 4 ) );
+			else device.queue.writeBuffer( row.input, 0, row.data.buffer, 0, count * 16 );
 			pending.add( row );
 			return true;
 		},

@@ -285,7 +285,9 @@ test(
 					dynamicSun: false,
 					terrainRelief: false,
 					texturedHorizon: false,
-					floatBloom: false
+					floatBloom: false,
+					distanceAnimation: false,
+					gpuCloth: false
 				}
 			);
 			await page.keyboard.press( "Escape" );
@@ -323,7 +325,9 @@ test(
 					dynamicSun: false,
 					terrainRelief: false,
 					texturedHorizon: false,
-					floatBloom: false
+					floatBloom: false,
+					distanceAnimation: false,
+					gpuCloth: false
 				}
 			);
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );
@@ -332,6 +336,8 @@ test(
 			await click( "open-window:Experimental" );
 			const environmentControls = [
 				{ key: "floatBloom", id: "experimental-float-bloom", tab: 0 },
+				{ key: "distanceAnimation", id: "experimental-distance-animation", tab: 4 },
+				{ key: "gpuCloth", id: "experimental-gpu-cloth", tab: 4 },
 				{ key: "dynamicSun", id: "experimental-dynamic-sun", tab: 1 },
 				{ key: "terrainRelief", id: "experimental-terrain-relief", tab: 1 },
 				{ key: "texturedHorizon", id: "experimental-textured-horizon", tab: 1 }

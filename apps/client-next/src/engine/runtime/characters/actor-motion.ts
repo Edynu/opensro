@@ -29,6 +29,46 @@ import { MOVEMENT_MODE_SEATED, type EntityState } from "@/engine/contracts/world
 import type { ActorAppearance, ActorFrame, ActorOwner, ActorPass } from "./internal/presentation-contract";
 
 const PROTECTED_ANIMATION_DISTANCE = 300;
+// Every actor asks its body's clip list a dozen times a frame; the lists are
+// immutable manifest rows of a few hundred names.
+const clipSets = new WeakMap<readonly string[], { length: number; names: Set<string>; }>();
+// The native motion roles of each weapon animation set, by locomotion state.
+const nativeRoles = new Map<string, readonly [string, string, string]>();
+
+/*
+================
+clipNames
+
+The set of a clip list, built once per list: has( name ) answers
+clips.includes( name ). A list that changed length since is rebuilt rather
+than trusted.
+================
+*/
+function clipNames( clips: readonly string[] ): ReadonlySet<string> {
+	let cached = clipSets.get( clips );
+	if ( !cached || cached.length !== clips.length ) {
+		cached = { length: clips.length, names: new Set( clips ) };
+		clipSets.set( clips, cached );
+	}
+	return cached.names;
+}
+
+/*
+================
+nativeRole
+
+The native:<set>:<state> role of a stand (0), walk (1) or run (7) motion,
+built once per set.
+================
+*/
+function nativeRole( set: string, baseRole: string ) {
+	let roles = nativeRoles.get( set );
+	if ( !roles ) {
+		roles = [ `native:${set}:0`, `native:${set}:1`, `native:${set}:7` ];
+		nativeRoles.set( set, roles );
+	}
+	return baseRole === "run" ? roles[2] : baseRole === "walk" ? roles[1] : roles[0];
+}
 
 /*
 ================
@@ -94,6 +134,7 @@ export function createActorMotion( owner: ActorOwner ) {
 				overrideCommit,
 				defaultWearCommit
 			} = resolved;
+			const bodyClips = clipNames( resource.clips );
 			if ( sampleActorDetails ) probe?.detailBegin( "actor-motion" );
 			const nativePose = logicalPose( entity );
 
@@ -136,13 +177,13 @@ export function createActorMotion( owner: ActorOwner ) {
 			}
 			const deathEntry = presentationState.idleStates.get( entity.gid ),
 				downDeath = deathEntry?.downDeath,
-				quickDeath = resource.clips.includes( "deathquick" ) ?
+				quickDeath = bodyClips.has( "deathquick" ) ?
 					"deathquick" :
-					resource.clips.includes( "downdie" ) ?
+					bodyClips.has( "downdie" ) ?
 					"downdie" :
 					"death";
 			const sitting = entity.movementMode === MOVEMENT_MODE_SEATED && !entity.mountedOn;
-			const sittingClip = resource.clips.includes( "sit" ) ? "sit" : "charselect-state14";
+			const sittingClip = bodyClips.has( "sit" ) ? "sit" : "charselect-state14";
 			if ( state.dead !== undefined && state.dead !== dead ) {
 				// 8E64F0: downdie from state 4; otherwise the motion-4 one-shot only
 				// when state 2 or 3 was active, over the deathLoop base.
@@ -152,8 +193,8 @@ export function createActorMotion( owner: ActorOwner ) {
 				state.postureStarted = seconds;
 			} else if ( !dead && state.sitting !== undefined && state.sitting !== sitting ) {
 				state.postureClip = sitting ?
-					(resource.clips.includes( "sitdown" ) ? "sitdown" : "charselect-state13") :
-					(resource.clips.includes( "standup" ) ? "standup" : "charselect-state15");
+					(bodyClips.has( "sitdown" ) ? "sitdown" : "charselect-state13") :
+					(bodyClips.has( "standup" ) ? "standup" : "charselect-state15");
 				state.postureStarted = seconds;
 			}
 			const heightTarget = sitting ? .5 : 1;
@@ -166,9 +207,9 @@ export function createActorMotion( owner: ActorOwner ) {
 			}
 			state.dead = dead;
 			state.sitting = sitting;
-			const deadLoop = resource.clips.includes( "deathLoop" ) ?
+			const deadLoop = bodyClips.has( "deathLoop" ) ?
 				"deathLoop" :
-				resource.clips.includes( "deathloop" ) ?
+				bodyClips.has( "deathloop" ) ?
 				"deathloop" :
 				"death";
 			let moving = (localMover( entity.gid ) ? gameplay!.moving : entity.moving) ?? false;
@@ -320,22 +361,22 @@ export function createActorMotion( owner: ActorOwner ) {
 				(moving || !state.navigationHold && posePresentation.moving( entity.gid )) ?
 				movementGait( entity.movementMode ) :
 				combatIdle?.clip ?? "stand";
-			let clip = baseRole === combatIdle?.clip || resource.clips.includes( baseRole ) ?
+			let clip = baseRole === combatIdle?.clip || bodyClips.has( baseRole ) ?
 				baseRole :
-				resource.clips.includes( "stand" ) ?
+				bodyClips.has( "stand" ) ?
 				"stand" :
 				resource.clips[0] ?? "";
 			if (
 				motionSet && !entity.mountedOn && !dead && !sitting &&
 				(baseRole === "run" || baseRole === "walk" || baseRole === "stand")
 			) {
-				const role = `native:${motionSet}:${baseRole === "run" ? 7 : baseRole === "walk" ? 1 : 0}`;
+				const role = nativeRole( motionSet, baseRole );
 				const definition = published.animationStates.get( resource.codename )?.[role] ??
 						resource.animationStates?.[role],
 					url = published.nativeMotionUrls.get( resource.codename )?.get( role );
 				if (
 					definition &&
-					(resource.clips.includes( role ) || url && resources.animation( resource.glb, role, url ))
+					(bodyClips.has( role ) || url && resources.animation( resource.glb, role, url ))
 				) clip = role;
 			}
 			if ( state.clip !== clip ) {
@@ -423,7 +464,7 @@ export function createActorMotion( owner: ActorOwner ) {
 								effect.state === 9 ?
 								movementGait( entity.movementMode ) :
 								combatIdle?.clip ?? "stand";
-							let selected = resource.clips.includes( role ) || role === combatIdle?.clip ?
+							let selected = bodyClips.has( role ) || role === combatIdle?.clip ?
 								role :
 								"stand";
 							const definition = committed ? override : previousDefinition;
@@ -439,7 +480,7 @@ export function createActorMotion( owner: ActorOwner ) {
 									url = published.nativeMotionUrls.get( resource.codename )?.get( candidate );
 								if (
 									metadata &&
-									(resource.clips.includes( candidate ) ||
+									(bodyClips.has( candidate ) ||
 										url && resources.animation( resource.glb, candidate, url ))
 								) selected = candidate;
 							}
@@ -503,7 +544,7 @@ export function createActorMotion( owner: ActorOwner ) {
 				activation: activation( producer + ":" + layer.lane, started )
 			}) );
 			if (
-				state.postureClip && resource.clips.includes( state.postureClip ) &&
+				state.postureClip && bodyClips.has( state.postureClip ) &&
 				state.postureStarted !== undefined
 			) {
 				const elapsed = seconds - state.postureStarted,
@@ -525,7 +566,7 @@ export function createActorMotion( owner: ActorOwner ) {
 					const role = `attached-${motion.set.replaceAll( "_", "-" )}-${motion.id}`,
 						definition = (resource.animationStates ?? published.animationStates.get( resource.codename ))
 							?.[role];
-					if ( !definition || !resource.clips.includes( role ) ) continue;
+					if ( !definition || !bodyClips.has( role ) ) continue;
 					const age = Math.max( 0, seconds - motion.started ),
 						end = motion.stoppedAt ??
 							(definition.loop ? Infinity : motion.started + definition.durationMs / 1000),
@@ -546,9 +587,9 @@ export function createActorMotion( owner: ActorOwner ) {
 			if ( !dead ) layers.unshift( ...(actionLayersByActor.get( entity.gid ) ?? []) );
 			// Normal hit clips contain sparse tracks. They must leave untouched bones
 			// on the timed lane instead of resetting the entire skeleton to bind pose.
-			const hitClip = resource.clips.includes( "hit1" ) ?
+			const hitClip = bodyClips.has( "hit1" ) ?
 				"hit1" :
-				resource.clips.includes( "hit" ) ?
+				bodyClips.has( "hit" ) ?
 				"hit" :
 				"";
 			const posture = presentationState.idleStates.get( entity.gid )?.posture;
@@ -562,13 +603,13 @@ export function createActorMotion( owner: ActorOwner ) {
 					postureLayers( posture, seconds, resources.duration( resource.glb, role ) ),
 					"posture",
 					posture.started
-				).filter( layer => resource.clips.includes( layer.clip ) );
+				).filter( layer => bodyClips.has( layer.clip ) );
 				if ( posture.kind === "down" ) layers.splice( 0, layers.length, ...projected );
 				else layers.unshift( ...projected );
 			}
 			const reaction = posture?.kind === "down" ? "downdamage" : hitClip;
 			if (
-				!dead && reaction && resource.clips.includes( reaction ) && state.hitStarted !== undefined &&
+				!dead && reaction && bodyClips.has( reaction ) && state.hitStarted !== undefined &&
 				seconds - state.hitStarted < resources.duration( resource.glb, reaction ) + .2
 			) {
 				const age = seconds - state.hitStarted, duration = resources.duration( resource.glb, reaction );
@@ -599,7 +640,7 @@ export function createActorMotion( owner: ActorOwner ) {
 			}
 			if (
 				!dead && !entity.mountedOn && state.pickupStarted !== undefined &&
-				resource.clips.includes( "pick" ) &&
+				bodyClips.has( "pick" ) &&
 				seconds - state.pickupStarted < resources.duration( resource.glb, "pick" )
 			) {
 				layers.splice( 0, layers.length - 1, {
@@ -691,8 +732,9 @@ export function createActorMotion( owner: ActorOwner ) {
 				baseScale = entity.kind === "monster" ?
 					monsterScale( entity.rarity ?? 0, entity.tidWord ?? 0, resource.scalePercent ) :
 					1;
-			const previewWeapon = wornEquipment( entity, gameplay ).find( item => item.slot === 6 ),
-				disguise = referenceAppearances.get( entity.gid ),
+			// The weapon and disguise the motion set above was resolved from.
+			const previewWeapon = weapon,
+				disguise = motionDisguise,
 				armedIdle = disguise ?
 					"preview-state0-" + weaponAnimationSet( disguise.weapon << 11 ) :
 					previewWeapon ?
@@ -721,7 +763,7 @@ export function createActorMotion( owner: ActorOwner ) {
 				},
 				blindable: blindableCharacter( entity, gameplay?.localGid ),
 				groundItem: !!entity.groundItem,
-				previewClip: resource.clips.includes( armedIdle ) ? armedIdle : "stand",
+				previewClip: bodyClips.has( armedIdle ) ? armedIdle : "stand",
 				materialTint: appearance.materialTint,
 				pointLight: appearance.pointLight,
 				modifierId: state.modifierId,

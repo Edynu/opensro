@@ -154,6 +154,8 @@ export function createRenderer(
 		experimentalVideo( value ) {
 			experimental = value;
 			device.experimentalVideo( value );
+			characters.distanceAnimation( value.distanceAnimation );
+			characters.gpuCloth( value.gpuCloth );
 			frame = null;
 		},
 		setFootprints: world.footprints,
@@ -677,23 +679,34 @@ export function createRenderer(
 					),
 					liveCharacters = staleDraws.live( "characters", characterDraws ),
 					liveShadows = staleDraws.live( "character-shadows", shadowDraws );
+				const worldDraws = [
+					...terrainDraws,
+					...staleDraws.live( "ground-decals", scene.groundDecalDraws ?? [] ),
+					...liveShadows,
+					...opaqueDraws,
+					...(preview ? [] : liveCharacters.filter( draw => !draw.blended )),
+					...transparentDraws,
+					...staleDraws.live( "decals", scene.decalDraws ?? [] ),
+					...(preview ? [] : liveCharacters.filter( draw => draw.blended )),
+					...(preview ? [] : staleDraws.live( "weather", scene.weatherDraws ?? [] ))
+				];
+				probe?.renderMark( "draw-lists" );
+				const uiDraws = device.ui( projectedUi );
+				probe?.renderMark( "ui-pack" );
+				const reflection = device.geometry()!.waterReflection( {
+					matrix: scene.reflectionMatrix,
+					height: scene.waterHeight ?? 0,
+					above: scene.camera.eye[1] >= (scene.waterHeight ?? 0),
+					seconds: timeSeconds
+				}, scene.reflectionMatrix ? [ ...scene.draws, ...(preview ? [] : liveCharacters) ] : [] );
+				probe?.renderMark( "water-reflection" );
 				const pending = frame!.draw(
 					color,
 					draw ?? (scene.sky ? device.sky() ?? undefined : undefined),
 					staleDraws.single( "mesh", meshDraw ?? undefined ),
 					surface.depth(),
-					[
-						...terrainDraws,
-						...staleDraws.live( "ground-decals", scene.groundDecalDraws ?? [] ),
-						...liveShadows,
-						...opaqueDraws,
-						...(preview ? [] : liveCharacters.filter( draw => !draw.blended )),
-						...transparentDraws,
-						...staleDraws.live( "decals", scene.decalDraws ?? [] ),
-						...(preview ? [] : liveCharacters.filter( draw => draw.blended )),
-						...(preview ? [] : staleDraws.live( "weather", scene.weatherDraws ?? [] ))
-					],
-					device.ui( projectedUi ),
+					worldDraws,
+					uiDraws,
 					preview ? liveCharacters : [],
 					scene.flares && video.records[video.active][10] === 1 ?
 						device.flares( scene.flares, surface.depth() ) :
@@ -713,15 +726,13 @@ export function createRenderer(
 					frameId,
 					deferredPass,
 					device.bloom( viewport.width, viewport.height, !preview && video.records[video.active][11] === 1 ),
-					device.geometry()!.waterReflection( {
-						matrix: scene.reflectionMatrix,
-						height: scene.waterHeight ?? 0,
-						above: scene.camera.eye[1] >= (scene.waterHeight ?? 0),
-						seconds: timeSeconds
-					}, [ ...scene.draws, ...(preview ? [] : liveCharacters) ] ),
+					reflection,
 					targetSurface
 				);
 				probe?.renderMark( "submit" );
+				probe?.renderCount?.( "bundles re-recorded", frame!.recorded().bundles );
+				probe?.renderCount?.( "draws re-recorded", frame!.recorded().draws );
+				probe?.renderCount?.( "world draws", worldDraws.length );
 				if ( pending ) {
 					// The deferred pass records its second command buffer after the
 					// visibility query: the frame stays open until that one is submitted.

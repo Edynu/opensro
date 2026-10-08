@@ -29,7 +29,9 @@ const OFF = Object.freeze( {
 	dynamicSun: false,
 	terrainRelief: false,
 	texturedHorizon: false,
-	floatBloom: false
+	floatBloom: false,
+	distanceAnimation: false,
+	gpuCloth: false
 } );
 
 test("only an explicit boolean enables chat timestamps", () => {
@@ -104,7 +106,9 @@ test("every video stage defaults off and only an explicit true enables it", () =
 		dynamicSun: false,
 		terrainRelief: false,
 		texturedHorizon: false,
-		floatBloom: false
+		floatBloom: false,
+		distanceAnimation: false,
+		gpuCloth: false
 	} );
 	for (
 		const key of [
@@ -114,7 +118,9 @@ test("every video stage defaults off and only an explicit true enables it", () =
 			"dynamicSun",
 			"terrainRelief",
 			"texturedHorizon",
-			"floatBloom"
+			"floatBloom",
+			"distanceAnimation",
+			"gpuCloth"
 		]
 	) {
 		assert.equal( experimentalOptions( { [key]: 1 } )[key], false );
@@ -125,7 +131,16 @@ test("every video stage defaults off and only an explicit true enables it", () =
 });
 
 test("new environment preferences persist only on Confirm and Default remains a draft", () => {
-	for ( const key of /** @type {const} */ ([ "dynamicSun", "terrainRelief", "texturedHorizon", "floatBloom" ]) ) {
+	for (
+		const key of /** @type {const} */ ([
+			"dynamicSun",
+			"terrainRelief",
+			"texturedHorizon",
+			"floatBloom",
+			"distanceAnimation",
+			"gpuCloth"
+		])
+	) {
 		const hud = createExperimentalHud();
 		hud.open();
 		hud.toggle( key );

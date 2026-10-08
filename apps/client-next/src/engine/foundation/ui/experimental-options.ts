@@ -28,6 +28,10 @@ export interface ExperimentalOptions {
 	readonly terrainRelief: boolean;
 	readonly texturedHorizon: boolean;
 	readonly floatBloom: boolean;
+	// Distant characters animate at 20 Hz beyond 160 units, 10 Hz beyond 320.
+	readonly distanceAnimation: boolean;
+	// Cloth solver steps on the GPU (float32: not bit-exact to the native solver).
+	readonly gpuCloth: boolean;
 }
 
 /*
@@ -60,7 +64,9 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		dynamicSun: enabled( "dynamicSun" ),
 		terrainRelief: enabled( "terrainRelief" ),
 		texturedHorizon: enabled( "texturedHorizon" ),
-		floatBloom: enabled( "floatBloom" )
+		floatBloom: enabled( "floatBloom" ),
+		distanceAnimation: enabled( "distanceAnimation" ),
+		gpuCloth: enabled( "gpuCloth" )
 	};
 }
 
@@ -80,6 +86,8 @@ export interface ExperimentalVideo {
 	readonly terrainRelief: boolean;
 	readonly texturedHorizon: boolean;
 	readonly floatBloom: boolean;
+	readonly distanceAnimation: boolean;
+	readonly gpuCloth: boolean;
 }
 
 /*
@@ -95,6 +103,8 @@ export function experimentalVideo( options: ExperimentalOptions ): ExperimentalV
 		dynamicSun: options.dynamicSun,
 		terrainRelief: options.terrainRelief,
 		texturedHorizon: options.texturedHorizon,
-		floatBloom: options.floatBloom
+		floatBloom: options.floatBloom,
+		distanceAnimation: options.distanceAnimation,
+		gpuCloth: options.gpuCloth
 	};
 }

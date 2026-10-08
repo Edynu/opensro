@@ -466,12 +466,50 @@ The same uniform scale as loadingScreenQuads keeps both owners aligned.
 /* Developer diagnostics are a separate, console-enabled neighbor of FPS. */
 #developer-toggle { width: 24px; }
 .sro-developer-readout {
-	width: max-content;
-	max-width: min(280px, calc(100vw - var(--telemetry-right, 8px) - 8px));
-	max-height: min(480px, calc(100vh - var(--telemetry-top, 8px) - 32px));
+	width: 280px;
+	max-width: calc(100vw - var(--telemetry-right, 8px) - 8px);
+	max-height: calc(100vh - var(--telemetry-top, 8px) - 32px);
 	overflow: auto;
 	box-sizing: border-box;
 	text-align: left;
 	overflow-wrap: anywhere;
 	user-select: text;
 }
+.sro-developer-readout__title { color: #e8c877; }
+.sro-developer-readout__summary,
+.sro-developer-readout__line { margin-top: 3px; }
+.sro-developer-readout__hint { margin-top: 4px; opacity: 0.7; }
+
+/* Frame graph: frame time, its p95 and CPU time over the last minute. */
+.sro-developer-graph__frame-wrap { margin-top: 5px; }
+.sro-developer-graph__axis,
+.sro-developer-graph__legend { font-size: 0.85em; opacity: 0.7; }
+.sro-developer-graph {
+	display: block;
+	width: 100%;
+	height: 64px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(202, 165, 82, 0.2);
+}
+.sro-developer-graph polyline { fill: none; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.sro-developer-graph__frame { stroke: #e8c877; }
+.sro-developer-graph__p95 { stroke: rgba(232, 200, 119, 0.35); }
+.sro-developer-graph__cpu { stroke: #6fb3e8; }
+.sro-developer-graph__guide { stroke: rgba(255, 255, 255, 0.15); stroke-dasharray: 2 3; }
+.sro-developer-graph__label { fill: rgba(255, 255, 255, 0.45); font-size: 7px; text-anchor: end; }
+
+/* Timing bars: one row a stage or GPU pass, indented by nesting depth. */
+.sro-developer-timings { margin-top: 6px; }
+.sro-developer-timings__title { color: #e8c877; margin-bottom: 2px; }
+.sro-developer-timings__row {
+	display: grid;
+	grid-template-columns: 1fr 70px 44px 44px;
+	align-items: center;
+	gap: 4px;
+	padding-left: calc(var(--depth, 0) * 8px);
+}
+.sro-developer-timings__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sro-developer-timings__bar { height: 6px; background: rgba(255, 255, 255, 0.06); }
+.sro-developer-timings__fill { height: 100%; background: #c9a24f; }
+.sro-developer-timings__ms { text-align: right; }
+.sro-developer-timings__peak { text-align: right; color: #d08a6a; }

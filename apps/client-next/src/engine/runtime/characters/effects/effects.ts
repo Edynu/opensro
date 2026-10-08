@@ -324,10 +324,17 @@ export function createCharacterEffects(
 	const statuses = new Map<number, { view: StatusView; revisions: Map<string, number>; }>();
 	const recordFor = ( effect: Attachment ) =>
 		effect.recordName ? namedCatalog?.[effect.recordName] : catalog?.[String( effect.skill )];
-	const attached = new Map<
-		string,
-		{ effect: Attachment; visuals: AttachedVisual[]; stopped: boolean; started: number; stoppedAt?: number; }
-	>();
+	type AttachedRow = {
+		effect: Attachment;
+		visuals: AttachedVisual[];
+		stopped: boolean;
+		started: number;
+		stoppedAt?: number;
+	};
+	const attached = new Map<string, AttachedRow>();
+	// attached rows by actor, in attached order, for hostMotions: every actor
+	// asks once a frame. Every change to attached drops it.
+	let hostRows: Map<number, AttachedRow[]> | undefined;
 	const materials = new Map<
 			number,
 			{
@@ -2098,6 +2105,7 @@ export function createCharacterEffects(
 								attachedVisuals( effect, owner, now, true, visuals );
 								for ( const visual of visuals ) releaseAttached( visual, now );
 							}
+							hostRows = undefined;
 							attached.set( key, {
 								effect,
 								visuals,
@@ -2119,6 +2127,7 @@ export function createCharacterEffects(
 						if ( !byGid.has( row.effect.gid ) ) {
 							releaseMaterial( key );
 							attached.delete( key );
+							hostRows = undefined;
 							continue;
 						}
 						if ( !row.stopped && !wanted.has( key ) ) {
@@ -2346,7 +2355,10 @@ export function createCharacterEffects(
 						}
 						if ( row.stopped && !row.visuals.length ) {
 							releaseMaterial( key );
-							if ( !wanted.has( key ) && now - (row.stoppedAt ?? now) >= .2 ) attached.delete( key );
+							if ( !wanted.has( key ) && now - (row.stoppedAt ?? now) >= .2 ) {
+								attached.delete( key );
+								hostRows = undefined;
+							}
 						}
 					}
 					if ( result.length + active.size > 2048 ) {
@@ -2973,7 +2985,15 @@ export function createCharacterEffects(
 		================
 		*/
 		hostMotions( gid: number ) {
-			return [ ...attached.values() ].filter( row =>
+			if ( !hostRows ) {
+				hostRows = new Map();
+				for ( const row of attached.values() ) {
+					const rows = hostRows.get( row.effect.gid );
+					if ( rows ) rows.push( row );
+					else hostRows.set( row.effect.gid, [ row ] );
+				}
+			}
+			return (hostRows.get( gid ) ?? []).filter( row =>
 				row.effect.gid === gid && (row.effect.phase === 1 || catalog?.[String( row.effect.skill )]?.overlap)
 			).flatMap( row => {
 				const motion = catalog?.[String( row.effect.skill )]?.attachedMotion;
@@ -3064,6 +3084,7 @@ export function createCharacterEffects(
 			visualStarts.clear();
 			active.clear();
 			attached.clear();
+			hostRows = undefined;
 			persistent.clear();
 			unsupported.clear();
 			failure = null;
@@ -3097,6 +3118,7 @@ export function createCharacterEffects(
 			visualStarts.clear();
 			active.clear();
 			attached.clear();
+			hostRows = undefined;
 			persistent.clear();
 			impactIndexes.clear();
 			catalog = null;

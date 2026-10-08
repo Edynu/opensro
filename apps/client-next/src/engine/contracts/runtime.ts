@@ -95,6 +95,8 @@ export interface RenderFrameProbe {
 	characterBegin(): void;
 	characterMark( stage: string ): void;
 	characterCount( name: string, value?: number ): void;
+	// Renderer counts per frame (bundles re-recorded, draws recorded).
+	renderCount?( name: string, value: number ): void;
 	// Optional census of admitted batches; absent during ordinary timing runs.
 	characterBatch?( variant: string, actors: number, draws: number ): void;
 	// World preparation stages and detail spans (renderer/world/world.ts).
@@ -105,6 +107,16 @@ export interface RenderFrameProbe {
 	detailBegin?( name: string ): void;
 	detailEnd?( name: string ): void;
 }
+
+// Key prefixes of the renderer's span families in FrameTelemetry.stages
+// (runtime/stage-probe.ts publishes them, the diagnostics panel nests them).
+export const RENDER_STAGE_PREFIX = "render:";
+export const WORLD_STAGE_PREFIX = "world:";
+export const CHARACTER_STAGE_PREFIX = "character:";
+// Counts, not times: the panel lists them apart from the stage bars.
+export const COUNT_STAGE_PREFIX = "count:";
+// A stage's longest single frame in the window, beside its average.
+export const PEAK_STAGE_PREFIX = "peak:";
 
 /*
 ================

@@ -17,7 +17,6 @@ apps/client-next/src/engine/foundation/animation/action-time.ts
 apps/client-next/src/engine/foundation/animation/animation-activation.ts
 apps/client-next/src/engine/foundation/animation/animation-dispatch.ts
 apps/client-next/src/engine/foundation/animation/animation-timelines.ts
-apps/client-next/src/engine/foundation/animation/avatar-override.ts
 apps/client-next/src/engine/foundation/animation/body-shape.ts
 apps/client-next/src/engine/foundation/animation/bsr-particle-transform.ts
 apps/client-next/src/engine/foundation/animation/character-selection.ts
@@ -36,7 +35,6 @@ apps/client-next/src/engine/foundation/animation/impact-source.ts
 apps/client-next/src/engine/foundation/animation/item-effect-clock.ts
 apps/client-next/src/engine/foundation/animation/locomotion-blend.ts
 apps/client-next/src/engine/foundation/animation/model-animation.ts
-apps/client-next/src/engine/foundation/animation/model-material-clock.ts
 apps/client-next/src/engine/foundation/animation/moving-stage.ts
 apps/client-next/src/engine/foundation/animation/native-clip.ts
 apps/client-next/src/engine/foundation/animation/one-shot-layers.ts

@@ -58,6 +58,8 @@ export function copyMaterial( material: WorldMaterial ): WorldMaterial {
 		material.groundDecal !== undefined && typeof material.groundDecal !== "boolean" ||
 		material.blendPair !== undefined && !validBlend( material.blendPair ) ||
 		material.shaderDiffuse !== undefined && typeof material.shaderDiffuse !== "boolean" ||
+		material.clothShading !== undefined && typeof material.clothShading !== "boolean" ||
+		material.clothPins !== undefined && typeof material.clothPins !== "boolean" ||
 		material.textureFactorPulse !== undefined &&
 			(![ material.textureFactorPulse.low, material.textureFactorPulse.high ].every( v =>
 				Number.isInteger( v ) && v >= 0 && v <= 255
@@ -208,6 +210,7 @@ export function copyGeometry( data: Geometry, byteLimit = 64 << 20, instanceLimi
 		weights: data.weights?.slice(),
 		bones: data.bones?.slice(),
 		dynamicVertices: data.dynamicVertices,
+		isolated: data.isolated,
 		vertices: data.vertices?.slice()
 	} satisfies Record<keyof Geometry, unknown>;
 	return owned;

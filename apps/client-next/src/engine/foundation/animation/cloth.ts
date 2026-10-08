@@ -88,8 +88,7 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 	function step( direction: readonly number[], speed: number, random: () => number ) {
 		const force = data.force ?? direction;
 		const { mobility, pins, order, constraints, damping } = data;
-		// A77530 clamps positive motion to .2..1 before scaling by 900.
-		const wind = (speed > 0 ? Math.max( .2, Math.min( 1, speed ) ) * 900 : speed) + 100;
+		const wind = clothWind( speed );
 		for ( let i = 0; i < mobility.length; i++ ) {
 			if ( pins[i] === 1 ) continue;
 			const weight = mobility[i]!;
@@ -202,6 +201,91 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 			}
 			stepped = false;
 			return false;
+		},
+
+		/*
+		================
+		stepDue
+
+		Whether advancing by deltaMs would run a solver step (or initialize).
+		Between steps the free vertices keep their positions and the pins only
+		follow the skeleton, which a GPU-skinned draw reproduces without anchors.
+		================
+		*/
+		stepDue( deltaMs: number ): boolean {
+			return !initialized || elapsed + Math.max( 0, deltaMs ) >= STEP_MS;
+		},
+
+		/*
+		================
+		restart
+
+		The next advance starts again from its anchors, as the first did:
+		another owner (the GPU cloth) moved the cloth in between.
+		================
+		*/
+		restart() {
+			initialized = false;
+		}
+	};
+}
+
+/*
+================
+clothWind
+
+A77530's wind magnitude: positive motion clamps to .2..1, scaled by 900.
+================
+*/
+export function clothWind( speed: number ) {
+	return (speed > 0 ? Math.max( .2, Math.min( 1, speed ) ) * 900 : speed) + 100;
+}
+
+/*
+================
+createClothSchedule
+
+Port-only, not native (Experimental "GPU cloth"): the solver clock of one
+cloth whose steps run on the GPU. It keeps advance's accumulator and draws
+the native gust numbers in step's order (one per vertex that is not a fixed
+pin), so the shared presentation sequence stays the CPU solver's. gusts
+receives bit s of a vertex for a gust on step s.
+================
+*/
+export function createClothSchedule( data: ClothData ) {
+	let elapsed = 0, initialized = false;
+	return {
+		/*
+		================
+		advance
+		================
+		*/
+		advance( deltaMs: number, random: () => number, gusts: Uint32Array ) {
+			const reset = !initialized;
+			if ( reset ) {
+				elapsed = 0;
+				initialized = true;
+			}
+			elapsed = Math.min( MAX_ACCUMULATOR_MS, elapsed + Math.max( 0, deltaMs ) );
+			let steps = 0;
+			gusts.fill( 0 );
+			while ( elapsed >= STEP_MS ) {
+				for ( let i = 0; i < data.pins.length; i++ ) {
+					if ( data.pins[i] === 1 ) continue;
+					if ( random() % data.windPeriod === 0 ) gusts[i]! |= 1 << steps;
+				}
+				elapsed -= STEP_MS;
+				steps++;
+			}
+			return { reset, steps };
+		},
+		/*
+		================
+		restart
+		================
+		*/
+		restart() {
+			initialized = false;
 		}
 	};
 }

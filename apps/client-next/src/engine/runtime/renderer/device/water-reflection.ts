@@ -32,6 +32,8 @@ export function createWaterReflection( device: GPUDevice, format: GPUTextureForm
 	let color: GPUTexture | undefined, depth: GPUTexture | undefined;
 	let target: GPUTextureView | undefined, depthView: GPUTextureView | undefined;
 	const values = new Float32Array( UNIFORM_BYTES / 4 );
+	// Without water the uniforms hold the same zeros every frame: written once.
+	let idleWritten = false;
 	return {
 		main,
 		capture,
@@ -79,6 +81,8 @@ export function createWaterReflection( device: GPUDevice, format: GPUTextureForm
 				values[17] = above ? 1 : -1;
 				values[18] = 1;
 			}
+			if ( !matrix && idleWritten ) return changed;
+			idleWritten = !matrix;
 			device.queue.writeBuffer( main, 0, values );
 			values[19] = 1;
 			device.queue.writeBuffer( capture, 0, values );

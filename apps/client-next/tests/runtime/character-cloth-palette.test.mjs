@@ -25,16 +25,18 @@ test("moving cloth uploads current placements through membership, fade, lights, 
 test("an unrelated lazy clip cannot reset standing peers' cloth state or random sequence", () => {
 	const actual = captureClothPalettes( true, true );
 	assert.deepEqual( actual.frames.map( frame => frame.digest ), baseline.frames );
-	assert.equal( actual.gpuCalls, 0 );
+	assert.ok( actual.gpuCalls > 0, "cloth batches offer their palettes to the GPU" );
 });
 
 for ( const gpuAvailable of [ false, true ] ) {
 	test(`cloth and static palettes retain exact renderer output with GPU callback ${gpuAvailable}`, () => {
 		const actual = captureClothPalettes( gpuAvailable );
-		assert.equal(
-			actual.gpuCalls,
-			0,
-			"cloth consumers require CPU-valid palette data even when GPU evaluation is available"
+		// Cloth batches offer their palettes to the GPU like any batch (the
+		// fixture refuses, so CPU palettes stand); solver steps take their own.
+		assert.equal( actual.gpuCalls > 0, gpuAvailable );
+		assert.ok(
+			actual.frames.some( frame => frame.pinsDraws > 0 ),
+			"frames between solver steps must draw the GPU-skinned pins"
 		);
 		assert.equal( actual.frames.length, baseline.frames.length );
 		assert.ok(
@@ -68,3 +70,22 @@ for ( const gpuAvailable of [ false, true ] ) {
 		assert.ok( actual.frames.some( frame => frame.randomCalls > 0 ), "the oracle must exercise cloth RNG" );
 	});
 }
+
+test("far cloth is GPU skinned in its model's batch and reaches the solver range with the native state", () => {
+	// gid 3 stands beyond the state band (300 units), crosses it, and enters
+	// the solver range (200 units); its twin waits in the band all along.
+	const FAR = .5, BAND = .3, NEAR = 0;
+	const walked = captureClothPalettes( true, false, {
+		lod: ( frame, gid ) => gid !== 3 ? NEAR : frame < 40 ? FAR : frame < 45 ? BAND : NEAR
+	} );
+	const kept = captureClothPalettes( true, false, {
+		lod: ( frame, gid ) => gid !== 3 ? NEAR : frame < 45 ? BAND : NEAR
+	} );
+	assert.ok( walked.frames.slice( 0, 40 ).some( frame => frame.clothShadingDraws > 0 ) );
+	assert.ok( walked.frames.slice( 40 ).every( frame => frame.clothShadingDraws === 0 ) );
+	assert.ok( kept.frames.every( frame => frame.clothShadingDraws === 0 ) );
+	assert.ok( walked.frames.slice( 45 ).some( frame => frame.randomCalls > 0 ), "the solver must run after entry" );
+	for ( let frame = 40; frame < walked.frames.length; frame++ ) {
+		assert.equal( walked.frames[frame].digest, kept.frames[frame].digest, `frame ${frame} differs` );
+	}
+});

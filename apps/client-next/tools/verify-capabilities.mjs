@@ -63,6 +63,8 @@ const bloom = runtime + "renderer/device/bloom.ts";
 const finish = runtime + "renderer/device/finish.ts";
 const shadows = runtime + "renderer/device/character-shadows.ts";
 const animation = runtime + "renderer/device/animation.ts";
+// Port-only, not native: the Experimental GPU cloth solver pass.
+const cloth = runtime + "renderer/device/cloth.ts";
 const particleQuery = runtime + "renderer/device/particle-query.ts";
 const particles = runtime + "renderer/device/particles.ts";
 const geometryUploads = runtime + "renderer/device/geometry-uploads.ts";
@@ -80,6 +82,7 @@ const deviceInternals = [
 	thunder,
 	timing,
 	animation,
+	cloth,
 	particleQuery,
 	particles,
 	shadows
@@ -246,6 +249,18 @@ for (
 		"beginComputePass"
 	]
 ) rules[name].push( animation );
+// The GPU cloth solver, like skinning, is encoded by geometry preparation on
+// the frame encoder after the skeletal pass whose palettes it reads.
+for (
+	const name of [
+		"createShaderModule",
+		"createComputePipelineAsync",
+		"createBuffer",
+		"createBindGroup",
+		"writeBuffer",
+		"beginComputePass"
+	]
+) rules[name].push( cloth );
 // The particle presentation pass, like skinning, is encoded by geometry
 // preparation on the frame encoder into the draws' own buffers.
 for (
@@ -391,6 +406,7 @@ export function verifyCapabilities( base = root ) {
 				ts.isIdentifier( n ) && [ "GPUCommandEncoder", "GPURenderBundleEncoder" ].includes( n.text ) &&
 				!([
 					animation,
+					cloth,
 					particles,
 					geometry,
 					shadows,
