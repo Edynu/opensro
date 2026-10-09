@@ -9,6 +9,7 @@ import { listFiles } from "../../shared/fsUtils.mjs";
 import { decodeJmxText } from "../../shared/jmxBinaryReader.mjs";
 import { writeJsonIfChanged } from "../../shared/jsonOut.mjs";
 import { readDungeonInfoRows } from "./dungeonInfo.mjs";
+import { authoredBlockContainer, probeBlockTextureFile, writeAuthoredBlockContainer } from "./blockTextures.mjs";
 
 const MISSION_MINIMAP_SOURCE_DIRECTORIES = [ "minimap", "minimap_d" ];
 const MISSION_DUNGEON_MINIMAP_MANIFEST_FORMAT = "sro-mission-dungeon-minimap-manifest";
@@ -25,9 +26,24 @@ export async function copyMissionMinimapTileImages( options = {} ) {
 		.flat()
 		.sort( ( left, right ) => left.publicPath.localeCompare( right.publicPath ) );
 
-	// Copy only tiles whose target is missing or stale: unconditionally re-copying all
-	// ~3.3k tiles refreshed their mtimes every run, defeating downstream hash caches.
+	// Publish only tiles whose target is missing or stale: unconditionally rewriting
+	// all ~3.3k tiles refreshed their mtimes every run, defeating downstream hash
+	// caches. A block-compressed retail DDJ (DXT1, 3326 of 3331) ships its own
+	// blocks as an NTX1 .texture, bit-exact with the PNG the converter decoded
+	// from it and a third of its size; the rest keep the converted PNG.
 	await mapWithConcurrency( tiles, 16, async ( tile ) => {
+		if ( tile.ddjPath ) {
+			// Fresh only when the published bytes are exactly what this code
+			// makes from the DDJ, so a container change republishes every tile.
+			const source = await readFile( tile.ddjPath );
+			const published = await readFile( tile.targetPath ).catch( () => null );
+			if ( published?.equals( authoredBlockContainer( source, tile.ddjPath ) ) ) {
+				claimPublicFile( tile.targetPath );
+				return;
+			}
+			await writeAuthoredBlockContainer( source, tile.ddjPath, tile.targetPath );
+			return;
+		}
 		if ( await copyTargetIsFresh( tile.sourcePath, tile.targetPath ) ) {
 			// A fresh tile is kept, and still this build's output.
 			claimPublicFile( tile.targetPath );
@@ -44,28 +60,33 @@ export async function copyMissionMinimapTileImages( options = {} ) {
 // The retail archive, not successful downloads or converted output, defines
 // intentional absence. Refuse incomplete conversion before publishing coverage.
 export async function retailMinimapArt( tiles, sourceRoot = path.join( extractedRoot, "Media_extracted" ) ) {
-	const paths = [];
+	const native = new Set();
+	let retailCount = 0;
 	for ( const directory of MISSION_MINIMAP_SOURCE_DIRECTORIES ) {
 		const root = path.join( sourceRoot, directory );
 		const files = await listFiles( root, { extensions: [ ".ddj" ], missing: "throw", sort: true } );
 		for ( const file of files ) {
-			paths.push(
+			retailCount++;
+			native.add(
 				`/assets/images/Media_extracted/${directory}/${
-					path.relative( root, file ).replaceAll( "\\", "/" ).replace( /\.ddj$/i, ".png" )
-				}`
+					path.relative( root, file ).replaceAll( "\\", "/" ).replace( /\.ddj$/i, "" )
+				}`.toLowerCase()
 			);
 		}
 	}
-	const converted = new Set( tiles.map( tile => tile.publicPath.toLowerCase() ) ),
-		native = new Set( paths.map( p => p.toLowerCase() ) );
-	if ( !native.size || native.size !== paths.length ) throw Error( "Invalid retail minimap artwork inventory" );
-	for ( const file of paths ) {
-		if ( !converted.has( file.toLowerCase() ) ) throw Error( "Retail minimap conversion missing: " + file );
+	// A tile ships as .texture or .png; the retail inventory compares bases.
+	const converted = new Map(
+		tiles.map( tile => [ tile.publicPath.replace( /\.[a-z]+$/i, "" ).toLowerCase(), tile ] )
+	);
+	// Two retail names that differ only in case would publish one tile.
+	if ( !native.size || native.size !== retailCount ) throw Error( "Invalid retail minimap artwork inventory" );
+	for ( const base of native ) {
+		if ( !converted.has( base ) ) throw Error( "Retail minimap conversion missing: " + base );
 	}
-	for ( const file of converted ) {
-		if ( !native.has( file ) ) throw Error( "Minimap conversion has no retail source: " + file );
+	for ( const base of converted.keys() ) {
+		if ( !native.has( base ) ) throw Error( "Minimap conversion has no retail source: " + base );
 	}
-	return paths.sort();
+	return [ ...converted.values() ].map( tile => tile.publicPath ).sort();
 }
 
 async function copyTargetIsFresh( sourcePath, targetPath ) {
@@ -156,9 +177,13 @@ async function listConvertedMinimapImages( directoryName ) {
 		throw new Error( `Missing converted minimap images under ${sourceRoot}; run the DDJ image conversion first.` );
 	}
 
-	return entries.map( ( sourcePath ) => {
+	const ddjRoot = path.join( extractedRoot, "Media_extracted", directoryName );
+	return mapWithConcurrency( entries, 32, async ( sourcePath ) => {
 		const relativePath = path.relative( sourceRoot, sourcePath ).replaceAll( "\\", "/" );
-		const publicPath = `${publicDirectory}/${relativePath}`;
+		const ddjPath = path.join( ddjRoot, relativePath.replace( /\.png$/i, ".ddj" ) );
+		const block = await probeBlockTextureFile( ddjPath ) === "dxt1";
+		const publishedPath = block ? relativePath.replace( /\.png$/i, ".texture" ) : relativePath;
+		const publicPath = `${publicDirectory}/${publishedPath}`;
 		const parsedNormalTile = directoryName === "minimap" ? parseMissionMinimapTileName( relativePath ) : undefined;
 		const parsedDungeonTile = directoryName === "minimap_d" ?
 			parseMissionDungeonMinimapTileName( relativePath ) :
@@ -166,7 +191,8 @@ async function listConvertedMinimapImages( directoryName ) {
 		return {
 			directoryName,
 			sourcePath,
-			targetPath: path.join( imagePublicRoot, "Media_extracted", directoryName, relativePath ),
+			targetPath: path.join( imagePublicRoot, "Media_extracted", directoryName, publishedPath ),
+			ddjPath: block ? ddjPath : undefined,
 			fileName: path.basename( relativePath ),
 			relativePath,
 			publicPath,
