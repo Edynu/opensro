@@ -101,7 +101,8 @@ KT_SHARED_TALK = {}
 TABLE_CONDITIONS = "0xc2"
 CONDITION_MIN_LEVEL, CONDITION_PREREQUISITES = 0x1, 0x2
 CONDITION_HELD_ITEMS, CONDITION_COUNTRY = 0x4, 0x100
-CONDITIONS_PORTED = CONDITION_MIN_LEVEL | CONDITION_PREREQUISITES | CONDITION_HELD_ITEMS | CONDITION_COUNTRY
+CONDITION_JOB = 0x1000
+CONDITIONS_PORTED = CONDITION_MIN_LEVEL | CONDITION_PREREQUISITES | CONDITION_HELD_ITEMS | CONDITION_COUNTRY | CONDITION_JOB
 # A condition the port does not check yet, on a quest already live, keyed
 # (quest, flag). Empty: every live quest's conditions are ported.
 CONDITION_GAPS = set()
@@ -129,6 +130,19 @@ CLASS_BEHAVIOUR = {
 	("QNO_EU_EASTEU_9", "0x90"): {},
 	("QNO_EU_EASTEU_12", "0x90"): {},
 	("QNO_EU_EASTEU_15", "0x90"): {},
+	# The four TRADE_*_SPECIAL classes (start-NPC talk 8CB8A0, 8CDE60,
+	# 8CD270, 8CC490; hand-over TradeSpecialQuest_OnTalkHandOverNpc 8CC8D0)
+	# pair a two-leg delivery (mission 0, bit 0 of record byte 3) with a
+	# hunt (mission 1, bit 1). Unachieved, the start NPC names what is
+	# left: _04 (the hunt) once the box is delivered, _05 (the delivery)
+	# once the hunt is done, _06 for both. A full bag at the pay answers
+	# a hard-coded _08; word 0x136 (_07) stays the acceptance line. The
+	# delivery's line is _05 and the hunt's _04, by kind.
+	**{(code, "0x58"): {
+		"NotAchievedSymbol": "SN_TALK_" + code + "_06",
+		"RewardFullSymbol": "SN_TALK_" + code + "_08",
+		"SolePendingSymbols": {MISSION_DELIVER: "SN_TALK_" + code + "_05", MISSION_KILL: "SN_TALK_" + code + "_04"},
+	} for code in ("QNO_TRADE_CH_SPECIAL2_1", "QNO_TRADE_RM_SPECIAL_1", "QNO_TRADE_TK_SPECIAL_1", "QNO_TRADE_WC_SPECIAL2_1")},
 	# CQNO_EU_EASTEU_4_OnNpcTalk (8AB930): the base talk behind one story
 	# page, _01 with the reply _02, before the 0x130 offer. Its initializer
 	# (8AB710) pushes no prerequisite: the v1.150 "Link (Stable
@@ -501,6 +515,12 @@ def conditions(code, quest):
 			out["RequiredHeldItems"] = every
 		if anyone:
 			out["RequiredAnyHeldItems"] = anyone
+	if flags & CONDITION_JOB:
+		# +0x20 the job, +0x21 whether it must (1) or must not (0) be worn.
+		job, required = table.get("0x20"), table.get("0x21", 0)
+		if not isinstance(job, int) or job < 1 or required not in (0, 1):
+			raise Unsupported("job condition unavailable")
+		out["JobCondition"] = {"Job": job, "Required": required == 1}
 	if not flags & CONDITION_MIN_LEVEL:
 		return out
 	level = table.get("0x4")
@@ -617,8 +637,17 @@ def project(code, quest, text, sql):
 			spec.update(row)
 		else:
 			spec.update({"Objective": OBJECTIVE_PARALLEL, "Objectives": rows})
-	elif kinds <= {MISSION_GATHER, MISSION_KILL, MISSION_DELIVER} and MISSION_DELIVER in kinds and len(missions) > 1 and not behaviour:
+	elif kinds <= {MISSION_GATHER, MISSION_KILL, MISSION_DELIVER} and MISSION_DELIVER in kinds and len(missions) > 1:
 		rows = [delivery_row(text, m) if m["fields"].get("0x9") == MISSION_DELIVER else project_mission(text, m) for m in missions]
+		# A class line per mission, sent while that mission alone is left,
+		# keyed by the mission's kind so the class order cannot swap them.
+		sole = behaviour.pop("SolePendingSymbols", None)
+		if sole is not None:
+			kinds_here = [m["fields"].get("0x9") for m in missions]
+			if sorted(kinds_here) != sorted(sole):
+				raise Unsupported("sole-pending lines do not match the missions")
+			for row, kind in zip(rows, kinds_here):
+				row["SolePendingSymbol"] = sole[kind]
 		spec.update(parallel_with_deliveries(text, quest, rows, start))
 	else:
 		raise Unsupported("mission kinds " + ",".join(str(k) for k in sorted(kinds, key=str)))
