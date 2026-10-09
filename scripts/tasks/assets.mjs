@@ -5,7 +5,7 @@ assets.mjs - asset pipeline tasks
 
 `pnpm assets <verb> [<family>]`: prepare and check a licensed client
 (prepare, doctor), build (build, build full, build world-outdoor), publish
-and refresh pack families, and the compaction and maintenance tools. A
+and refresh pack families, and the maintenance tools. A
 first build is `assets prepare`, `assets doctor`, then `assets build full`.
 
 ===========================================================================
@@ -154,16 +154,6 @@ export const ASSET_TASKS = [
 		args: [ "scripts/refresh_title_crowd_asset_packs.mjs" ]
 	} ),
 	commandTask( {
-		name: "assets:compact",
-		description: "Compact SRO assets and drop the generated cache",
-		kind: "assets",
-		ci: false,
-		requires: [ "generated-assets" ],
-		timeoutClass: "long",
-		command: "node",
-		args: [ "scripts/compact_sro_assets.mjs", "--drop-generated-cache" ]
-	} ),
-	commandTask( {
 		name: "assets:build:world-outdoor",
 		description: "Build outdoor world resources",
 		kind: "assets",
@@ -253,14 +243,14 @@ export const ASSET_TASKS = [
 		args: [ "scripts/build/jsonAssetCompression.mjs" ]
 	} ),
 	commandTask( {
-		name: "assets:check:compact",
-		description: "Validate compacted asset products",
+		name: "assets:check:served",
+		description: "Measure the served packs against the 80%-of-PK2 ceiling",
 		kind: "check",
 		ci: false,
 		requires: [ "generated-assets" ],
-		timeoutClass: "medium",
+		timeoutClass: "short",
 		command: "node",
-		args: [ "scripts/checks/check_compact_assets.mjs" ]
+		args: [ "scripts/checks/check_served_size.mjs" ]
 	} ),
 	commandTask( {
 		name: "assets:check:integrity",
