@@ -26,21 +26,15 @@ import { CLIENT_PUBLIC_ROOT } from "../lib/generatedRoot.mjs";
 import { STALL_NETWORK_FILES } from "./data/buildStallNetworkAssets.mjs";
 import path from "node:path";
 import { listPublicAssetFiles } from "./assetPacks.mjs";
-import { collectDedicatedModelGroups } from "./assetPackOwnership.mjs";
+import {
+	collectDedicatedModelGroups,
+	IMAGE_ASSET_EXTENSIONS,
+	imagePackGroup,
+	isImageAsset
+} from "./assetPackOwnership.mjs";
 import { rebuildRoot } from "./world/paths.mjs";
 
-// Native texture containers carry authored mip levels and must survive both
-// full rebuilds and focused outdoor refreshes just like ordinary image files.
-export const IMAGE_ASSET_EXTENSIONS = [ ".png", ".jpg", ".jpeg", ".dds", ".webp", ".cur", ".texture" ];
-
-/*
-================
-isImageAsset
-================
-*/
-export function isImageAsset( publicPath ) {
-	return IMAGE_ASSET_EXTENSIONS.some( ( extension ) => publicPath.toLowerCase().endsWith( extension ) );
-}
+export { IMAGE_ASSET_EXTENSIONS, isImageAsset } from "./assetPackOwnership.mjs";
 
 export const OUTDOOR_WORLD_PACK_TARGET_BYTES = 8 * 1024 * 1024;
 
@@ -144,7 +138,7 @@ export async function collectAssetPackGroups( {
 	const outdoorRawJson = outdoor.rawJson;
 	const outdoorImages = outdoor.images;
 
-	const gameImages = (
+	const allGameImages = (
 		await listPublicAssetFiles( {
 			publicRoot,
 			roots: [ "/assets" ],
@@ -152,6 +146,21 @@ export async function collectAssetPackGroups( {
 			exclude: [ ...uiImagePreloadPaths, ...missionMinimapTilePaths ]
 		} )
 	).filter( ( publicPath ) => !isOutdoorWorldAsset( publicPath ) );
+	// These families remain readable on demand, including during title loading.
+	// Startup membership preserves cached entries; group byte totals alone
+	// do not measure startup network traffic (issue #273).
+	// The collector's outdoor exclusion and the classifier's must agree:
+	// an outdoor-classified file reaching this partition would silently
+	// land in no group otherwise.
+	const divergent = allGameImages.filter( file => imagePackGroup( file ) === "outdoor-world" );
+	if ( divergent.length ) {
+		throw new Error( `Outdoor/classifier exclusion diverged for ${divergent[0]}` );
+	}
+	const gameImages = allGameImages.filter( file => imagePackGroup( file ) === "game-images" );
+	const worldTextureImages = allGameImages.filter( file => imagePackGroup( file ) === "world-textures" );
+	const mapTileImages = allGameImages.filter( file => imagePackGroup( file ) === "map-tiles" );
+	const uiIconImages = allGameImages.filter( file => imagePackGroup( file ) === "ui-icons" );
+	const particleTextureImages = allGameImages.filter( file => imagePackGroup( file ) === "particle-textures" );
 
 	const compressedJson = (
 		await listPublicAssetFiles( {
@@ -242,6 +251,12 @@ export async function collectAssetPackGroups( {
 	const groups = [
 		{ name: "native-ui", load: "startup", files: [ ...uiImagePreloadPaths ] },
 		{ name: "game-images", load: "startup", files: gameImages },
+		// Preserve game-images' cache protection for every image family.
+		// Startup controls eviction pinning; reads remain on demand.
+		{ name: "world-textures", load: "startup", files: worldTextureImages },
+		{ name: "map-tiles", load: "startup", files: mapTileImages },
+		{ name: "ui-icons", load: "startup", files: uiIconImages },
+		{ name: "particle-textures", load: "startup", files: particleTextureImages },
 		{
 			name: "game-data",
 			load: "startup",

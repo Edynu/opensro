@@ -25,6 +25,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { imagePackGroup, isImageAsset } from "../assetPackOwnership.mjs";
 import { buildSkillStageModelAssets } from "../char/buildSkillStageModelAssets.mjs";
 import { publishEntityBsrModifiers } from "../char/publishEntityBsrModifiers.mjs";
 import { buildQuestDataAsset } from "../data/buildQuestDataAsset.mjs";
@@ -239,7 +240,7 @@ entityBsrGroup
 function entityBsrGroup( file ) {
 	if ( file.endsWith( ".gz" ) ) return "game-data";
 	if ( file.endsWith( ".glb" ) || file.endsWith( ".vat.bin" ) ) return "game-models";
-	return "game-images";
+	return imagePackGroup( file );
 }
 
 /*
@@ -407,7 +408,7 @@ export const LOOSE_FAMILIES = {
 		kind: "refresh",
 		label: "effect resources",
 		packFolder: "effects",
-		defaultGroup: file => file.endsWith( ".gz" ) ? "game-data" : "game-images",
+		defaultGroup: file => file.endsWith( ".gz" ) ? "game-data" : imagePackGroup( file ),
 		async produce() {
 			const catalog = await readPublicJson( "/assets/effects/programs.json" );
 			const records = await packedJson( [
@@ -424,7 +425,7 @@ export const LOOSE_FAMILIES = {
 		kind: "refresh",
 		label: "terrain footprint textures",
 		packFolder: "footprints",
-		defaultGroup: "game-images",
+		defaultGroup: imagePackGroup,
 		async produce() {
 			const references = runtimeCifImageReferences.filter( file => FOOTPRINT_DDJ.test( file ) );
 			if ( new Set( references ).size !== 2 ) throw new Error( "Footprint catalog must contain sand and snow" );
@@ -568,7 +569,7 @@ export const LOOSE_FAMILIES = {
 		kind: "refresh",
 		label: "item-slot effect sheets",
 		packFolder: "slot-effects",
-		defaultGroup: file => file === SPRITE_CATALOG ? "game-data" : "game-images",
+		defaultGroup: file => file === SPRITE_CATALOG ? "game-data" : imagePackGroup( file ),
 		produce: produceSlotEffects,
 		packFiles: slotEffectPackFiles
 	},
@@ -587,12 +588,14 @@ export const LOOSE_FAMILIES = {
 		}
 	},
 	// The dungeon resource provider and every dungeon world built from it, packed
-	// with their textures; files no group owns yet join the provider's group.
+	// with their textures; new data joins the provider's group while new images
+	// follow the same ownership as a full build.
 	"dungeon-worlds": {
 		kind: "publish",
 		label: "dungeon world files and textures",
 		packFolder: "dungeon-world",
 		defaultGroup: ( file, index ) => {
+			if ( isImageAsset( file ) ) return imagePackGroup( file );
 			const group = groupOf( index, DUNGEON_RESOURCE_PUBLIC_PATH ) ??
 				groupOf( index, DUNGEON_RESOURCE_PUBLIC_PATH + ".gz" );
 			if ( !group ) throw new Error( "Dungeon provider has no published pack owner" );

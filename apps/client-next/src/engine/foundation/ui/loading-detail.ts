@@ -41,11 +41,19 @@ function packGroupName( group: string ): string {
 		case "game-data":
 			return "game data";
 		case "game-images":
+		case "ui-icons":
+			// The image families share game-images' player-facing line.
 			return "interface images";
+		case "map-tiles":
+			return "map pages";
+		case "world-textures":
+			return "world textures";
 		case "game-models":
 			return "character models";
 		case "hwan-models":
 			return "effects";
+		case "particle-textures":
+			return "effect images";
 		case "mission-cos-models":
 			return "pets and mounts";
 		case "mission-minimap":

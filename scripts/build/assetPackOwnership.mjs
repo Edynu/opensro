@@ -1,13 +1,16 @@
 /*
 ===========================================================================
 
-assetPackOwnership.mjs - which dedicated lazy group owns a published model
+assetPackOwnership.mjs - image and dedicated model pack ownership
 
 The full pack build (assetPackGroups.mjs) and the generated-asset tests
 derive the dedicated model groups from this module alone. Membership comes
 from the published authority documents (roster.json, the NPC manifest),
 never from directory sweeps: a stale GLB no document references stays in
 the generic game-models sweep.
+
+Image paths share one classifier between full and focused builds. Explicit
+preload/minimap owners are resolved before this default classification.
 
 Every path has exactly one owning group. The client rejects a whole pack
 index that names a path twice; that happened on 2026-09-23 when the full
@@ -18,6 +21,36 @@ its own group over the same paths.
 */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+
+// Native texture containers preserve authored mip levels alongside ordinary images.
+export const IMAGE_ASSET_EXTENSIONS = [ ".png", ".jpg", ".jpeg", ".dds", ".webp", ".cur", ".texture" ];
+
+/*
+================
+isImageAsset
+================
+*/
+export function isImageAsset( publicPath ) {
+	return IMAGE_ASSET_EXTENSIONS.some( ( extension ) => publicPath.toLowerCase().endsWith( extension ) );
+}
+
+/*
+================
+imagePackGroup
+
+Default owner for an image without an explicit preload or existing owner.
+Load mode controls persistent-cache pinning; all groups are read on demand.
+================
+*/
+export function imagePackGroup( publicPath ) {
+	const lower = publicPath.toLowerCase();
+	if ( lower.startsWith( "/assets/world/outdoor/" ) ) return "outdoor-world";
+	if ( lower.startsWith( "/assets/world/" ) ) return "world-textures";
+	if ( lower.startsWith( "/assets/images/map_extracted/tile2d/" ) ) return "map-tiles";
+	if ( lower.startsWith( "/assets/images/media_extracted/icon/" ) ) return "ui-icons";
+	if ( lower.startsWith( "/assets/images/particles_extracted/textures/" ) ) return "particle-textures";
+	return "game-images";
+}
 
 /*
 ================

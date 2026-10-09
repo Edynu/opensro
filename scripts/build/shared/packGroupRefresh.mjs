@@ -68,13 +68,21 @@ export function timedStep( label ) {
 ================
 requireGroup
 
-The populated group of an index; startup=true also requires it to load at
-startup, which the focused UI families depend on.
+The full build owns group creation. An empty group can accept its first sparse
+append when allowEmpty is explicit; other callers still require populated packs.
+startup=true also checks the full build's load policy.
 ================
 */
-export function requireGroup( index, groupName, { startup = false } = {} ) {
+export function requireGroup( index, groupName, { startup = false, allowEmpty = false } = {} ) {
 	const group = index.groups?.find( candidate => candidate.name === groupName );
-	if ( !group || group.assetCount === 0 || group.packs?.length === 0 ) {
+	if ( !group ) {
+		throw new Error(
+			`The main asset manifest has no ${groupName} group. Run pnpm assets build full to migrate ` +
+				"the pack groups before a focused refresh."
+		);
+	}
+	const empty = group.assetCount === 0 && group.packs?.length === 0;
+	if ( (group.assetCount === 0 || group.packs?.length === 0) && !(allowEmpty && empty) ) {
 		throw new Error( `The main asset manifest has no populated ${groupName} group.` );
 	}
 	if ( startup && group.load !== "startup" ) {
@@ -138,7 +146,10 @@ export async function refreshPackGroups( request ) {
 	const updates = [];
 	for ( const delta of deltas ) {
 		// A refresh replaces a group the full build created; it never creates one.
-		const previousGroup = requireGroup( previous, delta.groupName, { startup: Boolean( delta.startup ) } );
+		const previousGroup = requireGroup( previous, delta.groupName, {
+			startup: Boolean( delta.startup ),
+			allowEmpty: !delta.rebuild && !delta.sameMembership && Boolean( delta.files?.length )
+		} );
 		const groupRoot = path.join( outputRoot, delta.groupName );
 		const update = await timed(
 			`${delta.groupName} refresh (${delta.files?.length ?? "authority"} files)`,
