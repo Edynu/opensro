@@ -493,8 +493,9 @@ occupies its own full-width row below it instead of shrinking beside it.
 	}
 }
 
-/* Developer diagnostics are a separate, console-enabled neighbor of FPS. */
-#developer-toggle { width: 24px; }
+/* Developer panels (diagnostics, batching census) are separate, console-enabled neighbors of FPS. */
+.sro-fps-chip__toggle.sro-developer-toggle { width: 24px; }
+.sro-developer-toggle svg { display: block; margin: 0 auto; }
 /* The frame report is aligned columns (frame-report.ts): monospace, spaces kept. */
 .sro-developer-readout {
 	width: max-content;

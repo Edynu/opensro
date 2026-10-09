@@ -71,6 +71,21 @@ test(
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), true );
 			assert.equal( await page.locator( "#developer-readout" ).isVisible(), false );
 			assert.equal( requests, 1 );
+			// The batching census has its own icon left of the diagnostics one,
+			// and its own panel: opening one closes the other.
+			const census = await page.locator( "#census-toggle" ).boundingBox(),
+				diagnostics = await page.locator( "#developer-toggle" ).boundingBox();
+			assert.ok(
+				census && diagnostics && census.x + census.width <= diagnostics.x && census.y === diagnostics.y
+			);
+			await page.locator( "#census-toggle" ).click();
+			await page.waitForFunction( () =>
+				document.getElementById( "census-readout" )?.textContent?.includes( "Batching census" )
+			);
+			assert.equal( await page.locator( "#developer-readout" ).isVisible(), false );
+			await page.locator( "#developer-toggle" ).click();
+			assert.equal( await page.locator( "#census-readout" ).isVisible(), false );
+			await page.locator( "#developer-toggle" ).click();
 			await page.setViewportSize( { width: 640, height: 480 } );
 			await page.locator( "#developer-toggle" ).click();
 			await page.waitForFunction( () =>
@@ -84,6 +99,7 @@ test(
 			await page.evaluate( () => window.sroDebug?.setDiagnostics( false ) );
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );
 			assert.equal( await page.locator( "#developer-readout" ).isVisible(), false );
+			assert.equal( await page.locator( "#census-toggle" ).isVisible(), false );
 			await page.reload();
 			await ready( page );
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );
@@ -95,6 +111,7 @@ test(
 			} );
 			assert.equal( await page.evaluate( () => window.sroDebug ), undefined );
 			assert.equal( await page.locator( "#developer-toggle" ).count(), 0 );
+			assert.equal( await page.locator( "#census-toggle" ).count(), 0 );
 			assert.deepEqual( errors, [] );
 		} finally {
 			await browser.close();

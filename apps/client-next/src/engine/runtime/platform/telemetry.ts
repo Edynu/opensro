@@ -3,14 +3,15 @@
 
 telemetry.ts - compact player FPS/ping and opt-in developer diagnostics
 
-The Experimental preference reveals a separate icon, never developer data in
-the player readout. Only icon visibility persists; panels start closed. This is
-a local presentation preference, not server authorization.
+The Experimental preference reveals separate icons, never developer data in
+the player readout: the frame report and the batching census, each in its
+own panel, one open at a time. Only icon visibility persists; panels start
+closed. This is a local presentation preference, not server authorization.
 
 ===========================================================================
 */
 import type { FrameTelemetry } from "@/engine/contracts/runtime";
-import { formatFrameReport } from "@/engine/foundation/rendering/frame-report";
+import { formatBatchCensus, formatFrameReport } from "@/engine/foundation/rendering/frame-report";
 
 /*
 ================
@@ -42,6 +43,85 @@ declare global {
 
 /*
 ================
+DeveloperPanel
+
+A developer readout and the icon that opens it; report names its text.
+================
+*/
+interface DeveloperPanel {
+	readonly toggle: HTMLButtonElement;
+	readonly readout: HTMLDivElement;
+	readonly name: string;
+	readonly report: "frame" | "census";
+}
+
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+/*
+================
+tilesIcon
+
+The batching census icon: four equal tiles, one item drawn for many
+players. Drawn, not a glyph, so it stays crisp at the chip's 10px font.
+================
+*/
+function tilesIcon(): SVGSVGElement {
+	const icon = document.createElementNS( SVG_NAMESPACE, "svg" );
+	icon.setAttribute( "viewBox", "0 0 10 10" );
+	icon.setAttribute( "width", "10" );
+	icon.setAttribute( "height", "10" );
+	icon.setAttribute( "aria-hidden", "true" );
+	for ( const [x, y] of [ [ 0, 0 ], [ 6, 0 ], [ 0, 6 ], [ 6, 6 ] ] ) {
+		const tile = document.createElementNS( SVG_NAMESPACE, "rect" );
+		tile.setAttribute( "x", String( x ) );
+		tile.setAttribute( "y", String( y ) );
+		tile.setAttribute( "width", "4" );
+		tile.setAttribute( "height", "4" );
+		tile.setAttribute( "fill", "currentColor" );
+		icon.append( tile );
+	}
+	return icon;
+}
+
+/*
+================
+createDeveloperPanel
+
+The icon <id>-toggle and its hidden readout <id>-readout.
+================
+*/
+function createDeveloperPanel(
+	id: string,
+	icon: string | SVGSVGElement,
+	title: string,
+	report: DeveloperPanel["report"]
+): DeveloperPanel {
+	const toggle = document.createElement( "button" );
+	toggle.id = `${id}-toggle`;
+	toggle.className = "sro-fps-chip__toggle sro-developer-toggle";
+	toggle.type = "button";
+	if ( typeof icon === "string" ) toggle.textContent = icon;
+	else toggle.append( icon );
+	toggle.setAttribute( "aria-controls", `${id}-readout` );
+	const readout = document.createElement( "div" );
+	readout.id = `${id}-readout`;
+	readout.className = "sro-fps-chip__readout sro-developer-readout";
+	readout.setAttribute( "role", "region" );
+	readout.setAttribute( "aria-label", title );
+	return { toggle, readout, name: title.toLowerCase(), report };
+}
+
+/*
+================
+panelText
+================
+*/
+function panelText( panel: DeveloperPanel, sample: FrameTelemetry, ping: string ): string {
+	return panel.report === "census" ? formatBatchCensus( sample ) : formatFrameReport( sample, ping );
+}
+
+/*
+================
 createTelemetry
 ================
 */
@@ -50,41 +130,54 @@ export function createTelemetry( options: TelemetryOptions ) {
 	const chip = document.getElementById( "fps-chip" );
 	const fpsToggle = document.getElementById( "fps-toggle" );
 	const fpsReadout = document.getElementById( "fps-readout" );
-	const toggle = document.createElement( "button" );
-	toggle.id = "developer-toggle";
-	toggle.className = "sro-fps-chip__toggle";
-	toggle.type = "button";
-	toggle.textContent = "</>";
-	toggle.setAttribute( "aria-controls", "developer-readout" );
-	const readout = document.createElement( "div" );
-	readout.id = "developer-readout";
-	readout.className = "sro-fps-chip__readout sro-developer-readout";
-	readout.setAttribute( "role", "region" );
-	readout.setAttribute( "aria-label", "Developer diagnostics" );
+	// Left of FPS in this order. The frame report fills the panel's height,
+	// so the census has its own.
+	const panels: readonly DeveloperPanel[] = [
+		createDeveloperPanel( "census", tilesIcon(), "Batching census", "census" ),
+		createDeveloperPanel( "developer", "</>", "Developer diagnostics", "frame" )
+	];
 	let enabled = options.enabled;
 	let latest: FrameTelemetry | null = null;
 	let movementDump: (() => unknown) | undefined;
-	chip?.insertBefore( toggle, fpsToggle );
-	chip?.append( readout );
+	for ( const panel of panels ) {
+		chip?.insertBefore( panel.toggle, fpsToggle );
+		chip?.append( panel.readout );
+	}
 
 	/*
  ================
  setExpanded
+
+ Opens or closes a developer panel, or the player's FPS readout (null).
  ================
  */
-	function setExpanded( developer: boolean, expanded: boolean ) {
-		const button = developer ? toggle : fpsToggle;
-		const panel = developer ? readout : fpsReadout;
-		if ( !button || !panel ) return;
-		panel.hidden = !expanded;
-		const label = `${expanded ? "Hide" : "Show"} ${developer ? "developer diagnostics" : "FPS and ping"}`;
+	function setExpanded( panel: DeveloperPanel | null, expanded: boolean ) {
+		const button = panel ? panel.toggle : fpsToggle;
+		const readout = panel ? panel.readout : fpsReadout;
+		if ( !button || !readout ) return;
+		readout.hidden = !expanded;
+		const label = `${expanded ? "Hide" : "Show"} ${panel ? panel.name : "FPS and ping"}`;
 		button.setAttribute( "aria-expanded", String( expanded ) );
 		button.setAttribute( "aria-label", label );
 		button.title = label;
-		if ( !developer ) {
+		if ( !panel ) {
 			chip?.setAttribute( "data-expanded", String( expanded ) );
 			button.textContent = expanded ? "x" : "F";
 		}
+	}
+
+	/*
+ ================
+ open
+
+ Shows one readout (a developer panel, or FPS for null) and closes the rest.
+ ================
+ */
+	function open( panel: DeveloperPanel | null, expanded: boolean ) {
+		if ( panel ) setExpanded( null, false );
+		for ( const other of panels ) if ( other !== panel ) setExpanded( other, false );
+		setExpanded( panel, expanded );
+		if ( latest ) present( latest );
 	}
 
 	/*
@@ -98,8 +191,10 @@ export function createTelemetry( options: TelemetryOptions ) {
 		if ( fpsReadout && !fpsReadout.hidden ) {
 			fpsReadout.textContent = `${Math.round( sample.fps )} FPS · ${ping} ms`;
 		}
-		if ( !enabled || readout.hidden ) return;
-		readout.textContent = formatFrameReport( sample, ping );
+		if ( !enabled ) return;
+		for ( const panel of panels ) {
+			if ( !panel.readout.hidden ) panel.readout.textContent = panelText( panel, sample, ping );
+		}
 	}
 
 	/*
@@ -109,16 +204,20 @@ export function createTelemetry( options: TelemetryOptions ) {
  */
 	function setDiagnostics( value: boolean ) {
 		enabled = value === true;
-		toggle.hidden = !enabled;
-		if ( !enabled ) {
-			setExpanded( true, false );
-			readout.textContent = "";
+		for ( const panel of panels ) {
+			panel.toggle.hidden = !enabled;
+			if ( !enabled ) {
+				setExpanded( panel, false );
+				panel.readout.textContent = "";
+			}
 		}
 		return enabled;
 	}
-	setExpanded( false, false );
-	setExpanded( true, false );
-	toggle.hidden = !enabled;
+	setExpanded( null, false );
+	for ( const panel of panels ) {
+		setExpanded( panel, false );
+		panel.toggle.hidden = !enabled;
+	}
 	const previous = window.sroDebug;
 	const consoleApi = {
 		/*
@@ -138,18 +237,12 @@ export function createTelemetry( options: TelemetryOptions ) {
 		}
 	};
 	window.sroDebug = consoleApi;
-	fpsToggle?.addEventListener( "click", () => {
-		const expanded = !!fpsReadout?.hidden;
-		setExpanded( true, false );
-		setExpanded( false, expanded );
-		if ( latest ) present( latest );
-	}, { signal: lifetime.signal } );
-	toggle.addEventListener( "click", () => {
-		const expanded = readout.hidden;
-		setExpanded( false, false );
-		setExpanded( true, expanded );
-		if ( latest ) present( latest );
-	}, { signal: lifetime.signal } );
+	fpsToggle?.addEventListener( "click", () => open( null, !!fpsReadout?.hidden ), { signal: lifetime.signal } );
+	for ( const panel of panels ) {
+		panel.toggle.addEventListener( "click", () => open( panel, panel.readout.hidden ), {
+			signal: lifetime.signal
+		} );
+	}
 	return {
 		/*
 		================
@@ -161,7 +254,7 @@ export function createTelemetry( options: TelemetryOptions ) {
 		},
 		setDiagnostics,
 		present,
-		active: () => enabled && !readout.hidden && !document.hidden,
+		active: () => enabled && panels.some( panel => !panel.readout.hidden ) && !document.hidden,
 		/*
   ================
   dispose
@@ -170,9 +263,11 @@ export function createTelemetry( options: TelemetryOptions ) {
 		dispose() {
 			movementDump = undefined;
 			lifetime.abort();
-			toggle.remove();
-			readout.remove();
-			setExpanded( false, false );
+			for ( const panel of panels ) {
+				panel.toggle.remove();
+				panel.readout.remove();
+			}
+			setExpanded( null, false );
 			if ( window.sroDebug === consoleApi ) {
 				if ( previous ) window.sroDebug = previous;
 				else delete window.sroDebug;

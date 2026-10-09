@@ -13,9 +13,13 @@ character: (renderer phases), detail: (spans inside a phase), span:
 (measured shares), count: (per-frame counts) and peak: (a timing's worst
 frame). A key the layout does not name is still listed, under "Other".
 
+The batching census (batch-census.ts) has its own panel and text, from the
+same window's census- counts.
+
 ===========================================================================
 */
 import type { FrameTelemetry } from "@/engine/contracts/runtime";
+import { censusKinds, EFFECT_COUNT_PREFIX, effectStats, type CensusKind } from "./batch-census";
 
 export const PEAK_KEY_PREFIX = "peak:";
 export const COUNT_KEY_PREFIX = "count:";
@@ -28,6 +32,8 @@ const BAR_WIDTH = 12;
 const NOT_ITEMIZED_MS = 0.05;
 // The main thread is the limit when it is busy this share of the frame.
 const CPU_BOUND_SHARE = 0.85;
+// The batching census lists this many effects by use.
+const CENSUS_EFFECT_ROWS = 8;
 
 /*
 ================
@@ -331,4 +337,118 @@ export function formatFrameReport( sample: FrameTelemetry, ping: string ): strin
 	if ( sample.overload?.level ) lines.push( "", `Overload level ${sample.overload.level}` );
 	lines.push( "", ...sample.build.lines, sample.build.detail );
 	return lines.filter( line => line !== undefined ).join( "\n" );
+}
+
+/*
+================
+censusLabel
+================
+*/
+function censusLabel( kind: CensusKind ): string {
+	return kind === "mesh" ? "Item meshes" : kind === "cloth" ? "Cloth (own vertices)" : "Effects (particles)";
+}
+
+/*
+================
+formatBatchCensus
+
+The batching census panel's text: character draws by kind on the sampled
+frames, the distinct items behind them, and what a batch per item would
+draw instead. Needs ?frame-stages=1.
+================
+*/
+export function formatBatchCensus( sample: FrameTelemetry ): string {
+	const stages = sample.stages ?? {};
+	const count = ( name: string ) => stages[COUNT_KEY_PREFIX + name];
+	const lines = [ "Batching census", "Character draws per frame and the items", "(mesh + texture) behind them." ];
+	if ( !sample.stages ) return [ ...lines, "", "Add ?frame-stages=1 for the census." ].join( "\n" );
+	if ( count( "census-mesh-draws" ) === undefined ) {
+		return [ ...lines, "", "No character draws sampled yet." ].join( "\n" );
+	}
+	const whole = ( value: number | undefined ) => String( Math.round( value ?? 0 ) );
+	lines.push( "", row( "", [ "draws", "items", "inst." ] ) );
+	let draws = 0, items = 0;
+	for ( const kind of censusKinds() ) {
+		draws += count( `census-${kind}-draws` ) ?? 0;
+		items += count( `census-${kind}-items` ) ?? 0;
+		lines.push( row( censusLabel( kind ), [
+			whole( count( `census-${kind}-draws` ) ),
+			whole( count( `census-${kind}-items` ) ),
+			kind === "effect" ? "" : whole( count( `census-${kind}-instances` ) )
+		] ) );
+	}
+	lines.push( row( "All character draws", [ whole( draws ), whole( items ) ] ) );
+	const meshDraws = count( "census-mesh-draws" ) ?? 0, meshItems = count( "census-mesh-items" ) ?? 0;
+	const effectDraws = count( "census-effect-draws" ) ?? 0, effectItems = count( "census-effect-items" ) ?? 0;
+	lines.push(
+		"",
+		"One batch per item",
+		row( "item mesh draws", [ whole( meshDraws ), "→", whole( meshItems ) ] ) + saving( meshDraws, meshItems ),
+		row( "effect draws", [ whole( effectDraws ), "→", whole( effectItems ) ] ) +
+			saving( effectDraws, effectItems ),
+		row( "mesh draws per item", [ meshItems > 0 ? (meshDraws / meshItems).toFixed( 1 ) : "0" ] ),
+		row( "most worn item: instances", [ whole( count( "census-top-instances" ) ) ] ),
+		row( "  in draws", [ whole( count( "census-top-draws" ) ) ] )
+	);
+	// Effects by use: what is cast, by how many, and what it draws.
+	const effects = censusEffects( stages );
+	if ( effects.length ) {
+		lines.push(
+			"",
+			// Headers narrower than a column, so adjacent ones stay apart.
+			row( `Effects by use (top ${CENSUS_EFFECT_ROWS})`, [ "draws", "actors", "items", "ptcls" ] )
+		);
+		for ( const effect of effects.slice( 0, CENSUS_EFFECT_ROWS ) ) {
+			lines.push( row( effect.name, effectStats().map( stat => whole( effect.values[stat] ) ) ) );
+		}
+		if ( effects.length > CENSUS_EFFECT_ROWS ) {
+			lines.push( `  … ${effects.length - CENSUS_EFFECT_ROWS} more effects` );
+		}
+	}
+	return lines.join( "\n" );
+}
+
+/*
+================
+saving
+
+The share of draws one batch per item removes, as "  (-n%)".
+================
+*/
+function saving( draws: number, items: number ): string {
+	return draws > 0 ? `  (-${Math.round( (1 - items / draws) * 100 )}%)` : "";
+}
+
+/*
+================
+censusEffects
+
+The census's effects from their EFFECT_COUNT_PREFIX counts, most drawn
+first. A name is shown by its last path part, the end kept when long.
+Effect model ids are URL encoded paths ("…%2Ffire.efp").
+================
+*/
+function censusEffects(
+	stages: Readonly<Record<string, number>>
+): { name: string; values: Record<string, number>; }[] {
+	const prefix = COUNT_KEY_PREFIX + EFFECT_COUNT_PREFIX;
+	const effects = new Map<string, { name: string; values: Record<string, number>; }>();
+	for ( const key in stages ) {
+		if ( !key.startsWith( prefix ) ) continue;
+		const rest = key.slice( prefix.length ), colon = rest.indexOf( ":" ), source = rest.slice( colon + 1 );
+		let effect = effects.get( source );
+		if ( !effect ) {
+			let path = source;
+			try {
+				path = decodeURIComponent( source );
+			} catch {
+				// A malformed escape is shown as it came.
+			}
+			const part = path.split( /[\\/]/ ).pop() || path;
+			effect = { name: part.length > LABEL_WIDTH - 1 ? "…" + part.slice( 2 - LABEL_WIDTH ) : part, values: {} };
+			effects.set( source, effect );
+		}
+		effect.values[rest.slice( 0, colon )] = stages[key]!;
+	}
+	return [ ...effects.values() ].sort( ( a, b ) => (b.values.draws ?? 0) - (a.values.draws ?? 0) );
 }

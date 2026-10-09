@@ -56,6 +56,7 @@ import {
 import { type PickBounds, type PickRay } from "@/engine/foundation/rendering/picking";
 import { faceEffectMesh } from "@/engine/foundation/rendering/effect-billboard";
 import { characterRadius, createCharacterBoundsCache } from "@/engine/foundation/animation/character-bounds";
+import { createBatchCensus, ITEM_EFFECT, type BatchCensus } from "@/engine/foundation/rendering/batch-census";
 import {
 	CHARACTER_ASSEMBLIES,
 	CHARACTER_MODELS,
@@ -227,6 +228,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	let probe: import("@/engine/contracts/runtime").RenderFrameProbe | undefined;
 	// This prepare times its draws by kind (the probe's sampled frames).
 	let detailDraws = false;
+	// The batching census of a sampled main pass (developer panel).
+	let census: BatchCensus | undefined;
 	// Per-geometry radius work: an assembled character reuses its parts'.
 	const bounds = createCharacterBoundsCache();
 	const models = new Map<string, {
@@ -2305,6 +2308,35 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	countCensus
+
+	The group's live draws, one per primitive, under the item each draws:
+	its geometry and texture source, which every assembly wearing the part
+	shares (assembly). An effect actor's model is a one-row assembly of its
+	effect, named here by that effect (presentation-auxiliary.ts); all its
+	draws are effect draws.
+	================
+	*/
+	function countCensus( group: GroupFrame, draws: readonly GeometryDraw[] ) {
+		const actor = group.rows[0]!,
+			effect = actor.effectEntity ? group.resource.dependencies?.[0] ?? actor.model : undefined;
+		if ( effect !== undefined ) census!.casters( effect, group.rows.length );
+		for ( let p = 0; p < draws.length; p++ ) {
+			const draw = draws[p]!, primitive = group.model.primitives[p]!, particles = group.batch.particles[p];
+			if ( draw.indexCount <= 0 || draw.instanceCount <= 0 ) continue;
+			const emitted = !!primitive.ribbon || !!particles;
+			census!.add( {
+				kind: effect !== undefined || emitted ? "effect" : primitive.cloth ? "cloth" : "mesh",
+				geometry: primitive.geometry,
+				texture: group.resource.images[primitive.image],
+				instances: draw.instanceCount,
+				effect: effect ?? (emitted ? ITEM_EFFECT : undefined),
+				particles: particles?.live ?? 0
+			} );
+		}
+	}
+	/*
+	================
 	prepareGroup
 
 	Build one planned batch's draws into frame.output.
@@ -2338,6 +2370,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		if ( poseKey !== undefined && batch.poseKey === poseKey ) {
 			batch.draws.forEach( ( draw, index ) => updateModifiers( frame.geometry, group, draw, index ) );
 			output.push( ...batch.draws );
+			if ( census ) countCensus( group, batch.draws );
 			probe?.characterBatch?.(
 				id.slice( rows[0]!.model.length ),
 				rows.length,
@@ -2352,6 +2385,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		for ( let p = 0; p < group.model.primitives.length; p++ ) {
 			output.push( detailDraws ? drawTimed( frame, group, p ) : drawPrimitive( frame, group, p ) );
 		}
+		if ( census ) countCensus( group, output.slice( outputStart ) );
 		probe?.characterBatch?.(
 			id.slice( rows[0]!.model.length ),
 			rows.length,
@@ -3143,6 +3177,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			};
 			probe?.characterMark( "character-setup" );
 			detailDraws = !!probe?.detailBegin && !!probe.sampleDetails?.();
+			census = detailDraws && !continuation && !preview ? createBatchCensus() : undefined;
 			const particles = advanceParticles( frame );
 			probe?.characterMark( "character-particles" );
 			const visible = selectVisible( frame, particles.accepted, reflectedView );
@@ -3161,6 +3196,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			}
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );
+			if ( census ) {
+				for ( const [name, value] of Object.entries( census.counts() ) ) probe?.characterCount( name, value );
+				census = undefined;
+			}
 			frameGroups = grouped.size;
 			framePoses = null;
 			return frame.output;

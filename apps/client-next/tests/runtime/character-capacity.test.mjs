@@ -332,6 +332,95 @@ test("batch census follows actual emitted groups on fresh and retained frames", 
 	}
 });
 
+test("the batching census counts an item worn across outfits once, only on sampled main passes", () => {
+	const f = fixture(), counters = {}, rows = actors( [ 1, 2, 3 ], .25 );
+	let sampled = true;
+	// Two outfits assembled from the same gear, one covering the body: the
+	// gear is one item drawn by both outfits' batches.
+	f.owner.model( "gear", { ...model, primitives: [ { ...model.primitives[0], name: "gear" } ] }, [] );
+	f.owner.assembly( "full", "m", [ { model: "gear", parts: [ "gear" ], covers: [] } ] );
+	f.owner.assembly( "gear-only", "m", [ { model: "gear", parts: [ "gear" ], covers: [ 0 ] } ] );
+	rows[0].model = rows[1].model = "full";
+	rows[2].model = "gear-only";
+	f.owner.profile( {
+		renderBegin() {},
+		renderMark() {},
+		characterBegin() {},
+		characterMark() {},
+		characterCount( name, count = 1 ) {
+			counters[name] = count;
+		},
+		characterBatch() {},
+		detailBegin() {},
+		detailEnd() {},
+		sampleDetails: () => sampled
+	} );
+	const census = () =>
+		Object.fromEntries( Object.entries( counters ).filter( ( [name] ) => name.startsWith( "census-" ) ) );
+	try {
+		f.owner.actors( rows );
+		const output = f.owner.prepare( f.gpu, {}, 257 );
+		assert.equal( output.length, 3, "body and gear for one outfit, gear for the other" );
+		assert.deepEqual( census(), {
+			"census-mesh-draws": 3,
+			"census-mesh-items": 2,
+			"census-mesh-instances": 5,
+			"census-cloth-draws": 0,
+			"census-cloth-items": 0,
+			"census-cloth-instances": 0,
+			"census-effect-draws": 0,
+			"census-effect-items": 0,
+			"census-effect-instances": 0,
+			"census-top-instances": 3,
+			"census-top-draws": 2
+		} );
+		for ( const key of Object.keys( counters ) ) delete counters[key];
+		sampled = false;
+		f.owner.prepare( f.gpu, {}, 257 );
+		assert.deepEqual( census(), {}, "unsampled frames take no census" );
+		sampled = true;
+		f.owner.prepare( f.gpu, {}, 257, undefined, false, 0, true );
+		assert.deepEqual( census(), {}, "the deferred continuation is not a second census" );
+	} finally {
+		f.owner.dispose( f.gpu, null );
+	}
+});
+
+test("the batching census names each caster's effect by the effect it assembles", () => {
+	const f = fixture(), counters = {}, rows = actors( [ 7, 8 ], .25 );
+	// As presentation-auxiliary.ts builds them: one assembly per caster.
+	for ( const row of rows ) {
+		f.owner.assembly( `effect:${row.gid}:m`, "m", [] );
+		row.model = `effect:${row.gid}:m`;
+		row.effectEntity = true;
+	}
+	f.owner.profile( {
+		renderBegin() {},
+		renderMark() {},
+		characterBegin() {},
+		characterMark() {},
+		characterCount( name, count = 1 ) {
+			counters[name] = count;
+		},
+		characterBatch() {},
+		detailBegin() {},
+		detailEnd() {},
+		sampleDetails: () => true
+	} );
+	try {
+		f.owner.actors( rows );
+		assert.equal( f.owner.prepare( f.gpu, {}, 257 ).length, 2, "one batch per caster" );
+		assert.equal( counters["census-mesh-draws"], 0 );
+		assert.equal( counters["census-effect-draws"], 2 );
+		assert.equal( counters["census-effect-items"], 1 );
+		assert.equal( counters["census-fx-draws:m"], 2 );
+		assert.equal( counters["census-fx-casters:m"], 2 );
+		assert.equal( counters["census-fx-items:m"], 1 );
+	} finally {
+		f.owner.dispose( f.gpu, null );
+	}
+});
+
 /*
 ================
 Batch variants on retained snapshots
