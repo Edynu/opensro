@@ -19,7 +19,7 @@ import {
 import { chatBlocks } from "@/engine/foundation/gameplay/chat-blocks";
 import {
 	defaultVideoOptions,
-	displaySizes,
+	uiPixelScaleFor,
 	videoOptions,
 	type VideoOptions
 } from "@/engine/foundation/rendering/video-options";
@@ -208,22 +208,16 @@ export function createPlatform(
 	uiPixelScale
 
 	Nearest integer enlargement restores logical UI size on Retina displays
-	without interpolating bitmap text at fractional browser/OS scales. It
-	steps down while the logical extent would be smaller than the original's
-	smallest screen mode: a 1080p laptop at 150% (DPR 1.5 rounds to 2) would
-	otherwise lay out a 960x540 UI the native windows do not fit.
+	without interpolating bitmap text at fractional browser/OS scales. A
+	window smaller than the native minimum gets the compact layout at that
+	enlargement; a larger one steps down to keep the desktop HUD
+	(uiPixelScaleFor). This also covers a docked browser inspector.
 	================
 	*/
 	function uiPixelScale(): number {
 		if ( video.displaySize ) return 1;
-		const physical = readViewport(), modes = displaySizes().filter( ( [width] ) => width > 0 );
-		const minimumWidth = Math.min( ...modes.map( m => m[0] ) ),
-			minimumHeight = Math.min( ...modes.map( m => m[1] ) );
-		let scale = Math.max( 1, Math.round( devicePixelRatio ) );
-		while ( scale > 1 && (physical.width / scale < minimumWidth || physical.height / scale < minimumHeight) ) {
-			scale--;
-		}
-		return scale;
+		const physical = readViewport();
+		return uiPixelScaleFor( physical.width, physical.height, devicePixelRatio );
 	}
 	/*
 	================
@@ -447,27 +441,50 @@ export function createPlatform(
 	} );
 	let uiPointer = false;
 	const timeMs = () => performance.timeOrigin + performance.now();
-	// Touch has no camera button: a one-finger drag orbits and a pinch zooms.
+	// Owner-authorized port-only mobile gestures. Only the game surface opts
+	// out of browser pan/zoom; DOM editors and UI controls keep their own input.
+	const previousTouchAction = canvas.style.touchAction;
+	canvas.style.touchAction = "none";
 	const touchCamera = createTouchCamera();
+	const uiTouches = new Set<number>();
 	const touchInput = ( outputs: readonly TouchCameraOutput[] ) => {
 		for ( const output of outputs ) onInput( { ...output, timeMs: timeMs() } );
 	};
+	window.addEventListener( "pointerdown", event => {
+		if ( event.pointerType !== "touch" ) return;
+		if ( event.target !== canvas || blocksUi( ...uiPoint( event ) ) ) {
+			uiTouches.add( event.pointerId );
+			touchInput( touchCamera.interrupt() );
+		}
+	}, { capture: true, signal: lifetime.signal } );
+	for ( const name of [ "pointerup", "pointercancel" ] as const ) {
+		window.addEventListener( name, event => uiTouches.delete( event.pointerId ), {
+			capture: true,
+			signal: lifetime.signal
+		} );
+	}
 	const pointer = ( event: PointerEvent ) => {
+		if ( event.pointerType === "touch" ) {
+			if ( !touchCamera.owns( event.pointerId ) ) return;
+			const [x, y] = uiPoint( event );
+			if ( event.type === "pointerup" ) {
+				const tap = touchCamera.tap( event.pointerId, x, y );
+				touchInput( touchCamera.up( event.pointerId ) );
+				const box = canvas.getBoundingClientRect();
+				if ( tap && !blocksUi( x, y ) && box.width > 0 && box.height > 0 ) {
+					onWorldClick( (event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height, {
+						shift: event.shiftKey,
+						alt: event.altKey
+					} );
+				}
+			} else touchInput( touchCamera.move( event.pointerId, x, y, bindings.mouseMode === 0 ? 2 : 1 ) );
+			return;
+		}
 		if ( uiPointer ) {
 			if ( event.type === "pointerup" ) uiPointer = false;
 			return;
 		}
 		const [x, y] = uiPoint( event );
-		if ( event.pointerType === "touch" ) {
-			touchInput(
-				event.type === "pointerup" ?
-					touchCamera.up( event.pointerId ) :
-					event.type === "pointerdown" ?
-					touchCamera.down( event.pointerId, x, y, bindings.mouseMode === 0 ? 2 : 1 ) :
-					touchCamera.move( event.pointerId, x, y, bindings.mouseMode === 0 ? 2 : 1 )
-			);
-			return;
-		}
 		onInput( {
 			kind: "pointer",
 			x,
@@ -482,6 +499,17 @@ export function createPlatform(
 	canvas.addEventListener( "dragstart", event => event.preventDefault(), { signal: lifetime.signal } );
 	canvas.addEventListener( "pointerdown", event => {
 		onGesture();
+		if ( event.pointerType === "touch" ) {
+			// Suppress compatibility mousedown: only a completed single tap may
+			// issue a ground command, never the first finger of a future pinch.
+			event.preventDefault();
+			const [x, y] = uiPoint( event );
+			if ( uiTouches.size || blocksUi( x, y ) ) return;
+			if ( document.activeElement instanceof HTMLElement ) document.activeElement.blur();
+			canvas.setPointerCapture( event.pointerId );
+			touchInput( touchCamera.down( event.pointerId, x, y, bindings.mouseMode === 0 ? 2 : 1 ) );
+			return;
+		}
 		uiPointer = blocksUi( ...uiPoint( event ) );
 		if ( uiPointer ) {
 			onInput( { kind: "release", timeMs: timeMs() } );
@@ -500,6 +528,10 @@ export function createPlatform(
 	// Pointer Events emit pointerdown only for the first held mouse button.
 	// mousedown also reports LMB pressed during an existing RMB camera drag.
 	canvas.addEventListener( "mousedown", event => {
+		if (
+			(event as MouseEvent & { sourceCapabilities?: { firesTouchEvents: boolean; }; }).sourceCapabilities
+				?.firesTouchEvents
+		) return;
 		const r = canvas.getBoundingClientRect(), x = event.clientX - r.left, y = event.clientY - r.top;
 		const blocked = blocksUi( ...uiPoint( event ) );
 		if ( event.button === 2 && bindings.mouseMode === 1 && !blocked ) {
@@ -510,6 +542,10 @@ export function createPlatform(
 		}
 	}, { signal: lifetime.signal } );
 	canvas.addEventListener( "dblclick", event => {
+		if (
+			(event as MouseEvent & { sourceCapabilities?: { firesTouchEvents: boolean; }; }).sourceCapabilities
+				?.firesTouchEvents
+		) return;
 		const r = canvas.getBoundingClientRect(), x = event.clientX - r.left, y = event.clientY - r.top;
 		if ( event.button === 0 && !blocksUi( ...uiPoint( event ) ) && r.width > 0 && r.height > 0 ) {
 			onWorldClick( x / r.width, y / r.height, { double: true, shift: event.shiftKey, alt: event.altKey } );
@@ -547,6 +583,8 @@ export function createPlatform(
 	);
 	window.addEventListener( "blur", () => {
 		uiPointer = false;
+		touchCamera.reset();
+		uiTouches.clear();
 		onInput( { kind: "release", timeMs: timeMs() } );
 	}, { signal: lifetime.signal } );
 	canvas.addEventListener( "wheel", event => {
@@ -871,6 +909,9 @@ export function createPlatform(
 		================
 		*/
 		dispose() {
+			touchCamera.reset();
+			uiTouches.clear();
+			canvas.style.touchAction = previousTouchAction;
 			densityQuery.removeEventListener( "change", densityChanged );
 			lastUi = null;
 			canvasObserver?.disconnect();

@@ -2,6 +2,11 @@
 	"version": 1,
 	"capabilities": [
 		{
+			"consumer": "src/engine/foundation/ui/layout.ts",
+			"provider": "src/engine/runtime/ui/hud/compact-hud.ts",
+			"functions": [ "compactWindowDrag" ]
+		},
+		{
 			"consumer": "src/engine/foundation/gameplay/walking-history.ts",
 			"provider": "src/engine/runtime/simulation/worker/session/world/entities/motion/motion.ts",
 			"functions": [
@@ -1326,7 +1331,8 @@
 		},
 		{
 			"functions": [
-				"callback:systemMessageLayout:6"
+				"callback:systemMessageLayout:6",
+				"callback:systemMessageLayout:10"
 			],
 			"provider": "src/engine/runtime/ui/ui.ts",
 			"consumer": "src/engine/foundation/ui/system-message-layout.ts"
@@ -1391,7 +1397,6 @@
 				"callback:textLines:2",
 				"callback:textBoardLines:2",
 				"measure",
-				"callback:textLines:2",
 				"callback:systemMessageLayout:10"
 			]
 		},
