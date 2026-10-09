@@ -288,7 +288,8 @@ test(
 					floatBloom: false,
 					hdrToneMap: false,
 					sunShadow: false,
-					perPixelLighting: false
+					perPixelLighting: false,
+					renderScale: 100
 				}
 			);
 			await page.keyboard.press( "Escape" );
@@ -329,7 +330,8 @@ test(
 					floatBloom: false,
 					hdrToneMap: false,
 					sunShadow: false,
-					perPixelLighting: false
+					perPixelLighting: false,
+					renderScale: 100
 				}
 			);
 			assert.equal( await page.locator( "#developer-toggle" ).isVisible(), false );

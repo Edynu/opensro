@@ -64,13 +64,17 @@ test( "the float bloom chain composites, resizes and hands quality back", { time
 				for ( const floatBloom of [ false, true, false ] ) {
 					for ( const [size, value] of [ [ 64, 0 ], [ 128, 128 ], [ 64, 255 ], [ 64, 128 ] ] ) {
 						device.experimentalVideo( {
+							renderScale: 100,
 							postProcessing: false,
 							anisotropicFiltering: false,
 							heightFog: false,
 							dynamicSun: false,
 							terrainRelief: false,
 							texturedHorizon: false,
-							floatBloom
+							floatBloom,
+							hdrToneMap: false,
+							sunShadow: false,
+							perPixelLighting: false
 						} );
 						canvas.width = canvas.height = size;
 						const bloom = device.bloom( size, size, true ),

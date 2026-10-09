@@ -52,9 +52,17 @@ test( "presentation finish preserves flat colours and gates FXAA off hard edges"
 			const run = async ( finishEnabled, width, height ) => {
 				const device = createDevice();
 				device.experimentalVideo( {
+					renderScale: 100,
 					postProcessing: finishEnabled,
 					anisotropicFiltering: false,
-					heightFog: false
+					heightFog: false,
+					dynamicSun: false,
+					terrainRelief: false,
+					texturedHorizon: false,
+					floatBloom: false,
+					hdrToneMap: false,
+					sunShadow: false,
+					perPixelLighting: false
 				} );
 				try {
 					const deadline = performance.now() + 15000;

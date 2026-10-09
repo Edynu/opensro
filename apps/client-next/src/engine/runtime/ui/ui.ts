@@ -134,7 +134,7 @@ import { createQuestTimers } from "./hud/quest-timers";
 import { createAutoPotionInput } from "./hud/auto-potion-input";
 import { createCosHud } from "./hud/cos-hud";
 import { createExperimentalHud, EXPERIMENTAL_TABS } from "./hud/experimental-hud";
-import type { ExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
+import { renderScales, type ExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
 import {
 	rememberedWindows,
 	type RememberedWindow,
@@ -1824,7 +1824,9 @@ export function createUi(
 		if ( panel === "Experimental" && id.startsWith( "experimental-" ) ) {
 			const row = EXPERIMENTAL_TABS.flatMap( tab => tab.rows ).find( candidate => candidate.id === id );
 			if ( id.startsWith( "experimental-tab:" ) ) experimental.selectTab( Number( id.slice( 17 ) ) );
-			else if ( row ) experimental.toggle( row.key );
+			else if ( id.startsWith( "experimental-render-scale:" ) ) {
+				experimental.selectRenderScale( Number( id.slice( "experimental-render-scale:".length ) ) );
+			} else if ( row && row.key !== "renderScale" ) experimental.toggle( row.key );
 			else if ( id === "experimental-default" ) experimental.reset();
 			else if ( id === "experimental-confirm" ) {
 				extensions.saveExperimental?.( experimental.confirm() );
@@ -9214,7 +9216,7 @@ export function createUi(
 				if ( panel === "Experimental" && hudData ) {
 					const admission = beginWindow();
 					// Options-style tabs over one framed list: a header naming the tab,
-					// then one checkbox row per preference, its help line below it.
+					// then a checkbox or numeric selection with its help line below it.
 					// The window grows with the selected tab, as CIFOption::OnTab does.
 					const { tab, draft } = experimental.state(), page = EXPERIMENTAL_TABS[tab]!;
 					const rowPitch = 46, listTop = 98, width = 386;
@@ -9257,32 +9259,48 @@ export function createUi(
 						py
 					);
 					for ( let i = 0; i < page.rows.length; i++ ) {
-						const row = page.rows[i]!, top = listTop + 8 + i * rowPitch, enabled = draft[row.key];
+						const row = page.rows[i]!, top = listTop + 8 + i * rowPitch;
 						authoredText(
 							{
 								...slot.GDR_GAME_OPTION_SLOT_STA1!,
-								rect: [ 39, top + 4, 270, 16 ],
+								rect: [ 39, top + 4, row.key === "renderScale" ? 130 : 270, 16 ],
 								client: [ 0, 2, 0, 0 ]
 							},
 							px,
 							py,
 							row.label
 						);
-						image(
-							[ px + 331, py + top + 4, 16, 16 ],
-							ROOT + "interface/ifcommon/com_checkbutton_" + (enabled ? "on" : "off") + ".png"
-						);
-						controls.push( {
-							id: row.id,
-							label: row.label,
-							kind: "button",
-							rect: [ px + 35, py + top, 316, 40 ],
-							selected: enabled
-						} );
+						if ( row.key === "renderScale" ) {
+							const choiceWidth = 54, choicePitch = 56, choiceLeft = 177;
+							for ( const [index, scale] of renderScales().entries() ) {
+								button(
+									row.id + ":" + scale,
+									scale + "%",
+									px + choiceLeft + index * choicePitch,
+									py + top,
+									choiceWidth,
+									false,
+									draft.renderScale === scale
+								);
+							}
+						} else {
+							const enabled = draft[row.key];
+							image(
+								[ px + 331, py + top + 4, 16, 16 ],
+								ROOT + "interface/ifcommon/com_checkbutton_" + (enabled ? "on" : "off") + ".png"
+							);
+							controls.push( {
+								id: row.id,
+								label: row.label,
+								kind: "button",
+								rect: [ px + 35, py + top, 316, 40 ],
+								selected: enabled
+							} );
+						}
 						authoredText(
 							{
 								...slot.GDR_GAME_OPTION_SLOT_STA1!,
-								rect: [ 39, top + 22, 304, 16 ],
+								rect: [ 39, top + (row.key === "renderScale" ? 26 : 22), 304, 16 ],
 								client: [ 0, 0, 0, 0 ],
 								color: [ 180 / 255, 180 / 255, 180 / 255, 1 ]
 							},

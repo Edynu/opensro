@@ -486,6 +486,18 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		},
 		/*
 		================
+		upscale
+
+		The render scale's plain linear resolve, through the presentation
+		owner's upscale entry.
+		================
+		*/
+		upscale() {
+			if ( phase !== "running" || !finish ) throw Error( "Upscale device is not ready" );
+			return finish;
+		},
+		/*
+		================
 		particleQuery
 
 		Run occlusion queries through the current device generation.

@@ -5,7 +5,7 @@ experimental-hud.ts - saved and draft experimental preferences
 
 Opening starts a fresh draft on the first tab. Only Confirm changes
 effective preferences; closing or Escape leaves the saved value intact.
-The window's tabs (Image, World, Chat, Developer) only choose which rows show;
+The window's tabs only choose which rows show;
 every tab edits the same draft.
 
 ===========================================================================
@@ -14,19 +14,20 @@ every tab edits the same draft.
 import {
 	experimentalOptions,
 	type ExperimentalKey,
-	type ExperimentalOptions
+	type ExperimentalOptions,
+	renderScales
 } from "@/engine/foundation/ui/experimental-options";
 
 /*
 ================
 ExperimentalRow
 
-One checkbox row: the preference it toggles, its control id, its label
-and the one-line help under it.
+A checkbox or numeric selection: its preference key, control id, label
+and one-line help. Numeric preferences never pass through toggle().
 ================
 */
 export interface ExperimentalRow {
-	readonly key: ExperimentalKey;
+	readonly key: ExperimentalKey | "renderScale";
 	readonly id: string;
 	readonly label: string;
 	readonly description: string;
@@ -36,8 +37,8 @@ export interface ExperimentalRow {
 ================
 EXPERIMENTAL_TABS
 
-Port-only, not native. The window's tabs, Options style, at most four rows each: Image holds the
-frame-wide stages (edges, filtering, glow, dynamic range), World the
+Port-only, not native. The window's tabs, Options style: Image holds the
+frame-wide stages and scene resolution, World the
 atmosphere stages that deviate from the 2005 look, Lighting the direct-light
 stages, Chat and Developer the earlier additions.
 ================
@@ -51,6 +52,12 @@ export const EXPERIMENTAL_TABS: readonly {
 		title: "Image",
 		section: "Image quality",
 		rows: [
+			{
+				key: "renderScale",
+				id: "experimental-render-scale",
+				label: "Render scale",
+				description: "100% is native; lower values soften the scene."
+			},
 			{
 				key: "postProcessing",
 				id: "experimental-post-processing",
@@ -182,6 +189,18 @@ export function createExperimentalHud() {
 		*/
 		toggle( key: ExperimentalKey ) {
 			draft = { ...draft, [key]: !draft[key] };
+		},
+		/*
+		================
+		selectRenderScale
+
+		Port-only, not native. Invalid UI selections leave the draft intact.
+		================
+		*/
+		selectRenderScale( value: number ) {
+			const renderScale = renderScales().find( scale => scale === value );
+			if ( renderScale === undefined ) return;
+			draft = { ...draft, renderScale };
 		},
 		/*
 		================

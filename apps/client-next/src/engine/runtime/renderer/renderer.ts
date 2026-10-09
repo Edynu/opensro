@@ -635,7 +635,17 @@ export function createRenderer(
 							world.night()
 						),
 					targetSurface = surface;
-				const color = surface.acquire( viewport, experimental.postProcessing || !!deferredPlan?.query );
+				// Port-only, not native. Experimental owns the opt-in; 100 keeps
+				// the native surface and pass order. UI keeps its full resolution.
+				const renderScale = experimental.renderScale,
+					scaled = renderScale < 100,
+					sceneWidth = Math.max( 1, Math.round( viewport.width * renderScale / 100 ) ),
+					sceneHeight = Math.max( 1, Math.round( viewport.height * renderScale / 100 ) ),
+					color = surface.acquire(
+						viewport,
+						experimental.postProcessing || !!deferredPlan?.query,
+						renderScale
+					);
 				const finishDeferred = ( results?: readonly boolean[] ) => {
 					if ( disposed ) throw Error( "Renderer disposed during particle query" );
 					characters.completeDeferred( results );
@@ -697,7 +707,7 @@ export function createRenderer(
 						[ 0.70710678, 0.70710678, 0 ];
 				sunShadow.prepare( shadowOn, scene.camera.eye, shadowLight );
 				const pending = frame!.draw(
-					color,
+					scaled ? targetSurface.frameView() : color,
 					draw ?? (scene.sky ? device.sky() ?? undefined : undefined),
 					staleDraws.single( "mesh", meshDraw ?? undefined ),
 					surface.depth(),
@@ -731,7 +741,7 @@ export function createRenderer(
 					partyDraws,
 					frameId,
 					deferredPass,
-					device.bloom( viewport.width, viewport.height, !preview && video.records[video.active][11] === 1 ),
+					device.bloom( sceneWidth, sceneHeight, !preview && video.records[video.active][11] === 1 ),
 					device.geometry()!.waterReflection( {
 						matrix: scene.reflectionMatrix,
 						height: scene.waterHeight ?? 0,
@@ -739,7 +749,21 @@ export function createRenderer(
 						seconds: timeSeconds
 					}, [ ...scene.draws, ...(preview ? [] : liveCharacters) ] ),
 					{
-						hdr: device.hdr( viewport.width, viewport.height, experimental.hdrToneMap ),
+						hdr: device.hdr( sceneWidth, sceneHeight, experimental.hdrToneMap ),
+						sceneScale: scaled ?
+							{
+								view: color,
+								frameDepth: targetSurface.frameDepth(),
+								resolve: ( encoder, target ) =>
+									device.upscale().encodeUpscale( encoder, color, target ),
+								resolveDepth: encoder =>
+									device.upscale().encodeDepthUpscale(
+										encoder,
+										targetSurface.depth(),
+										targetSurface.frameDepth()
+									)
+							} :
+							undefined,
 						sunShadow,
 						casters: shadowOn ?
 							[ ...opaqueDraws, ...(preview ? [] : liveCharacters.filter( draw => !draw.blended )) ] :

@@ -67,6 +67,12 @@ FinishPresent
 export interface FinishPresent {
 	readonly ready: Promise<void>;
 	encode( encoder: GPUCommandEncoder, source: GPUTexture, target: GPUTexture ): void;
+	/** The plain linear upscale the render scale resolves its scene through
+	 * when the graded pass is off: same geometry and sampler, no FXAA, no
+	 * grade, so a scaled frame without the presentation pass stays an
+	 * honest linear resize. */
+	encodeUpscale( encoder: GPUCommandEncoder, source: GPUTextureView, target: GPUTextureView ): void;
+	encodeDepthUpscale( encoder: GPUCommandEncoder, source: GPUTextureView, target: GPUTextureView ): void;
 	dispose(): void;
 }
 
@@ -181,6 +187,9 @@ fn fxaa(uv:vec2f,offset:vec2f)->vec3f{
  if(horizontal){finalUv.y=finalUv.y+finalOffset*step;}else{finalUv.x=finalUv.x+finalOffset*step;}
  return tap(finalUv);
 }
+@fragment fn upscale(v:V)->@location(0) vec4f{
+ return textureSampleLevel(source,linear,v.uv,0);
+}
 @fragment fn fs(v:V)->@location(0) vec4f{
  let offset=vec2f(1.0)/vec2f(textureDimensions(source));
  // Resolve the edge first; the sharpen below reads the raw neighbourhood
@@ -218,7 +227,7 @@ fn fxaa(uv:vec2f,offset:vec2f)->vec3f{
 		]
 	} );
 	const pipelineLayout = created.createPipelineLayout( { bindGroupLayouts: [ layout ] } );
-	let pipeline: GPURenderPipeline | null = null;
+	let pipeline: GPURenderPipeline | null = null, upscalePipeline: GPURenderPipeline | null = null;
 	const ready = module.getCompilationInfo().then( info => {
 		const errors = info.messages.filter( m => m.type === "error" );
 		if ( errors.length ) throw Error( errors.map( m => m.message ).join( "\n" ) );
@@ -229,12 +238,26 @@ fn fxaa(uv:vec2f,offset:vec2f)->vec3f{
 			fragment: { module, entryPoint: "fs", targets: [ { format } ] },
 			primitive: { topology: "triangle-list" }
 		} );
+		upscalePipeline = created.createRenderPipeline( {
+			label: "presentation-upscale",
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs" },
+			fragment: { module, entryPoint: "upscale", targets: [ { format } ] },
+			primitive: { topology: "triangle-list" }
+		} );
 	} );
 	// The offscreen frame texture is stable for one surface size; rebuilding
 	// the binding only when that texture changes keeps encode() allocation-free.
 	let bound: GPUTexture | null = null,
 		binding: GPUBindGroup | null = null,
+		upbound: GPUTextureView | null = null,
+		upbinding: GPUBindGroup | null = null,
 		disposed = false;
+	// Port-only, not native: create the depth resolve only when scaled labels
+	// need it. Nearest scene depth keeps full-resolution labels occluded.
+	let depthPipeline: GPURenderPipeline | null = null,
+		depthBound: GPUTextureView | null = null,
+		depthBinding: GPUBindGroup | null = null;
 	return {
 		ready,
 		/*
@@ -266,6 +289,88 @@ fn fxaa(uv:vec2f,offset:vec2f)->vec3f{
 		},
 		/*
 		================
+		encodeUpscale
+
+		The render scale's plain linear resolve of the scaled scene into the
+		full-size frame: one fullscreen triangle, no FXAA, no grade, its own
+		binding cache (the scaled scene view is stable for one scale).
+		================
+		*/
+		encodeUpscale( encoder, source, target ) {
+			if ( disposed || !upscalePipeline ) throw Error( "Presentation upscale is not ready" );
+			if ( source !== upbound ) {
+				upbound = source;
+				upbinding = created.createBindGroup( {
+					layout,
+					entries: [ { binding: 0, resource: source }, { binding: 1, resource: sampler } ]
+				} );
+			}
+			const pass = encoder.beginRenderPass( {
+				label: "render-scale-upscale",
+				colorAttachments: [ { view: target, loadOp: "clear", storeOp: "store" } ]
+			} );
+			pass.setPipeline( upscalePipeline );
+			pass.setBindGroup( 0, upbinding! );
+			pass.draw( 3 );
+			pass.end();
+		},
+		/*
+		================
+		encodeDepthUpscale
+
+		Port-only, not native: nearest depth resolve for unscaled world labels.
+		================
+		*/
+		encodeDepthUpscale( encoder, source, target ) {
+			if ( disposed ) throw Error( "Disposed depth upscale" );
+			if ( !depthPipeline ) {
+				const depthModule = created.createShaderModule( {
+					label: "render-scale-depth",
+					code: `
+@group(0) @binding(0) var source:texture_depth_2d;
+struct V {@builtin(position) position:vec4f,@location(0) uv:vec2f}
+@vertex fn vs(@builtin(vertex_index) i:u32)->V{
+ let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3))[i];
+ return V(vec4f(p,0,1),vec2f(p.x*.5+.5,.5-p.y*.5));
+}
+@fragment fn fs(v:V)->@builtin(frag_depth) f32{
+ let size=textureDimensions(source);
+ let at=clamp(vec2i(v.uv*vec2f(size)),vec2i(0),vec2i(size)-1);
+ return textureLoad(source,at,0);
+}`
+				} );
+				depthPipeline = created.createRenderPipeline( {
+					label: "render-scale-depth",
+					layout: "auto",
+					vertex: { module: depthModule, entryPoint: "vs" },
+					fragment: { module: depthModule, entryPoint: "fs", targets: [] },
+					depthStencil: { format: "depth24plus", depthWriteEnabled: true, depthCompare: "always" }
+				} );
+			}
+			if ( source !== depthBound ) {
+				depthBound = source;
+				depthBinding = created.createBindGroup( {
+					layout: depthPipeline.getBindGroupLayout( 0 ),
+					entries: [ { binding: 0, resource: source } ]
+				} );
+			}
+			const pass = encoder.beginRenderPass( {
+				label: "render-scale-depth",
+				colorAttachments: [],
+				depthStencilAttachment: {
+					view: target,
+					depthLoadOp: "clear",
+					depthClearValue: 1,
+					depthStoreOp: "store"
+				}
+			} );
+			pass.setPipeline( depthPipeline );
+			pass.setBindGroup( 0, depthBinding! );
+			pass.draw( 3 );
+			pass.end();
+		},
+		/*
+		================
 		dispose
 		================
 		*/
@@ -273,6 +378,11 @@ fn fxaa(uv:vec2f,offset:vec2f)->vec3f{
 			disposed = true;
 			bound = null;
 			binding = null;
+			upbound = null;
+			upbinding = null;
+			depthBound = null;
+			depthBinding = null;
+			depthPipeline = null;
 		}
 	};
 }

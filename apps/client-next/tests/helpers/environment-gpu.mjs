@@ -78,7 +78,9 @@ export async function captureEnvironment( { bundle, camera, features = false } )
 	const renderer = createRenderer( canvas, createPresentationRandom( 1 ) );
 	const textures = new Map();
 	const rows = [];
+	/** @type {import("../../src/engine/foundation/ui/experimental-options.ts").ExperimentalVideo} */
 	const options = {
+		renderScale: 100,
 		postProcessing: false,
 		anisotropicFiltering: false,
 		heightFog: false,
@@ -221,6 +223,7 @@ export async function captureFlatRelief() {
 		const result = [];
 		for ( const terrainRelief of [ false, true ] ) {
 			renderer.experimentalVideo( {
+				renderScale: 100,
 				postProcessing: false,
 				anisotropicFiltering: false,
 				heightFog: false,

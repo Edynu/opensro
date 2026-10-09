@@ -24,9 +24,10 @@ const HIDDEN_LABEL_DEPTH = 0.8;
 fixture
 ================
 */
-function fixture( hdr ) {
+function fixture( hdr, scaled = false ) {
 	const sceneFormat = hdr ? HDR_FORMAT : CANVAS_FORMAT;
 	const view = { format: CANVAS_FORMAT }, scene = { format: sceneFormat }, depth = { value: undefined };
+	const fullDepth = { value: undefined };
 	const passes = [], visible = [], submits = [];
 	let nextEncoder = 0;
 	/*
@@ -218,7 +219,21 @@ function fixture( hdr ) {
 					{ ...resolve( "bloom-resolve" ), view: { format: sceneFormat } } :
 					undefined),
 				reflection,
-				/** @type {any} */ ({ hdr: hdr ? resolve( "hdr-resolve" ) : undefined, sunShadow })
+				/** @type {any} */ ({
+					hdr: hdr ? resolve( "hdr-resolve" ) : undefined,
+					sunShadow,
+					sceneScale: scaled ?
+						{
+							view: scene,
+							frameDepth: fullDepth,
+							resolve: resolve( "scale-resolve" ).encode,
+							resolveDepth() {
+								assert.equal( depth.value, SCENE_DEPTH, "resolve must read preserved scene depth" );
+								fullDepth.value = depth.value;
+							}
+						} :
+						undefined
+				})
 			);
 		}
 	};
@@ -241,6 +256,27 @@ test("HDR deferred UI uses the canvas format and retains world-label occlusion w
 			assert.deepEqual( f.submits, mode === "asynchronous" ? [ 1, 2 ] : [ 1 ] );
 			if ( deferred ) {
 				assert.deepEqual( f.passes.find( p => p.descriptor.label === "deferred-particles" ).draws, [] );
+			}
+		}
+	}
+});
+
+test("scaled frames retain labels and depth across deferred particles with HDR and bloom", async () => {
+	for ( const hdr of [ false, true ] ) {
+		for ( const bloom of [ false, true ] ) {
+			for ( const asynchronous of [ false, true ] ) {
+				const f = fixture( hdr, true );
+				await f.draw( {
+					bloom,
+					flares: true,
+					deferred: { asynchronous, prepare: () => asynchronous ? Promise.resolve( [] ) : [] }
+				} );
+				const labels = f.passes.filter( p => p.draws.includes( "label" ) );
+				assert.equal( labels.length, 1, "labels execute exactly once" );
+				assert.equal( labels[0].descriptor.depthStencilAttachment.depthLoadOp, "load" );
+				assert.equal( f.visible.includes( "label" ), false, "occluded labels stay hidden" );
+				assert.deepEqual( f.visible, [ "world", "background", "foreground" ] );
+				assert.deepEqual( f.submits, asynchronous ? [ 1, 2 ] : [ 1 ] );
 			}
 		}
 	}

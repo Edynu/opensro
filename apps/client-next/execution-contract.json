@@ -2125,6 +2125,22 @@
 			"functions": [
 				"prepare"
 			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
+			"provider": "src/engine/runtime/renderer/renderer.ts",
+			"functions": [
+				"resolve",
+				"resolveDepth"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/renderer.ts",
+			"provider": "src/engine/runtime/renderer/device/finish.ts",
+			"functions": [
+				"encodeUpscale",
+				"encodeDepthUpscale"
+			]
 		}
 	],
 	"boundaries": [

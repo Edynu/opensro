@@ -123,6 +123,12 @@ caster list.
 ================
 */
 export interface ExperimentalFrame {
+	readonly sceneScale?: {
+		readonly view: GPUTextureView;
+		readonly frameDepth: GPUTextureView;
+		resolve( encoder: GPUCommandEncoder, target: GPUTextureView ): void;
+		resolveDepth( encoder: GPUCommandEncoder ): void;
+	};
 	readonly hdr?: HdrDraw;
 	readonly sunShadow?: SunShadowOwner;
 	readonly casters?: readonly GeometryDraw[];
@@ -133,6 +139,10 @@ DeviceOwner
 ================
 */
 export interface DeviceOwner extends Disposable {
+	upscale(): {
+		encodeUpscale( encoder: GPUCommandEncoder, source: GPUTextureView, target: GPUTextureView ): void;
+		encodeDepthUpscale( encoder: GPUCommandEncoder, source: GPUTextureView, target: GPUTextureView ): void;
+	};
 	/** Bracket one frame, from its first preparation to its last submit: a GPU
 	 * resource released in between outlives the command buffers that name it. */
 	beginFrame(): void;
@@ -172,7 +182,9 @@ SurfaceOwner
 */
 export interface SurfaceOwner extends Disposable {
 	depth(): GPUTextureView;
-	acquire( viewport: Viewport, offscreen?: boolean ): GPUTextureView;
+	acquire( viewport: Viewport, offscreen?: boolean, scale?: number ): GPUTextureView;
+	frameView(): GPUTextureView;
+	frameDepth(): GPUTextureView;
 	/** Acquire the current swapchain texture only when encoding the final
 	 * presentation; a deferred query may have crossed browser frames. */
 	encodePresent( encoder: GPUCommandEncoder ): void;

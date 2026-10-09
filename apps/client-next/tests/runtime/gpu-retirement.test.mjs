@@ -468,6 +468,7 @@ test("the experimental presentation pass publishes the offscreen frame and retir
 	const { gpu, renderer } = rendererOnStrictGpu( t );
 	try {
 		renderer.experimentalVideo( {
+			renderScale: 100,
 			postProcessing: true,
 			anisotropicFiltering: false,
 			heightFog: false,

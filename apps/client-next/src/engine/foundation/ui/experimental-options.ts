@@ -6,7 +6,7 @@ experimental-options.ts - explicitly opted-in browser additions
 These settings are deliberately separate from the native SROptionSet.
 Missing or invalid preferences never enable an experimental feature, so
 the defaults are the native client: no presentation pass, no anisotropy,
-linear fog. Water reflection and equipment shine are native Video
+linear fog and full-resolution rendering. Water reflection and equipment shine are native Video
 options (Water reflection, Metal detail), not experimental ones.
 
 ===========================================================================
@@ -18,6 +18,8 @@ ExperimentalOptions
 ================
 */
 export interface ExperimentalOptions {
+	// Port-only, not native. Reduced scene resolution requires explicit opt-in.
+	readonly renderScale: RenderScale;
 	readonly chatTimestamps: boolean;
 	readonly developerDiagnostics: boolean;
 	// Video: renderer stages that deviate from the 2005 D3D9 look.
@@ -37,16 +39,38 @@ export interface ExperimentalOptions {
 ================
 ExperimentalKey
 
-Every preference is one boolean, so the window toggles them by name.
+Only boolean preferences may be passed to the window's toggle action.
 ================
 */
-export type ExperimentalKey = keyof ExperimentalOptions;
+export type ExperimentalKey = {
+	[Key in keyof ExperimentalOptions]: ExperimentalOptions[Key] extends boolean ? Key : never;
+}[keyof ExperimentalOptions];
+
+/*
+================
+RenderScale
+
+Port-only, not native. 100 preserves full-resolution scene rendering.
+================
+*/
+export type RenderScale = 100 | 75 | 50;
+export const DEFAULT_RENDER_SCALE: RenderScale = 100;
+
+/*
+================
+renderScales
+================
+*/
+export function renderScales(): readonly RenderScale[] {
+	return [ DEFAULT_RENDER_SCALE, 75, 50 ];
+}
 
 /*
 ================
 experimentalOptions
 
-Only an explicit true enables a preference; anything else is off.
+Only an explicit true enables a toggle. Missing or invalid render scales
+restore full resolution; legacy Video settings cannot enable scaling.
 ================
 */
 export function experimentalOptions( value: unknown = null ): ExperimentalOptions {
@@ -55,6 +79,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		{};
 	const enabled = ( key: ExperimentalKey ) => record[key] === true;
 	return {
+		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
 		chatTimestamps: enabled( "chatTimestamps" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),
@@ -75,10 +100,11 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 ExperimentalVideo
 
 The renderer's slice of the preferences: the stages it switches at run
-time. Every flag off is the native frame.
+time. Every flag off and renderScale 100 preserve the native frame.
 ================
 */
 export interface ExperimentalVideo {
+	readonly renderScale: RenderScale;
 	readonly postProcessing: boolean;
 	readonly anisotropicFiltering: boolean;
 	readonly heightFog: boolean;
@@ -98,6 +124,7 @@ experimentalVideo
 */
 export function experimentalVideo( options: ExperimentalOptions ): ExperimentalVideo {
 	return {
+		renderScale: options.renderScale,
 		postProcessing: options.postProcessing,
 		anisotropicFiltering: options.anisotropicFiltering,
 		heightFog: options.heightFog,

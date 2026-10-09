@@ -34,6 +34,7 @@ const { createRenderer } = await import(
 );
 
 const VIDEO = Object.freeze( {
+	renderScale: 100,
 	postProcessing: true,
 	anisotropicFiltering: true,
 	heightFog: false,

@@ -35,7 +35,9 @@ export async function captureLightingStages( { startup = false, recover = false,
 	}
 	const renderer = createRenderer( canvas, createPresentationRandom( 1 ) );
 	const identity = Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
+	/** @type {import("../../src/engine/foundation/ui/experimental-options.ts").ExperimentalVideo} */
 	const options = {
+		renderScale: 100,
 		postProcessing: false,
 		anisotropicFiltering: false,
 		heightFog: false,
