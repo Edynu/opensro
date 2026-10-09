@@ -47,6 +47,10 @@ function fixture() {
 					destroy() {}
 				};
 			},
+			// The sun cascade's comparison sampler (bindings 13/14).
+			createSampler() {
+				return {};
+			},
 			createBindGroup( { entries } ) {
 				return entries;
 			},

@@ -18,7 +18,8 @@ const UNIFORM_BYTES = 112;
 createWaterReflection
 ================
 */
-export function createWaterReflection( device: GPUDevice, format: GPUTextureFormat, retire: Retire ) {
+export function createWaterReflection( device: GPUDevice, initialFormat: GPUTextureFormat, retire: Retire ) {
+	let format = initialFormat;
 	const main = device.createBuffer( {
 		label: "water-main",
 		size: UNIFORM_BYTES,
@@ -83,6 +84,30 @@ export function createWaterReflection( device: GPUDevice, format: GPUTextureForm
 			values[19] = 1;
 			device.queue.writeBuffer( capture, 0, values );
 			return changed;
+		},
+		/*
+		================
+		reformat
+
+		Recreate the mirror in a new colour format: the HDR stage toggles the
+		scene intermediate and the reflected pass renders through the same
+		pipelines as the scene. Callers rebuild the capture bindings.
+		================
+		*/
+		reformat( next: GPUTextureFormat ) {
+			if ( format === next ) return false;
+			format = next;
+			// A later first capture must use the current scene format too.
+			if ( !color ) return false;
+			retire( color );
+			color = device.createTexture( {
+				label: "water-reflection",
+				size: [ WATER_REFLECTION_SIZE, WATER_REFLECTION_SIZE ],
+				format,
+				usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+			} );
+			target = color.createView();
+			return true;
 		},
 		/*
 		================

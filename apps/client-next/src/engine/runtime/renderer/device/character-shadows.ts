@@ -43,7 +43,9 @@ export function createCharacterShadows(
 	view: GPUBuffer,
 	texture: ( image: ImageDraw ) => GPUTexture,
 	binding: ( draw: GeometryDraw ) => ShadowBinding | undefined,
-	format: GPUTextureFormat,
+	// The receiver draws land in the scene target; the getter follows the
+	// HDR stage's scene format.
+	format: () => GPUTextureFormat,
 	// The frame that drew a slot may still be recording: the device destroys it.
 	retire: Retire = destroyNow
 ) {
@@ -104,41 +106,43 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		fragment: { module: resample, entryPoint: "fs", targets: [ { format: "rgba8unorm" } ] },
 		primitive: { topology: "triangle-list" }
 	} );
-	const ground = device.createRenderPipeline( {
-		label: "character-shadow-ground",
-		layout: "auto",
-		vertex: {
-			module: receiver,
-			entryPoint: "vs",
-			buffers: [ {
-				arrayStride: 56,
-				attributes: [ { shaderLocation: 0, offset: 0, format: "float32x3" }, {
-					shaderLocation: 1,
-					offset: 24,
-					format: "float32x2"
-				}, { shaderLocation: 2, offset: 32, format: "float32x4" } ]
-			} ]
-		},
-		fragment: {
-			module: receiver,
-			entryPoint: "fs",
-			targets: [ {
-				format,
-				blend: {
-					color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
-					alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" }
-				}
-			} ]
-		},
-		primitive: { topology: "triangle-list", cullMode: "none" },
-		depthStencil: {
-			format: "depth24plus",
-			depthWriteEnabled: false,
-			depthCompare: "less-equal",
-			depthBias: -1,
-			depthBiasSlopeScale: -1
-		}
-	} );
+	const groundPipeline = ( target: GPUTextureFormat ) =>
+		device.createRenderPipeline( {
+			label: "character-shadow-ground",
+			layout: "auto",
+			vertex: {
+				module: receiver,
+				entryPoint: "vs",
+				buffers: [ {
+					arrayStride: 56,
+					attributes: [ { shaderLocation: 0, offset: 0, format: "float32x3" }, {
+						shaderLocation: 1,
+						offset: 24,
+						format: "float32x2"
+					}, { shaderLocation: 2, offset: 32, format: "float32x4" } ]
+				} ]
+			},
+			fragment: {
+				module: receiver,
+				entryPoint: "fs",
+				targets: [ {
+					format: target,
+					blend: {
+						color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+						alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" }
+					}
+				} ]
+			},
+			primitive: { topology: "triangle-list", cullMode: "none" },
+			depthStencil: {
+				format: "depth24plus",
+				depthWriteEnabled: false,
+				depthCompare: "less-equal",
+				depthBias: -1,
+				depthBiasSlopeScale: -1
+			}
+		} );
+	let ground = groundPipeline( format() ), groundFormat = format();
 	const sampler = device.createSampler( {
 		minFilter: "linear",
 		magFilter: "linear",
@@ -161,6 +165,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		filterBinding: GPUBindGroup;
 		partCache: WeakMap<GeometryDraw, { buffers: ShadowBinding; binding: GPUBindGroup; }>;
 		groundTexture?: GPUTexture;
+		groundPipeline?: GPURenderPipeline;
 		groundBinding?: GPUBindGroup;
 		vertices: GPUBuffer;
 		indices: GPUBuffer;
@@ -302,8 +307,14 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 					}
 				}
 				const groundTexture = r.blob ? texture( blob! ) : s.filtered;
-				if ( s.groundTexture !== groundTexture ) {
+				const sceneFormat = format();
+				if ( sceneFormat !== groundFormat ) {
+					ground = groundPipeline( sceneFormat );
+					groundFormat = sceneFormat;
+				}
+				if ( s.groundTexture !== groundTexture || s.groundPipeline !== ground ) {
 					s.groundTexture = groundTexture;
+					s.groundPipeline = ground;
 					s.groundBinding = device.createBindGroup( {
 						layout: ground.getBindGroupLayout( 0 ),
 						entries: [ { binding: 0, resource: { buffer: view } }, {

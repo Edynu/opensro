@@ -13,6 +13,7 @@ rgba16float two-level chain without the 2005 per-tap quantization.
 */
 import type { BloomDraw } from "../internal/gpu-contract";
 import { BLOOM_BLEND_BYTE } from "@/engine/foundation/rendering/blend-state";
+import { TONEMAP_WGSL } from "./hdr";
 import { destroyNow, type Retire } from "./retirement";
 
 /*
@@ -163,12 +164,49 @@ export function createBloom( device: GPUDevice, format: GPUTextureFormat, retire
 			} )
 		);
 	};
+	/*
+	================
+	tonemapEnsure
+
+	Port-only, not native. The HDR stage routes its frame through this
+	owner's capture target, so the chain's copy-back step ("original")
+	becomes the tone map: the glow then composites onto the tonemapped
+	frame, after the roll-off, like every screen-space effect. Compiles
+	lazily on first enabled use.
+	================
+	*/
+	let tonemapOriginal: GPURenderPipeline | null = null;
+	const tonemapEnsure = () => {
+		if ( tonemapOriginal ) return;
+		const module = device.createShaderModule( {
+			label: "bloom-tonemap",
+			code: `
+	 @group(0) @binding(0) var source:texture_2d<f32>;
+	 @group(0) @binding(1) var linear:sampler;
+	 struct V {@builtin(position) position:vec4f,@location(0) uv:vec2f};
+	 @vertex fn vs(@builtin(vertex_index) i:u32)->V{
+	  let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3))[i];
+	  return V(vec4f(p,0,1),vec2f(p.x*.5+.5,.5-p.y*.5));
+	 }
+	 ${TONEMAP_WGSL}
+	 @fragment fn original(v:V)->@location(0) vec4f{return vec4f(tonemapColor(textureSampleLevel(source,linear,v.uv,0).rgb),1);}
+	 `
+		} );
+		tonemapOriginal = device.createRenderPipeline( {
+			label: "bloom-tonemap-original",
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs" },
+			fragment: { module, entryPoint: "original", targets: [ { format } ] },
+			primitive: { topology: "triangle-list" }
+		} );
+	};
 	let targets: GPUTexture[] = [],
 		views: GPUTextureView[] = [],
 		bindings: GPUBindGroup[] = [],
 		width = 0,
 		height = 0,
 		quality = false,
+		hdr = false,
 		revision = 0,
 		disposed = false;
 	/*
@@ -194,26 +232,30 @@ export function createBloom( device: GPUDevice, format: GPUTextureFormat, retire
 
 		The bloom draw for a w x h frame, (re)creating the targets when the
 		size or quality changed; undefined (and no targets) while bloom is
-		off. Both capture targets keep the canvas format. The float chain uses
-		two rgba16float ping-pong blur levels (512 and 256); the native chain keeps its three
-		8-bit targets byte-compatible with 8A99B0.
+		off. The capture target keeps the canvas format unless the HDR stage
+		routes the frame through rgba16float, in which case it is the float
+		intermediate. The float chain uses two rgba16float ping-pong blur
+		levels (512 and 256); the native chain keeps its three 8-bit targets
+		byte-compatible with 8A99B0.
 		================
 		*/
-		prepare( w: number, h: number, enabled: boolean, float: boolean ): BloomDraw | undefined {
+		prepare( w: number, h: number, enabled: boolean, float: boolean, hdrOutput = false ): BloomDraw | undefined {
 			if ( disposed ) throw Error( "Bloom owner disposed" );
 			if ( !enabled ) {
 				clear();
 				return;
 			}
 			if ( float ) floatEnsure();
-			if ( width !== w || height !== h || quality !== float ) {
+			if ( hdrOutput ) tonemapEnsure();
+			if ( width !== w || height !== h || quality !== float || hdr !== hdrOutput ) {
 				clear();
 				width = w;
 				height = h;
 				quality = float;
-				// Target 0 is the frame's capture the main pass renders into, so
-				// it keeps the canvas format its pipelines target; only the blur
-				// levels go rgba16float. The rest ping-pong the blur.
+				hdr = hdrOutput;
+				// Target 0 is the frame's capture the main pass renders into:
+				// the canvas format its pipelines target, or rgba16float when
+				// the HDR stage owns the scene intermediate. The rest ping-pong the blur.
 				const sizes = float ?
 					[ [ w, h ], [ 512, 512 ], [ 512, 512 ], [ 256, 256 ], [ 256, 256 ] ] :
 					[ [ w, h ], [ 512, 512 ], [ 512, 512 ] ];
@@ -221,7 +263,7 @@ export function createBloom( device: GPUDevice, format: GPUTextureFormat, retire
 					const t = device.createTexture( {
 						label: float ? "float-bloom-target" : "native-bloom-target",
 						size: sizes[index]!,
-						format: float && index > 0 ? "rgba16float" : format,
+						format: (float && index > 0) || (hdr && index === 0) ? "rgba16float" : format,
 						usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
 					} );
 					targets.push( t );
@@ -264,6 +306,9 @@ export function createBloom( device: GPUDevice, format: GPUTextureFormat, retire
 							4,
 							true
 						] ];
+					// The HDR stage swaps the copy-back step for the tone map.
+					const chain = quality ? floatPipelines : pipelines;
+					const copyBack = quality ? 6 : 3;
 					for ( const [out, input, pipeline, blend] of steps ) {
 						const pass = encoder.beginRenderPass( {
 							label: "bloom-" + pipeline,
@@ -273,7 +318,7 @@ export function createBloom( device: GPUDevice, format: GPUTextureFormat, retire
 								storeOp: "store"
 							} ]
 						} );
-						pass.setPipeline( (quality ? floatPipelines : pipelines)[pipeline!]! );
+						pass.setPipeline( hdr && pipeline === copyBack ? tonemapOriginal! : chain[pipeline!]! );
 						pass.setBindGroup( 0, bindings[input!]! );
 						if ( blend ) pass.setBlendConstant( blendFactor );
 						pass.draw( 3 );

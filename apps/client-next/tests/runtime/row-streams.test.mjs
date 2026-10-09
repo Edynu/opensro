@@ -187,7 +187,7 @@ test("the portrait target allocates one view per resident texture", async t => {
 		createBindGroup: () => ({}),
 		queue: { writeTexture() {}, writeBuffer() {}, copyExternalImageToTexture() {} }
 	};
-	const ui = createUiResources( device, "rgba8unorm" );
+	const ui = createUiResources( device, "rgba8unorm", () => "rgba8unorm" );
 	t.after( () => ui.dispose() );
 	await ui.ready;
 	/** @type {any} */

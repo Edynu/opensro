@@ -18,6 +18,48 @@ const { identity, viewProjection } = await import( "../../src/engine/foundation/
 globalThis.GPUBufferUsage = GPU_BUFFER_USAGE;
 globalThis.GPUTextureUsage = GPU_TEXTURE_USAGE;
 
+test("reflection remembers format changes while absent and recreates live targets only when needed", () => {
+	const formats = [], retired = [];
+	const device = {
+		createBuffer: () => ({ destroy() {} }),
+		queue: { writeBuffer() {} },
+		createTexture( descriptor ) {
+			formats.push( descriptor.format );
+			return { createView: () => ({ format: descriptor.format }), destroy() {} };
+		}
+	};
+	const water = createWaterReflection( /** @type {any} */ (device), "bgra8unorm", value => retired.push( value ) );
+	try {
+		assert.equal( water.reformat( "rgba16float" ), false );
+		assert.deepEqual( formats, [], "a format preference alone allocates nothing" );
+		water.update( identity(), 0, true, 0 );
+		assert.deepEqual( formats, [ "rgba16float", "depth24plus" ] );
+		const first = water.view();
+		assert.equal( water.reformat( "rgba16float" ), false );
+		assert.equal( water.view(), first );
+		assert.equal( water.reformat( "bgra8unorm" ), true );
+		assert.notEqual( water.view(), first );
+		assert.equal( retired.length, 1 );
+		water.update( undefined, 0, true, 0 );
+		assert.equal( water.reformat( "rgba16float" ), false );
+		water.update( identity(), 0, true, 0 );
+		water.update( undefined, 0, true, 0 );
+		assert.equal( water.reformat( "bgra8unorm" ), false );
+		water.update( identity(), 0, true, 0 );
+		assert.deepEqual( formats, [
+			"rgba16float",
+			"depth24plus",
+			"bgra8unorm",
+			"rgba16float",
+			"depth24plus",
+			"bgra8unorm",
+			"depth24plus"
+		] );
+	} finally {
+		water.dispose();
+	}
+});
+
 test("capture matches native mirrored orbit and leaves the underwater camera unchanged", () => {
 	for ( const fov of [ .8, 1.2 ] ) {
 		for ( const aspect of [ 1, 4 / 3, 16 / 9 ] ) {

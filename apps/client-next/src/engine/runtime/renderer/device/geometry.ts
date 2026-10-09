@@ -13,6 +13,8 @@ import { createInstancePacking, instanceCapacity } from "@/engine/foundation/ren
 import { createWaterReflection } from "./water-reflection";
 import { packTextureStage } from "@/engine/foundation/rendering/texture-stage";
 import { createCharacterShadows } from "./character-shadows";
+import { createSunShadow } from "./sun-shadow";
+import { ENVIRONMENT_SHADOW_MATRIX_OFFSET } from "./environment-block";
 import { destroyNow, type Retire } from "./retirement";
 import { DeviceDraw } from "./device-draw";
 import { createGeometryUploads } from "./geometry-uploads";
@@ -60,7 +62,9 @@ export function createGeometryResources(
 	created: GPUDevice,
 	current: () => GPUDevice,
 	fail: ( error: unknown ) => void,
-	pipelines: ( state: GeometryPipelineState ) => GPURenderPipeline,
+	// The geometry pipeline for state; the rgba16float sibling (the HDR
+	// stage's scene intermediate) resolves through the second argument.
+	pipelines: ( state: GeometryPipelineState, sceneFloat?: boolean, previewCoverage?: boolean ) => GPURenderPipeline,
 	// Each draw holds a lease on its images for as long as it binds them.
 	images: ImageLeases,
 	worldSampler: GPUSampler,
@@ -77,10 +81,14 @@ export function createGeometryResources(
 	lightmapSampling?: ( anisotropic: boolean ) => GPUSampler
 ) {
 	let filtered = true, detail = 2, anisotropic = false, mixedCpuUploadBytes = 0;
+	// The HDR stage's scene intermediate flips the colour format every
+	// geometry pipeline renders into; sceneBindings swaps every draw over.
+	let floatScene = false, shadowEnabled = false;
 	const waterReflection = createWaterReflection( created, format, retire );
 	// 8BA130 fixes water MIN/MAG to linear independently of the video filter.
 	const waterSampler = worldSampler;
 	const reflectedBindings = new WeakMap<GeometryDraw, { source: GPUBindGroup; draw: GeometryDraw; }>();
+	const previewBindings = new WeakMap<GeometryDraw, { source: GPUBindGroup; draw: GeometryDraw; }>();
 	const geometryBuffers = new Map<GeometryDraw, GPUBuffer[]>();
 	// Released draws and their release records (releasedDraw).
 	const releasedDraws = new WeakMap<GeometryDraw, { atMs: number; error: Error; }>();
@@ -96,6 +104,25 @@ export function createGeometryResources(
 		usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
 	} );
 	created.queue.writeTexture( { texture: white }, Uint8Array.of( 255, 255, 255, 255 ), { bytesPerRow: 4 }, [ 1, 1 ] );
+	// Bindings 13/14, the sun cascade every world draw samples: while the
+	// stage is off the draws bind a 1x1 depth view and the gated shader
+	// branch never samples it, so its contents are irrelevant and the
+	// native frame is untouched; while it is on, the draws bind the real
+	// cascade view. No encoder is spent clearing a view nothing reads.
+	const shadowCompare = created.createSampler( {
+		compare: "less",
+		minFilter: "linear",
+		magFilter: "linear",
+		addressModeU: "clamp-to-edge",
+		addressModeV: "clamp-to-edge"
+	} );
+	const shadowDummy = created.createTexture( {
+		label: "sun-shadow-dummy",
+		size: [ 1, 1 ],
+		format: "depth24plus",
+		usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+	} );
+	const shadowDummyView = shadowDummy.createView();
 	const uploads = createGeometryUploads( created, retire );
 	const packInstances = createInstancePacking();
 	const defaultSkin = created.createBuffer( {
@@ -167,32 +194,40 @@ export function createGeometryResources(
 		bones = defaultBones,
 		environmentImage?: ImageDraw,
 		capture = false
-	) => current().createBindGroup( {
-		layout: pipeline.getBindGroupLayout( 0 ),
-		entries: [
-			{ binding: 9, resource: capture ? white.createView() : waterReflection.view() ?? white.createView() },
-			{ binding: 10, resource: { buffer: capture ? waterReflection.capture : waterReflection.main } },
-			{ binding: 11, resource: lightmapSampler },
-			{ binding: 12, resource: waterSampler },
-			{ binding: 0, resource: { buffer: uniform } },
-			{ binding: 1, resource: { buffer: storage } },
-			{ binding: 2, resource: { buffer: material } },
-			{
-				binding: 3,
-				resource: clampedSampling ? lightmapSampler : worldSampler
-			},
-			{ binding: 4, resource: (image ? images.texture( image ) : white).createView( { dimension: "2d-array" } ) },
-			{ binding: 5, resource: { buffer: environment } },
-			{ binding: 6, resource: { buffer: skin } },
-			{ binding: 7, resource: { buffer: bones } },
-			{
-				binding: 8,
-				resource: (environmentImage ? images.texture( environmentImage ) : white).createView( {
-					dimension: "2d-array"
-				} )
-			}
-		]
-	} );
+	) => {
+		const cascade = shadowEnabled ? ensureSunShadow().cascadeView() : shadowDummyView;
+		return current().createBindGroup( {
+			layout: pipeline.getBindGroupLayout( 0 ),
+			entries: [
+				{ binding: 9, resource: capture ? white.createView() : waterReflection.view() ?? white.createView() },
+				{ binding: 10, resource: { buffer: capture ? waterReflection.capture : waterReflection.main } },
+				{ binding: 11, resource: lightmapSampler },
+				{ binding: 12, resource: waterSampler },
+				{ binding: 13, resource: cascade },
+				{ binding: 14, resource: shadowCompare },
+				{ binding: 0, resource: { buffer: uniform } },
+				{ binding: 1, resource: { buffer: storage } },
+				{ binding: 2, resource: { buffer: material } },
+				{
+					binding: 3,
+					resource: clampedSampling ? lightmapSampler : worldSampler
+				},
+				{
+					binding: 4,
+					resource: (image ? images.texture( image ) : white).createView( { dimension: "2d-array" } )
+				},
+				{ binding: 5, resource: { buffer: environment } },
+				{ binding: 6, resource: { buffer: skin } },
+				{ binding: 7, resource: { buffer: bones } },
+				{
+					binding: 8,
+					resource: (environmentImage ? images.texture( environmentImage ) : white).createView( {
+						dimension: "2d-array"
+					} )
+				}
+			]
+		} );
+	};
 	const metadata = new Map<GeometryDraw, {
 		water: boolean;
 		state: GeometryPipelineState;
@@ -219,7 +254,82 @@ export function createGeometryResources(
 		selection: DeviceDraw;
 	}>();
 	let shadows: ReturnType<typeof createCharacterShadows> | undefined;
+	// The experimental sun cascade: created on first use (the renderer
+	// prepares it once the stage is on), borrowing each caster's buffers
+	// through the metadata resolver, as the silhouette shadows do.
+	let sunShadows: ReturnType<typeof createSunShadow> | undefined;
+	const ensureSunShadow = () =>
+		sunShadows ??= createSunShadow(
+			current(),
+			environment,
+			ENVIRONMENT_SHADOW_MATRIX_OFFSET,
+			draw => {
+				const meta = metadata.get( draw ), buffers = geometryBuffers.get( draw );
+				return meta && buffers ?
+					{
+						instances: buffers[3]!,
+						material: meta.material,
+						skin: meta.skin,
+						bones: meta.bones,
+						image: meta.image ? images.texture( meta.image ) : undefined
+					} :
+					undefined;
+			},
+			retire
+		);
 	const commands: GeometryCommands = Object.freeze( {
+		/*
+		================
+		hdrPreview
+
+		Port-only, not native: only the fullscreen preview resolve consumes
+		coverage alpha. Portrait and doll UI textures retain authored alpha.
+		Borrow buffers without changing source handles; bindings follow their
+		source revision and counts are refreshed for each prepared frame.
+		================
+		*/
+		hdrPreview( draws: readonly GeometryDraw[] ): readonly GeometryDraw[] {
+			if ( !floatScene ) return draws;
+			return draws.map( draw => {
+				const meta = metadata.get( draw ), buffers = geometryBuffers.get( draw );
+				if ( !meta || !buffers ) throw Error( "Unknown or released HDR preview draw" );
+				let cached = previewBindings.get( draw );
+				if ( !cached || cached.source !== draw.binding ) {
+					const pipeline = pipelines( meta.state, true, true );
+					cached = {
+						source: draw.binding,
+						draw: {
+							...draw,
+							pipeline,
+							binding: geometryBinding(
+								meta.uniform,
+								buffers[3]!,
+								meta.material,
+								pipeline,
+								meta.clampedSampling,
+								meta.image,
+								meta.skin,
+								meta.bones,
+								meta.environmentImage
+							),
+							vertices: draw.vertices,
+							indices: draw.indices,
+							count: draw.count,
+							indexCount: draw.indexCount,
+							instanceCount: draw.instanceCount,
+							instanceCapacity: draw.instanceCapacity
+						}
+					};
+					previewBindings.set( draw, cached );
+				}
+				return {
+					...cached.draw,
+					indexCount: draw.indexCount,
+					instanceCount: draw.instanceCount,
+					instanceCapacity: draw.instanceCapacity
+				};
+			} );
+		},
 		/*
         ================
         waterReflection
@@ -259,7 +369,7 @@ export function createGeometryResources(
 				if ( !meta || meta.water || draw.deferredParticle ) continue;
 				let cached = reflectedBindings.get( draw );
 				if ( !cached || cached.source !== draw.binding ) {
-					const pipeline = pipelines( meta.state );
+					const pipeline = pipelines( meta.state, floatScene );
 					const binding = geometryBinding(
 						meta.uniform,
 						geometryBuffers.get( draw )![3]!,
@@ -316,7 +426,9 @@ export function createGeometryResources(
 						{ instances: buffers[3]!, material: meta.material, skin: meta.skin, bones: meta.bones } :
 						undefined;
 				},
-				format,
+				// The receiver draws land in the scene target: the getter
+				// follows the HDR stage's scene format.
+				() => (floatScene ? "rgba16float" : format),
 				retire
 			);
 			return shadows.prepare( requests, blob );
@@ -571,6 +683,7 @@ export function createGeometryResources(
 							capacity
 						);
 						shadows?.forget( draw );
+						sunShadows?.forget( draw );
 						// The frame's recorded passes may still read the old storage.
 						retire( buffers[3]! );
 						buffers[3] = storage;
@@ -811,7 +924,9 @@ export function createGeometryResources(
 						0,
 						mat?.environmentReflection ? 1 : 0,
 						mat?.alphaCompare ?? 7,
-						0,
+						// Port-only, not native: reflection.z admits world-space
+						// receivers; portrait/doll coordinates belong to another scene.
+						data.world === true ? 1 : 0,
 						mat?.water && environmentImage ? 1 : 0,
 						0,
 						0,
@@ -831,7 +946,7 @@ export function createGeometryResources(
 						...(mat?.textureFactor ?? [ 1, 1, 1, 1 ])
 					] ),
 					material = buffer( "geometry-material", materialData, GPUBufferUsage.UNIFORM );
-				const selected = pipelines( geometryPipelineState( mat ) ),
+				const selected = pipelines( geometryPipelineState( mat ), floatScene ),
 					clampedSampling = !!(mat?.lightmap || mat?.decal) && !mat?.groundDecal;
 				const binding = geometryBinding(
 					data.world ? worldUniform! : uniform,
@@ -929,6 +1044,7 @@ export function createGeometryResources(
 				} );
 			}
 			shadows?.forget( draw );
+			sunShadows?.forget( draw );
 			for ( const buffer of geometryBuffers.get( draw ) ?? [] ) {
 				retire( buffer );
 			}
@@ -1021,6 +1137,79 @@ export function createGeometryResources(
 		},
 		/*
 		================
+		sunShadow
+
+		The experimental cascade owner: the renderer prepares it per frame
+		(eye, light) and encodes its caster pass before the main pass.
+		================
+		*/
+		sunShadow() {
+			return ensureSunShadow();
+		},
+		/*
+		================
+		sceneBindings
+
+		The HDR stage's scene-format flip: every live draw moves to its
+		rgba16float pipeline sibling (a new implicit layout, so a new
+		 binding), and the water mirror reformats to match the reflected
+		pass. Nothing renders between the flip and the walk's completion.
+		================
+		*/
+		sceneBindings( sceneFloat: boolean ) {
+			if ( floatScene === sceneFloat ) return;
+			floatScene = sceneFloat;
+			waterReflection.reformat( sceneFloat ? "rgba16float" : format );
+			for ( const [draw, meta] of metadata ) {
+				const pipeline = pipelines( meta.state, sceneFloat );
+				DeviceDraw.repipeline(
+					meta.selection,
+					pipeline,
+					geometryBinding(
+						meta.uniform,
+						geometryBuffers.get( draw )![3]!,
+						meta.material,
+						pipeline,
+						meta.clampedSampling,
+						meta.image,
+						meta.skin,
+						meta.bones,
+						meta.environmentImage
+					)
+				);
+			}
+		},
+		/*
+		================
+		refreshShadowBindings
+
+		The sun cascade toggled: bindings 13/14 now name another view, so
+		every draw rebinds against its current pipeline.
+		================
+		*/
+		refreshShadowBindings( enabled: boolean ) {
+			if ( shadowEnabled === enabled ) return;
+			// Bind the selected target before prepare() activates the first frame.
+			shadowEnabled = enabled;
+			for ( const [draw, meta] of metadata ) {
+				DeviceDraw.rebind(
+					meta.selection,
+					geometryBinding(
+						meta.uniform,
+						geometryBuffers.get( draw )![3]!,
+						meta.material,
+						draw.pipeline,
+						meta.clampedSampling,
+						meta.image,
+						meta.skin,
+						meta.bones,
+						meta.environmentImage
+					)
+				);
+			}
+		},
+		/*
+		================
 		dispose
 		================
 		*/
@@ -1028,6 +1217,7 @@ export function createGeometryResources(
 			uploads.dispose();
 			waterReflection.dispose();
 			shadows?.dispose();
+			sunShadows?.dispose();
 			animation?.dispose();
 			particles?.dispose();
 			for ( const buffers of geometryBuffers.values() ) {
@@ -1041,6 +1231,7 @@ export function createGeometryResources(
 			metadata.clear();
 			worldUniform.destroy();
 			white.destroy();
+			shadowDummy.destroy();
 			defaultSkin.destroy();
 			defaultBones.destroy();
 		}

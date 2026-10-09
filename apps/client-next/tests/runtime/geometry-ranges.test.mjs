@@ -37,6 +37,10 @@ function fixture( dynamicVertices = true ) {
 			createBindGroup() {
 				return {};
 			},
+			// The sun cascade's comparison sampler (bindings 13/14).
+			createSampler() {
+				return {};
+			},
 			pushErrorScope() {},
 			popErrorScope() {
 				return Promise.resolve( null );

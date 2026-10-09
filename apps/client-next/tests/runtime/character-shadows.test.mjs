@@ -248,7 +248,7 @@ function shadowHarness() {
 			{},
 			image => image.texture,
 			d => d === draw ? borrowed : undefined,
-			"rgba8unorm"
+			() => "rgba8unorm"
 		),
 		request = {
 			matrix: shadowProjection( [ 0, 0, 0 ], 20 ).matrix,

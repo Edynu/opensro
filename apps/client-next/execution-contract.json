@@ -491,7 +491,8 @@
 				"updateTransform",
 				"updateInstances",
 				"releasedDraw",
-				"waterReflection"
+				"waterReflection",
+				"hdrPreview"
 			],
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
 			"consumer": "src/engine/runtime/renderer/renderer.ts"
@@ -2101,6 +2102,28 @@
 			"functions": [
 				"read",
 				"rider"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
+			"provider": "src/engine/runtime/renderer/device/hdr.ts",
+			"functions": [
+				"encode",
+				"encodePreview"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
+			"provider": "src/engine/runtime/renderer/device/sun-shadow.ts",
+			"functions": [
+				"encode"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/renderer.ts",
+			"provider": "src/engine/runtime/renderer/device/sun-shadow.ts",
+			"functions": [
+				"prepare"
 			]
 		}
 	],

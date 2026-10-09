@@ -62,6 +62,8 @@ const waterReflection = runtime + "renderer/device/water-reflection.ts";
 const bloom = runtime + "renderer/device/bloom.ts";
 const finish = runtime + "renderer/device/finish.ts";
 const shadows = runtime + "renderer/device/character-shadows.ts";
+const sunShadow = runtime + "renderer/device/sun-shadow.ts";
+const hdr = runtime + "renderer/device/hdr.ts";
 const animation = runtime + "renderer/device/animation.ts";
 const particleQuery = runtime + "renderer/device/particle-query.ts";
 const particles = runtime + "renderer/device/particles.ts";
@@ -82,7 +84,9 @@ const deviceInternals = [
 	animation,
 	particleQuery,
 	particles,
-	shadows
+	shadows,
+	sunShadow,
+	hdr
 ];
 export const rules = {
 	createQuerySet: [ timing ],
@@ -196,6 +200,9 @@ for (
 		"popErrorScope"
 	]
 ) rules[name].push( geometry );
+// The sun cascade's comparison sampler (bindings 13/14) is geometry-owned:
+// every world draw binds it, so it lives with the draws' other samplers.
+rules.createSampler.push( geometry );
 for ( const name of [ "createBuffer", "writeBuffer", "createCommandEncoder", "finish", "submit" ] ) {
 	rules[name].push( geometryUploads );
 }
@@ -231,6 +238,7 @@ for (
 	const name of [
 		"createShaderModule",
 		"createRenderPipelineAsync",
+		"createRenderPipeline",
 		"createBuffer",
 		"createBindGroup",
 		"writeBuffer"
@@ -300,6 +308,29 @@ for (
 		"finish"
 	]
 ) rules[name].push( finish );
+for (
+	const name of [
+		"createShaderModule",
+		"createRenderPipeline",
+		"createSampler",
+		"createTexture",
+		"createBindGroup",
+		"beginRenderPass"
+	]
+) rules[name].push( hdr );
+for (
+	const name of [
+		"createShaderModule",
+		"createRenderPipeline",
+		"createTexture",
+		"writeTexture",
+		"createSampler",
+		"createBuffer",
+		"createBindGroup",
+		"writeBuffer",
+		"beginRenderPass"
+	]
+) rules[name].push( sunShadow );
 for ( const name of [ "createBuffer", "createTexture", "writeBuffer", "beginRenderPass" ] ) {
 	rules[name].push( waterReflection );
 }
@@ -394,6 +425,7 @@ export function verifyCapabilities( base = root ) {
 					particles,
 					geometry,
 					shadows,
+					sunShadow,
 					waterReflection,
 					finish,
 					device,

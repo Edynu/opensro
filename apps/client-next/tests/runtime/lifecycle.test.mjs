@@ -228,6 +228,7 @@ test("deferred frames acquire the swapchain only after readback and present in t
 			{ asynchronous: true, prepare: () => ready },
 			undefined,
 			undefined,
+			undefined,
 			surface
 		);
 		assert.deepEqual( log, [ "main-pass", "submit 1" ] );
@@ -515,9 +516,12 @@ test("device loss rebuilds only renderer resources and bounds repeated recovery"
 		assert.equal( imageDisposals, 0 );
 		renderer.dispose();
 		assert.equal( imageDisposals, 1 );
-		assert.equal( textureDisposals, 16 );
+		// The sun cascade's 1x1 dummy depth view (bindings 13/14) is one
+		// more texture a generation; the cascade itself stays unbuilt while
+		// the stage is off.
+		assert.equal( textureDisposals, 20 );
 		renderer.dispose();
-		assert.equal( textureDisposals, 16 );
+		assert.equal( textureDisposals, 20 );
 		assert.equal( imageDisposals, 1 );
 	} finally {
 		if ( old ) Object.defineProperty( globalThis, "navigator", old );

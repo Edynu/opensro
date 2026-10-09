@@ -33,7 +33,7 @@ test("missing images produce no white primitives and late residency restores the
 		createBindGroup: () => ({}),
 		queue: { writeTexture() {}, writeBuffer() {}, copyExternalImageToTexture() {} }
 	};
-	const ui = createUiResources( device, "rgba8unorm" );
+	const ui = createUiResources( device, "rgba8unorm", () => "rgba8unorm" );
 	try {
 		await ui.ready;
 		const q = texture => ({
@@ -119,7 +119,7 @@ test("unchanged UI revisions retain GPU bytes; one moving coordinate uploads onl
 			}
 		}
 	};
-	const ui = createUiResources( device, "rgba8unorm" );
+	const ui = createUiResources( device, "rgba8unorm", () => "rgba8unorm" );
 	await ui.ready;
 	const quad = {
 			texture: "",
@@ -209,7 +209,7 @@ test("composed native windows fit the descriptor budget without bypassing memory
 		createBindGroup: () => ({}),
 		queue: { writeTexture() {}, writeBuffer() {}, copyExternalImageToTexture() {} }
 	};
-	const ui = createUiResources( device, "rgba8unorm" ),
+	const ui = createUiResources( device, "rgba8unorm", () => "rgba8unorm" ),
 		pixel = { width: 1, height: 1, data: new Uint8ClampedArray( 4 ) };
 	try {
 		await ui.ready;

@@ -104,7 +104,8 @@ test("text runs pack byte-identical records and draws to their expanded glyph qu
 		[gpu.GPUBufferUsage, gpu.GPUShaderStage, gpu.GPUTextureUsage] = saved;
 	} );
 	const a = fakeDevice(), b = fakeDevice();
-	const runs = createUiResources( a.device, "rgba8unorm" ), glyphs = createUiResources( b.device, "rgba8unorm" );
+	const runs = createUiResources( a.device, "rgba8unorm", () => "rgba8unorm" ),
+		glyphs = createUiResources( b.device, "rgba8unorm", () => "rgba8unorm" );
 	await runs.ready;
 	await glyphs.ready;
 	for ( const owner of [ runs, glyphs ] ) {

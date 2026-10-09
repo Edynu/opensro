@@ -70,6 +70,26 @@ const TERRAIN_RELIEF_MIN_LIGHT = 0.0001;
 // alias at grazing angles when the textured band is exposed. Off, the
 // native flat fog return stands.
 
+// Port-only, not native: the second experimental stages vec4 (byte 368 of
+// the environment block; env.stages2 in WGSL) switches the three lighting
+// stages of the 2026-10-08 wave: x the HDR intermediate with its tone map,
+// y the sun shadow cascade, z per-pixel character and object lighting.
+//
+// HDR - the scene renders into an rgba16float intermediate and the
+// presentation applies a filmic tone map. The 2005 frame is authored
+// display-referred LDR, so the only values above 1.0 are the stages that
+// lift them (the sun disc gain below); the tone map is the fitted ACES
+// curve of hdr.ts, shared by the bloom owner's float composite.
+const SUN_HDR_GAIN = 4.0; // sun disc radiance multiplier while the HDR stage is on
+
+// Sun shadow - one orthographic cascade covering SHADOW_EXTENT world units
+// around the eye (sun-shadow-math.ts builds the matrix), 2048 taps with a
+// 3x3 hardware PCF, fading to unshadowed at the cascade border so the
+// boundary never shows a hard step.
+const SUN_SHADOW_STRENGTH = 1.0; // fraction of the diffuse term a full shadow removes
+const SUN_SHADOW_TEXEL = 1.0 / 2048.0; // one cascade tap in shadow-map UV space
+const SUN_SHADOW_FADE = 0.45; // border fraction where the cascade fade begins
+
 // Anisotropic filtering - the experimental sampler level; retail is 1.
 const ANISOTROPY = 16;
 
@@ -232,8 +252,13 @@ struct Out {@builtin(position) position:vec4f,@location(0) uv:vec2f}
 		fragment: { module: shader, entryPoint: "fs", targets: [ { format: "rgba8unorm" } ] },
 		primitive: { topology: "triangle-list" }
 	} );
+	// The HDR stage renders the scene into an rgba16float intermediate, so
+	// the scene-drawing pipelines need float-target siblings. Like the float
+	// bloom chain, they compile lazily on first enabled use: a native-only
+	// device never compiles them. The float target format is the one owner.
+	const SCENE_FLOAT_FORMAT: GPUTextureFormat = "rgba16float";
 	const environmentStruct =
-		`struct Environment {zenith:vec4f,horizon:vec4f,diffuse:vec4f,ambient:vec4f,forward:vec4f,right:vec4f,up:vec4f,fog:vec4f,settings:vec4f,water:vec4f,shadow:vec4f,scatter:vec4f,skyTime:vec4f,sun:vec4f,lunar:vec4f,stars:array<vec4f,3>,terrainFog:vec4f,terrainBand:vec4f,reflection:vec4f,sunDirection:vec4f,stages:vec4f}`;
+		`struct Environment {zenith:vec4f,horizon:vec4f,diffuse:vec4f,ambient:vec4f,forward:vec4f,right:vec4f,up:vec4f,fog:vec4f,settings:vec4f,water:vec4f,shadow:vec4f,scatter:vec4f,skyTime:vec4f,sun:vec4f,lunar:vec4f,stars:array<vec4f,3>,terrainFog:vec4f,terrainBand:vec4f,reflection:vec4f,sunDirection:vec4f,stages:vec4f,stages2:vec4f,shadowMatrix:mat4x4f}`;
 	const skyShader = created.createShaderModule( {
 		code: environmentStruct + `
 @group(0) @binding(0) var<uniform> env:Environment;
@@ -252,6 +277,9 @@ struct SkyOut {@builtin(position) position:vec4f,@location(0) ray:vec3f}
 		depthStencil: { format: "depth24plus", depthWriteEnabled: false, depthCompare: "always" }
 	} );
 	let skyPipeline: GPURenderPipeline | null = null;
+	// Lazy HDR siblings: like the float bloom chain, they compile only on
+	// first enabled use, so a native-only device never pays for them.
+	let skyFloatPipeline: GPURenderPipeline | null = null, imageFloatPipeline: GPURenderPipeline | null = null;
 	const geometryShader = created.createShaderModule( {
 		code: environmentStruct + `
 const nativeCharacterLighting:bool=${NATIVE_CHARACTER_LIGHTING};
@@ -297,6 +325,12 @@ fn stageColor(stage:vec4f,i:StageInputs)->vec4f {
 @group(0) @binding(3) var textureSampler:sampler;
 @group(0) @binding(4) var albedo:texture_2d_array<f32>;
 @group(0) @binding(5) var<uniform> env:Environment;
+// The sun shadow cascade (experimental). The comparison sampler resolves
+// hardware PCF taps; the dummy 1x1 depth view every draw binds while the
+// stage is off compares against cleared depth 1.0, so the gated branch
+// below never runs and the native frame is untouched.
+@group(0) @binding(13) var sunShadowMap:texture_depth_2d;
+@group(0) @binding(14) var sunShadowSampler:sampler_comparison;
 // The retail light is the pinned 45-degree diagonal; the sun-direction
 // stage replaces it with the arc direction env carries (see the stage
 // comment above the constants).
@@ -304,6 +338,28 @@ fn lightDirection()->vec3f{
  // world-environment.ts packs a unit direction that stays continuous through
  // the horizon crossing (it blends toward the zenith there).
  return select(vec3f(0.70710678,0.70710678,0),env.sunDirection.xyz,env.stages.y>0.5);
+}
+// Port-only, not native: the sun shadow factor of one world position. The
+// cascade matrix (sun-shadow-math.ts, texel-snapped around the eye) maps
+// region-relative world coordinates to [0,1] cascade UVZ; outside the
+// cascade the surface stays lit, inside it a 3x3 kernel of hardware
+// comparison taps resolves the penumbra, fading at the border.
+fn sunShadowFactor(world:vec3f)->f32{
+ // The cascade matrix (sun-shadow-math.ts) is a WebGPU orthographic
+ // projection: NDC x/y the caster pass rasterizes, [0,1] depth both sides
+ // compare. Receivers sample at the centred UV.
+ let clip=env.shadowMatrix*vec4f(world,1.0);
+ // WebGPU rasterization maps positive NDC Y to the top of the texture.
+ let uv=vec2f(clip.x*0.5+0.5,0.5-clip.y*0.5);
+ if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0||clip.z>1.0||clip.z<0.0){return 1.0;}
+ var sum=0.0;
+ for(var y:i32=-1;y<=1;y++){
+  for(var x:i32=-1;x<=1;x++){
+   sum+=textureSampleCompareLevel(sunShadowMap,sunShadowSampler,uv+vec2f(f32(x),f32(y))*${SUN_SHADOW_TEXEL},clip.z);
+  }
+ }
+ let border=1.0-smoothstep(${SUN_SHADOW_FADE},0.5,max(abs(uv.x-0.5),abs(uv.y-0.5)));
+ return mix(1.0,sum/9.0,border);
 }
 struct SkinVertex {joints:vec4u,weights:vec4f}
 @group(0) @binding(6) var<storage,read> skinVertices:array<SkinVertex>;
@@ -343,6 +399,10 @@ struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin
  let a=instance[0].xyz;let b=instance[1].xyz;let c=instance[2].xyz;
  let cofactors=mat3x3f(cross(b,c),cross(c,a),cross(a,b));let determinant=dot(a,cross(b,c));
  lightingNormal=cofactors*lightingNormal/select(1.0,determinant,determinant!=0.0);
+ // Port-only, not native: interpolate the inverse-transpose normal for
+ // per-pixel object lighting. Multiplying by world skews scaled objects'
+ // normals; leave the original varying untouched when this stage is off.
+ if(env.stages2.z>0.5&&material.lighting.y>0.5){o.normal=lightingNormal;}
  // A91970 replaces BMT diffuse and actor ambient during SCT_MAT.
  let diffuseFactor=select(material.color.rgb,o.materialTint,material.policy.w>0.5);
  let ambientFactor=select(material.ambient.rgb,o.materialTint,material.policy.w>0.5);
@@ -370,7 +430,7 @@ struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin
  }
  return o;
 }
-@fragment fn fs(input:Out)->@location(0) vec4f {
+fn shadeGeometry(input:Out)->vec4f {
  if(waterPass.plane.w>0.5&&material.skin.w==0&&(input.worldY-waterPass.plane.x)*waterPass.plane.y<0){discard;}
  var reflected=vec3f(0);var equipment=vec3f(0);
  if(material.equipmentColor.w>0.0){equipment=textureSample(sphereMap,textureSampler,input.equipmentUV,0).rgb;}
@@ -384,7 +444,12 @@ struct Out {@location(11) worldY:f32,@location(12) mirrorPosition:vec4f,@builtin
  let layer=select(u32(env.settings.z),u32(env.lunar.x),material.skin.w==4.0);let tex=textureSample(albedo,textureSampler,input.uv,i32(layer%textureNumLayers(albedo)));
  if(material.skin.w>0){let k=material.skin.w;
   if(k==1||k==2){return input.color;}
-  if(k==3){return vec4f(clamp(env.sun.rgb,vec3f(0),vec3f(1)),tex.a*select(0.0,1.0,env.skyTime.x>=0.25&&env.skyTime.x<=0.875));}
+  if(k==3){
+   // HDR (experimental): the disc leaves the clamped authored range so the
+   // tone map and the bloom see real energy; off, the retail clamp stands.
+   let disc=select(clamp(env.sun.rgb,vec3f(0),vec3f(1)),env.sun.rgb*${SUN_HDR_GAIN},env.stages2.x>0.5);
+   return vec4f(disc,tex.a*select(0.0,1.0,env.skyTime.x>=0.25&&env.skyTime.x<=0.875));
+  }
   if(k==4){return vec4f(tex.rgb,tex.a*select(0.0,1.0,(env.skyTime.x>0.75||env.skyTime.x<0.5)&&env.lunar.x<29.0));}
   if(k==5){return vec4f(mix(clamp(env.scatter.rgb,vec3f(0),vec3f(1))*tex.rgb,env.fog.rgb,clamp((input.viewZ-90000.0)/110000.0,0,1)),tex.a*clamp(env.skyTime.z,0,1));}
   return vec4f(env.fog.rgb,input.color.a);
@@ -398,8 +463,27 @@ var light=vec4f(1);if(material.skin.y>0.5){light=textureSampleBias(albedo,textur
  if(distant&&material.skin.y>0.5){discard;}
  if(distant&&material.options.z>0.5){return vec4f(env.fog.rgb,1);}
 let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,input.color.w,input.maskUV.x),input.maskUV.y);var color=vec4f(tex.rgb,select(tex.a,1.0,material.policy.z>0.5))*material.color*select(input.color,vec4f(1,1,1,mask),material.options.z>0.5);
-	let illumination=clamp(select(material.color.rgb,input.materialTint,material.policy.w>0.5)*env.diffuse.rgb*max(0.0,dot(normalize(input.normal),lightDirection()))+env.ambient.rgb*select(material.ambient.rgb,input.materialTint,material.policy.w>0.5)*material.lighting.x,vec3f(0),vec3f(1));
- let surfaceLight=select(illumination,input.objectLighting,material.lighting.y>0.5);
+		let illumination=clamp(select(material.color.rgb,input.materialTint,material.policy.w>0.5)*env.diffuse.rgb*max(0.0,dot(normalize(input.normal),lightDirection()))+env.ambient.rgb*select(material.ambient.rgb,input.materialTint,material.policy.w>0.5)*material.lighting.x,vec3f(0),vec3f(1));
+ var surfaceLight=select(illumination,input.objectLighting,material.lighting.y>0.5);
+ // Per-pixel character lighting (experimental): the retail vs_1_1 path
+ // saturates each vertex's lighting before interpolation (o.objectLighting,
+ // A5D450's diagonal in object space); the stage re-evaluates the same
+ // terms per pixel from the interpolated, skinned world normal. The vertex
+ // point-light path (NATIVE_CHARACTER_LIGHTING) stays per-vertex: it is a
+ // compatibility mode of its own and is off.
+ if(env.stages2.z>0.5&&material.lighting.y>0.5){
+  surfaceLight=illumination;
+ }
+ // Sun shadows (experimental): the cascade shades the diffuse term and
+ // leaves the ambient standing, for the world path and the object path
+ // alike. reflection.z admits only world-space draws: portrait and doll
+ // positions cannot sample this scene's cascade. Water and sky never receive.
+ var sunShade=1.0;
+ if(env.stages2.y>0.5&&material.reflection.z>0.5&&material.skin.z==0.0&&material.skin.w==0.0){
+  sunShade=mix(1.0,sunShadowFactor(vec3f(input.worldXZ.x,input.worldY,input.worldXZ.y)),${SUN_SHADOW_STRENGTH});
+  let ambientTerm=env.ambient.rgb*select(material.ambient.rgb,input.materialTint,material.policy.w>0.5)*material.lighting.x;
+  surfaceLight=ambientTerm+(surfaceLight-ambientTerm)*sunShade;
+ }
  // B153A0 (effects) and sub_aed240 (BSR material modifiers) set stage 0 from
  // the resource. Its DIFFUSE is the vertex colour as lit, or unlit the
  // material colour (NOLIGHT object lighting writes oD0 = 1, no tint).
@@ -481,9 +565,20 @@ let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,i
   fogColor=select(fogSource.rgb,mix(fogSource.rgb,env.horizon.rgb,${FOG_SKY_TINT}),material.policy.y<0.5);
   terrainFogColor=mix(env.terrainFog.rgb,env.horizon.rgb,${FOG_SKY_TINT});
  }
- if(material.skin.y>0.5){return vec4f(mix(clamp(light.rgb+env.shadow.rgb,vec3f(0),vec3f(1)),terrainFogColor,fog),1);}
+ if(material.skin.y>0.5){
+  // Lightmap terrain receives the same cascade: the baked light sum is the
+  // diffuse term here, so the shade multiplies it ahead of the fog blend.
+  let litTerrain=clamp(light.rgb+env.shadow.rgb,vec3f(0),vec3f(1))*sunShade;
+  return vec4f(mix(litTerrain,terrainFogColor,fog),1);
+ }
  if(animated&&waterPass.plane.z>0.5&&waterPass.plane.w<0.5){lit=waterColor;}
  return vec4f(mix(lit*select(vec3f(1),waterShading,animated),select(fogColor,terrainFogColor,material.options.z>0.5),fog),select(select(color.a,clamp(input.color.a,0,1),animated),select(select(1.0,color.a,material.ambient.w>0.5),fadeAlpha,fading),material.lighting.z>0.5));
+}
+@fragment fn fs(input:Out)->@location(0) vec4f {return shadeGeometry(input);}
+// Port-only, not native: an accepted unblended/cutout fragment covers the
+// scratch target fully. Alpha tests still discard inside shadeGeometry.
+@fragment fn fsPreviewOpaque(input:Out)->@location(0) vec4f {
+ let color=shadeGeometry(input);return vec4f(color.rgb,1.0);
 }`
 	} );
 	/*
@@ -494,38 +589,58 @@ let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,i
 	none), culling, depth writes and depth test.
 	================
 	*/
-	const geometryDescriptor = ( state: GeometryPipelineState ): GPURenderPipelineDescriptor => ({
-		layout: "auto",
-		vertex: {
-			module: geometryShader,
-			entryPoint: "vs",
-			buffers: [ {
-				arrayStride: 56,
-				attributes: [
-					{ shaderLocation: 0, offset: 0, format: "float32x3" },
-					{ shaderLocation: 1, offset: 12, format: "float32x3" },
-					{ shaderLocation: 2, offset: 24, format: "float32x2" },
-					{ shaderLocation: 3, offset: 32, format: "float32x4" },
-					{ shaderLocation: 4, offset: 48, format: "float32x2" }
-				]
-			} ]
-		},
-		fragment: {
-			module: geometryShader,
-			entryPoint: "fs",
-			targets: [ { format, ...(state.blend ? { blend: blendState( state.blend ) } : {}) } ]
-		},
-		primitive: {
-			topology: "triangle-list",
-			cullMode: state.cull ? "back" : "none",
-			frontFace: "cw"
-		},
-		depthStencil: {
-			format: "depth24plus",
-			depthWriteEnabled: state.depthWrite,
-			depthCompare: state.depthCompare
+	const geometryDescriptor = (
+		state: GeometryPipelineState,
+		target: GPUTextureFormat = format,
+		previewCoverage = false
+	): GPURenderPipelineDescriptor => {
+		const blend = state.blend ? blendState( state.blend ) : undefined;
+		const overwrite = blend?.color.srcFactor === "one" && blend.color.dstFactor === "zero";
+		// Port-only, not native: scratch RGB is already premultiplied by
+		// source-over blending. Accumulate coverage instead of squaring alpha.
+		// Additive draws add radiance without occluding the background. Other
+		// authored blends and every world/native target keep their state.
+		if (
+			previewCoverage && blend?.color.srcFactor === "src-alpha" &&
+			blend.color.dstFactor === "one-minus-src-alpha"
+		) {
+			blend.alpha = { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" };
+		} else if ( previewCoverage && blend?.color.dstFactor === "one" ) {
+			blend.alpha = { srcFactor: "zero", dstFactor: "one", operation: "add" };
 		}
-	});
+		return {
+			layout: "auto",
+			vertex: {
+				module: geometryShader,
+				entryPoint: "vs",
+				buffers: [ {
+					arrayStride: 56,
+					attributes: [
+						{ shaderLocation: 0, offset: 0, format: "float32x3" },
+						{ shaderLocation: 1, offset: 12, format: "float32x3" },
+						{ shaderLocation: 2, offset: 24, format: "float32x2" },
+						{ shaderLocation: 3, offset: 32, format: "float32x4" },
+						{ shaderLocation: 4, offset: 48, format: "float32x2" }
+					]
+				} ]
+			},
+			fragment: {
+				module: geometryShader,
+				entryPoint: previewCoverage && (!blend || overwrite) ? "fsPreviewOpaque" : "fs",
+				targets: [ { format: target, ...(blend ? { blend } : {}) } ]
+			},
+			primitive: {
+				topology: "triangle-list",
+				cullMode: state.cull ? "back" : "none",
+				frontFace: "cw"
+			},
+			depthStencil: {
+				format: "depth24plus",
+				depthWriteEnabled: state.depthWrite,
+				depthCompare: state.depthCompare
+			}
+		};
+	};
 	// Geometry pipelines by state. The states every scene uses are compiled
 	// before the device runs; any other is compiled at its first upload.
 	const geometryPipelines = new Map<string, GPURenderPipeline>();
@@ -595,24 +710,49 @@ let mask=mix(mix(input.color.x,input.color.y,input.maskUV.x),mix(input.color.z,i
 		lightmapSampling( anisotropic: boolean ) {
 			return anisotropic ? anisotropicLightmapSampler : lightmapSampler;
 		},
-		sky: () => skyPipeline!,
+		sky( sceneFloat = false ) {
+			if ( !sceneFloat ) return skyPipeline!;
+			skyFloatPipeline ??= created.createRenderPipeline( {
+				layout: "auto",
+				vertex: { module: skyShader, entryPoint: "vs" },
+				fragment: { module: skyShader, entryPoint: "fs", targets: [ { format: SCENE_FLOAT_FORMAT } ] },
+				primitive: { topology: "triangle-list" },
+				depthStencil: { format: "depth24plus", depthWriteEnabled: false, depthCompare: "always" }
+			} );
+			return skyFloatPipeline;
+		},
 		mips: () => mipPipeline!,
-		image: () => pipeline!,
+		image( sceneFloat = false ) {
+			if ( !sceneFloat ) return pipeline!;
+			imageFloatPipeline ??= created.createRenderPipeline( {
+				layout: "auto",
+				vertex: { module: shader, entryPoint: "vs" },
+				fragment: { module: shader, entryPoint: "fs", targets: [ { format: SCENE_FLOAT_FORMAT } ] },
+				primitive: { topology: "triangle-list" },
+				depthStencil: { format: "depth24plus", depthWriteEnabled: false, depthCompare: "always" }
+			} );
+			return imageFloatPipeline;
+		},
 		/*
-		================
-		geometry
+================
+geometry
 
-		The geometry pipeline for state, compiled on first use.
-		================
+The geometry pipeline for state, compiled on first use. The HDR stage's
+rgba16float sibling compiles lazily under the same rule.
+================
 		*/
-		geometry( state: GeometryPipelineState ) {
-			const key = geometryPipelineKey( state );
-			let pipeline = geometryPipelines.get( key );
-			if ( !pipeline ) {
-				pipeline = created.createRenderPipeline( geometryDescriptor( state ) );
-				geometryPipelines.set( key, pipeline );
+		geometry( state: GeometryPipelineState, sceneFloat = false, fullscreenPreview = false ) {
+			const previewCoverage = sceneFloat && fullscreenPreview;
+			const key = geometryPipelineKey( state ) + (sceneFloat ? "|hdr" : "") +
+				(previewCoverage ? "|preview" : "");
+			let selected = geometryPipelines.get( key );
+			if ( !selected ) {
+				selected = created.createRenderPipeline(
+					geometryDescriptor( state, sceneFloat ? SCENE_FLOAT_FORMAT : format, previewCoverage )
+				);
+				geometryPipelines.set( key, selected );
 			}
-			return pipeline;
+			return selected;
 		},
 		sampler: sampler!,
 		worldSampler,

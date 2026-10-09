@@ -37,9 +37,9 @@ export interface ExperimentalRow {
 EXPERIMENTAL_TABS
 
 Port-only, not native. The window's tabs, Options style, at most four rows each: Image holds the
-frame-wide stages (edges, filtering, glow), World the lighting and
-atmosphere stages that deviate from the 2005 look, Chat and Developer the
-earlier additions.
+frame-wide stages (edges, filtering, glow, dynamic range), World the
+atmosphere stages that deviate from the 2005 look, Lighting the direct-light
+stages, Chat and Developer the earlier additions.
 ================
 */
 export const EXPERIMENTAL_TABS: readonly {
@@ -68,6 +68,12 @@ export const EXPERIMENTAL_TABS: readonly {
 				id: "experimental-float-bloom",
 				label: "Smooth bloom",
 				description: "Requires Bloom effect in Video options."
+			},
+			{
+				key: "hdrToneMap",
+				id: "experimental-hdr-tone-map",
+				label: "HDR tone map",
+				description: "Float frame with filmic highlight roll-off."
 			}
 		]
 	},
@@ -98,6 +104,24 @@ export const EXPERIMENTAL_TABS: readonly {
 				id: "experimental-textured-horizon",
 				label: "Textured horizon",
 				description: "Shows distant ground textures; may shimmer."
+			}
+		]
+	},
+	{
+		title: "Lighting",
+		section: "Light and shadows",
+		rows: [
+			{
+				key: "sunShadow",
+				id: "experimental-sun-shadow",
+				label: "Sun shadows",
+				description: "Scene shadows cast by the sunlight."
+			},
+			{
+				key: "perPixelLighting",
+				id: "experimental-per-pixel-lighting",
+				label: "Per-pixel character light",
+				description: "Smooth lighting on characters and objects."
 			}
 		]
 	},

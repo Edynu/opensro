@@ -7,6 +7,7 @@ device.ts - WebGPU generation and resource lifecycle
 */
 import { createBloom } from "./bloom";
 import { createFinish } from "./finish";
+import { createHdr } from "./hdr";
 import { createParticleQuery } from "./particle-query";
 import { createGpuAnimationResources } from "./animation";
 import { createParticlePresentation } from "./particles";
@@ -17,17 +18,15 @@ import { createUiResources } from "./ui";
 import { createPipelines } from "./pipelines";
 import { createImages } from "./images";
 import { createGeometryResources } from "./geometry";
+import { ENVIRONMENT_STAGES2_OFFSET, ENVIRONMENT_STAGES_OFFSET, ENVIRONMENT_UNIFORM_BYTES } from "./environment-block";
 import type { DeviceOwner, FrameCommands, SurfaceCommands } from "@/engine/runtime/renderer/internal/gpu-contract";
 import { createRetirement } from "./retirement";
 import type { RuntimePhase } from "@/engine/contracts/runtime";
 
 const DEFAULT_TEXTURE_DETAIL = 2;
-// The native prefix is 336 bytes; the port-only sun-direction vec4 makes
-// the environment block 352 bytes. The world environment packs it; the
-// experimental video stages vec4 follows at byte 352 (368 bytes total):
-// height fog, sun direction, terrain relief, textured horizon.
-const ENVIRONMENT_BLOCK_BYTES = 352;
-const ENVIRONMENT_UNIFORM_BYTES = ENVIRONMENT_BLOCK_BYTES + 16;
+// The environment block's byte layout lives in environment-block.ts: the
+// native 336 bytes, the sun-direction vec4, then the two experimental
+// stages vec4s and the sun shadow cascade matrix.
 const FULLSCREEN_VERTEX_COUNT = 6;
 
 /*
@@ -39,20 +38,26 @@ Initialize one device generation and grant checked capabilities after its pipeli
 */
 export function createDevice( timingEnabled = false, gpuAnimationEnabled = true ): DeviceOwner {
 	let textureFiltered = true, textureDetail = DEFAULT_TEXTURE_DETAIL;
-	// Experimental > Image / World. All off is the native frame: the plain copy to the
-	// swapchain, retail samplers and env.stages zero.
-	let finishEnabled = false, anisotropic = false, bloomFloat = false;
-	const stages = new Float32Array( 4 );
+	// Experimental > Image / World / Lighting. All off is the native frame:
+	// the plain copy to the swapchain, retail samplers, env.stages zero and
+	// env.stages2 zero.
+	let finishEnabled = false, anisotropic = false, bloomFloat = false, hdrOn = false, sunShadowOn = false;
+	const stages = new Float32Array( 8 );
 	let timing: ReturnType<typeof createGpuTiming> | null = null;
 	let phase: RuntimePhase = "starting", failure: string | null = null, device: GPUDevice | null = null;
 	let environmentBuffer: GPUBuffer | null = null,
-		sky: import("@/engine/runtime/renderer/internal/gpu-contract").ImageDraw | null = null;
+		sky: import("@/engine/runtime/renderer/internal/gpu-contract").ImageDraw | null = null,
+		skyFloat: import("@/engine/runtime/renderer/internal/gpu-contract").ImageDraw | null = null,
+		skyFactory:
+			| (( sceneFloat: boolean ) => import("@/engine/runtime/renderer/internal/gpu-contract").ImageDraw)
+			| null = null;
 	let geometry: ReturnType<typeof createGeometryResources> | null = null,
 		images: ReturnType<typeof createImages> | null = null;
 	let ui: ReturnType<typeof createUiResources> | null = null;
 	let thunder: ReturnType<typeof createThunder> | null = null;
 	let flares: ReturnType<typeof createFlares> | null = null;
 	let bloom: ReturnType<typeof createBloom> | null = null;
+	let hdr: ReturnType<typeof createHdr> | null = null;
 	let finish: ReturnType<typeof createFinish> | null = null;
 	let particleQuery: ReturnType<typeof createParticleQuery> | null = null;
 	const depthTextures = new Set<GPUTexture>();
@@ -158,10 +163,12 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				Use the same canvas and depth formats as the frame's render targets.
 				================
 				*/
-				createBundleEncoder: ( depth = true ) =>
+				createBundleEncoder: ( depth = true, scene = false ) =>
 					current().createRenderBundleEncoder( {
 						label: "retained-scene",
-						colorFormats: [ navigator.gpu.getPreferredCanvasFormat() ],
+						// Scene bundles execute into the frame's scene target: the
+						// canvas format, or the HDR stage's float intermediate.
+						colorFormats: [ scene && hdrOn ? "rgba16float" : navigator.gpu.getPreferredCanvasFormat() ],
 						...(depth ? { depthStencilFormat: "depth24plus" as const } : {})
 					} ),
 				/*
@@ -285,7 +292,9 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				retire: retirement.retire,
 				current,
 				fail,
-				pipeline: pipelines.image,
+				// The fullscreen image draws in the main pass, so its pipeline
+				// follows the scene format the HDR stage selects.
+				pipeline: () => pipelines.image( hdrOn ),
 				sampler: pipelines.sampler,
 
 				/*
@@ -358,7 +367,9 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				retirement.retire,
 				pipelines.lightmapSampling
 			);
-			ui = createUiResources( created, navigator.gpu.getPreferredCanvasFormat(), retirement.retire );
+			ui = createUiResources( created, navigator.gpu.getPreferredCanvasFormat(), () => (
+				hdrOn ? "rgba16float" : navigator.gpu.getPreferredCanvasFormat()
+			), retirement.retire );
 
 			thunder = createThunder( created, navigator.gpu.getPreferredCanvasFormat() );
 
@@ -366,9 +377,29 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 
 			bloom = createBloom( created, navigator.gpu.getPreferredCanvasFormat(), retirement.retire );
 
+			hdr = createHdr( created, navigator.gpu.getPreferredCanvasFormat(), retirement.retire );
+
 			finish = createFinish( created, navigator.gpu.getPreferredCanvasFormat() );
 
 			particleQuery = createParticleQuery( created, navigator.gpu.getPreferredCanvasFormat() );
+			/*
+			================
+			skyDraw
+
+			The gradient sky draw for one scene format: native at startup, the
+			HDR stage's float sibling lazily on first use.
+			================
+			*/
+			const skyDraw = ( sceneFloat: boolean ) => {
+				const pipeline = pipelines.sky( sceneFloat );
+				return {
+					pipeline,
+					binding: created.createBindGroup( {
+						layout: pipeline.getBindGroupLayout( 0 ),
+						entries: [ { binding: 0, resource: { buffer: environmentBuffer! } } ]
+					} )
+				};
+			};
 			Promise.all( [
 				pipelines.ready,
 				ui.ready,
@@ -380,15 +411,12 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				finish.ready
 			] ).then( () => {
 				if ( generation === epoch && phase === "starting" ) {
-					sky = {
-						pipeline: pipelines.sky(),
-						binding: created.createBindGroup( {
-							layout: pipelines.sky().getBindGroupLayout( 0 ),
-							entries: [ { binding: 0, resource: { buffer: environmentBuffer! } } ]
-						} )
-					};
+					sky = skyDraw( false );
+					skyFactory = skyDraw;
 					phase = "running";
 					geometry!.textureOptions( textureFiltered, textureDetail, anisotropic );
+					geometry!.sceneBindings( hdrOn );
+					geometry!.refreshShadowBindings( sunShadowOn );
 				}
 			} ).catch( fail );
 		} ).catch( fail );
@@ -429,7 +457,32 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		*/
 		bloom( width, height, enabled ) {
 			if ( phase !== "running" || !bloom ) throw Error( "Bloom device is not ready" );
-			return bloom.prepare( width, height, enabled, bloomFloat );
+			return bloom.prepare( width, height, enabled, bloomFloat, hdrOn );
+		},
+		/*
+		================
+		hdr
+
+		Prepare the float scene intermediate only after device
+		initialization succeeds; undefined while the stage is off.
+		================
+		*/
+		hdr( width, height, enabled ) {
+			if ( phase !== "running" || !hdr ) throw Error( "HDR device is not ready" );
+			return hdr.prepare( width, height, enabled && hdrOn );
+		},
+		/*
+		================
+		sunShadow
+
+		The experimental cascade owner, created by the geometry resources on
+		first use; the renderer prepares it per frame and encodes its
+		caster pass through the frame owner.
+		================
+		*/
+		sunShadow() {
+			if ( phase !== "running" || !geometry ) throw Error( "Stale sun shadow capability" );
+			return geometry.sunShadow();
 		},
 		/*
 		================
@@ -460,8 +513,9 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		================
 		experimentalVideo
 
-		Experimental > Image / World: the presentation pass, the anisotropic samplers
-		and the shader stages. Retained across startup like textureOptions.
+		Experimental > Image / World / Lighting: the presentation pass, the anisotropic
+		samplers, the shader stages, the HDR scene format and the sun cascade.
+		Retained across startup like textureOptions.
 		================
 		*/
 		experimentalVideo( value ) {
@@ -471,8 +525,24 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 				value.heightFog ? 1 : 0,
 				value.dynamicSun ? 1 : 0,
 				value.terrainRelief ? 1 : 0,
-				value.texturedHorizon ? 1 : 0
+				value.texturedHorizon ? 1 : 0,
+				value.hdrToneMap ? 1 : 0,
+				value.sunShadow ? 1 : 0,
+				value.perPixelLighting ? 1 : 0,
+				0
 			] );
+			// The HDR stage flips every scene target's format: geometry
+			// re-pipelines, the mirror reformats, the portraits retire.
+			if ( hdrOn !== value.hdrToneMap && phase === "running" ) {
+				hdrOn = value.hdrToneMap;
+				skyFloat = null;
+				geometry?.sceneBindings( hdrOn );
+				ui?.releasePortraits();
+			} else hdrOn = value.hdrToneMap;
+			// The cascade toggling only changes bindings 13/14's view.
+			const shadowWasOn = sunShadowOn;
+			sunShadowOn = value.sunShadow;
+			if ( shadowWasOn !== sunShadowOn && phase === "running" ) geometry?.refreshShadowBindings( sunShadowOn );
 			if ( anisotropic === value.anisotropicFiltering ) return;
 			anisotropic = value.anisotropicFiltering;
 			if ( phase === "running" ) geometry?.textureOptions( textureFiltered, textureDetail, anisotropic );
@@ -512,7 +582,11 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		Expose the current sky draw without transferring its resource ownership.
 		================
 		*/
-		sky: () => sky,
+		sky: () => {
+			if ( !hdrOn || !skyFactory ) return sky;
+			skyFloat ??= skyFactory( true );
+			return skyFloat;
+		},
 		/*
 		================
 		thunder
@@ -522,7 +596,7 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		*/
 		thunder( color ) {
 			if ( phase !== "running" || !thunder ) throw Error( "Stale thunder capability" );
-			return thunder.prepare( color );
+			return thunder.prepare( color, hdrOn );
 		},
 		/*
 		================
@@ -543,8 +617,10 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 		Publish the frame transform and environment uniforms together.
 		================
 		*/
-		worldView( transform, environment ) {
+		worldView( transform, environment, shadowEnabled = true ) {
 			if ( phase === "running" ) {
+				// Preview scenes have no cascade; keep the saved preference for world re-entry.
+				stages[5] = sunShadowOn && shadowEnabled ? 1 : 0;
 				geometry?.worldView( transform );
 				device!.queue.writeBuffer(
 					environmentBuffer!,
@@ -553,7 +629,7 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 					environment.byteOffset,
 					environment.byteLength
 				);
-				device!.queue.writeBuffer( environmentBuffer!, ENVIRONMENT_BLOCK_BYTES, stages );
+				device!.queue.writeBuffer( environmentBuffer!, ENVIRONMENT_STAGES_OFFSET, stages );
 			}
 		},
 		/*
@@ -656,6 +732,8 @@ export function createDevice( timingEnabled = false, gpuAnimationEnabled = true 
 			flares = null;
 			bloom?.dispose();
 			bloom = null;
+			hdr?.dispose();
+			hdr = null;
 			finish?.dispose();
 			finish = null;
 			particleQuery?.dispose();

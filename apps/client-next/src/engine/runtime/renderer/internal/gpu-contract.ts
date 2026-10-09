@@ -20,7 +20,9 @@ FrameCommands
 export interface FrameCommands {
 	prepare?( encoder: GPUCommandEncoder, timing?: GpuTimingFrame ): void;
 	beginTiming?( frameId?: number ): GpuTimingFrame | undefined;
-	createBundleEncoder( depth?: boolean ): GPURenderBundleEncoder;
+	// Scene bundles execute into the frame's scene target (the HDR stage's
+	// float intermediate when on); the default is the presented 8-bit frame.
+	createBundleEncoder( depth?: boolean, scene?: boolean ): GPURenderBundleEncoder;
 	createEncoder(): GPUCommandEncoder;
 	submit( buffer: GPUCommandBuffer ): void;
 }
@@ -85,6 +87,48 @@ export interface BloomDraw {
 }
 /*
 ================
+HdrDraw
+
+After resolving the scene, the frame can reuse view for a transparent
+preview. Preview RGB is premultiplied by coverage alpha; encodePreview
+tone-maps its unassociated color and composites over the presented UI.
+================
+*/
+export interface HdrDraw extends BloomDraw {
+	encodePreview( encoder: GPUCommandEncoder, target: GPUTextureView ): void;
+}
+/*
+================
+SunShadowOwner
+
+The experimental sun cascade (device/sun-shadow.ts). The renderer prepares
+it per frame and the frame owner encodes its caster pass.
+================
+*/
+export interface SunShadowOwner {
+	active(): boolean;
+	cascadeView(): GPUTextureView;
+	prepare( on: boolean, eye: readonly number[], light: readonly number[] ): void;
+	encode( encoder: GPUCommandEncoder, casters: readonly GeometryDraw[], timing?: GpuTimingFrame ): void;
+	forget( draw: GeometryDraw ): void;
+	dispose(): void;
+}
+/*
+================
+ExperimentalFrame
+
+The frame's experimental stages: the HDR float intermediate (its tone map
+pass or the bloom chain's tonemapping copy-back) and the sun cascade's
+caster list.
+================
+*/
+export interface ExperimentalFrame {
+	readonly hdr?: HdrDraw;
+	readonly sunShadow?: SunShadowOwner;
+	readonly casters?: readonly GeometryDraw[];
+}
+/*
+================
 DeviceOwner
 ================
 */
@@ -102,11 +146,13 @@ export interface DeviceOwner extends Disposable {
 	textureOptions( filtered: boolean, detail: number ): void;
 	experimentalVideo( value: import("@/engine/foundation/ui/experimental-options").ExperimentalVideo ): void;
 	bloom( width: number, height: number, enabled: boolean ): BloomDraw | undefined;
+	hdr( width: number, height: number, enabled: boolean ): HdrDraw | undefined;
+	sunShadow(): SunShadowOwner;
 	gpuTiming(): GpuTimingStats | null;
 	portraitTarget( id?: string, width?: number, height?: number ): GPUTextureView;
 	uiTexture( id: string, image: ImageBitmap | ImageData | null ): void;
 	ui( scene: UiScene | null ): readonly UiDraw[];
-	worldView( transform: Float32Array, environment: Float32Array ): void;
+	worldView( transform: Float32Array, environment: Float32Array, shadowEnabled?: boolean ): void;
 	sky(): ImageDraw | null;
 	thunder( color: readonly number[] ): ImageDraw;
 	flares( input: FlareInput, depth: GPUTextureView ): FlareDraw;
@@ -175,6 +221,7 @@ export interface FrameOwner {
 		deferred?: DeferredDraw,
 		bloom?: BloomDraw,
 		reflection?: { encode( encoder: GPUCommandEncoder ): void; },
+		experimental?: ExperimentalFrame,
 		presentation?: SurfaceOwner
 	): void | Promise<void>;
 }
@@ -283,6 +330,10 @@ GeometryCommands
 ================
 */
 export interface GeometryCommands {
+	// Port-only, not native: coverage-alpha siblings for the fullscreen HDR
+	// scratch target consumed by HdrDraw.encodePreview. Portraits use the
+	// original draws because their UI consumer retains native alpha blending.
+	hdrPreview( draws: readonly GeometryDraw[] ): readonly GeometryDraw[];
 	waterReflection(
 		input: { matrix?: Float32Array; height: number; above: boolean; seconds: number; },
 		draws: readonly GeometryDraw[]

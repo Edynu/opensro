@@ -18,7 +18,15 @@ import { destroyNow, type Retire } from "./retirement";
 createUiResources
 ================
 */
-export function createUiResources( device: GPUDevice, format: GPUTextureFormat, retire: Retire = destroyNow ) {
+export function createUiResources(
+	device: GPUDevice,
+	format: GPUTextureFormat,
+	// The portrait targets render character draws, so they follow the HDR
+	// stage's scene format; the UI quads always render into the presented
+	// 8-bit frame.
+	sceneFormat: () => GPUTextureFormat,
+	retire: Retire = destroyNow
+) {
 	const shader = device.createShaderModule( {
 		label: "ui-quads",
 		code: `
@@ -169,6 +177,8 @@ fs
 		texture: GPUTexture;
 		width: number;
 		height: number;
+		// Portrait targets carry their format: the HDR stage can flip it.
+		portrait?: GPUTextureFormat;
 		// Created once per slot and returned by identity: the same view object
 		// every call, instead of a fresh one per frame. (No other owner
 		// compares this identity; the frame only uses it as a pass view.)
@@ -252,24 +262,42 @@ fs
 				!Number.isInteger( width ) || !Number.isInteger( height ) || width < 1 || height < 1 || width > 4096 ||
 				height > 4096
 			) throw Error( "Invalid portrait extent" );
+			const target = sceneFormat();
 			let slot = textures.get( id );
-			if ( !slot || slot.width !== width || slot.height !== height ) {
+			if ( !slot || slot.width !== width || slot.height !== height || slot.portrait !== target ) {
 				if ( slot ) retire( slot.texture );
 				slot = {
 					texture: device.createTexture( {
 						label: id,
 						size: [ width, height ],
-						format,
+						format: target,
 						usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
 					} ),
 					width,
-					height
+					height,
+					portrait: target
 				};
 				textures.set( id, slot );
 				resourceRevision++;
 			}
 			slot.view ??= slot.texture.createView();
 			return slot.view;
+		},
+		/*
+		================
+		releasePortraits
+
+		The HDR stage flipped the scene format: the cached portrait targets
+		are in the old one, so they retire ahead of the next prepare.
+		================
+		*/
+		releasePortraits() {
+			for ( const [id, slot] of textures ) {
+				if ( !slot.portrait ) continue;
+				retire( slot.texture );
+				textures.delete( id );
+				resourceRevision++;
+			}
 		},
 		/*
 		================

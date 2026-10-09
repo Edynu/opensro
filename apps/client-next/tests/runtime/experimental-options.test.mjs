@@ -29,7 +29,10 @@ const OFF = Object.freeze( {
 	dynamicSun: false,
 	terrainRelief: false,
 	texturedHorizon: false,
-	floatBloom: false
+	floatBloom: false,
+	hdrToneMap: false,
+	sunShadow: false,
+	perPixelLighting: false
 } );
 
 test("only an explicit boolean enables chat timestamps", () => {
@@ -104,7 +107,10 @@ test("every video stage defaults off and only an explicit true enables it", () =
 		dynamicSun: false,
 		terrainRelief: false,
 		texturedHorizon: false,
-		floatBloom: false
+		floatBloom: false,
+		hdrToneMap: false,
+		sunShadow: false,
+		perPixelLighting: false
 	} );
 	for (
 		const key of [
@@ -114,7 +120,10 @@ test("every video stage defaults off and only an explicit true enables it", () =
 			"dynamicSun",
 			"terrainRelief",
 			"texturedHorizon",
-			"floatBloom"
+			"floatBloom",
+			"hdrToneMap",
+			"sunShadow",
+			"perPixelLighting"
 		]
 	) {
 		assert.equal( experimentalOptions( { [key]: 1 } )[key], false );
@@ -125,7 +134,17 @@ test("every video stage defaults off and only an explicit true enables it", () =
 });
 
 test("new environment preferences persist only on Confirm and Default remains a draft", () => {
-	for ( const key of /** @type {const} */ ([ "dynamicSun", "terrainRelief", "texturedHorizon", "floatBloom" ]) ) {
+	for (
+		const key of /** @type {const} */ ([
+			"dynamicSun",
+			"terrainRelief",
+			"texturedHorizon",
+			"floatBloom",
+			"hdrToneMap",
+			"sunShadow",
+			"perPixelLighting"
+		])
+	) {
 		const hud = createExperimentalHud();
 		hud.open();
 		hud.toggle( key );
@@ -154,14 +173,24 @@ Tabs
 ================
 */
 test("the window's tabs cover every preference once and Open returns to Image", () => {
-	assert.deepEqual( EXPERIMENTAL_TABS.map( tab => tab.title ), [ "Image", "World", "Chat", "Developer" ] );
+	assert.deepEqual(
+		EXPERIMENTAL_TABS.map( tab => tab.title ),
+		[ "Image", "World", "Lighting", "Chat", "Developer" ]
+	);
+	// The 2026-10-08 wave: Image gains its fourth row, Lighting holds the
+	// direct-light stages, and the earlier tabs shift one slot later.
+	assert.deepEqual(
+		EXPERIMENTAL_TABS[2].rows.map( row => row.key ),
+		[ "sunShadow", "perPixelLighting" ]
+	);
+	for ( const tab of EXPERIMENTAL_TABS ) assert.ok( tab.rows.length <= 4, "At most four rows a tab" );
 	const keys = EXPERIMENTAL_TABS.flatMap( tab => tab.rows.map( row => row.key ) ).sort();
 	assert.deepEqual( keys, Object.keys( OFF ).sort() );
 	const ids = EXPERIMENTAL_TABS.flatMap( tab => tab.rows.map( row => row.id ) );
 	assert.equal( new Set( ids ).size, ids.length );
 	const hud = createExperimentalHud();
-	hud.selectTab( 3 );
-	assert.equal( hud.state().tab, 3 );
+	hud.selectTab( 4 );
+	assert.equal( hud.state().tab, 4 );
 	hud.open();
 	assert.equal( hud.state().tab, 0 );
 	assert.throws( () => hud.selectTab( EXPERIMENTAL_TABS.length ) );

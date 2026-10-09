@@ -85,7 +85,10 @@ export async function captureEnvironment( { bundle, camera, features = false } )
 		dynamicSun: false,
 		terrainRelief: false,
 		texturedHorizon: false,
-		floatBloom: false
+		floatBloom: false,
+		hdrToneMap: false,
+		sunShadow: false,
+		perPixelLighting: false
 	};
 	try {
 		const startupDeadline = performance.now() + 15000;
@@ -224,7 +227,10 @@ export async function captureFlatRelief() {
 				dynamicSun: false,
 				terrainRelief,
 				texturedHorizon: false,
-				floatBloom: false
+				floatBloom: false,
+				hdrToneMap: false,
+				sunShadow: false,
+				perPixelLighting: false
 			} );
 			for ( let frame = 0; frame < 4; frame++ ) await renderer.frame( { width: 64, height: 64 }, .16 );
 			if ( renderer.error() ) throw Error( renderer.error() );

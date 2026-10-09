@@ -28,6 +28,9 @@ export interface ExperimentalOptions {
 	readonly terrainRelief: boolean;
 	readonly texturedHorizon: boolean;
 	readonly floatBloom: boolean;
+	readonly hdrToneMap: boolean;
+	readonly sunShadow: boolean;
+	readonly perPixelLighting: boolean;
 }
 
 /*
@@ -60,7 +63,10 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		dynamicSun: enabled( "dynamicSun" ),
 		terrainRelief: enabled( "terrainRelief" ),
 		texturedHorizon: enabled( "texturedHorizon" ),
-		floatBloom: enabled( "floatBloom" )
+		floatBloom: enabled( "floatBloom" ),
+		hdrToneMap: enabled( "hdrToneMap" ),
+		sunShadow: enabled( "sunShadow" ),
+		perPixelLighting: enabled( "perPixelLighting" )
 	};
 }
 
@@ -80,6 +86,9 @@ export interface ExperimentalVideo {
 	readonly terrainRelief: boolean;
 	readonly texturedHorizon: boolean;
 	readonly floatBloom: boolean;
+	readonly hdrToneMap: boolean;
+	readonly sunShadow: boolean;
+	readonly perPixelLighting: boolean;
 }
 
 /*
@@ -95,6 +104,9 @@ export function experimentalVideo( options: ExperimentalOptions ): ExperimentalV
 		dynamicSun: options.dynamicSun,
 		terrainRelief: options.terrainRelief,
 		texturedHorizon: options.texturedHorizon,
-		floatBloom: options.floatBloom
+		floatBloom: options.floatBloom,
+		hdrToneMap: options.hdrToneMap,
+		sunShadow: options.sunShadow,
+		perPixelLighting: options.perPixelLighting
 	};
 }

@@ -24,10 +24,10 @@ per-frame reads of its counts are monomorphic.
 export class DeviceDraw implements GeometryDraw {
 	readonly deferredParticle: boolean | undefined;
 	readonly blended: boolean;
-	readonly pipeline: GPURenderPipeline;
 	readonly vertices: GPUBuffer;
 	readonly indices: GPUBuffer;
 	readonly count: number;
+	#pipeline: GPURenderPipeline;
 	#binding: GPUBindGroup;
 	#instanceCapacity: number;
 	#indexCount: number;
@@ -41,7 +41,7 @@ export class DeviceDraw implements GeometryDraw {
 	) {
 		this.deferredParticle = fixed.deferredParticle;
 		this.blended = fixed.blended ?? false;
-		this.pipeline = fixed.pipeline;
+		this.#pipeline = fixed.pipeline;
 		this.vertices = fixed.vertices;
 		this.indices = fixed.indices;
 		this.count = fixed.count;
@@ -50,6 +50,10 @@ export class DeviceDraw implements GeometryDraw {
 		this.#indexCount = fixed.count;
 		this.#instanceCount = instanceCount;
 		Object.freeze( this );
+	}
+
+	get pipeline() {
+		return this.#pipeline;
 	}
 
 	get binding() {
@@ -90,5 +94,19 @@ export class DeviceDraw implements GeometryDraw {
 	static rebind( draw: DeviceDraw, binding: GPUBindGroup, instanceCapacity = draw.#instanceCapacity ) {
 		draw.#binding = binding;
 		draw.#instanceCapacity = instanceCapacity;
+	}
+
+	/*
+	================
+	repipeline
+
+	A new pipeline and binding together: the HDR stage swaps every scene
+	draw to its rgba16float sibling, and a new pipeline means a new implicit
+	layout, so the binding travels with it.
+	================
+	*/
+	static repipeline( draw: DeviceDraw, pipeline: GPURenderPipeline, binding: GPUBindGroup ) {
+		draw.#pipeline = pipeline;
+		draw.#binding = binding;
 	}
 }
