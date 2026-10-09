@@ -20,6 +20,7 @@ import (
 	"opensro.online/server/internal/domain"
 	"opensro.online/server/internal/game/enterworld"
 	"opensro.online/server/internal/game/pk"
+	"opensro.online/server/internal/game/world/instance"
 )
 
 /*
@@ -97,4 +98,91 @@ A player with PK penalty points: PvP state 2 (CGObjPC_AddPKPenaltyPoints
 */
 func murderer(c *enterworld.Character) bool {
 	return c != nil && c.PK != nil && c.PK.Penalty > 0
+}
+
+/*
+================
+playerEnemyRules
+
+External relation facts captured before the character-store write. Fortress
+and union persistence take their own locks before the character store.
+================
+*/
+type playerEnemyRules struct {
+	minimumLevel    int64
+	hostileRelation bool
+}
+
+/*
+================
+enemy
+
+Only character-local facts are refreshed inside the fatal transaction.
+================
+*/
+func (rules playerEnemyRules) enemy(owner, target *enterworld.Character) bool {
+	if owner == nil || target == nil || owner.ID == target.ID {
+		return false
+	}
+	if rules.minimumLevel != 0 && (owner.Level == nil || target.Level == nil ||
+		*owner.Level < rules.minimumLevel || *target.Level < rules.minimumLevel) {
+		return false
+	}
+	return len(target.Aggressions) != 0 || target.PVPState() == 2 || rules.hostileRelation
+}
+
+/*
+================
+normalPlayerEnemyRules
+
+52B6D0 precedes the job/guild checks with both level floors. Cape colors
+are absent here; deliberate player attack permission is a different query.
+================
+*/
+func (rt *Runtime) normalPlayerEnemyRules(division string, owner, target *enterworld.Character) playerEnemyRules {
+	rules := playerEnemyRules{minimumLevel: playerCombatMinimumLevel}
+	if owner != nil && target != nil {
+		rules.hostileRelation = hostileJobs(enterworld.DressedJob(owner), enterworld.DressedJob(target)) || rt.guildsAtWar(division, owner, target)
+	}
+	return rules
+}
+
+/*
+================
+worldPlayerEnemy
+
+52DA50 uses guild/union identity in fortress worlds, without the normal-world
+level floor. The same guild and union authorities own these identities.
+================
+*/
+func (rt *Runtime) worldPlayerEnemy(division string, owner, target *enterworld.Character) bool {
+	return rt.worldPlayerEnemyRules(division, owner, target).enemy(owner, target)
+}
+
+/*
+================
+worldPlayerEnemyRules
+
+Read the world controller's faction rules before entering a character door.
+================
+*/
+func (rt *Runtime) worldPlayerEnemyRules(division string, owner, target *enterworld.Character) playerEnemyRules {
+	if owner == nil || target == nil || owner.ID == target.ID {
+		return playerEnemyRules{}
+	}
+	world, found := instance.Lookup(instance.ID(domain.CharacterWorldInstance(owner)).Definition())
+	if !found || !world.Siege() {
+		return rt.normalPlayerEnemyRules(division, owner, target)
+	}
+	var a, b int64
+	if owner.GuildID != nil {
+		a = *owner.GuildID
+	}
+	if target.GuildID != nil {
+		b = *target.GuildID
+	}
+	if a == b || rt.Unions.Allied(division, a, b) {
+		return playerEnemyRules{}
+	}
+	return playerEnemyRules{hostileRelation: rt.Fortresses != nil && rt.Fortresses.WarActive(division)}
 }
