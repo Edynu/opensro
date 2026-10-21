@@ -28,6 +28,7 @@ async function load( entry ) {
 const { createLoader } = await load( "src/engine/runtime/assets/worker/loader.ts" );
 const { createCharacters } = await load( "src/engine/runtime/renderer/characters/characters.ts" );
 const { createCharacterDecoder } = await load( "src/engine/runtime/assets/worker/model/character/character.ts" );
+const { CHARACTER_RENDER_BYTES } = await load( "src/engine/foundation/animation/character-budget.ts" );
 const { decodeNativeClip, bindNativeClip } = await load( "src/engine/foundation/animation/native-clip.ts" );
 const { skillMotionRole, skillMotionStateName } = await load( "src/engine/foundation/animation/skill-motion.ts" );
 
@@ -1198,7 +1199,7 @@ test("renderer budgets expanded instances across models and frees old batches be
 	const first = characters.prepare( gpu, images, 1 );
 	assert.ok( first.length > 1 );
 	assert.ok( characters.stats().deferredActors > 0 );
-	assert.ok( characters.stats().renderBytes <= 64 << 20 );
+	assert.ok( characters.stats().renderBytes <= CHARACTER_RENDER_BYTES );
 	assert.equal( first.at( -1 ).bytes, 128, "small actor still renders after expensive actors exhaust capacity" );
 	const initial = held;
 	characters.actors( population( 1000 ) );
