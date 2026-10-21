@@ -1,0 +1,468 @@
+# Client worker threads: plan
+
+Status: step 1 and step 2 parts 1, 2a and 2b done (2026-10-22). Scope: the browser client's
+per-actor frame work (players, monsters, NPCs and pets, their poses, cloth,
+particles and the parallel parts of presentation) and the draw path that
+feeds it to the GPU. Goal: hundreds of players and monsters with their
+effects on screen, at the highest frame rate the CPU allows, with the same
+picture as today.
+
+Paths are relative to `apps/client-next/` unless stated.
+
+## 1. The problem
+
+The client already runs on three threads: the simulation worker (socket,
+codec, session, clock), the asset worker (pack downloads and decoding) and
+the main thread. Everything a frame does per actor runs on the main
+thread, and that is where a crowd spends its time.
+
+### 1.1 Baseline on the current tree (2026-10-21)
+
+`town-crowd-bench.mjs` still, 215 players online, 512 actors (the
+`CHARACTER_ACTORS` cap is full), 318 visible, headless and uncapped,
+server and crowd on the same 24-thread machine: **15 fps, 61.6 ms main
+thread per frame** (p50 64 ms, p99 86 ms). Render storage reached 91 MB,
+above the former 64 MiB budget, with no actor deferred.
+
+Stage spans (`--spans`, ms per frame):
+
+| Stage | ms |
+| --- | --- |
+| Render preparation and submit | 37.4 |
+| - character prepare (`@character-plan` 14.6, `@character-upload` 9.4, `@character-poses` 2.9) | 27.0 |
+| - submit | 5.0 |
+| - labels and portraits | 3.4 |
+| - world | 2.0 |
+| Character presentation (`presentation-actors` 10.0, `actor-motion` 6.2, events 2.5) | 19.7 |
+| UI | 3.9 |
+
+CPU profile (`--cpu`, 16 fps, so 16 ms/s is about 1 ms per frame):
+
+| Work | ms per frame | Kind |
+| --- | --- | --- |
+| Particle graph advance (`advanceParticles`, inside `@character-plan`) | 11.7 | Per graph, independent |
+| Group preparation and draws (`prepareGroup`) | 8.0 | Main thread today; the draw path (5.9) |
+| Actor presentation (`actor-presentation.ts` `present`) | 9.3 | Per actor |
+| Needed poses (`evaluateNeededPoses`) | 2.9 | Per actor |
+| Garbage collection | 2.9 | Falls as allocation falls |
+| `characterRadius`, called from `animation` in `resources.poll` every frame | 2.4 | Serial churn: cache it |
+| Bind bounds building a whole pose (`registerClip` under `characterBindBounds`) | 1.3 | Serial churn: cache it |
+
+Structured-cloning the 477-actor list costs 2.1 ms and posting it 0.9 ms
+per frame (`--clone-cost`), before any work: messages are not an option.
+
+### 1.2 What it means
+
+About half of the main thread is per-actor work that can run on workers.
+The other half is the draw path (group preparation, uploads, labels,
+submit), which has to stay on the thread that owns the GPU device. Workers
+alone therefore only double the frame rate; past that the draw path itself
+has to shrink to a few bulk uploads and few draws. Estimates for this
+scene from the profile, to be replaced by a measurement at each step:
+
+| After | Main thread per frame | fps |
+| --- | --- | --- |
+| Today | 58 to 62 ms | 15 |
+| Per-actor work on workers | about 31 ms | about 30 |
+| Plus the GPU-driven draw path | about 12 to 14 ms | about 70 to 80 |
+| Plus the pipelined schedule | about 10 to 12 ms | about 80 to 100 |
+
+GPU time for this scene has not been measured; it may become the limit
+after the draw path.
+
+## 2. What earlier attempts taught
+
+- **Render thread (`1761d572`, parked).** Moving the renderer into one
+  worker on an `OffscreenCanvas` moves the single thread; it does not add
+  one. The per-actor work stays serial.
+- **Rust renderer.** A faster language does not change a data model that
+  spends its time walking objects, Maps and string keys. The profile puts
+  the math kernels at about 22% of the frame.
+- **Rust particle pool over `SharedArrayBuffer` (`68838b3e`, parked).**
+  Bit-identical and 1.77x faster on one thread, spread over up to 8
+  workers, and the 200-player frame stayed at about 28 fps. It parallelised
+  one subsystem; the rest of the per-actor work and the draw path stayed.
+- **Copying to workers.** An earlier threading attempt copied the parts a
+  worker needed. Structured-cloning the actor list every frame costs more
+  than a large part of the work it would offload.
+
+## 3. Decisions (2026-10-21)
+
+1. **TypeScript only.** No Rust or WebAssembly kernels, no new toolchain:
+   other contributors keep the language and gates they have. The Rust
+   experiments stay parked.
+2. **Staged replacement, not a rewrite in one go.** The end state below is
+   designed once. Each subsystem is then replaced on its own, the old and
+   new paths side by side until the existing exactness tests prove the new
+   one identical and the town-crowd bench proves it faster.
+3. **Shared memory, one writer per byte.** State lives in typed arrays over
+   a `SharedArrayBuffer`. Every byte has exactly one writer in each phase;
+   everyone may read it. `Atomics` is used only for the control counters,
+   never for the data.
+4. **Fork-join first, pipelining later.** Fork-join is the default and
+   keeps today's output. The pipelined schedule comes last, as an
+   Experimental option; outputs are double-buffered from the start so it is
+   a scheduling change, not a rewrite.
+5. **The draw path is in scope.** Workers write their outputs in the
+   layout the GPU buffers use; main uploads them in bulk and issues few
+   draws.
+6. **Poses first.** They prove the mechanics (shared tables, pool,
+   barriers, GPU-layout output) with no random-number question; particles,
+   the bigger win, follow.
+7. **Kernels in one place.** Frame kernels on flat arrays live in one
+   folder with its own short `AGENTS.md`. Gameplay, UI, network and the
+   rest keep their current style.
+
+## 4. Platform facts the design rests on
+
+- **One thread owns the GPU device.** A `GPUDevice` cannot be shared or
+  transferred between threads. Workers compute; the main thread uploads
+  and submits.
+- **Each worker has its own JavaScript heap and garbage collector.** No JS
+  object is ever shared. What is shared is raw memory: a
+  `SharedArrayBuffer`. Its contents are outside every heap: never scanned,
+  moved or collected.
+- **`SharedArrayBuffer` needs cross-origin isolation.** The page must be
+  served with `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Embedder-Policy: require-corp` (or `credentialless`), and
+  every cross-origin resource it loads must allow it (CORP or CORS). The
+  repository sends neither header today. Without isolation
+  `crossOriginIsolated` is false and the pool runs inline (section 5.8).
+- **The main thread may not block.** `Atomics.wait` throws on the window's
+  thread. The main thread signals workers with `Atomics.notify`, does its
+  own serial work, and only then spins on a completion counter with
+  `Atomics.load`. Workers block with `Atomics.wait` between frames.
+- **Atomics order plain writes.** A thread's plain writes before an
+  `Atomics` operation are visible to a thread that observes that operation
+  (the JavaScript memory model is sequentially consistent for data-race-free
+  programs), so the counters are the only synchronisation the data needs.
+- **`writeBuffer` takes shared memory.** The WebGPU IDL types its data as
+  `AllowSharedBufferSource`; the prototype confirms Chrome accepts a view
+  over a `SharedArrayBuffer` without a copy of its own.
+- **Cores are shared.** The page already has the main thread, two workers,
+  the browser's GPU process and the compositor. The pool takes
+  `min(MAX_FRAME_WORKERS, navigator.hardwareConcurrency - RESERVED_THREADS)`
+  workers, with `MAX_FRAME_WORKERS = 8` and `RESERVED_THREADS = 4` to begin
+  with, both tuned by measurement. A machine with four threads or fewer
+  gets zero workers and runs inline.
+
+## 5. Design
+
+### 5.1 Shared tables
+
+**The resource table** holds read-only data, written once when a model or
+clip is admitted and read by every thread: skeletons (parent indices, bind
+and inverse-bind matrices), clip key tracks, cloth rest shapes and
+constraint lists, particle programs. It is append-only within a session.
+Entries are addressed by integer ids, never by name, so no thread ever
+builds a string. Admission happens between frames, never during one.
+
+**The actor table** holds per-actor frame state for every kind of actor
+(player, monster, NPC, pet, attachment), with a kind column. It has a fixed
+capacity of `CHARACTER_ACTORS` (512, `foundation/animation/character-budget.ts`)
+slots in struct-of-arrays columns, so a kernel walks one column of numbers
+rather than a list of objects:
+
+| Column group | Written by | Read by | Examples |
+| --- | --- | --- | --- |
+| Inputs | main, before the fork | workers | model and clip ids, clip times and weights, transform, LOD fraction, flags, parent slot, depth level |
+| Outputs (A and B) | one worker per slot, during the fork | main after the join, later phases | bone palettes, socket matrices, cloth vertices, bounds, instance rows |
+| Scratch | its own worker | that worker | temporary matrices and quaternions |
+| Events | one ring per worker | main, after the join | sound, effect start, damage-text and state-change requests |
+| Control | main and workers through `Atomics` | all | frame number, phase, next-chunk counter, done counter |
+
+**The effect table** holds particle graph state, one row per live effect,
+with the slot of its holder actor.
+
+Spawns, despawns and new effects change the tables' structure only on the
+main thread, between frames, while the workers sleep. The tables are sized
+at startup for the capacity and grown only between frames; a growable
+`SharedArrayBuffer` (`maxByteLength`) avoids copying, and every view is
+re-created after a grow.
+
+### 5.2 One frame (fork-join)
+
+```
+main:    snapshot -> write inputs -> notify ──┐       world, UI -> spin until done -> replay events -> upload -> draw -> submit
+workers:                                      └> poses by level -> particles -> cloth -> done
+```
+
+1. **Snapshot.** The main thread writes the frame's inputs into the actor
+   table. During migration this is a plain write of a few kilobytes with
+   no allocation; once the table owns that state, the write disappears.
+2. **Fork.** Bump the frame number, reset the counters, `Atomics.notify`.
+3. **Serial work in the gap.** The main thread does the work that never
+   moves (world preparation, UI, input) while the workers run.
+4. **Join.** Spin on the done counter. In a healthy frame the workers have
+   already finished, and the spin is near zero.
+5. **Replay.** Apply each worker's events in actor-slot order, so output
+   never depends on which thread finished first.
+6. **Upload and draw.** A few large `writeBuffer` calls straight from the
+   output views, then the draws.
+
+### 5.3 Phases and splitting the work
+
+A frame's work runs in phases with a barrier between each: poses (by
+level, 5.4), then particles (reading their holder's sockets), then cloth.
+In each phase workers take chunks of `ACTOR_CHUNK` rows (8 to begin with)
+from a shared counter (`Atomics.add`). No worker belongs to one kind of
+actor; the load balances itself across however many workers there are. A
+row's outputs belong to the worker that took its chunk, so no two threads
+ever write the same bytes in one phase, and there are no locks. Chunk
+boundaries and the counters sit on separate 64-byte lines, so threads do
+not contend for one cache line.
+
+### 5.4 Dependencies between actors
+
+A rider needs its mount's saddle socket. An effect needs its holder's
+bone. Attachments go up to 8 deep. Each actor gets a depth level when the
+hierarchy is built (it already is: `foundation/animation/character-hierarchy.ts`).
+The pose phase runs level by level, with a barrier between levels. Nearly
+every actor is at level 0, so the extra barriers cost little.
+
+### 5.5 Allocation-free kernels
+
+A worker allocates nothing after its init, so its garbage collector never
+runs. In the kernels: only numbers, preallocated typed-array views and
+indices. No `{}`, `[]`, closures, `map`/`filter`, strings, object-returning
+functions or per-frame `postMessage`. This is checked, not assumed: a test
+runs each kernel for many frames and fails if the heap grows, and `--heap`
+captures confirm it in the browser.
+
+### 5.6 What moves to the workers
+
+| Order | Work | Today (ms, 1.1) | Notes |
+| --- | --- | --- | --- |
+| 1 | Pose evaluation and bone rows, every actor kind | 2.9 | Independent per actor after levels; no random numbers |
+| 2 | Particle graph simulation | 11.7 | Per-graph random streams (section 7); ribbons stay on main |
+| 3 | Presentation: actor motion, pose selection, clocks | about 9 | Per-actor state stepping; side effects become events |
+| 4 | Cloth | about 1 | 20 Hz Verlet; consumes the gust stream (section 7) |
+| - | Event application, sounds, UI, damage text | rest | Stays on main, replayed in order |
+
+### 5.7 Lifecycle
+
+One module owns the pool: `Init` (create the tables and workers, wait for
+each worker's ready), `Frame` (fork, join, replay), `Shutdown` (stop the
+workers, release the tables), in the runtime's visible frame and disposal
+order. Workers never start async work of their own.
+
+### 5.8 Fallback and failure
+
+With zero workers (no isolation, few cores, the option off) the same
+kernels run inline over the same tables on the main thread: one code path,
+and the reference the threaded path is tested against. A worker that fails
+or misses `JOIN_TIMEOUT_MS` is retired: the pool reports a `degraded`
+incident (`apps/client-next/AGENTS.md`), finishes that frame inline, and
+stays inline for the session. A broken pool never ends the session or
+drops a frame's actors.
+
+### 5.9 The GPU-driven draw path
+
+Today every draw owns its buffers and bind group, the same mesh is uploaded
+once per outfit, and batches are keyed by whole outfit, so the main thread
+builds and uploads per actor. The end state:
+
+- **Resources uploaded once:** shared vertex and index pools for character
+  meshes, a material table, explicit bind group layouts.
+- **Instance rows in the actor table:** one row per (actor, part) with
+  transform, bone offset, material index and the per-actor material state,
+  written by the worker that posed the actor, in the GPU's layout.
+- **Few uploads, few draws:** one `writeBuffer` per output column per
+  frame, and draws bucketed by pipeline state and mesh, recorded once in
+  render bundles and re-recorded only when a mesh appears or leaves.
+
+The parked pooled-character renderer (`68838b3e`, TypeScript, 0 differing
+pixels over its crowd and cloth frames) is the candidate starting point.
+Native draw-order rules (blend order, material-set order, far-to-near
+transparent groups) decide bucket order, as `docs/RENDERER_REWRITE.md` on
+that branch lists.
+
+### 5.10 The pipelined schedule
+
+Workers compute frame N+1 into output B while main uploads and draws frame
+N from output A; the halves swap at the frame boundary. The frame then
+costs the slower of the two sides instead of their sum. Workers pose for
+the next frame's predicted display time, so a pose is not a frame old;
+state that arrives during a frame appears one frame later. That timing
+differs from native, so the schedule is an Experimental row, off, tested
+against fork-join.
+
+## 6. Steps
+
+Each step is measured with the town crowd (section 8) against the step
+before, and lands only when the existing tests prove it identical.
+
+| Step | Work | Acceptance |
+| --- | --- | --- |
+| 1 | Cache fixes: `characterRadius` per animation, bind bounds per model | Output identical (existing tests); main-thread time falls by about 3.7 ms |
+| 2 | Shared tables, worker pool (control block, chunks, levels, inline fallback), isolation headers on the dev server, the Experimental row; poses and bone rows for every actor kind on it, palettes in GPU layout | Bit-identical palettes with 0 and N workers; worker heap does not grow over 10,000 frames; a killed worker falls back and reports; `writeBuffer` from shared memory confirmed |
+| 3 | GPU-driven draw path on the same tables | Pixel parity with today's renderer; draws fall towards the mesh count; main-thread draw path falls |
+| 4 | Particles, presentation and cloth on the workers (can run beside step 3) | Particle, presentation and cloth tests exact inline; agreed random-order behaviour threaded |
+| 5 | The pipelined schedule, Experimental | Matches fork-join apart from the documented timing; frame rate rises |
+| 6 | Production: isolation headers on the page and every asset origin; the default decided by the owner | Production build isolated; the threaded path matches the serial path, or stays an Experimental row |
+
+### 6.1 Step 1 result (2026-10-21)
+
+`characterRadius` keeps each clip channel's largest key value per values
+array (`character-bounds.ts`); the renderer keys bind bounds by the nodes
+and primitives a clip admission keeps (`characters.ts` `bindBoundsOf`).
+Both give bit-identical results (`character-bounds-exact.test.mjs`).
+
+Bench, still, `--near` a first-ring crowd player, both trees with the
+256 MiB render budget and every actor drawn, two rounds each back to back:
+
+| | Base | Step 1 |
+| --- | --- | --- |
+| fps | 18, 18 | 21, 20 |
+| Main thread ms per frame | 52.0, 50.0 | 44.7, 47.8 |
+| Labels and portraits ms | 2.75, 2.85 | 0.40, 0.49 |
+| Character presentation ms | 20.9, 19.1 | 18.7, 18.7 |
+
+CPU self time: `characterRadius` 48.7 to 3.9 ms/s, `registerClip` 28.0 to
+4.5 ms/s. A comparison with the old 64 MiB budget is invalid: it deferred
+197 actors and drew 623 draws instead of about 2,100.
+
+The profile after step 1 (21 fps, so 21 ms/s is about 1 ms per frame):
+
+| Work | ms per frame | Note |
+| --- | --- | --- |
+| `worker.onmessage` (`simulation/host.ts`) | 2.4 | Main thread receiving the simulation worker's structured-cloned world batches |
+| `worldDelta`, `walkingLocation`, `worldVector`, `hypot3`, `actor-motion` `present` | about 8 | Per-actor movement presentation |
+| `materialize` (CPU poses) | 2.3 | Most poses already sample on the GPU; CPU poses serve cloth and sockets |
+| Cloth `step` and `cloth-vertices` `update` | 3.0 | Per cloth wearer |
+| Garbage collection | 2.1 | |
+| `createGpuClipPlan` | 1.2 | Churn on clip admission, like step 1's |
+
+### 6.2 Step 2, part 1 result: flat walking paths (2026-10-22)
+
+The movement presentation's chain searches (`walkingLocation`,
+`nearestWalkingPose`, `walkingPose`, `recoverWalking`) moved onto flat
+arrays (first `foundation/gameplay/walking-path.ts`; part 2b moved them
+into the frame kernels as `foundation/kernels/walking-chain.ts`).
+`pose-presentation-flat-walk.test.mjs` drives the current module and a
+frozen copy (`tests/fixtures/pose-presentation-before-flat-walk.ts`) with
+seeded walks, receipts, stalls and carries, outdoors and in a dungeon,
+and requires every drawn pose bit for bit; deliberate one-ulp mutations
+of each searched function fail it.
+
+Bench, still, two rounds back to back, everything else equal:
+
+| | Base | Flat walk |
+| --- | --- | --- |
+| fps | 23, 22 | 28, 26 |
+| Main thread ms per frame | 40.9, 43.1 | 32.7, 35.4 |
+| Character presentation ms | 14.4, 15.5 | 9.1, 9.1 |
+
+The pose presentation is now about 2.6 ms a frame in all. What remains,
+at 23 fps: `@character-upload` 10 to 11 ms, CPU poses about 4, cloth about
+3, movement presentation about 2.6, receiving the simulation worker's
+world batches about 2.3, particles 2 to 4 by scene, garbage collection
+about 1.3.
+
+### 6.3 Step 2, part 2a: the frame worker machinery (2026-10-22)
+
+- `foundation/workers/frame-jobs.ts` (stateless): the control block
+  layout, publishing a phase, claiming chunks, the worker loop
+  (`serveFrameJobs`), recovery of a stalled worker's chunks
+  (`finishFramePhase`) and the CPU-count rule (`frameWorkerCount`: Auto is
+  `min(8, threads - 3)`). A claim is a compare-and-swap on a word holding the
+  phase generation and next chunk, so a late worker never claims from a
+  phase it has not read; descriptors and done counts alternate between two
+  slots.
+- `runtime/frame-workers/frame-workers.ts`: owns the workers and the shared
+  control block; `run( kernel, chunks, local )` publishes a phase, claims
+  chunks on the main thread beside the workers and joins. Without isolation
+  or with the setting off there are no workers and the same code runs every
+  chunk on the main thread. A join waiting past 250 ms retires the workers
+  and the phase finishes on the main thread.
+- `runtime/frame-workers/worker/entry.ts`: one start message, then shared
+  memory only; no kernels are registered yet (part 2b adds movement).
+- Experimental > Other > "Worker threads": Off (default), Auto, 1, 2, 4, 8;
+  read at startup. The dev server and preview send the isolation headers.
+  `SharedArrayBuffer` and `Atomics` are capability-owned
+  (`verify-capabilities.mjs`).
+- `frame-jobs.test.mjs` runs the shipping loop on Node worker threads: 400
+  phases with 4 workers racing the owner, every chunk exactly once with its
+  phase's kernel (10 of 10 repeated runs clean); a throwing chunk fails its
+  phase without hanging the join; the owner finishes a stalled worker's
+  chunk.
+- Browser: `town-crowd-bench.mjs --frame-workers auto` on the 24-thread
+  machine reports the page isolated and 8 of 8 workers ready, with the game
+  running normally.
+
+### 6.4 Step 2, part 2b: movement presentation on flat records (2026-10-22)
+
+The whole movement presentation now runs as a frame kernel, for every
+character kind (player, monster, NPC, pet), still inline on the main
+thread:
+
+- `foundation/kernels/` (rules in its `AGENTS.md`): `pose-record.ts`, one
+  actor's 228-double record (untimed track, sampled track, this call's
+  input, target, frame time, drawn pose); `pose-kernel.ts`, the port of
+  `pose()` onto a scratch copy of the record; `flat-pose.ts`, the pose
+  arithmetic; `walking-chain.ts`, the chain searches over the walk arena.
+- `runtime/characters/pose-presentation.ts` is the record owner: a slot per
+  gid, each call's input and target written into the record, the kernel run
+  on a copy, the drawn pose handed back as an object (same API as before).
+  Chains are written once per published chain object into the walk arena,
+  which compacts to its live chains when full.
+- Identity comparisons became ids and flags (an input's leg end, a model
+  that was the latest sample itself, a track replaced this call); a missing
+  revision is `MISSING_REVISION` and moving is three-state, so every
+  comparison keeps the object code's result.
+- `pose-presentation-flat-walk.test.mjs`: three bit-for-bit comparisons
+  against the frozen object code (seeded walks; every input shape:
+  missing fields, reused or fresh leg ends, skill clocks, corridors, turns,
+  previous paths, relocations, reasons, settled translations, a late clock
+  origin, retained sets; a turn through its corner). 21 of 23 deliberate
+  one-point mutations across the kernel fail it; the two that do not are a
+  1 ms move of the late-sample threshold and the held-path bookkeeping,
+  which only shows when a later correction lies on an older held path.
+- Bench, still, two rounds back to back against the frozen original:
+  22, 21 fps to 26, 27 fps; main thread 42.8, 43.8 to 35.1, 33.8 ms;
+  character presentation 14.5, 16.2 to 9.1, 9.3 ms. Part 1 measured the
+  same gain, so moving the state into records costs nothing.
+- `town-crowd-bench.mjs --monsters CODENAME:COUNT` tops a passive monster
+  population up near the observer with GM `/LOADMONSTER`. The scratch
+  character must hold GM rights, which the GameWorld grants at startup
+  (`SRO_GM_CHARACTERS`), so it needs one restart after `asd2` is created.
+
+## 7. Open decisions for the owner
+
+1. **Random order.** Options, best first:
+   - **Pre-drawn per actor.** The main thread draws each actor's random
+     numbers from the shared stream, in today's order, into the actor's
+     input slot before the fork. Exact, but only where the count of draws
+     is known in advance. For cloth it is (one gust per step). For
+     particles it depends on the data.
+   - **Per-actor streams seeded from the shared one,** as the parked
+     particle pool did. Deterministic and nearly identical, but not bit
+     for bit, so the path stays Experimental.
+   - **Keep that kernel on the main thread.**
+2. **Cross-origin isolation in production.** The page and every asset
+   origin need the headers. Anything the page embeds from another origin
+   without CORP or CORS stops loading. This needs an inventory before
+   step 6.
+3. **Default.** Whether the threaded path, once identical, becomes the
+   default for everyone, or stays a player option.
+
+## 8. Measuring
+
+Both tools are in `tools/perf/bench` and run from `apps/client-next` with
+the local cluster up and a character logged in:
+
+```
+node tools/perf/bench/town-crowd.mjs --near NAME --count 200
+node tools/perf/bench/town-crowd-bench.mjs --near NAME --seconds 8 [--turn | --walk] [--spans] [--cpu | --trace] [--heap] [--clone-cost]
+```
+
+`town-crowd.mjs` holds the players until Ctrl+C. The bench writes
+`temp/artifacts/town-crowd/crowd-<scenario>.result.json` and any captures
+beside it; analyse them with `tools/perf/analyze/profile.mjs` and
+`trace.mjs` (`docs/PROFILING.md`). A trace shows the workers' threads next
+to the main thread, which is how a step proves that the work moved and
+that the join does not wait.
+
+The crowd moves on its own clocks, and the machine is shared. Compare runs
+made back to back, and two trees by pointing
+`SRO_PROBE_CLIENT_NEXT_BASE_URL` at the other tree's dev server.
