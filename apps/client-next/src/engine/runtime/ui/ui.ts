@@ -198,8 +198,13 @@ import { createAutoPotionInput } from "./hud/auto-potion-input";
 import { createCosHud } from "./hud/cos-hud";
 import { createCompactHud, compactHudLayout, compactWindowDrag, compactCloseControl } from "./hud/compact-hud";
 import { fitUiGroup } from "@/engine/foundation/ui/layout";
-import { createExperimentalHud, EXPERIMENTAL_TABS } from "./hud/experimental-hud";
-import { renderScales, type ExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
+import {
+	createExperimentalHud,
+	EXPERIMENTAL_TABS,
+	experimentalChoices,
+	isExperimentalChoice
+} from "./hud/experimental-hud";
+import type { ExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
 import {
 	PET_GEAR_SLOTS,
 	PET_TRAINING_OP,
@@ -2794,11 +2799,13 @@ export function createUi(
 			return;
 		}
 		if ( panel === "Experimental" && id.startsWith( "experimental-" ) ) {
-			const row = EXPERIMENTAL_TABS.flatMap( tab => tab.rows ).find( candidate => candidate.id === id );
+			const rows = EXPERIMENTAL_TABS.flatMap( tab => tab.rows );
+			const row = rows.find( candidate => candidate.id === id ),
+				choice = rows.find( candidate => id.startsWith( candidate.id + ":" ) );
 			if ( id.startsWith( "experimental-tab:" ) ) experimental.selectTab( Number( id.slice( 17 ) ) );
-			else if ( id.startsWith( "experimental-render-scale:" ) ) {
-				experimental.selectRenderScale( Number( id.slice( "experimental-render-scale:".length ) ) );
-			} else if ( row && row.key !== "renderScale" ) experimental.toggle( row.key );
+			else if ( choice && isExperimentalChoice( choice.key ) ) {
+				experimental.select( choice.key, id.slice( choice.id.length + 1 ) );
+			} else if ( row && !isExperimentalChoice( row.key ) ) experimental.toggle( row.key );
 			else if ( id === "experimental-default" ) experimental.reset();
 			else if ( id === "experimental-confirm" ) {
 				extensions.saveExperimental?.( experimental.confirm() );
@@ -12549,24 +12556,27 @@ export function createUi(
 						authoredText(
 							{
 								...slot.GDR_GAME_OPTION_SLOT_STA1!,
-								rect: [ 39, top + 4, row.key === "renderScale" ? 130 : 270, 16 ],
+								rect: [ 39, top + 4, isExperimentalChoice( row.key ) ? 130 : 270, 16 ],
 								client: [ 0, 2, 0, 0 ]
 							},
 							px,
 							py,
 							row.label
 						);
-						if ( row.key === "renderScale" ) {
-							const choiceWidth = 54, choicePitch = 56, choiceLeft = 177;
-							for ( const [index, scale] of renderScales().entries() ) {
+						if ( isExperimentalChoice( row.key ) ) {
+							// Three render scales keep their 56-unit pitch; more choices
+							// share the same span.
+							const choices = experimentalChoices( row.key, draft );
+							const choicePitch = Math.min( 56, Math.floor( 180 / choices.length ) ), choiceLeft = 177;
+							for ( const [index, choice] of choices.entries() ) {
 								button(
-									row.id + ":" + scale,
-									scale + "%",
+									row.id + ":" + choice.value,
+									choice.label,
 									px + choiceLeft + index * choicePitch,
 									py + top,
-									choiceWidth,
+									choicePitch - 2,
 									false,
-									draft.renderScale === scale
+									choice.selected
 								);
 							}
 						} else {
@@ -12586,7 +12596,7 @@ export function createUi(
 						authoredText(
 							{
 								...slot.GDR_GAME_OPTION_SLOT_STA1!,
-								rect: [ 39, top + (row.key === "renderScale" ? 26 : 22), 304, 16 ],
+								rect: [ 39, top + (isExperimentalChoice( row.key ) ? 26 : 22), 304, 16 ],
 								client: [ 0, 0, 0, 0 ],
 								color: [ 180 / 255, 180 / 255, 180 / 255, 1 ]
 							},

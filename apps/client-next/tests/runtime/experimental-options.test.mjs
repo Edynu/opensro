@@ -16,13 +16,15 @@ import assert from "node:assert/strict";
 const experimentalModule = await import(
 	"../../src/engine/foundation/ui/experimental-options.ts"
 );
-const { experimentalGameplay, experimentalOptions, experimentalVideo, renderScales } = experimentalModule;
+const { experimentalGameplay, experimentalOptions, experimentalVideo, frameWorkerSettings, renderScales } =
+	experimentalModule;
 const { createExperimentalHud, EXPERIMENTAL_TABS } = await import(
 	"../../src/engine/runtime/ui/hud/experimental-hud.ts"
 );
 
 const OFF = Object.freeze( {
 	renderScale: 100,
+	frameWorkers: "off",
 	chatTimestamps: false,
 	developerDiagnostics: false,
 	postProcessing: false,
@@ -323,16 +325,16 @@ test("render scale selections remain drafts until Confirm and reject unsupported
 	const hud = createExperimentalHud();
 	for ( const renderScale of renderScales() ) {
 		hud.open();
-		hud.selectRenderScale( renderScale );
+		hud.select( "renderScale", String( renderScale ) );
 		assert.equal( hud.state().draft.renderScale, renderScale );
 		assert.equal( hud.state().saved.renderScale, 100 );
 		hud.open();
 		assert.equal( hud.state().draft.renderScale, 100 );
-		hud.selectRenderScale( renderScale );
+		hud.select( "renderScale", String( renderScale ) );
 		assert.equal( hud.confirm().renderScale, renderScale );
-		hud.selectRenderScale( 25 );
-		hud.selectRenderScale( NaN );
-		hud.selectRenderScale( Infinity );
+		hud.select( "renderScale", "25" );
+		hud.select( "renderScale", "NaN" );
+		hud.select( "renderScale", "Infinity" );
 		assert.equal( hud.state().draft.renderScale, renderScale );
 		hud.reset();
 		hud.confirm();
@@ -530,4 +532,31 @@ test("expanded world map defaults off (native five towns and 28 x 8 overview) an
 	const on = experimentalOptions( { expandedWorldMap: true } );
 	assert.equal( on.expandedWorldMap, true );
 	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "expandedWorldMap" ) ) );
+});
+
+test("worker threads default off, accept only the listed settings and stay out of every slice", () => {
+	for (
+		const value of [ undefined, null, {}, { frameWorkers: true }, { frameWorkers: 3 }, { frameWorkers: "8" }, {
+			frameWorkers: "max"
+		} ]
+	) {
+		const options = experimentalOptions( value );
+		assert.equal( options.frameWorkers, "off" );
+		assert.equal( "frameWorkers" in experimentalVideo( options ), false );
+		assert.equal( "frameWorkers" in experimentalGameplay( options ), false );
+	}
+	for ( const setting of frameWorkerSettings() ) {
+		assert.equal( experimentalOptions( { frameWorkers: setting } ).frameWorkers, setting );
+	}
+	const hud = createExperimentalHud();
+	hud.open();
+	hud.select( "frameWorkers", "auto" );
+	assert.equal( hud.state().draft.frameWorkers, "auto" );
+	assert.equal( hud.state().saved.frameWorkers, "off", "a draft until Confirm" );
+	hud.select( "frameWorkers", "3" );
+	hud.select( "frameWorkers", "max" );
+	assert.equal( hud.state().draft.frameWorkers, "auto", "unlisted values leave the draft" );
+	hud.select( "frameWorkers", "4" );
+	assert.equal( hud.confirm().frameWorkers, 4 );
+	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "frameWorkers" ) ) );
 });

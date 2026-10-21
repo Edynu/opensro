@@ -55,6 +55,8 @@
     "src/engine/runtime/renderer/frame/frame.ts": "src/engine/runtime/renderer/renderer.ts",
     "src/engine/runtime/renderer/frame/stale-draws.ts": "src/engine/runtime/renderer/renderer.ts",
     "src/engine/runtime/simulation/host.ts": "src/engine/runtime/runtime.ts",
+    "src/engine/runtime/frame-workers/frame-workers.ts": "src/engine/runtime/runtime.ts",
+    "src/engine/runtime/frame-workers/worker/entry.ts": "src/engine/runtime/frame-workers/frame-workers.ts",
     "src/engine/runtime/simulation/worker/entry.ts": "src/engine/runtime/simulation/host.ts",
     "src/engine/runtime/simulation/worker/simulation.ts": "src/engine/runtime/simulation/worker/entry.ts",
     "src/engine/runtime/simulation/worker/clock/clock.ts": "src/engine/runtime/simulation/worker/simulation.ts",
@@ -227,6 +229,7 @@
     "src/engine/runtime/renderer/device/environment-block.ts": "src/engine/runtime/renderer/device/device.ts"
   },
   "workers": {
+    "src/engine/runtime/frame-workers/worker/entry.ts": "src/engine/runtime/frame-workers/frame-workers.ts",
     "src/engine/runtime/simulation/worker/entry.ts": "src/engine/runtime/simulation/host.ts",
     "src/engine/runtime/assets/worker/entry.ts": "src/engine/runtime/assets/assets.ts"
   },

@@ -206,7 +206,15 @@ export const rules = {
 	],
 	WebSocket: [ runtime + "simulation/worker/network/network.ts" ],
 	WebTransport: [],
-	Worker: [ runtime + "simulation/host.ts", runtime + "assets/assets.ts" ]
+	Worker: [
+		runtime + "simulation/host.ts",
+		runtime + "assets/assets.ts",
+		runtime + "frame-workers/frame-workers.ts"
+	],
+	// Shared memory has one owner: the frame workers' control block and the
+	// stateless jobs that run over it (docs/CLIENT_WORKERS_PLAN.md).
+	SharedArrayBuffer: [ runtime + "frame-workers/frame-workers.ts", "src/engine/contracts/frame-workers.ts" ],
+	Atomics: [ "src/engine/foundation/workers/frame-jobs.ts" ]
 };
 // A geometry pipeline for a native state no scene precompiles is compiled
 // at its first upload, as D3D9 applies any render state at once.

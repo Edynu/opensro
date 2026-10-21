@@ -42,6 +42,7 @@ import { createFramePacing } from "./frame-pacing";
 import { createRenderer } from "./renderer/renderer";
 import { createViewer } from "./viewer/viewer";
 import { createSimulationHost } from "./simulation/host";
+import { createFrameWorkers } from "./frame-workers/frame-workers";
 import type { RuntimeControl } from "@/engine/contracts/runtime";
 import { worldAudioPosition } from "@/engine/foundation/world/world-space";
 
@@ -136,6 +137,8 @@ export function startRuntime(
 		const frameWork = createFrameWork();
 		const framePacing = createFramePacing();
 		const simulation = own( createSimulationHost() );
+		// Port-only: frame work shared with worker threads (Experimental, off).
+		const frameWorkers = own( createFrameWorkers() );
 		const renderer = own(
 			createRenderer( canvas, random, audio.enqueue, diagnostics )
 		);
@@ -1106,6 +1109,7 @@ World admission: ${renderer.worldStats().sceneId ?? "none"}; ${renderer.worldSta
 			characterActors: () => renderer.characterActors(),
 			characterStats: () => renderer.characterStats( true ),
 			characterCullCensus: () => renderer.characterStats( true, true ),
+			frameWorkers: () => frameWorkers.stats(),
 			camera: () => input.camera(),
 			worldView: () => renderer.worldView(),
 			takeNative: () => presentation.takeNative()

@@ -2347,6 +2347,20 @@
 				"effectDistances"
 			],
 			"reason": "The Experimental shared actor room: the selection reads the previous frame's effect distances, which the auxiliary presentation records in presentStages, through a getter injected at construction."
+		},
+		{
+			"consumer": "src/engine/foundation/workers/frame-jobs.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"runLocal"
+			]
+		},
+		{
+			"consumer": "src/engine/foundation/workers/frame-jobs.ts",
+			"provider": "src/engine/runtime/frame-workers/worker/entry.ts",
+			"functions": [
+				"runFrameKernel"
+			]
 		}
 	],
 	"boundaries": [
@@ -3840,6 +3854,27 @@
 			"function": "readBytes",
 			"kind": "callback",
 			"reason": "Asset loader supplies received-byte progress through ReadBytesOptions; callers without progress leave it absent."
+		},
+		{
+			"file": "src/engine/foundation/workers/frame-jobs.ts",
+			"expression": "run",
+			"function": "serveFramePhase",
+			"kind": "callback",
+			"reason": "Port-only frame workers: the chunk runner of the thread serving the phase (the owner's local kernel runner or a worker's kernel dispatch), called synchronously once per claimed chunk."
+		},
+		{
+			"file": "src/engine/foundation/workers/frame-jobs.ts",
+			"expression": "run",
+			"function": "finishFramePhase",
+			"kind": "callback",
+			"reason": "Port-only frame workers: after retiring stalled workers, the owner runs each unfinished chunk of the phase on its own thread through its local kernel runner."
+		},
+		{
+			"file": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"expression": "local",
+			"function": "runLocal",
+			"kind": "callback",
+			"reason": "Port-only frame workers: the caller's synchronous kernel runner for the chunks the main thread claims; the first error is kept to rethrow after the join."
 		}
 	],
 	"sequences": [
@@ -3884,7 +3919,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "5cf55a4f50e7cc9b3905b8d63759f15f6fa97f08d0d8d5b4a7997ff5c8e137a7",
+			"sourceSha256": "e9356f4de2284aac06878f6780c88f3f1c69085073710bb8864dc3d70f7e9584",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. A hidden frame renders only while a world entry awaits game-ready, under the same barrier: native keeps updating while inactive (A0F430 OnUpdate; A11650 skips drawing) and finishes loading in CPSMission_OnUpdate (728E10). A visible window that gets no RAF for STARVED_FRAME_MS runs the same delivery-paced maintenance frames. Device disposal cancels pending mapping. Startup also hands the asset owner the device texture features once (port-only texture variants), outside the frame.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

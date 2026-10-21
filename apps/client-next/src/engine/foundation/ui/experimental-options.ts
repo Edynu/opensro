@@ -11,6 +11,7 @@ options (Water reflection, Metal detail), not experimental ones.
 
 ===========================================================================
 */
+import type { FrameWorkerSetting } from "@/engine/foundation/workers/frame-jobs";
 
 /*
 ================
@@ -20,6 +21,11 @@ ExperimentalOptions
 export interface ExperimentalOptions {
 	// Port-only, not native. Reduced scene resolution requires explicit opt-in.
 	readonly renderScale: RenderScale;
+	// Port-only, not native: frame work shared with worker threads
+	// (runtime/frame-workers). Off unless chosen; off runs the frame on one
+	// thread as the original does. Read at startup, so it applies after a
+	// reload.
+	readonly frameWorkers: FrameWorkerSetting;
 	readonly chatTimestamps: boolean;
 	readonly developerDiagnostics: boolean;
 	// Video: renderer stages that deviate from the 2005 D3D9 look.
@@ -175,13 +181,25 @@ export function renderScales(): readonly RenderScale[] {
 
 /*
 ================
+frameWorkerSettings
+
+Port-only, not native. "off" keeps the frame on one thread.
+================
+*/
+export function frameWorkerSettings(): readonly FrameWorkerSetting[] {
+	return [ "off", "auto", 1, 2, 4, 8 ];
+}
+
+/*
+================
 experimentalOptions
 
 Only an explicit true enables a toggle, except smoothCamera, enchantSparks,
 compressedTextures, sharedActorRoom, greyDisabledTabs, jobKillNotices, dropPlusNotices,
 plusSevenNotices, fitWindowLabels, dropOnBagTab, noticeLinks, shortNotices, confirmGuildBan,
 petClickOpensWindow, smartPetPickup and dungeonCharacterPvs, which only an explicit false turns off.
-Missing or invalid render scales restore full resolution; legacy Video
+Missing or invalid render scales restore full resolution and missing or
+invalid worker settings keep one thread; legacy Video
 settings cannot enable scaling. Keys of retired rows (terrainRelief and texturedHorizon, removed at the owner's
 request on 2026-10-11) are never read, so a saved preference holding them
 loads cleanly.
@@ -194,6 +212,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 	const enabled = ( key: ExperimentalKey ) => record[key] === true;
 	return {
 		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
+		frameWorkers: frameWorkerSettings().find( setting => setting === record.frameWorkers ) ?? "off",
 		chatTimestamps: enabled( "chatTimestamps" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),

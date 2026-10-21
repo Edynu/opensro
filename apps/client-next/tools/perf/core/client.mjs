@@ -20,6 +20,7 @@ import {
 } from "../../../../../scripts/lib/chromeTraceCapture.mjs";
 import { resetMissionMovementFixture } from "../../../../../scripts/lib/missionMovementFixture.mjs";
 import { defaultVideoOptions, frameLimits } from "../../../src/engine/foundation/rendering/video-options.ts";
+import { EXPERIMENTAL_STORAGE_KEY } from "../../../src/engine/foundation/ui/experimental-options.ts";
 import { bootPlayableSession } from "../../../tests/browser/helpers/playable-session.mjs";
 
 export const CHARACTER = assertCharacterAllowed( process.env.SRO_PROBE_CHARACTER ?? "asd2", {
@@ -464,7 +465,9 @@ Resets the scratch character to fixture, boots the client at 1600x900,
 revives the character if it died and lets the world settle. Returns the
 browser and page; close the browser when done. counts and spans are
 instrument's options. lineInfo launches V8 with detailed line positions,
-for CPU profiles that attribute time to source lines.
+for CPU profiles that attribute time to source lines. experimental, when
+given, is the saved Experimental preferences the page starts with (read
+at startup, as "Worker threads" is).
 ================
 */
 export async function openClient(
@@ -480,7 +483,8 @@ export async function openClient(
 		headed = false,
 		backgroundThrottling = false,
 		beforeLogin = undefined,
-		lineInfo = false
+		lineInfo = false,
+		experimental = undefined
 	} = {}
 ) {
 	process.env.SRO_PROBE_UNLOCK_FPS = uncapped ? "1" : "0";
@@ -503,6 +507,12 @@ export async function openClient(
 				)
 			}
 		);
+		if ( experimental ) {
+			await page.addInitScript(
+				( [key, value] ) => localStorage.setItem( key, value ),
+				[ EXPERIMENTAL_STORAGE_KEY, JSON.stringify( experimental ) ]
+			);
+		}
 		await page.addInitScript( instrument, { counts, spans } );
 		await bootPlayableSession( page, CHARACTER, beforeLogin );
 		await page.evaluate( () => globalThis.__benchRuntime = globalThis.__playableRuntime );

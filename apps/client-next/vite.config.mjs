@@ -16,6 +16,15 @@ import { publishedAssets } from "./tools/published-assets.mjs";
 import { devUpdates } from "./tools/dev/updates-plugin.mjs";
 import { sameOriginRelay, shardRoutes, tlsCertificate, tunnelHosts } from "./tools/dev/edge.mjs";
 
+// Port-only: the frame workers share memory (SharedArrayBuffer), which a
+// browser grants only to a cross-origin isolated page. Everything the page
+// loads is same-origin (the assets and the /api and shard proxies), so
+// require-corp blocks nothing (docs/CLIENT_WORKERS_PLAN.md).
+const ISOLATION_HEADERS = {
+	"Cross-Origin-Opener-Policy": "same-origin",
+	"Cross-Origin-Embedder-Policy": "require-corp"
+};
+
 export default defineConfig( ( { mode } ) => {
 	// Beta requires the isolated compiler, private maps and publication gate.
 	// A mode flag on this development/preview config cannot create a release.
@@ -52,11 +61,12 @@ export default defineConfig( ( { mode } ) => {
 		define: clientBuildDefinitions(),
 		server: {
 			proxy,
+			headers: ISOLATION_HEADERS,
 			...hosts,
 			...(certificate ? { https: certificate } : {}),
 			warmup: { clientFiles: [ "./src/bootstrap.ts" ] }
 		},
-		preview: { proxy, ...hosts, ...(certificate ? { https: certificate } : {}) },
+		preview: { proxy, headers: ISOLATION_HEADERS, ...hosts, ...(certificate ? { https: certificate } : {}) },
 		build: bench ?
 			{
 				outDir: "temp/artifacts/dist-bench",

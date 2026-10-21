@@ -13,6 +13,7 @@ every tab edits the same draft.
 
 import {
 	experimentalOptions,
+	frameWorkerSettings,
 	type ExperimentalKey,
 	type ExperimentalOptions,
 	renderScales
@@ -20,14 +21,23 @@ import {
 
 /*
 ================
+ExperimentalChoiceKey
+
+The preferences picked from a row of choices rather than toggled.
+================
+*/
+export type ExperimentalChoiceKey = "renderScale" | "frameWorkers";
+
+/*
+================
 ExperimentalRow
 
-A checkbox or numeric selection: its preference key, control id, label
-and one-line help. Numeric preferences never pass through toggle().
+A checkbox or a row of choices: its preference key, control id, label
+and one-line help. Choice preferences never pass through toggle().
 ================
 */
 export interface ExperimentalRow {
-	readonly key: ExperimentalKey | "renderScale";
+	readonly key: ExperimentalKey | ExperimentalChoiceKey;
 	readonly id: string;
 	readonly label: string;
 	readonly description: string;
@@ -214,6 +224,11 @@ export const EXPERIMENTAL_TABS: readonly {
 		title: "Other",
 		section: "Windows and diagnostics",
 		rows: [ {
+			key: "frameWorkers",
+			id: "experimental-frame-workers",
+			label: "Worker threads",
+			description: "Share frame work across CPU cores. After reload."
+		}, {
 			key: "developerDiagnostics",
 			id: "experimental-developer-diagnostics",
 			label: "Developer diagnostics",
@@ -266,6 +281,42 @@ const EXPERIMENTAL_TAB_COUNT = EXPERIMENTAL_TABS.length;
 
 /*
 ================
+isExperimentalChoice
+================
+*/
+export function isExperimentalChoice( key: ExperimentalRow["key"] ): key is ExperimentalChoiceKey {
+	return key === "renderScale" || key === "frameWorkers";
+}
+
+/*
+================
+experimentalChoices
+
+A choice row's buttons: each one's control value and caption, and whether
+the draft holds it.
+================
+*/
+export function experimentalChoices( key: ExperimentalChoiceKey, draft: ExperimentalOptions ): readonly {
+	readonly value: string;
+	readonly label: string;
+	readonly selected: boolean;
+}[] {
+	if ( key === "renderScale" ) {
+		return renderScales().map( scale => ({
+			value: String( scale ),
+			label: scale + "%",
+			selected: draft.renderScale === scale
+		}) );
+	}
+	return frameWorkerSettings().map( setting => ({
+		value: String( setting ),
+		label: setting === "off" ? "Off" : setting === "auto" ? "Auto" : String( setting ),
+		selected: draft.frameWorkers === setting
+	}) );
+}
+
+/*
+================
 createExperimentalHud
 ================
 */
@@ -300,15 +351,20 @@ export function createExperimentalHud() {
 		},
 		/*
 		================
-		selectRenderScale
+		select
 
-		Port-only, not native. Invalid UI selections leave the draft intact.
+		Port-only, not native. A choice row's pick, by its control value;
+		invalid UI selections leave the draft intact.
 		================
 		*/
-		selectRenderScale( value: number ) {
-			const renderScale = renderScales().find( scale => scale === value );
-			if ( renderScale === undefined ) return;
-			draft = { ...draft, renderScale };
+		select( key: ExperimentalChoiceKey, value: string ) {
+			if ( key === "renderScale" ) {
+				const renderScale = renderScales().find( scale => String( scale ) === value );
+				if ( renderScale !== undefined ) draft = { ...draft, renderScale };
+				return;
+			}
+			const frameWorkers = frameWorkerSettings().find( setting => String( setting ) === value );
+			if ( frameWorkers !== undefined ) draft = { ...draft, frameWorkers };
 		},
 		/*
 		================

@@ -469,6 +469,8 @@ export interface RuntimeControl extends Disposable {
 	 * inside a measured frame window.
 	 */
 	characterCullCensus(): CharacterStatistics;
+	/** Port-only: the frame workers' copied state (frame-workers.ts). */
+	frameWorkers(): import("./frame-workers").FrameWorkerStatistics;
 	/** Read-only orbit camera the input owner holds (yaw/pitch/distance). */
 	camera(): import("./input").CameraInput;
 	/** Copied last prepared world view; null before preparation or after failure/disposal. */
