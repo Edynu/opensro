@@ -251,7 +251,7 @@ Every live monster within COMBAT_RADIUS of the character: gid, reference,
 distance.
 ================
 */
-function sceneMonsters( page, nearby = true ) {
+export function sceneMonsters( page, nearby = true ) {
 	return page.evaluate( ( { radius, nearby } ) => {
 		const root = globalThis.__benchRuntime, pose = root.gameplay().pose;
 		const presented = new Set( root.characterActors().map( actor => actor.gid ) );
@@ -275,7 +275,7 @@ The requested codename's reference id from the client's published monster
 manifest, the same rows the renderer resolves models from.
 ================
 */
-function monsterReference( page, codename ) {
+export function monsterReference( page, codename ) {
 	return page.evaluate( async codename => {
 		const manifest = await (await fetch( "/assets/npc/manifest.json" )).json();
 		const row = Object.values( manifest.models ).find( m => m.codename === codename && m.kind === "monster" );

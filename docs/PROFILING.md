@@ -116,6 +116,22 @@ The machine is shared with whatever else runs on it: numbers move by up to
 a quarter between runs. Compare runs made back to back, never a number
 from this morning with one from now, and measure a change more than once.
 
+### A town crowd
+
+```
+node tools/perf/bench/town-crowd.mjs --near NAME --count 200
+node tools/perf/bench/town-crowd-bench.mjs --near NAME [--seconds 8] [--turn | --walk | --wiggle | --hover] [--spans] [--cpu | --trace] [--heap] [--clone-cost]
+```
+
+`town-crowd.mjs` admits up to 1000 throwaway players with random models
+and equipment in rings around a logged-in character, and keeps them
+walking and casting until Ctrl+C, which logs them out and disables their
+accounts. The bench then puts the scratch character beside them and
+measures the real client inside the crowd. It writes
+`temp/artifacts/town-crowd/crowd-<scenario>.result.json` and any captures.
+The crowd moves on its own clocks, so compare runs made back to back.
+[CLIENT_WORKERS_PLAN.md](CLIENT_WORKERS_PLAN.md) uses it as its baseline.
+
 ### Effects without a server
 
 ```
