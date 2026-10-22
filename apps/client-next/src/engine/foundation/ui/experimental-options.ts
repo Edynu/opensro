@@ -67,6 +67,14 @@ export interface ExperimentalOptions {
 	// On unless turned off (the owner's choice, 2026-10-14); off is the
 	// previous rule, characters first.
 	readonly sharedActorRoom: boolean;
+	// Port-only, not native: the skill effects of one program share its model
+	// in the renderer, so a crowd's casts of it draw as one batch (one draw
+	// and one particle stream a primitive) instead of one an instance. The
+	// instances of a batch blend in gid order at the batch's place in the
+	// far-to-near order, where each instance used to take its own place, so
+	// overlapping translucent effects can blend in another order. Off unless
+	// turned on; off is one model an instance.
+	readonly batchedEffects: boolean;
 	// Port-only, not native: a disabled tab is dimmed with a grey label (the
 	// original draws it like an unselected tab, 5376A0). On unless turned
 	// off (the owner's choice, 2026-10-15); off is the original look.
@@ -237,6 +245,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		enchantSparks: record.enchantSparks !== false,
 		compressedTextures: record.compressedTextures !== false,
 		sharedActorRoom: record.sharedActorRoom !== false,
+		batchedEffects: enabled( "batchedEffects" ),
 		greyDisabledTabs: record.greyDisabledTabs !== false,
 		jobKillNotices: record.jobKillNotices !== false,
 		dropPlusNotices: record.dropPlusNotices !== false,
@@ -300,6 +309,7 @@ export interface ExperimentalVideo {
 	readonly smoothCamera: boolean;
 	readonly enchantSparks: boolean;
 	readonly sharedActorRoom: boolean;
+	readonly batchedEffects: boolean;
 	readonly vHidesCompanions: boolean;
 	readonly dungeonCharacterPvs: boolean;
 }
@@ -323,6 +333,7 @@ export function experimentalVideo( options: ExperimentalOptions ): ExperimentalV
 		smoothCamera: options.smoothCamera,
 		enchantSparks: options.enchantSparks,
 		sharedActorRoom: options.sharedActorRoom,
+		batchedEffects: options.batchedEffects,
 		vHidesCompanions: options.vHidesCompanions,
 		dungeonCharacterPvs: options.dungeonCharacterPvs
 	};

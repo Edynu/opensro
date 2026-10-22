@@ -92,6 +92,7 @@ export async function captureEnvironment( { bundle, camera, features = false } )
 		smoothCamera: false,
 		enchantSparks: false,
 		sharedActorRoom: false,
+		batchedEffects: false,
 		vHidesCompanions: false,
 		dungeonCharacterPvs: false
 	};

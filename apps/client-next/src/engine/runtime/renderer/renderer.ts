@@ -211,6 +211,16 @@ export function createRenderer(
 		},
 		/*
 		================
+		batchedEffects
+
+		Read by the character presenter each frame.
+		================
+		*/
+		batchedEffects() {
+			return experimental.batchedEffects;
+		},
+		/*
+		================
 		vHidesCompanions
 
 		Read by the character presenter when V is held.

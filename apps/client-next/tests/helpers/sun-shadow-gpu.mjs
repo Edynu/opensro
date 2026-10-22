@@ -52,6 +52,7 @@ export async function captureSunShadowPlacement() {
 		smoothCamera: false,
 		enchantSparks: false,
 		sharedActorRoom: false,
+		batchedEffects: false,
 		vHidesCompanions: false,
 		dungeonCharacterPvs: false
 	};

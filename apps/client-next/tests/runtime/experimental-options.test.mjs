@@ -44,6 +44,8 @@ const OFF = Object.freeze( {
 	compressedTextures: true,
 	// On by default (owner 2026-10-14): near effects outrank far characters.
 	sharedActorRoom: true,
+	// Off by default (port-only): every effect instance is its own model.
+	batchedEffects: false,
 	// On by default (owner 2026-10-15): a disabled tab is dimmed.
 	greyDisabledTabs: true,
 	// On by default (owner 2026-10-15): the shard's job-kill notices show.
@@ -160,6 +162,7 @@ test("every video stage defaults off and only an explicit true enables it", () =
 		enchantSparks: true,
 		// The shared actor room is on by default (owner 2026-10-14).
 		sharedActorRoom: true,
+		batchedEffects: false,
 		vHidesCompanions: false,
 		dungeonCharacterPvs: true
 	} );
@@ -393,6 +396,16 @@ test("the shared actor room is on unless explicitly false, and reaches the rende
 	assert.equal( off.sharedActorRoom, false );
 	assert.equal( experimentalVideo( off ).sharedActorRoom, false );
 	assert.equal( experimentalVideo( experimentalOptions( {} ) ).sharedActorRoom, true );
+});
+
+test("batched effects is off unless explicitly true, and reaches the renderer's video options", () => {
+	for ( const value of [ undefined, null, {}, { batchedEffects: 1 }, { batchedEffects: "true" } ] ) {
+		assert.equal( experimentalOptions( value ).batchedEffects, false );
+	}
+	const on = experimentalOptions( { batchedEffects: true } );
+	assert.equal( on.batchedEffects, true );
+	assert.equal( experimentalVideo( on ).batchedEffects, true );
+	assert.equal( experimentalVideo( experimentalOptions( {} ) ).batchedEffects, false );
 });
 
 test("grey disabled tabs is on unless explicitly false and stays out of the renderer's video options", () => {

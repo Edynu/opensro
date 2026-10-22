@@ -3353,6 +3353,13 @@
 		},
 		{
 			"file": "src/engine/runtime/characters/presentation-auxiliary.ts",
+			"expression": "renderer.batchedEffects",
+			"function": "presentStages",
+			"kind": "callback",
+			"reason": "The parent renderer reports whether the Experimental batched effects are on; it changes nothing."
+		},
+		{
+			"file": "src/engine/runtime/characters/presentation-auxiliary.ts",
 			"expression": "resources.duration",
 			"function": "callback:step:2",
 			"kind": "callback",

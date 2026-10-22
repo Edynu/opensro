@@ -147,7 +147,7 @@ StageBindings
 ================
 */
 interface StageBindings {
-	readonly renderer: Pick<Renderer, "setCharacterAssembly" | "sharedActorRoom">;
+	readonly renderer: Pick<Renderer, "setCharacterAssembly" | "sharedActorRoom" | "batchedEffects">;
 	readonly resources: { duration( path: string, clip: string ): number; };
 	readonly effects: {
 		animationModel( path: string ): {
@@ -350,9 +350,13 @@ export function createAuxiliaryPresentation( allocateActor: () => number ) {
 				gaveWay = trimToEffectBudget( nearest, room, player );
 				admitted = nearest;
 			}
+			// Each instance is its own model, so it batches alone; Experimental
+			// "Batched effects" (port-only) gives every instance of a program
+			// one model, so they batch together.
+			const batched = renderer.batchedEffects?.() === true;
 			for ( const actor of [ ...orbActors, ...admitted ] ) {
 				if ( next.size >= CHARACTER_ACTORS ) continue;
-				const model = `effect:${actor.gid}:${actor.model}`;
+				const model = batched ? `effect:${actor.model}` : `effect:${actor.gid}:${actor.model}`;
 				renderer.setCharacterAssembly( model, actor.model, [] );
 				const metadata = effects.animationModel( actor.model );
 				let modelAnimation: CharacterActor["modelAnimation"];

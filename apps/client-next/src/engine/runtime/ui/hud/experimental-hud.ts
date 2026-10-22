@@ -123,6 +123,12 @@ export const EXPERIMENTAL_TABS: readonly {
 				description: "In a crowd, near skill effects draw before far characters."
 			},
 			{
+				key: "batchedEffects",
+				id: "experimental-batched-effects",
+				label: "Batched effects",
+				description: "Draw a skill's effects together: faster in crowds."
+			},
+			{
 				key: "homingProjectiles",
 				id: "experimental-homing-projectiles",
 				label: "Homing projectiles",
