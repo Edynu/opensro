@@ -189,6 +189,19 @@ export function createActorSnapshots() {
 			} else target.bloodEffects = [ ...source.bloodEffects ];
 		} else target.bloodEffects = undefined;
 		target.materialTint = copyVector( target.materialTint, source.materialTint );
+		// A spine aim turns every frame (spine-aim.ts); the room a holder stands
+		// in changes as it walks. Both followed only the first publication.
+		if ( source.boneRotation ) {
+			const old = target.boneRotation as Mutable<NonNullable<CharacterActor["boneRotation"]>> | undefined;
+			if ( old ) {
+				old.bone = source.boneRotation.bone;
+				const rotation = old.rotation as [number, number, number, number];
+				for ( let i = 0; i < 4; i++ ) rotation[i] = source.boneRotation.rotation[i]!;
+			} else {
+				target.boneRotation = { bone: source.boneRotation.bone, rotation: [ ...source.boneRotation.rotation ] };
+			}
+		} else target.boneRotation = undefined;
+		target.dungeonBlock = source.dungeonBlock;
 		target.heightFactor = source.heightFactor;
 		target.effectBaseScale = source.effectBaseScale;
 		target.absoluteEffectScale = source.absoluteEffectScale;
@@ -296,7 +309,8 @@ export function createActorSnapshots() {
 						pointLight: undefined,
 						bloodEffects: undefined,
 						materialTint: undefined,
-						effectAnchor: undefined
+						effectAnchor: undefined,
+						boneRotation: undefined
 					};
 					index.set( source.gid, row );
 					created++;

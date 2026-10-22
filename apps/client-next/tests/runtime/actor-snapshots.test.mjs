@@ -227,3 +227,25 @@ test("point light admission tests own pose values only, as Object.values did", (
 		/Invalid character point light/
 	);
 });
+
+test("a spine aim and a dungeon room follow every publication, owned and cleared", () => {
+	const snapshots = createActorSnapshots();
+	/** @type {( rotation?: number[], dungeonBlock?: number ) => any} */
+	const aimed = ( rotation, dungeonBlock ) => ({
+		...actor( 1, 0 ),
+		...(rotation ? { boneRotation: { bone: "Bip01 Spine1", rotation } } : {}),
+		...(dungeonBlock === undefined ? {} : { dungeonBlock })
+	});
+	const first = aimed( [ 0, 0, 0, 1 ], 3 );
+	let [row] = snapshots.update( [ first ] );
+	assert.deepEqual( json( row.boneRotation ), { bone: "Bip01 Spine1", rotation: [ 0, 0, 0, 1 ] } );
+	assert.notEqual( row.boneRotation, first.boneRotation, "owned, not the producer's" );
+	const owned = row.boneRotation;
+	[row] = snapshots.update( [ aimed( [ 0, .5, 0, .8660254 ], 4 ) ] );
+	assert.deepEqual( json( row.boneRotation.rotation ), [ 0, .5, 0, .8660254 ] );
+	assert.equal( row.boneRotation, owned, "storage reused" );
+	assert.equal( row.dungeonBlock, 4 );
+	[row] = snapshots.update( [ aimed() ] );
+	assert.equal( row.boneRotation, undefined );
+	assert.equal( row.dungeonBlock, undefined );
+});
