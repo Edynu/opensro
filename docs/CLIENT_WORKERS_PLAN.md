@@ -138,7 +138,8 @@ on the measuring machine, and Chrome's GPU process is the next limit.
   programs), so the counters are the only synchronisation the data needs.
 - **`writeBuffer` takes shared memory.** The WebGPU IDL types its data as
   `AllowSharedBufferSource`; the prototype confirms Chrome accepts a view
-  over a `SharedArrayBuffer` without a copy of its own.
+  over a `SharedArrayBuffer` without a copy of its own. Not a growable one:
+  Chrome refuses a resizable buffer (section 6.13).
 - **Cores are shared.** The page already has the main thread, two workers,
   the browser's GPU process and the compositor. The pool takes
   `min(MAX_FRAME_WORKERS, navigator.hardwareConcurrency - RESERVED_THREADS)`
@@ -737,6 +738,55 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   85 (`writeBuffer` 49, the upload arena's copies 25, of which cloth
   vertices 22, `copyBufferToBuffer` 11), UI about 50, simulation snapshot
   decoding 21, holder sockets 20, garbage collection 18.
+
+### 6.13 Step 4, part 6: palettes in the skeleton phase, more overlap, presentation churn (2026-10-22)
+
+- **Palettes** (`skeleton-kernel.ts`, `skeleton-record.ts`,
+  `animation-pose.ts`, `renderer/characters/skeletons.ts`): a skeleton also
+  holds its model's palette bindings (joints, inverse binds) and a pose its
+  body thickness and one palette a binding. The phase writes them for the
+  poses whose palettes the main thread reads: a cloth batch's
+  (`readsPalettes`) and evaluations the GPU does not take. `palette` copies
+  them while they are the current version; a body volume changed after the
+  inputs were queued leaves them unused. Bit for bit the object code's
+  (`skeleton-kernel.test.mjs`). `palette` on the main thread 23 to 12 ms/s,
+  what is left being the copy out of shared memory.
+- **Overlap**: the groups without cloth build while the skeleton phase
+  runs; the cloth groups then read its palettes and fork the cloth phase,
+  which runs while the renderer goes on to shadows, labels and the
+  interface, until `characters.finishCloth` joins it just before encoding
+  (a frame that never got there uploads at the next prepare). The material
+  clocks step during the owners' phase. Kernel work the main thread did
+  inside joins: 46 to 34 ms/s, the skeleton phase's 12.8 to 2.2.
+- **`writeBuffer` does not take a growable shared buffer.** Chrome refuses
+  it ("The provided [AllowShared] ArrayBuffer value must not be
+  resizable"), so the cloth vertices still reach the GPU through the upload
+  arena's copy. Section 4's note holds for fixed-size shared memory only.
+- **Churn, exact, for everyone** (ms/s in the town crowd): the material
+  clocks' charge per model, cached (10); `hostMotions` passing over other
+  hosts' effects first (12 to 6); a body's clip list asked through a set,
+  about 20 scans of hundreds of names an actor a frame (about 150 ns a
+  scan); the per-frame motion names (`native:set:state`, the weapon motion
+  set, the preview idle) made once, so catalog lookups stop hashing new
+  strings; `evaluateNeededPoses` sorting on keys read once (9); the group
+  order's effect and blend flags, cached (7); `admitBatch` comparing gids
+  instead of building a signature string; the cloth wearers' views
+  refreshed only when their tables grow (7).
+- **Not ported: the actor presentation itself** (`actor-motion.ts`,
+  `actor-appearance.ts`, `presentation-events.ts`). Its time is string and
+  Map lookups, object building, sounds, effects and events, not
+  arithmetic; a flat kernel would be a rewrite of that logic with little
+  to run faster. Its churn was cut instead (above).
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off:
+  54, 55, 59 fps against 33, 35, 33; main thread 17.8, 17.6, 16.3 ms
+  against 29.8, 27.8, 29.6 (before: 46, 51, 48 against 29, 28, 28 fps).
+- **Where the main thread goes now** (Auto, ms/s): character prepare about
+  385 (group building 157, needed poses 48, particles 40), draw encoding
+  151, actor presentation about 125 (`actor-motion.ts` present 53 of its
+  own), UI about 115 (its step 73, the renderer's copy 20, the device's
+  packing 21), uploads about 87 (`writeBuffer` 51, of which CPU palettes
+  of cloth batches 12, the arena's copies 24, `copyBufferToBuffer` 12),
+  simulation snapshot decoding 20, garbage collection 16.
 
 ## 7. Open decisions for the owner
 
