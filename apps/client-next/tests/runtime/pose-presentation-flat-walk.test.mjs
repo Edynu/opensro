@@ -200,7 +200,9 @@ test("a turn recovers through its corner bit for bit as the object chain did", (
 	// A walk A -> C without a chain; a receipt re-anchors it just past the
 	// corner on C -> D while the body still draws before the corner, so the
 	// correction is spent along both legs of the turn (recoverTurn).
-	for ( const [past, reason] of [ [ .1, "correction" ], [ .3, "native" ], [ .05, "cast" ] ] ) {
+	/** @type {[ number, string ][]} */
+	const turns = [ [ .1, "correction" ], [ .3, "native" ], [ .05, "cast" ] ];
+	for ( const [past, reason] of turns ) {
 		const a = current(), b = reference();
 		a.origin( 0 );
 		b.origin( 0 );

@@ -28,6 +28,9 @@ const { createEntities } = await import(
 const { createPresentation } = await import( "../../src/engine/runtime/presentation/presentation.ts" );
 const { createPresentationSamples } = await import( "../../src/engine/runtime/characters/presentation-samples.ts" );
 
+/** @typedef {import("../../src/engine/contracts/gameplay.ts").MovementPath} MovementPath */
+/** @typedef {import("../../src/engine/contracts/gameplay.ts").MovementTransition} MovementTransition */
+
 /*
 ================
 history
@@ -83,7 +86,12 @@ function walker( gid, points ) {
 		moving: true,
 		poseAtMs: 1200,
 		movementRevision: 4,
-		movementPath: { from: points.at( -2 ), to: points.at( -1 ), durationMs: 100, walkingPath: points }
+		movementPath: /** @type {MovementPath} */ ({
+			from: points.at( -2 ),
+			to: points.at( -1 ),
+			durationMs: 100,
+			walkingPath: points
+		})
 	};
 }
 
@@ -113,6 +121,7 @@ test("publication keeps every other field and object and leaves the worker's val
 	assert.equal( worker.movementPath.walkingPath, points, "the movement owner keeps its own history" );
 	assert.equal( worker.movementPath.walkingChain, undefined );
 
+	/** @type {MovementTransition} */
 	const transition = { relocation: 2, reason: "receipt", eligible: true, walkingPath: points };
 	const local = publishWalkingChains( { pose: points[0], movementTransition: transition }, chains );
 	assert.equal( local.movementTransition.walkingChain, published.movementPath.walkingChain, "one chain per history" );
@@ -140,13 +149,14 @@ test("a batch carries flat histories through a structured clone into the pose sa
 	} );
 	owner.publish( { kind: "state", entity: { ...walker( 1, near ), poseAtMs: 1250 } } );
 	// postMessage delivers a structured clone of the batch.
-	const batch = structuredClone( owner.take() );
+	const batch = /** @type {any} */ (structuredClone( owner.take() ));
 	for ( const event of batch.events ) {
 		assert.equal( event.entity.movementPath.walkingPath, undefined, "no point objects cross" );
 		assert.equal( event.entity.movementTransition?.walkingPath, undefined );
 	}
 	assert.equal( batch.events[0].entity.movementPath.walkingChain, batch.events[3].entity.movementPath.walkingChain );
 	presentation.apply( batch );
+	/** @type {{ samples: Map<number, any> }} */
 	const { samples } = createPresentationSamples( presentation.entities(), null );
 	assertSameChain( samples.get( 1 ).walkingChain, near );
 	assertSameChain( samples.get( 2 ).walkingChain, far );

@@ -77,7 +77,7 @@ function recorder() {
 			frame = [];
 			return done;
 		},
-		gpu: {
+		gpu: /** @type {any} */ ({
 			upload: () => ({}),
 			release() {},
 			updateInstances: d => d,
@@ -90,7 +90,7 @@ function recorder() {
 					records: particles.records.slice()
 				} );
 			}
-		}
+		})
 	};
 }
 
@@ -136,9 +136,9 @@ test("the shipped renderer presents a graph on the frame workers as its object g
 					loop,
 					scale: 1
 				} ];
-				for ( const [owner, record] of [ [ plain, a ], [ threaded, b ] ] ) {
-					owner.actors( actors );
-					owner.prepare( record.gpu, {}, 257, undefined, false, time );
+				for ( const [owner, record] of /** @type {const} */ ([ [ plain, a ], [ threaded, b ] ]) ) {
+					owner.actors( /** @type {any} */ (actors) );
+					owner.prepare( record.gpu, /** @type {any} */ ({}), 257, undefined, false, time );
 				}
 				const expected = a.next(), actual = b.next();
 				assert.equal( actual.length, expected.length, `seed ${seed} frame ${frame} streams` );
@@ -179,17 +179,19 @@ test("a model that draws ribbons keeps its object graph", () => {
 	const workers = createInlineWorkers(), threaded = createCharacters( undefined, workers ), record = recorder();
 	threaded.model( "effect", model, [] );
 	try {
-		threaded.actors( [ {
-			gid: 1,
-			model: "effect",
-			pose: { regionId: 257, x: 0, y: 0, z: 0, yaw: 0 },
-			clip: "effect",
-			time: .3,
-			loop: false,
-			scale: 1
-		} ] );
+		threaded.actors(
+			/** @type {any} */ ([ {
+				gid: 1,
+				model: "effect",
+				pose: { regionId: 257, x: 0, y: 0, z: 0, yaw: 0 },
+				clip: "effect",
+				time: .3,
+				loop: false,
+				scale: 1
+			} ])
+		);
 		try {
-			threaded.prepare( record.gpu, {}, 257, undefined, false, .3 );
+			threaded.prepare( record.gpu, /** @type {any} */ ({}), 257, undefined, false, .3 );
 		} catch {
 			// The ribbon fixture is not drawable; only where its graph runs matters.
 		}

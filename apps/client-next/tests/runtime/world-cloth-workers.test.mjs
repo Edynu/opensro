@@ -36,6 +36,7 @@ clothScene
 One world group of the cloth fixture's mesh, unskinned as a flag is.
 ================
 */
+/** @returns {import("../../src/engine/contracts/scene.ts").WorldScene} */
 function clothScene( id ) {
 	const fixture = clothCase( 7 ), count = fixture.rest.length / 3;
 	return {
@@ -75,14 +76,14 @@ function recorder() {
 	};
 	return {
 		frames,
-		geometry: {
+		geometry: /** @type {any} */ ({
 			upload: () => ({ instanceCount: 1 }),
 			release() {},
 			updateInstances: draw => draw,
 			writeVertices: write,
 			streamVertices: write
-		},
-		textures: { upload: () => ({}), release() {} }
+		}),
+		textures: /** @type {any} */ ({ upload: () => ({}), release() {} })
 	};
 }
 

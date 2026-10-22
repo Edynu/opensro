@@ -77,7 +77,7 @@ function recorder() {
 			pass = [];
 			return done;
 		},
-		gpu: {
+		gpu: /** @type {any} */ ({
 			upload: () => ({}),
 			release() {},
 			updateInstances: d => d,
@@ -90,7 +90,7 @@ function recorder() {
 					records: Array.from( particles.records )
 				} );
 			}
-		}
+		})
 	};
 }
 
@@ -169,8 +169,8 @@ function drive( seed, workers ) {
 			const passes = [];
 			for ( const [index, owner] of owners.entries() ) {
 				const record = records[index];
-				owner.actors( actors );
-				owner.prepare( record.gpu, {}, 257, undefined, false, time );
+				owner.actors( /** @type {any} */ (actors) );
+				owner.prepare( record.gpu, /** @type {any} */ ({}), 257, undefined, false, time );
 				const main = record.next();
 				const plan = owner.deferredPlan( 257, [ 0, 10, 10 ], true, true );
 				let continuation;
@@ -181,7 +181,7 @@ function drive( seed, workers ) {
 							undefined
 					);
 					if ( index === 0 || owner.deferredDrawing() ) {
-						owner.prepare( record.gpu, {}, 257, undefined, false, time, true );
+						owner.prepare( record.gpu, /** @type {any} */ ({}), 257, undefined, false, time, true );
 						continuation = record.next();
 					}
 				}

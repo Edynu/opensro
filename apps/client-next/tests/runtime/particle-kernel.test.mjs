@@ -273,7 +273,7 @@ function drive( workers, graphs, seed, count ) {
 		graphs.request( slot, input.time, input.transform, stop, input.shiftX, input.shiftZ, keepRoots );
 		if ( failure ) {
 			// The flat graph refuses the same frame the same way.
-			assert.throws( () => graphs.run(), { message: failure.message } );
+			assert.throws( () => graphs.run(), { message: /** @type {Error} */ (failure).message } );
 			break;
 		}
 		graphs.run();
@@ -300,7 +300,11 @@ test("graphs on worker threads over growing tables tick as one thread does", asy
 		const random = createRandom( 0x7e11 ), count = INITIAL_PARTICLE_GRAPHS + 40;
 		const pairs = Array.from( { length: count }, () => {
 			const graph = particleGraphCase( random ), drawn = graph.map( () => random() < .7 );
-			return { graph, a: one.admit( graph, drawn, 7 ), b: many.admit( graph, drawn, 7 ) };
+			return {
+				graph,
+				a: /** @type {number} */ (one.admit( graph, drawn, 7 )),
+				b: /** @type {number} */ (many.admit( graph, drawn, 7 ))
+			};
 		} );
 		const frames = particleFrames( random, 30 );
 		for ( const input of frames ) {
@@ -314,7 +318,8 @@ test("graphs on worker threads over growing tables tick as one thread does", asy
 				assert.equal( many.frame( pair.b ), one.frame( pair.a ) );
 				assert.equal( many.index( pair.b ), one.index( pair.a ) );
 				pair.graph.forEach( ( _, n ) => {
-					const a = one.emitter( pair.a, n ), b = many.emitter( pair.b, n );
+					const a = one.emitter( pair.a, n );
+					const b = /** @type {NonNullable<typeof a>} */ (many.emitter( pair.b, n ));
 					if ( !a ) return;
 					assert.equal( b.rows, a.rows );
 					assert.equal( b.live, a.live );
@@ -349,7 +354,7 @@ test("a particle chunk run twice, as after a stalled worker, leaves the same bit
 test("released instances and definitions are reused, and requests wait for a tick or a crossing", () => {
 	const workers = createInlineWorkers(), graphs = createParticleGraphs( workers, TABLE );
 	const random = createRandom( 3 ), graph = particleGraphCase( random ), drawn = graph.map( () => true );
-	const first = graphs.admit( graph, drawn, 0 );
+	const first = /** @type {number} */ (graphs.admit( graph, drawn, 0 ));
 	const transform = Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
 	assert.equal( graphs.request( first, .1, transform, Infinity, 0, 0, false ), true );
 	graphs.run();

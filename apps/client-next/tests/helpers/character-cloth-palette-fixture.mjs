@@ -420,6 +420,17 @@ function vertexDigest( draws, name ) {
 captureClothPalettes
 ================
 */
+/**
+ * @param {boolean} [gpuAvailable]
+ * @param {boolean} [admitUnusedClip]
+ * @param {{
+ * 	moving?: boolean,
+ * 	variants?: boolean,
+ * 	frameWorkers?: import("../../src/engine/contracts/frame-workers.ts").FrameKernelPhases,
+ * 	mixed?: boolean,
+ * 	holdCloth?: boolean
+ * }} [options]
+ */
 export function captureClothPalettes(
 	gpuAvailable = false,
 	admitUnusedClip = false,

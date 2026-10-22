@@ -135,7 +135,7 @@ test("a world cloth wearer holds when its object cloth holds, apart from the cha
 				continue;
 			}
 			ran++;
-			world.request( slot, palette, input.seconds, input.enabled, input.motion );
+			world.request( slot, /** @type {Float32Array} */ (palette), input.seconds, input.enabled, input.motion );
 			world.run();
 			// The characters' bank resets and reuses its tables: the world's stay.
 			if ( frame === 90 ) {
@@ -146,7 +146,7 @@ test("a world cloth wearer holds when its object cloth holds, apart from the cha
 			characters.run();
 			sameFloats(
 				world.vertices( slot ),
-				cloth.update( palette, input.seconds, input.enabled, input.motion ),
+				cloth.update( /** @type {Float32Array} */ (palette), input.seconds, input.enabled, input.motion ),
 				`skinned=${skinned} normals=${normals} frame ${frame}`
 			);
 		}

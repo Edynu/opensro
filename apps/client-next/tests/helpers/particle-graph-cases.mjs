@@ -211,8 +211,8 @@ export function particleGraphCase( random ) {
 			rotations: random() < .3 ?
 				Array.from( { length: 1 + Math.floor( random() * 3 ) }, () => quaternionMatrix( random ) ) :
 				[],
-			parents: [],
-			births: []
+			parents: /** @type {number[]} */ ([]),
+			births: /** @type {number[]} */ ([])
 		};
 		if ( random() < .3 ) def.loop = true;
 		if ( random() < .25 ) def.localMotion = true;

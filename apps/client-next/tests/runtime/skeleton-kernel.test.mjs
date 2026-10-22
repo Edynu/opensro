@@ -32,9 +32,14 @@ const { INITIAL_SKELETONS, INITIAL_SKELETON_STATE_FLOATS } = await import(
 	"../../src/engine/foundation/kernels/frame-kernels.ts"
 );
 
+/** @typedef {import("../../src/engine/contracts/character.ts").CharacterChannel} CharacterChannel */
+/** @typedef {import("../../src/engine/contracts/character.ts").CharacterClip} CharacterClip */
+
 // Bone names the body volume table and the rotator act on.
 const NAMED = [ "Bip01", "Bip01 Pelvis", "Bip01 Spine", "Bip01 Spine1", "Bip01 L Thigh", "Bip01 R UpperArm" ];
+/** @type {CharacterChannel["path"][]} */
 const PATHS = [ "translation", "rotation", "scale" ];
+/** @type {CharacterChannel["interpolation"][]} */
 const INTERPOLATIONS = [ "LINEAR", "LINEAR", "STEP", "CUBICSPLINE" ];
 
 /*
@@ -59,6 +64,7 @@ bytes and a clock of their own; duplicate makes one node/path twice.
 function createClip( random, name, nodes, duplicate ) {
 	const keys = 2 + Math.floor( random() * 6 ), duration = .5 + random() * 1.5;
 	const clock = Float32Array.from( { length: keys }, ( _, i ) => duration * i / (keys - 1) );
+	/** @type {CharacterChannel[]} */
 	const channels = [];
 	for ( let node = 0; node < nodes; node++ ) {
 		if ( random() < .35 ) continue;
@@ -110,9 +116,9 @@ function createModel( random, nodes ) {
 				{ matrix: Array.from( { length: 16 }, ( _, c ) => c % 5 === 0 ? 1 : random() * .1 ) } :
 				{})
 		}) ),
-		clips: [],
+		clips: /** @type {CharacterClip[]} */ ([]),
 		images: [],
-		primitives: []
+		primitives: /** @type {any[]} */ ([])
 	};
 	model.clips = [ 0, 1, 2, 3 ].map( i => createClip( random, `clip-${i}`, nodes, i === 3 ) );
 	for ( let p = 0; p < 2; p++ ) {
@@ -282,7 +288,8 @@ test("a body volume changed after its pose was queued is not read from the phase
 	const random = createRandom( 0xb0d1 ), model = createModel( random, 20 );
 	const flat = createCharacterPose( model, skeletons.pose ), object = createCharacterPose( model );
 	for ( let frame = 0; frame < 40; frame++ ) {
-		const input = drive( random, model, frame ), volume = [ frame % 5, frame % 2 === 0 ];
+		const input = drive( random, model, frame );
+		const volume = /** @type {[ number, boolean ]} */ ([ frame % 5, frame % 2 === 0 ]);
 		skeletons.collect();
 		assert.equal( apply( flat, input ), apply( object, input ) );
 		// The phase's palettes take the thickness the inputs were queued with.

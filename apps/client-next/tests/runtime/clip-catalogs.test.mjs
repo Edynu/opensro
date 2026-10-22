@@ -30,7 +30,12 @@ const { characterBytes, characterClipBytes } = await import(
 	"../../src/engine/foundation/animation/character-budget.ts"
 );
 
+/** @typedef {import("../../src/engine/contracts/character.ts").CharacterChannel} CharacterChannel */
+/** @typedef {import("../../src/engine/contracts/character.ts").CharacterClip} CharacterClip */
+
+/** @type {CharacterChannel["path"][]} */
 const PATHS = [ "translation", "rotation", "scale" ];
+/** @type {CharacterChannel["interpolation"][]} */
 const INTERPOLATIONS = [ "LINEAR", "LINEAR", "STEP", "CUBICSPLINE" ];
 
 /*
@@ -55,6 +60,7 @@ native clip does.
 function createClip( random, name, nodes ) {
 	const keys = 2 + Math.floor( random() * 5 ), duration = .5 + random() * 2;
 	const times = Float32Array.from( { length: keys }, ( _, i ) => duration * i / (keys - 1) );
+	/** @type {CharacterChannel[]} */
 	const channels = [];
 	for ( let node = 0; node < nodes; node++ ) {
 		if ( random() < .5 ) continue;
@@ -114,9 +120,9 @@ A clip plan cache that counts the catalogs it extended.
 */
 function countingPlans() {
 	const counts = { extended: 0 };
-	const plans = createClipCatalogCache( createGpuClipPlan, ( previous, clips, from ) => {
+	const plans = createClipCatalogCache( createGpuClipPlan, ( previous, clips ) => {
 		counts.extended++;
-		return extendGpuClipPlan( previous, clips, from );
+		return extendGpuClipPlan( previous, clips );
 	} );
 	return { plans, counts };
 }
@@ -179,12 +185,12 @@ test("the bounds envelope of a growing catalog gives the uncached radius of ever
 		rotation: quaternion( random ),
 		scale: [ 1, .8 + random() * .4, 1 ]
 	}) );
-	const primitive = {
+	const primitive = /** @type {any} */ ({
 		joints: [ 0, 3, 7 ],
 		inverseBind: Float32Array.from( { length: 48 }, ( _, i ) => i % 5 === 0 ? 1 : 0 ),
 		geometry: { positions: Float32Array.from( { length: 30 }, () => random() * 2 - 1 ) }
-	};
-	const body = { nodes, primitives: [ primitive ], images: [], clips: [] };
+	});
+	const body = { nodes, primitives: [ primitive ], images: [], clips: /** @type {CharacterClip[]} */ ([]) };
 	for ( let step = 0; step < 30; step++ ) {
 		// A channel past the skeleton is ignored by both.
 		const clip = createClip( random, `clip-${step}`, step === 17 ? 14 : 12 );
@@ -211,6 +217,7 @@ test("an admitted clone's charge adds to the source's as characterBytes counts i
 		bytes = characterClipBytes( bytes, clip );
 		assert.equal( bytes, characterBytes( model, [] ) );
 	}
+	/** @type {CharacterClip} */
 	const huge = {
 		name: "huge",
 		duration: 1,
