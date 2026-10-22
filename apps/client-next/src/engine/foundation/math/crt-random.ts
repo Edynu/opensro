@@ -13,9 +13,10 @@ owns which thread's stream it projects and stores the returned state.
 */
 
 // MSVC rand(): state = state * 214013 + 2531011, output = (state >> 16) & 0x7fff.
-const CRT_RAND_MULTIPLIER = 0x343fd;
-const CRT_RAND_INCREMENT = 0x269ec3;
-const CRT_RAND_MAX = 0x7fff;
+// Exported for flat ports that draw inline (kernels/cloth-kernel.ts).
+export const CRT_RAND_MULTIPLIER = 0x343fd;
+export const CRT_RAND_INCREMENT = 0x269ec3;
+export const CRT_RAND_MAX = 0x7fff;
 
 const INT32_MIN = -0x80000000;
 const INT32_MAX = 0x7fffffff;

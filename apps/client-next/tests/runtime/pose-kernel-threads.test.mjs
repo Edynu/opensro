@@ -5,7 +5,7 @@ pose-kernel-threads.test.mjs - the pose phase on worker threads, bit for bit
 
 Two pose presentations see the same seeded frames: one runs its pose
 phase on this thread, the other on real worker threads over shared,
-growable memory (tests/helpers/frame-kernel-worker.mjs runs the shipping
+growable memory (tests/helpers/frame-kernel-threads.mjs runs the shipping
 frame-jobs loop and kernel dispatch, as the browser's frame workers do).
 Every drawn pose must match bit for bit, with more characters than the
 tables start with, so they grow while the workers hold views on them.
@@ -15,7 +15,6 @@ tables start with, so they grow while the workers hold views on them.
 import "../helpers/native-source-loader.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Worker } from "node:worker_threads";
 import {
 	SAMPLE_DISTANCE,
 	TICK_MS,
@@ -26,72 +25,14 @@ import {
 	sameBits,
 	shapedSample
 } from "../helpers/walk-scenario.mjs";
+import { createThreadedWorkers } from "../helpers/frame-kernel-threads.mjs";
 
 const { createPosePresentation } = await import( "../../src/engine/runtime/characters/pose-presentation.ts" );
-const { INITIAL_POSE_SLOTS, createFrameKernelMemory } = await import(
-	"../../src/engine/foundation/kernels/frame-kernels.ts"
-);
-const {
-	FRAME_CONTROL_WORDS,
-	framePhaseComplete,
-	framePhaseFailed,
-	nextFrameGeneration,
-	publishFramePhase,
-	readyFrameWorkers,
-	serveFramePhase,
-	stopFrameJobs
-} = await import( "../../src/engine/foundation/workers/frame-jobs.ts" );
+const { INITIAL_POSE_SLOTS } = await import( "../../src/engine/foundation/kernels/frame-kernels.ts" );
 
-const WORKER = new URL( "../helpers/frame-kernel-worker.mjs", import.meta.url );
 const THREADS = 4;
 const ACTORS = 300;
 const FRAMES = 240;
-const JOIN_LIMIT_MS = 10000;
-
-/*
-================
-createThreadedWorkers
-
-A PoseFrameWorkers on worker threads: growable shared kernel tables, and a
-phase that publishes, serves beside the threads and joins, as the
-browser's frame-workers.ts does.
-================
-*/
-async function createThreadedWorkers( count ) {
-	const control = new Int32Array( new SharedArrayBuffer( FRAME_CONTROL_WORDS * Int32Array.BYTES_PER_ELEMENT ) );
-	const kernels = createFrameKernelMemory( ( bytes, maxBytes ) =>
-		new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } )
-	);
-	const threads = Array.from(
-		{ length: count },
-		() => new Worker( WORKER, { workerData: { control: control.buffer, kernels } } )
-	);
-	const started = Date.now();
-	while ( readyFrameWorkers( control ) < count ) {
-		if ( Date.now() - started > JOIN_LIMIT_MS ) throw Error( "kernel threads did not start" );
-		await new Promise( resolve => setTimeout( resolve, 5 ) );
-	}
-	let generation = 0, phases = 0;
-	return {
-		memory: () => kernels,
-		run( kernel, chunks, local ) {
-			generation = nextFrameGeneration( generation );
-			phases++;
-			publishFramePhase( control, generation, kernel, chunks );
-			serveFramePhase( control, local );
-			const joining = Date.now();
-			while ( !framePhaseComplete( control, generation ) ) {
-				if ( Date.now() - joining > JOIN_LIMIT_MS ) throw Error( "pose phase did not complete" );
-			}
-			if ( framePhaseFailed( control, generation ) ) throw Error( "a pose chunk failed" );
-		},
-		phases: () => phases,
-		async close() {
-			stopFrameJobs( control );
-			await Promise.all( threads.map( thread => thread.terminate() ) );
-		}
-	};
-}
 
 test("a pose phase on worker threads draws every pose as one thread does", async () => {
 	assert.ok( ACTORS > INITIAL_POSE_SLOTS, "the tables must grow under the workers" );

@@ -25,10 +25,19 @@ looks different from the rest of the client:
   original (`tests/fixtures/*-before-*.ts`) and requires identical bits.
 - **One record per actor, whole.** A thread copies the record in, runs the
   kernel, and copies it back. The record's owner (a runtime module) writes
-  its inputs and reads its outputs; nothing else touches it.
+  its inputs and reads its outputs; nothing else touches it. A record too
+  large to copy (a cloth wearer's vertices) is double-buffered instead:
+  the kernel reads the current half and writes the other, and the owner
+  switches halves after the phase.
+- **Restartable.** A chunk a stalled worker left is run again by the main
+  thread, so a kernel never changes what it reads.
+- **Same draws, same bits.** Where the owner decided a kernel's random
+  numbers may come from the actor's own stream instead of a shared one
+  (cloth, docs/CLIENT_WORKERS_PLAN.md section 7), the kernel still matches
+  the original bit for bit given the same draws, and its test proves it.
 
 Run the differential tests after any change here:
 
 ```
-node --test tests/runtime/pose-presentation-flat-walk.test.mjs
+node --test tests/runtime/pose-presentation-flat-walk.test.mjs tests/runtime/cloth-kernel.test.mjs
 ```

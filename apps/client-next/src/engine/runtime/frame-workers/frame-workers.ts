@@ -105,6 +105,16 @@ export function createFrameWorkers() {
 	return {
 		/*
 		================
+		enabled
+
+		The player turned Worker threads on: work whose result is not the
+		original's bit for bit (cloth's own random streams) runs on the frame
+		workers then, or inline without them.
+		================
+		*/
+		enabled: setting !== "off",
+		/*
+		================
 		run
 
 		One phase: kernel over chunks, on the workers and this thread. Returns

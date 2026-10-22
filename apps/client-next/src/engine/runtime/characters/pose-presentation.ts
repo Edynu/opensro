@@ -63,8 +63,7 @@ import {
 	refreshViews,
 	restoreRecord,
 	runFrameKernel,
-	snapshotRecord,
-	type FrameKernelMemory
+	snapshotRecord
 } from "@/engine/foundation/kernels/frame-kernels";
 import {
 	C_NOW,
@@ -171,14 +170,10 @@ function reasonCode( reason: string | undefined ): number {
 ================
 PoseFrameWorkers
 
-What the pose presentation needs from the frame workers: their kernel
-memory, and a phase over it (runtime/frame-workers/frame-workers.ts).
+What the pose presentation needs from the frame workers.
 ================
 */
-export interface PoseFrameWorkers {
-	memory(): FrameKernelMemory;
-	run( kernel: number, chunks: number, local: FrameJobRunner ): void;
-}
+export type PoseFrameWorkers = import("@/engine/contracts/frame-workers").FrameKernelPhases;
 
 /*
 ================

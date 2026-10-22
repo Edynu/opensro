@@ -6,6 +6,7 @@ characters.ts - admitted character models, world batches and separate portrait s
 ===========================================================================
 */
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
+import { clothSeed, createClothWearers } from "./cloth-wearers";
 import { characterLabelHeight } from "@/engine/foundation/ui/character-labels";
 import { regionOffsetXZ, regionRelativeXZ } from "@/engine/foundation/world/world-space";
 import type { WorldTexture } from "@/engine/contracts/texture";
@@ -219,7 +220,13 @@ createCharacters
 Own source resources separately from borrowed assemblies and per-frame draw batches.
 ================
 */
-export function createCharacters( random?: import("@/engine/contracts/presentation-random").PresentationRandom ) {
+export function createCharacters(
+	random?: import("@/engine/contracts/presentation-random").PresentationRandom,
+	frameWorkers?: import("@/engine/contracts/frame-workers").FrameKernelPhases
+) {
+	// Port-only, not native: with Worker threads on, the world's cloth steps on
+	// the frame workers, each wearer from its own random stream (cloth-wearers.ts).
+	const clothWearers = frameWorkers ? createClothWearers( frameWorkers ) : undefined;
 	// prepareGroup consumes this scratch synchronously before the next group.
 	// Account it separately from admission: caching must not remove actors
 	// that fit the existing draw budget. Actor snapshots bound both arrays.
@@ -362,6 +369,8 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		// vertex count the last frame wrote.
 		ribbons: (RibbonBuffers | undefined)[];
 		cloth?: Map<number, ReturnType<typeof createClothVertices>>;
+		// With Worker threads on: each cloth primitive's wearer (cloth-wearers.ts).
+		wearers?: Map<number, number>;
 		poseKey?: string;
 	}>();
 	// ownedModels counts the owned entries of models (decoded sources); the
@@ -1021,6 +1030,10 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		readonly transforms: Map<number, Float32Array>;
 		readonly opacity: ( actor: CharacterActor ) => number;
 		readonly output: GeometryDraw[];
+		// With Worker threads on: cloth draws and their wearers, uploaded after
+		// the frame's cloth phase.
+		readonly clothDraws: GeometryDraw[];
+		readonly clothSlots: number[];
 	}
 	/*
 	================
@@ -1104,6 +1117,18 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 	}
 	/*
 	================
+	releaseWearers
+
+	A dropped batch's cloth wearers (cloth-wearers.ts).
+	================
+	*/
+	function releaseWearers( batch: { wearers?: Map<number, number>; } | undefined ) {
+		if ( !batch?.wearers ) return;
+		for ( const slot of batch.wearers.values() ) clothWearers?.release( slot );
+		batch.wearers.clear();
+	}
+	/*
+	================
 	retireModels
 
 	Drop the models and assemblies no retained, published or portrait actor
@@ -1118,6 +1143,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			if ( keep.has( id ) ) continue;
 			const batch = batches.get( id );
 			if ( batch ) retiredDraws.push( ...batch.draws );
+			releaseWearers( batch );
 			batches.delete( id );
 			forgetModel( id, resource );
 		}
@@ -1207,6 +1233,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				for ( const draw of batches.get( id )?.draws ?? [] ) {
 					geometry.release( draw );
 				}
+				releaseWearers( batches.get( id ) );
 				batches.delete( id );
 				forgetModel( id, resource );
 			}
@@ -1590,6 +1617,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				for ( const draw of batch.draws ) {
 					frame.geometry.release( draw );
 				}
+				releaseWearers( batch );
 				batches.delete( id );
 			}
 		}
@@ -1704,6 +1732,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				for ( const draw of batch.draws ) {
 					frame.geometry.release( draw );
 				}
+				releaseWearers( batch );
 				batches.delete( id );
 			}
 		}
@@ -2261,11 +2290,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		const geometry = frame.geometry;
 		const { preview, view } = frame, { rows, batch, fading } = group;
 		const { instances, appearance, pointLights } = streams, primitive = group.model.primitives[p]!;
-		batch.cloth ??= new Map();
-		let cloth = batch.cloth.get( p );
-		if ( !cloth ) {
-			cloth = createClothVertices( primitive, clothRandom );
-			batch.cloth.set( p, cloth );
+		let cloth: ReturnType<typeof createClothVertices> | undefined;
+		if ( !clothWearers ) {
+			batch.cloth ??= new Map();
+			cloth = batch.cloth.get( p );
+			if ( !cloth ) {
+				cloth = createClothVertices( primitive, clothRandom );
+				batch.cloth.set( p, cloth );
+			}
 		}
 		let draw = batch.draws[p];
 		const placementChanged = !draw || group.instancesChanged || fading || appearance || pointLights;
@@ -2282,17 +2314,21 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 			);
 		}
 		batch.draws[p] = draw;
-		geometry.writeVertices(
-			draw,
-			0,
-			cloth.update(
-				batch.palettes[p]!,
-				frame.seconds,
-				frame.dynamicAnimation && (rows[0]!.animationLod?.fraction ?? 0) < .25,
-				// CIObject 853C40 initializes +C4 to zero; 85DEBB clears it each tick.
-				{ direction: [ instances[8]!, instances[9]!, -instances[10]! ], speed: 0 }
-			)
-		);
+		const enabled = frame.dynamicAnimation && (rows[0]!.animationLod?.fraction ?? 0) < .25;
+		// CIObject 853C40 initializes +C4 to zero; 85DEBB clears it each tick.
+		const motion = { direction: [ instances[8]!, instances[9]!, -instances[10]! ], speed: 0 };
+		if ( clothWearers ) {
+			batch.wearers ??= new Map();
+			let slot = batch.wearers.get( p );
+			if ( slot === undefined ) {
+				slot = clothWearers.admit( primitive, clothSeed( rows[0]!.gid, p ) );
+				batch.wearers.set( p, slot );
+			}
+			clothWearers.request( slot, batch.palettes[p]!, frame.seconds, enabled, motion );
+			// prepare uploads its vertices after the frame's cloth phase.
+			frame.clothDraws.push( draw );
+			frame.clothSlots.push( slot );
+		} else geometry.writeVertices( draw, 0, cloth!.update( batch.palettes[p]!, frame.seconds, enabled, motion ) );
 		if ( preview ) geometry.updateTransform( draw, view! );
 		updateModifiers( geometry, group, draw, p, true );
 		return draw;
@@ -3269,6 +3305,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				frameGroups =
 					0;
 			framePoses = new Map();
+			clothWearers?.begin();
 			const { frameActors, cycles } = sampleFrameActors( continuation );
 			// Residency retires draws and textures; the first pass's recorded
 			// commands still use them, so the continuation leaves it for the next
@@ -3293,7 +3330,9 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				chains,
 				transforms: new Map(),
 				opacity: actorOpacity( byGid ),
-				output: []
+				output: [],
+				clothDraws: [],
+				clothSlots: []
 			};
 			const particles = advanceParticles( frame );
 			const visible = selectVisible( frame, particles.accepted, reflectedView );
@@ -3343,6 +3382,14 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				if ( continuation && !rows[0]!.deferredParticle ) continue;
 				prepareGroup( frame, id, rows );
 			}
+			// Port-only, not native: every requested cloth wearer in one phase on
+			// the frame workers, then their vertices into the draws.
+			if ( clothWearers && frame.clothSlots.length ) {
+				clothWearers.run();
+				for ( let i = 0; i < frame.clothSlots.length; i++ ) {
+					geometry.writeVertices( frame.clothDraws[i]!, 0, clothWearers.vertices( frame.clothSlots[i]! ) );
+				}
+			}
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );
 			frameGroups = grouped.size;
@@ -3358,6 +3405,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 		*/
 		invalidate() {
 			rowStreams.rowScratch = rowStreams.lightScratch = undefined;
+			clothWearers?.reset();
 			batches.clear();
 			retiredDraws = [];
 			textures.clear();
@@ -3401,6 +3449,7 @@ export function createCharacters( random?: import("@/engine/contracts/presentati
 				images?.release( draw );
 			}
 			textures.clear();
+			clothWearers?.reset();
 			batches.clear();
 			models.clear();
 			poses.clear();

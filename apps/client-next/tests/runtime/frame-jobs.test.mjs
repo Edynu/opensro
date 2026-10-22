@@ -25,7 +25,6 @@ const {
 	framePhaseFailed,
 	frameWorkerCount,
 	frameWorkerLimit,
-	frameWorkerSetting,
 	nextFrameGeneration,
 	publishFramePhase,
 	readyFrameWorkers,
@@ -99,18 +98,6 @@ test("auto leaves three threads to the page and a picked count is the player's, 
 	assert.equal( frameWorkerCount( 24, 23 ), 23 );
 	assert.equal( frameWorkerCount( 4, 8 ), 3, "a count saved on a larger machine starts what this one allows" );
 	assert.equal( frameWorkerCount( 64, 2 ), 2 );
-	assert.deepEqual( [ "off", "auto", 1, 64, 0, 65, 2.5, "4", true, null ].map( frameWorkerSetting ), [
-		"off",
-		"auto",
-		1,
-		64,
-		undefined,
-		undefined,
-		undefined,
-		undefined,
-		undefined,
-		undefined
-	] );
 });
 
 test("consecutive generations alternate slots, across the wrap too", () => {

@@ -20,6 +20,7 @@ const { experimentalGameplay, experimentalOptions, experimentalVideo, renderScal
 const { createExperimentalHud, EXPERIMENTAL_TABS } = await import(
 	"../../src/engine/runtime/ui/hud/experimental-hud.ts"
 );
+const { MAX_FRAME_WORKERS } = await import( "../../src/engine/foundation/workers/frame-jobs.ts" );
 
 const OFF = Object.freeze( {
 	renderScale: 100,
@@ -542,9 +543,10 @@ test("worker threads default off, keep off, auto or a whole count, and stay out 
 		assert.equal( "frameWorkers" in experimentalVideo( options ), false );
 		assert.equal( "frameWorkers" in experimentalGameplay( options ), false );
 	}
-	for ( const setting of [ "off", "auto", 1, 3, 8, 23, 64 ] ) {
+	for ( const setting of [ "off", "auto", 1, 3, 8, 23, MAX_FRAME_WORKERS ] ) {
 		assert.equal( experimentalOptions( { frameWorkers: setting } ).frameWorkers, setting );
 	}
+	assert.equal( experimentalOptions( { frameWorkers: MAX_FRAME_WORKERS + 1 } ).frameWorkers, "off" );
 	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "frameWorkers" ) ) );
 });
 

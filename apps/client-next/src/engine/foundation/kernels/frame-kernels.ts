@@ -16,13 +16,20 @@ them and after the first are kept as snapshots, so the record's owner
 (pose-presentation.ts) can hand out a call whose arguments match and roll
 back to the right state when one does not.
 
+KERNEL_CLOTH: each requested cloth wearer's frame (cloth-kernel.ts) into
+its packed vertices, for its owner (renderer/characters/cloth-wearers.ts)
+to upload.
+
 ===========================================================================
 */
+import { advanceClothWearer } from "./cloth-kernel";
+import { CLOTH_RECORD } from "./cloth-record";
 import { POSE_SCRATCH, presentPose } from "./pose-kernel";
 import { O_POSE, POSE_RECORD } from "./pose-record";
 
 // Kernel ids, as published in a phase.
 export const KERNEL_POSE = 1;
+export const KERNEL_CLOTH = 2;
 // Characters per KERNEL_POSE chunk.
 export const POSE_CHUNK = 8;
 // Snapshots per character record: before the first call, after it.
@@ -39,6 +46,18 @@ export const MAX_POSE_SLOTS = 8192;
 // track chains.
 export const INITIAL_ARENA_WORDS = 65536;
 export const MAX_ARENA_WORDS = 16777216;
+// Cloth wearers per KERNEL_CLOTH chunk, and the wearers the records hold
+// before growing and at most (one phase: MAX_FRAME_CHUNKS chunks of two).
+// 214 players wore 120 cloth primitives.
+export const CLOTH_CHUNK = 2;
+export const INITIAL_CLOTH_WEARERS = 128;
+export const MAX_CLOTH_WEARERS = 2048;
+// Cloth programs (doubles) and wearer state (floats) before growing, and at
+// most: a program takes about 16 doubles a vertex, a wearer 29 floats.
+export const INITIAL_CLOTH_PROGRAM_WORDS = 262144;
+export const MAX_CLOTH_PROGRAM_WORDS = 8388608;
+export const INITIAL_CLOTH_STATE_FLOATS = 1048576;
+export const MAX_CLOTH_STATE_FLOATS = 33554432;
 
 /*
 ================
@@ -47,9 +66,11 @@ FrameKernelMemory
 The tables every frame kernel thread shares: poseRecords holds
 POSE_RECORD doubles a character, poseSnapshots POSE_SNAPSHOTS records a
 character, walkArena the certified chains and poseRequests the characters
-of the open pose phase. With frame workers they are growable shared
-buffers that grow in place; on one thread they are ordinary buffers that
-growTable replaces with larger copies.
+of the open pose phase; clothRecords, clothPrograms and clothState the
+cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
+cloth phase. With frame workers they are growable shared buffers that
+grow in place; on one thread they are ordinary buffers that growTable
+replaces with larger copies.
 ================
 */
 export interface FrameKernelMemory {
@@ -57,6 +78,10 @@ export interface FrameKernelMemory {
 	poseSnapshots: ArrayBufferLike;
 	walkArena: ArrayBufferLike;
 	poseRequests: ArrayBufferLike;
+	clothRecords: ArrayBufferLike;
+	clothPrograms: ArrayBufferLike;
+	clothState: ArrayBufferLike;
+	clothRequests: ArrayBufferLike;
 }
 
 /*
@@ -95,6 +120,22 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 		poseRequests: allocate(
 			(REQUEST_SLOTS + MAX_POSE_SLOTS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_POSE_SLOTS) * Int32Array.BYTES_PER_ELEMENT
+		),
+		clothRecords: allocate(
+			INITIAL_CLOTH_WEARERS * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_WEARERS * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT
+		),
+		clothPrograms: allocate(
+			INITIAL_CLOTH_PROGRAM_WORDS * Float64Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_PROGRAM_WORDS * Float64Array.BYTES_PER_ELEMENT
+		),
+		clothState: allocate(
+			INITIAL_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT
+		),
+		clothRequests: allocate(
+			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
+			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT
 		)
 	};
 }
@@ -147,6 +188,10 @@ export interface FrameKernelViews {
 	poseSnapshots: Float64Array;
 	walkArena: Float64Array;
 	poseRequests: Int32Array;
+	clothRecords: Float64Array;
+	clothPrograms: Float64Array;
+	clothState: Float32Array;
+	clothRequests: Int32Array;
 	readonly scratch: Float64Array;
 }
 
@@ -164,6 +209,10 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		poseSnapshots: new Float64Array( 0 ),
 		walkArena: new Float64Array( 0 ),
 		poseRequests: new Int32Array( 0 ),
+		clothRecords: new Float64Array( 0 ),
+		clothPrograms: new Float64Array( 0 ),
+		clothState: new Float32Array( 0 ),
+		clothRequests: new Int32Array( 0 ),
 		scratch: new Float64Array( POSE_SCRATCH )
 	};
 	refreshViews( views );
@@ -183,43 +232,51 @@ slower (2026-10-22, Node 24): views never track.
 */
 export function refreshViews( views: FrameKernelViews ) {
 	const memory = views.memory;
-	if (
-		views.poseRecords.buffer !== memory.poseRecords ||
-		views.poseRecords.byteLength !== memory.poseRecords.byteLength
-	) {
-		views.poseRecords = new Float64Array(
-			memory.poseRecords,
-			0,
-			memory.poseRecords.byteLength / Float64Array.BYTES_PER_ELEMENT
-		);
-	}
-	if (
-		views.poseSnapshots.buffer !== memory.poseSnapshots ||
-		views.poseSnapshots.byteLength !== memory.poseSnapshots.byteLength
-	) {
-		views.poseSnapshots = new Float64Array(
-			memory.poseSnapshots,
-			0,
-			memory.poseSnapshots.byteLength / Float64Array.BYTES_PER_ELEMENT
-		);
-	}
-	if ( views.walkArena.buffer !== memory.walkArena || views.walkArena.byteLength !== memory.walkArena.byteLength ) {
-		views.walkArena = new Float64Array(
-			memory.walkArena,
-			0,
-			memory.walkArena.byteLength / Float64Array.BYTES_PER_ELEMENT
-		);
-	}
-	if (
-		views.poseRequests.buffer !== memory.poseRequests ||
-		views.poseRequests.byteLength !== memory.poseRequests.byteLength
-	) {
-		views.poseRequests = new Int32Array(
-			memory.poseRequests,
-			0,
-			memory.poseRequests.byteLength / Int32Array.BYTES_PER_ELEMENT
-		);
-	}
+	views.poseRecords = float64View( views.poseRecords, memory.poseRecords );
+	views.poseSnapshots = float64View( views.poseSnapshots, memory.poseSnapshots );
+	views.walkArena = float64View( views.walkArena, memory.walkArena );
+	views.poseRequests = int32View( views.poseRequests, memory.poseRequests );
+	views.clothRecords = float64View( views.clothRecords, memory.clothRecords );
+	views.clothPrograms = float64View( views.clothPrograms, memory.clothPrograms );
+	views.clothState = float32View( views.clothState, memory.clothState );
+	views.clothRequests = int32View( views.clothRequests, memory.clothRequests );
+}
+
+/*
+================
+float64View
+
+The view itself while it still spans its table's buffer, else a new
+fixed-length one over the buffer's current length. float32View and
+int32View likewise.
+================
+*/
+function float64View( view: Float64Array, buffer: ArrayBufferLike ): Float64Array {
+	return view.buffer === buffer && view.byteLength === buffer.byteLength ?
+		view :
+		new Float64Array( buffer, 0, buffer.byteLength / Float64Array.BYTES_PER_ELEMENT );
+}
+
+/*
+================
+float32View
+================
+*/
+function float32View( view: Float32Array, buffer: ArrayBufferLike ): Float32Array {
+	return view.buffer === buffer && view.byteLength === buffer.byteLength ?
+		view :
+		new Float32Array( buffer, 0, buffer.byteLength / Float32Array.BYTES_PER_ELEMENT );
+}
+
+/*
+================
+int32View
+================
+*/
+function int32View( view: Int32Array, buffer: ArrayBufferLike ): Int32Array {
+	return view.buffer === buffer && view.byteLength === buffer.byteLength ?
+		view :
+		new Int32Array( buffer, 0, buffer.byteLength / Int32Array.BYTES_PER_ELEMENT );
 }
 
 /*
@@ -299,9 +356,25 @@ One chunk of one kernel, on any thread.
 ================
 */
 export function runFrameKernel( views: FrameKernelViews, kernel: number, chunk: number ) {
-	if ( kernel !== KERNEL_POSE ) throw Error( `Unknown frame kernel ${kernel}` );
 	refreshViews( views );
-	const requests = views.poseRequests, count = requests[REQUEST_COUNT]!;
-	const end = Math.min( count, (chunk + 1) * POSE_CHUNK );
-	for ( let i = chunk * POSE_CHUNK; i < end; i++ ) presentPredicted( views, requests[REQUEST_SLOTS + i]! );
+	if ( kernel === KERNEL_POSE ) {
+		const requests = views.poseRequests, count = requests[REQUEST_COUNT]!;
+		const end = Math.min( count, (chunk + 1) * POSE_CHUNK );
+		for ( let i = chunk * POSE_CHUNK; i < end; i++ ) presentPredicted( views, requests[REQUEST_SLOTS + i]! );
+		return;
+	}
+	if ( kernel === KERNEL_CLOTH ) {
+		const requests = views.clothRequests, count = requests[REQUEST_COUNT]!;
+		const end = Math.min( count, (chunk + 1) * CLOTH_CHUNK );
+		for ( let i = chunk * CLOTH_CHUNK; i < end; i++ ) {
+			advanceClothWearer(
+				views.clothRecords,
+				views.clothPrograms,
+				views.clothState,
+				requests[REQUEST_SLOTS + i]!
+			);
+		}
+		return;
+	}
+	throw Error( `Unknown frame kernel ${kernel}` );
 }

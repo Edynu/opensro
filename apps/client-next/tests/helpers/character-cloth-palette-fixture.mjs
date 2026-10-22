@@ -393,10 +393,10 @@ captureClothPalettes
 export function captureClothPalettes(
 	gpuAvailable = false,
 	admitUnusedClip = false,
-	{ moving = false, variants = false } = {}
+	{ moving = false, variants = false, frameWorkers = undefined } = {}
 ) {
 	const random = createPresentationRandom( RANDOM_SEED, 1, 100000 );
-	const owner = createCharacters( random ), tags = new Map();
+	const owner = createCharacters( random, frameWorkers ), tags = new Map();
 	owner.model( "body-first", model( false, tags ), [] );
 	owner.model( "cloth-first", model( true, tags ), [] );
 	const geometry = captureGeometry( tags, gpuAvailable ), clock = clothVertexCase( true, true );

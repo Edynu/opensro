@@ -51,7 +51,8 @@ export function createRenderer(
 	canvas: HTMLCanvasElement,
 	random?: PresentationRandom,
 	sound?: ( event: import("@/engine/contracts/audio").SoundEvent ) => void,
-	diagnostics: import("@/engine/contracts/runtime").RuntimeDiagnostics = {}
+	diagnostics: import("@/engine/contracts/runtime").RuntimeDiagnostics = {},
+	frameWorkers?: import("@/engine/contracts/frame-workers").FrameKernelPhases
 ): Renderer {
 	let video = defaultVideoOptions();
 	// Experimental > Video, all off (native) until the saved preference arrives.
@@ -101,7 +102,8 @@ export function createRenderer(
 	let damageRows: readonly import("@/engine/contracts/damage-text").DamageText[] = [];
 	const damageTextures = damageTextAssets();
 	const world = createWorldRenderer( undefined, readPickAlpha, random, sound ),
-		characters = createCharacters( random );
+		// The world's cloth steps on the frame workers when given them.
+		characters = createCharacters( random, frameWorkers );
 	let device = createDevice( diagnostics.gpuTiming, diagnostics.gpuAnimation !== false ), recoveries = 0;
 	// The texture features of the first device that learns them; the variant
 	// is chosen once per page. A device lost before it learned them hands over

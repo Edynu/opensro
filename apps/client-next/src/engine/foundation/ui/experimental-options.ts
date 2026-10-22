@@ -11,7 +11,12 @@ options (Water reflection, Metal detail), not experimental ones.
 
 ===========================================================================
 */
-import { type FrameWorkerSetting, frameWorkerSetting } from "@/engine/foundation/workers/frame-jobs";
+// Types only: perf tools load this module without the @/ alias (tools/perf/core/client.mjs).
+import type { FrameWorkerSetting } from "@/engine/foundation/workers/frame-jobs";
+
+// The most worker threads a saved setting may hold: frame-jobs.ts
+// MAX_FRAME_WORKERS (experimental-options.test.mjs holds them equal).
+const MAX_WORKER_THREADS = 64;
 
 /*
 ================
@@ -181,6 +186,21 @@ export function renderScales(): readonly RenderScale[] {
 
 /*
 ================
+workerThreads
+
+A saved Worker threads setting: "off", "auto" or a whole count from 1 to
+MAX_WORKER_THREADS; anything else keeps one thread.
+================
+*/
+function workerThreads( value: unknown ): FrameWorkerSetting {
+	if ( value === "off" || value === "auto" ) return value;
+	return typeof value === "number" && Number.isInteger( value ) && value >= 1 && value <= MAX_WORKER_THREADS ?
+		value :
+		"off";
+}
+
+/*
+================
 experimentalOptions
 
 Only an explicit true enables a toggle, except smoothCamera, enchantSparks,
@@ -201,7 +221,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 	const enabled = ( key: ExperimentalKey ) => record[key] === true;
 	return {
 		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
-		frameWorkers: frameWorkerSetting( record.frameWorkers ) ?? "off",
+		frameWorkers: workerThreads( record.frameWorkers ),
 		chatTimestamps: enabled( "chatTimestamps" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),

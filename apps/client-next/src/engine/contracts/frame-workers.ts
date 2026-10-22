@@ -22,6 +22,21 @@ export interface FrameWorkerStart {
 
 /*
 ================
+FrameKernelPhases
+
+What a frame kernel's owner (pose-presentation.ts, cloth-wearers.ts)
+needs from the frame workers: their kernel memory, and a phase over it
+(runtime/frame-workers/frame-workers.ts). local runs one chunk on the
+calling thread and must be the kernel the workers run.
+================
+*/
+export interface FrameKernelPhases {
+	memory(): import("@/engine/foundation/kernels/frame-kernels").FrameKernelMemory;
+	run( kernel: number, chunks: number, local: import("@/engine/foundation/workers/frame-jobs").FrameJobRunner ): void;
+}
+
+/*
+================
 FrameWorkerStatistics
 
 The frame workers' state for diagnostics: how many were started and are

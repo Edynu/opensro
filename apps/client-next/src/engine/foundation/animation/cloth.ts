@@ -8,11 +8,12 @@ system, matching AEADE0 skin anchors and A77B30's dynamic vertex copy.
 
 ===========================================================================
 */
-const STEP_MS = 50;
-const MAX_ACCUMULATOR_MS = 200;
-const CONSTRAINT_PASSES = 7;
-const EXTENSION_TOLERANCE = 0.009999999776482582;
-const FORCE_STEP = 0.00039999998989515007;
+// The solver's constants, shared with its flat port (kernels/cloth-kernel.ts).
+export const CLOTH_STEP_MS = 50;
+export const CLOTH_MAX_ACCUMULATOR_MS = 200;
+export const CLOTH_CONSTRAINT_PASSES = 7;
+export const CLOTH_EXTENSION_TOLERANCE = 0.009999999776482582;
+export const CLOTH_FORCE_STEP = 0.00039999998989515007;
 
 /*
 ================
@@ -102,14 +103,14 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 				const push = gust ?
 					Math.fround( Math.fround( force[axis]! * wind ) * windWeight ) :
 					0;
-				const acceleration = Math.fround( Math.fround( gravity + push ) * FORCE_STEP );
+				const acceleration = Math.fround( Math.fround( gravity + push ) * CLOTH_FORCE_STEP );
 				const current = positions[at]!;
 				const velocity = Math.fround( Math.fround( current - previous[at]! ) * damping );
 				previous[at] = current;
 				positions[at] = current + Math.fround( velocity + acceleration );
 			}
 		}
-		for ( let pass = 0; pass < CONSTRAINT_PASSES; pass++ ) {
+		for ( let pass = 0; pass < CLOTH_CONSTRAINT_PASSES; pass++ ) {
 			let settled = true;
 			for ( let edge = 0; edge < order.length; edge++ ) {
 				const constraint = constraints[order[edge]!]!;
@@ -120,7 +121,7 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 				const length = Math.fround( Math.sqrt( Math.fround( dx * dx + dy * dy + dz * dz ) ) );
 				const extension = Math.fround( length - constraint[2] );
 				// A779D3..A779E6 corrects extension only; compressed edges stay free.
-				if ( extension < EXTENSION_TOLERANCE ) continue;
+				if ( extension < CLOTH_EXTENSION_TOLERANCE ) continue;
 				settled = false;
 				const sum = Math.fround( mobility[a]! + mobility[b]! );
 				const wa = Math.fround( mobility[a]! / sum ), wb = Math.fround( mobility[b]! / sum );
@@ -170,10 +171,10 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 			}
 			stepped = false;
 			if ( input.enabled ) {
-				elapsed = Math.min( MAX_ACCUMULATOR_MS, elapsed + Math.max( 0, input.deltaMs ) );
-				while ( elapsed >= STEP_MS ) {
+				elapsed = Math.min( CLOTH_MAX_ACCUMULATOR_MS, elapsed + Math.max( 0, input.deltaMs ) );
+				while ( elapsed >= CLOTH_STEP_MS ) {
 					step( input.direction, input.speed, input.random );
-					elapsed -= STEP_MS;
+					elapsed -= CLOTH_STEP_MS;
 					stepped = true;
 				}
 			}
@@ -190,7 +191,7 @@ export function createCloth( data: ClothData, rest: Float32Array ) {
 		================
 		*/
 		due( deltaMs: number, anchors: Float32Array ): boolean {
-			if ( !initialized || elapsed + Math.max( 0, deltaMs ) >= STEP_MS ) return true;
+			if ( !initialized || elapsed + Math.max( 0, deltaMs ) >= CLOTH_STEP_MS ) return true;
 			if ( !stepped ) return false;
 			for ( let i = 0; i < data.pins.length; i++ ) {
 				if ( data.pins[i] === 0 ) continue;

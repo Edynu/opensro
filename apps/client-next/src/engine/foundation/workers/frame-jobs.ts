@@ -35,7 +35,8 @@ FrameWorkerSetting
 
 Port-only, not native: the Experimental "Worker threads" setting. "off"
 keeps the frame on one thread, "auto" follows the machine, and a whole
-count from 1 to MAX_FRAME_WORKERS is the player's pick (frameWorkerSetting).
+count from 1 to MAX_FRAME_WORKERS is the player's pick (experimental-options.ts
+reads a saved one).
 ================
 */
 export type FrameWorkerSetting = "off" | "auto" | number;
@@ -90,20 +91,6 @@ navigator.hardwareConcurrency as a count; 1 when the browser gives none.
 */
 function logicalThreads( threads: number ): number {
 	return Number.isInteger( threads ) && threads > 0 ? threads : 1;
-}
-
-/*
-================
-frameWorkerSetting
-
-A stored or picked value as a setting; undefined when it is none.
-================
-*/
-export function frameWorkerSetting( value: unknown ): FrameWorkerSetting | undefined {
-	if ( value === "off" || value === "auto" ) return value;
-	return typeof value === "number" && Number.isInteger( value ) && value >= 1 && value <= MAX_FRAME_WORKERS ?
-		value :
-		undefined;
 }
 
 /*

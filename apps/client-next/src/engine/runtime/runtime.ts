@@ -140,7 +140,13 @@ export function startRuntime(
 		// Port-only: frame work shared with worker threads (Experimental, off).
 		const frameWorkers = own( createFrameWorkers() );
 		const renderer = own(
-			createRenderer( canvas, random, audio.enqueue, diagnostics )
+			createRenderer(
+				canvas,
+				random,
+				audio.enqueue,
+				diagnostics,
+				frameWorkers.enabled ? frameWorkers : undefined
+			)
 		);
 		// Port-only: the asset owner learns the device's texture features once,
 		// to serve re-encoded textures where BC is missing (texture-variants.ts).

@@ -2383,6 +2383,36 @@
 			"functions": [
 				"runLocal"
 			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"memory",
+				"run"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"provider": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"functions": [
+				"runLocal"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
+			"provider": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"functions": [
+				"admit",
+				"begin",
+				"clothSeed",
+				"createClothWearers",
+				"release",
+				"request",
+				"reset",
+				"run",
+				"vertices"
+			]
 		}
 	],
 	"boundaries": [
@@ -3962,7 +3992,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "4ae6a40ba556bcc383a52dbcaac4dd684a4d2c29189ec2c08bd487ca73f494cc",
+			"sourceSha256": "4e14cd0093363e6884b0df0a645763b46836171aeaf4db90ebbeecbab5bf0994",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. A hidden frame renders only while a world entry awaits game-ready, under the same barrier: native keeps updating while inactive (A0F430 OnUpdate; A11650 skips drawing) and finishes loading in CPSMission_OnUpdate (728E10). A visible window that gets no RAF for STARVED_FRAME_MS runs the same delivery-paced maintenance frames. Device disposal cancels pending mapping. Startup also hands the asset owner the device texture features once (port-only texture variants), outside the frame.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,
