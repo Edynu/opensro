@@ -574,7 +574,8 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   stalled worker starts from the same state. Programs (rest shape, skin,
   mobility, pins, constraints in solve order) are written once per cloth
   mesh and freed with its last wearer.
-- **Owner** (`renderer/characters/cloth-wearers.ts`): `drawCloth` admits a
+- **Owner** (`renderer/characters/cloth-wearers.ts`, since moved to
+  `foundation/animation`): `drawCloth` admits a
   wearer per cloth primitive of a batch and requests its frame; `prepare`
   runs one `KERNEL_CLOTH` phase after the groups and uploads each wearer's
   packed vertices. A wearer is released with its batch.
@@ -662,6 +663,37 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
 - **Main-thread churn found on the way** (not threading): every clip
   admission builds a new `clips` array, so the GPU clip plan of the whole
   set is rebuilt and validated again (`createGpuClipPlan`, 21 ms/s).
+
+### 6.11 Step 4, part 4: clip catalogs grow in place, world cloth on the workers (2026-10-22)
+
+- **Clip catalogs** (both settings): a lazily admitted action makes a new
+  catalog whose prefix is the last one. Its GPU clip set, bounds envelope
+  and source charge are now built from the prefix's plus the new clip
+  (`foundation/animation/clip-catalogs.ts`); the GPU clip set reserves its
+  header to the next power of two, so an extension copies the previous
+  buffer as it is. The envelope is kept per catalog, not walked again for
+  each assembly of the body. Was 44 ms/s of main thread (clip plan 21.5,
+  radius 7, charge 6, the rest admission) while actions kept arriving.
+  `clip-catalogs.test.mjs` compares every step of grown catalogs with
+  fresh builds.
+- **World cloth** (Worker threads on): the cloth wearer owner moves to
+  `foundation/animation/cloth-wearers.ts` and takes a bank, so the world's
+  flags and banners are wearers in their own tables (`worldCloth*`,
+  `KERNEL_WORLD_CLOTH`), admitted, reset and released by the world alone.
+  The kernel reports whether a step left a pin off its anchor
+  (`N_SETTLED`), so a world mesh still holds between 20 Hz steps exactly
+  when its object cloth would. Wearer vertices upload through
+  `streamVertices` (no draw mirror copy).
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off:
+  39, 44, 39 fps against 29, 29, 30; main thread 24.6, 22.1, 24.9 ms
+  against 33.9, 33.8, 32.5.
+- **Next: particles.** The particle graphs (`advanceParticleGraph` 58
+  ms/s, holder transforms 20, graph records 20) are the largest coherent
+  block left. They are independent once created (each graph keeps its own
+  random cursor into the shared read-only table), so they port to a flat
+  kernel like the skeletons: element slots per emitter, parents and groups
+  as indices, double-buffered for restarts, the GPU records written by the
+  kernel at each tick.
 
 ## 7. Open decisions for the owner
 
