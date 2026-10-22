@@ -133,7 +133,6 @@ interface PresentationEventFrame {
 	readonly soundContext: ( entity: EntityState, skill?: number, critical?: boolean ) => CharacterSoundContext;
 	readonly posePresentation: {
 		pose( gid: number, native: Pose, seconds: number ): Pose;
-		prepare( requests: readonly { readonly gid: number; readonly target: Pose; }[], now: number ): void;
 	};
 	readonly referenceAppearances: Pick<ReturnType<typeof createReferenceAppearances>, "step">;
 	readonly effects: PresentationEventEffects;
@@ -263,16 +262,11 @@ export function createPresentationEvents() {
 			// not the worker's latest sample, or entity-attached effects jitter
 			// against the body. pose() is idempotent within one frame time.
 			let drawnLocal: import("@/engine/contracts/gameplay").Pose | null = null;
-			// The characters this anchoring poses, computed together first (on the
-			// frame workers when the page has them; pose-presentation.ts prepare):
-			// the same condition and target as the pose() call below.
+			// The characters this anchoring poses. Their calls were computed with
+			// actor-motion's before this step (characters.ts step).
 			const posed = ( entity: EntityState ) =>
 				!heldPoses.get( entity.gid ) && samples.has( entity.gid ) &&
 				(localMover( entity.gid ) || !!entity.moving);
-			posePresentation.prepare(
-				entities.filter( posed ).map( entity => ({ gid: entity.gid, target: logicalPose( entity ) }) ),
-				seconds
-			);
 			const effectEntities = entities.map( entity => {
 				const local = entity.gid === gameplay?.localGid && !!gameplay.pose;
 				// A held body (a cast's navigation hold, including the burst

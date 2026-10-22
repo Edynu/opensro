@@ -2373,8 +2373,9 @@
 			"consumer": "src/engine/runtime/characters/pose-presentation.ts",
 			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
 			"functions": [
-				"memory",
-				"run"
+				"fork",
+				"join",
+				"memory"
 			]
 		},
 		{
@@ -3942,14 +3943,7 @@
 			"expression": "localMover",
 			"function": "posed",
 			"kind": "callback",
-			"reason": "Current frame presentation-sample owner lends this synchronous operation through characters.ts; it decides which characters the anchoring poses, for prepare and the pose call alike."
-		},
-		{
-			"file": "src/engine/runtime/characters/presentation-events.ts",
-			"expression": "posePresentation.prepare",
-			"function": "step",
-			"kind": "callback",
-			"reason": "Port-only frame workers: the pose presentation owner computes the anchoring poses together before the pose calls hand them out, through characters.ts; effect and hit order remain unchanged."
+			"reason": "Current frame presentation-sample owner lends this synchronous operation through characters.ts; it decides which characters the anchoring poses."
 		}
 	],
 	"sequences": [

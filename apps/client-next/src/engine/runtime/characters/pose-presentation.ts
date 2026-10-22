@@ -31,13 +31,15 @@ and the walk arena their certified chains live in: it writes each call's
 input into the character's record, runs the kernel on a copy and hands the
 drawn pose back as an object.
 
-Before effects anchor to drawn poses, prepare() computes the moving
-characters' next two calls in one phase, on the frame workers when the
-page has them (frame-kernels.ts KERNEL_POSE). A later call takes its
-precomputed result only when its arguments are the predicted ones; any
-other call, a carry or a new frame first rolls the record back to the
-state after the last result handed out. The drawn poses are therefore the
-ones the calls in order would have drawn on one thread.
+At the start of the characters step, prepare() computes the next two
+calls of every character the step will pose in one phase, forked on the
+frame workers when the page has them (frame-kernels.ts KERNEL_POSE), while
+the step goes on; the first call that needs a record joins the phase. A
+later call takes its precomputed result only when its arguments are the
+predicted ones; any other call, a carry or a new frame first rolls the
+record back to the state after the last result handed out. The drawn
+poses are therefore the ones the calls in order would have drawn on one
+thread.
 
 ===========================================================================
 */
@@ -223,6 +225,22 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 	================
 	*/
 	const runLocal: FrameJobRunner = ( kernel, chunk ) => runFrameKernel( views, kernel, chunk );
+	// A KERNEL_POSE phase prepare forked and nothing has joined yet.
+	let forked = false;
+
+	/*
+	================
+	joinPhase
+
+	Wait for the phase prepare forked, running what the workers have not
+	claimed: before anything reads, writes or rolls back a record.
+	================
+	*/
+	function joinPhase() {
+		if ( !forked ) return;
+		forked = false;
+		workers!.join( runLocal );
+	}
 
 	/*
 	================
@@ -506,6 +524,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		origin( ms: number ) {
+			joinPhase();
 			if ( ms !== originMs ) settle();
 			originMs = ms;
 		},
@@ -518,6 +537,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		samples( next: ReadonlyMap<number, SampleInput> ) {
+			joinPhase();
 			settle();
 			inputs = next;
 			for ( const [gid, slot] of slots ) {
@@ -528,8 +548,8 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		prepare
 
-		Compute the requested characters' next two pose() calls at once, on
-		the frame workers when there are any: each as an unsettled call with
+		Compute the requested characters' next two pose() calls at once, forked
+		on the frame workers when there are any: each as an unsettled call with
 		its target at time now, the second repeating the first's arguments.
 		pose() hands them out while its arguments match and falls back to
 		this thread from the state after the last one handed out when they do
@@ -537,6 +557,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		prepare( requests: readonly PoseRequest[], now: number ) {
+			joinPhase();
 			settle();
 			const count = Math.min( requests.length, MAX_POSE_SLOTS );
 			if ( !count ) return;
@@ -559,8 +580,10 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 			list[REQUEST_COUNT] = count;
 			predictedNow = now;
 			const chunks = Math.ceil( count / POSE_CHUNK );
-			if ( workers ) workers.run( KERNEL_POSE, chunks, runLocal );
-			else for ( let chunk = 0; chunk < chunks; chunk++ ) runLocal( KERNEL_POSE, chunk );
+			if ( workers ) {
+				workers.fork( KERNEL_POSE, chunks );
+				forked = true;
+			} else for ( let chunk = 0; chunk < chunks; chunk++ ) runLocal( KERNEL_POSE, chunk );
 		},
 		/*
 		================
@@ -568,6 +591,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		pose( gid: number, target: Pose, now: number, settledTranslation = false ): Pose {
+			joinPhase();
 			const slot = slots.get( gid );
 			if ( slot !== undefined && pending[slot] ) {
 				if ( predicted( slot, target, now, settledTranslation ) ) {
@@ -584,6 +608,14 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		},
 		/*
 		================
+		join
+
+		The forked phase over, if one is open: before another frame phase.
+		================
+		*/
+		join: joinPhase,
+		/*
+		================
 		carry
 
 		Hand a drawn pose back to the sampled track: its owner showed this pose
@@ -592,6 +624,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		carry( gid: number, displayed: Pose ) {
+			joinPhase();
 			const slot = slots.get( gid );
 			if ( slot === undefined ) return;
 			rollback( slot );
@@ -610,6 +643,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		moving( gid: number ) {
+			joinPhase();
 			const slot = slots.get( gid );
 			if ( slot === undefined ) return false;
 			const table = pending[slot] ? views.poseSnapshots : views.poseRecords;
@@ -625,6 +659,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		retain( gids: ReadonlySet<number> ) {
+			joinPhase();
 			settle();
 			for ( const [gid, slot] of slots ) if ( !gids.has( gid ) ) releaseSlot( gid, slot );
 		},
@@ -634,6 +669,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		================
 		*/
 		reset() {
+			joinPhase();
 			settle();
 			for ( const [gid, slot] of slots ) releaseSlot( gid, slot );
 			inputs = new Map();

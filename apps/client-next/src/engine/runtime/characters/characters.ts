@@ -967,6 +967,20 @@ export function createCharacterPresentation(
 			if ( dockPreview.step( { seconds, dock, preview, lizard, nativeServerName }, output, published ) ) return;
 			retireDespawned( seconds );
 			const presented = selectPresented( entities, gameplay );
+			// The pose() calls this step makes, as their targets stand now: effect
+			// anchoring's for each moving character (presentation-events.ts) and
+			// actor motion's for each presented one. They run on the frame
+			// workers while the events and actions below run; the first call that
+			// needs a result joins them, and a call with other arguments runs here
+			// instead (pose-presentation.ts prepare).
+			const presentedGids = new Set( presented.selected.map( entity => entity.gid ) );
+			posePresentation.prepare(
+				entities.filter( entity =>
+					presentedGids.has( entity.gid ) ||
+					begun.samples.has( entity.gid ) && (begun.localMover( entity.gid ) || !!entity.moving)
+				).map( entity => ({ gid: entity.gid, target: begun.logicalPose( entity ) }) ),
+				seconds
+			);
 			// GameConfig +0x12E (745D10) forces the death model (8E655D) on an
 			// uncensored Korean shard. It also picks the authored blood over the
 			// green one (8D5631); deliberate deviation (owner, 2026-10-08): every
@@ -984,6 +998,8 @@ export function createCharacterPresentation(
 				events
 			);
 			finishFrame( { entities, seconds, cameraPitch, blindHeld }, begun, presented, events, actors );
+			// The renderer's phases follow; this step's must be over.
+			posePresentation.join();
 		},
 		/*
 		================
