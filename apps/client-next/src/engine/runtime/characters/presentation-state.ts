@@ -105,6 +105,22 @@ export function createPresentationState() {
 	const idleStates = new Map<number, PresentationIdleState>();
 	// Presentation-time deadlines survive cast retirement and visibility selection.
 	const combatStanceEnds = new Map<number, number>();
+	// Whether a body's clips hold a death loop, by its readonly list: asked
+	// for every character every frame, of a list that runs to hundreds.
+	const loops = new WeakMap<readonly string[], boolean>();
+	/*
+	================
+	deathLoops
+	================
+	*/
+	function deathLoops( clips: readonly string[] ): boolean {
+		let loop = loops.get( clips );
+		if ( loop === undefined ) {
+			loop = clips.includes( "deathLoop" ) || clips.includes( "deathloop" );
+			loops.set( clips, loop );
+		}
+		return loop;
+	}
 	return {
 		idleStates,
 		combatStanceEnds,
@@ -174,7 +190,7 @@ export function createPresentationState() {
 				enterDeath( entry, shownDead, {
 					previousMask: state?.actionMask ?? 0,
 					deathModel: deathModels.has( resource.codename ),
-					deathLoop: resource.clips.includes( "deathLoop" ) || resource.clips.includes( "deathloop" ),
+					deathLoop: deathLoops( resource.clips ),
 					uncensored
 				} );
 				if ( shownDead || entity.mountedOn || entity.movementMode === MOVEMENT_MODE_SEATED ) {
