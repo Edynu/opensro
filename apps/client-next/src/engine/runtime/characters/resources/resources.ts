@@ -501,7 +501,11 @@ createCharacterResources
 Own one decode reservation and a bounded cache of admitted character sources.
 ================
 */
-export function createCharacterResources( assets: AssetOwner, renderer: Renderer, origin: string ) {
+export function createCharacterResources(
+	assets: AssetOwner,
+	renderer: Pick<Renderer, "setCharacterModel" | "setCharacterAnimation" | "retainCharacterModels">,
+	origin: string
+) {
 	const durations = new Map<string, ReadonlyMap<string, number>>();
 	const loaded = new Set<string>(), wanted = new Set<string>(), planned = new Set<string>();
 	const costs = new Map<string, number>();

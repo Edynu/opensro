@@ -355,6 +355,39 @@ export interface Renderer extends Disposable {
 
 /*
 ================
+PresentationRenderer
+
+The renderer commands and queries the character presentation
+(runtime/characters) uses, and so what a stand-in implements where the
+presentation runs on a worker of its own (CLIENT_WORKERS_PLAN.md 5.11).
+================
+*/
+export type PresentationRenderer = Pick<
+	Renderer,
+	| "setCharacterActors"
+	| "setCharacterAssembly"
+	| "setCharacterModel"
+	| "setCharacterAnimation"
+	| "retainCharacterModels"
+	| "setFootprints"
+	| "characterSocket"
+	| "characterMatrix"
+	| "characterLocalMatrix"
+	| "characterParticleSnapshot"
+	| "characterParticleTime"
+	| "scenery"
+	| "presentationNight"
+	| "presentationCamera"
+	| "audioListener"
+	| "enchantSparks"
+	| "sharedActorRoom"
+	| "batchedEffects"
+	| "vHidesCompanions"
+	| "dungeonBlockHides"
+>;
+
+/*
+================
 FrameWork
 
 One runtime-owned optional budget is shared by all presentation consumers.

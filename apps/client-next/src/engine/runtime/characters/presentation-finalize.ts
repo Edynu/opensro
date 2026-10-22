@@ -11,7 +11,7 @@ The shared output owner retains the camera target and fade between frames.
 import type { CharacterActor } from "@/engine/contracts/character";
 import type { EntityState } from "@/engine/contracts/world";
 import type { GameplayState } from "@/engine/contracts/gameplay";
-import type { Renderer, FrameWork } from "@/engine/contracts/runtime";
+import type { FrameWork, PresentationRenderer, Renderer } from "@/engine/contracts/runtime";
 import type { DressCatalog, WornItem } from "@/engine/foundation/animation/equipment-appearance";
 import type { SkillLookup } from "@/engine/foundation/ui/buff-viewer";
 import type { Resource, PresentationOutput, PresentationDisappear } from "./internal/presentation-contract";
@@ -276,7 +276,7 @@ EmissionBindings
 */
 interface EmissionBindings {
 	readonly resources: { ready( path: string ): boolean; duration( path: string, clip: string ): number; };
-	readonly renderer: Renderer;
+	readonly renderer: PresentationRenderer;
 	readonly modelEmission: ReturnType<typeof createModelEmission>;
 	readonly animationEmission: ReturnType<typeof createAnimationEmission>;
 	readonly scenery: ReturnType<typeof createSceneryEmission>;

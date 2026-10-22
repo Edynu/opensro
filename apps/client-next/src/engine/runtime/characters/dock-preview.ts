@@ -10,7 +10,7 @@ presentation outputs stay with the frame owner; world actors never enter here.
 */
 import type { CharacterActor } from "@/engine/contracts/character";
 import type { CreationSnapshot } from "@/engine/contracts/frontend";
-import type { Renderer } from "@/engine/contracts/runtime";
+import type { PresentationRenderer } from "@/engine/contracts/runtime";
 import type { CharacterRecord } from "@/engine/contracts/session";
 import {
 	assembleEquipmentAppearance,
@@ -34,7 +34,7 @@ DockPreviewOwners
 ================
 */
 interface DockPreviewOwners {
-	readonly renderer: Renderer;
+	readonly renderer: PresentationRenderer;
 	readonly resources: {
 		plan( paths: readonly string[] ): void;
 		ready( path: string ): boolean;

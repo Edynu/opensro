@@ -41,7 +41,7 @@ import { createCharacterResources } from "./resources/resources";
 import { createMallPreview } from "./mall-preview";
 import type { CharacterRecord } from "@/engine/contracts/session";
 import type { AssetOwner } from "@/engine/contracts/assets";
-import type { RenderFrameProbe, Renderer } from "@/engine/contracts/runtime";
+import type { PresentationRenderer, RenderFrameProbe } from "@/engine/contracts/runtime";
 import type { EntityState } from "@/engine/contracts/world";
 import type { GameplayState, Pose } from "@/engine/contracts/gameplay";
 import type { CharacterActor } from "@/engine/contracts/character";
@@ -111,7 +111,7 @@ preview and world. An active empty dock still needs its catalog admitted.
 */
 export function createCharacterPresentation(
 	assets: AssetOwner,
-	renderer: Renderer,
+	renderer: PresentationRenderer,
 	origin: string,
 	play: ( event: import("@/engine/contracts/audio").SoundEvent ) => void,
 	random: PresentationRandom,
