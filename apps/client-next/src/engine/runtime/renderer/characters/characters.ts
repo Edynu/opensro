@@ -387,7 +387,8 @@ export function createCharacters(
 	const particleRow = createParticleRow();
 	const particleBirths = new Map<number, ParticleHistoryEntry>();
 	const batches = new Map<string, {
-		signature: string;
+		// Whether the batch draws the preview, and its rows' gids in order.
+		preview: boolean;
 		capacity: number;
 		gids: readonly number[];
 		draws: GeometryDraw[];
@@ -1043,8 +1044,11 @@ export function createCharacters(
 	// ============================================================================
 	type ModelResource = NonNullable<ReturnType<typeof models.get>>;
 	// Whether a model's primitives blend (prepare's group order), by its
-	// readonly primitives: every group asks every frame.
+	// readonly primitives, and whether a resource's path is an effect
+	// program's: every group asks every frame, and an assembled body's path
+	// is long.
 	const blendedPrimitives = new WeakMap<readonly CharacterModel["primitives"][number][], boolean>();
+	const effectResources = new WeakMap<ModelResource, boolean>();
 	type CharacterBatch = NonNullable<ReturnType<typeof batches.get>>;
 	type CharacterChains = ReturnType<typeof hierarchy.update>["chains"];
 	/*
@@ -1747,7 +1751,7 @@ export function createCharacters(
 			const rows = grouped.get( id );
 			const capacity = rows ? models.get( rows[0]!.model )!.plan.capacity( rows.length ) : 0;
 			if (
-				!rows || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
+				!rows || batch.capacity !== capacity || batch.preview !== frame.preview
 			) {
 				for ( const draw of batch.draws ) {
 					frame.geometry.release( draw );
@@ -1968,13 +1972,13 @@ export function createCharacters(
 		resource: ModelResource
 	) {
 		const { model, plan } = resource;
-		const signature = String( frame.preview ) + ":" + rows.map( row => row.gid ).join( "," );
 		const capacity = plan.capacity( rows.length );
 		let batch = batches.get( id );
-		const membershipChanged = batch?.signature !== signature;
-		if (
-			!batch || batch.capacity !== capacity || !batch.signature.startsWith( String( frame.preview ) + ":" )
-		) {
+		let membershipChanged = !batch || batch.preview !== frame.preview || batch.gids.length !== rows.length;
+		for ( let i = 0; !membershipChanged && i < rows.length; i++ ) {
+			if ( batch!.gids[i] !== rows[i]!.gid ) membershipChanged = true;
+		}
+		if ( !batch || batch.capacity !== capacity || batch.preview !== frame.preview ) {
 			if ( batch ) {
 				for ( const draw of batch.draws ) {
 					frame.geometry.release( draw );
@@ -1984,7 +1988,7 @@ export function createCharacters(
 				createPaletteStreams( model, capacity ) :
 				undefined;
 			batch = {
-				signature,
+				preview: frame.preview,
 				capacity,
 				gids: rows.map( row => row.gid ),
 				draws: [],
@@ -2012,7 +2016,7 @@ export function createCharacters(
 			batches.set( id, batch );
 		}
 		if ( membershipChanged ) {
-			batch.signature = signature;
+			batch.preview = frame.preview;
 			batch.gids = rows.map( row => row.gid );
 			batch.poseKey = undefined;
 		}
@@ -3526,8 +3530,12 @@ export function createCharacters(
 				orderedGroups.forEach( ( [id, rows], index ) => {
 					const sample = rows[0]!;
 					const fading = frame.opacity( sample ) < 1;
-					const effect = sample.model.includes( EFFECT_PROGRAMS );
-					const primitives = models.get( sample.model )!.model.primitives;
+					const resource = models.get( sample.model )!, primitives = resource.model.primitives;
+					let effect = effectResources.get( resource );
+					if ( effect === undefined ) {
+						effect = sample.model.includes( EFFECT_PROGRAMS );
+						effectResources.set( resource, effect );
+					}
 					let blending = blendedPrimitives.get( primitives );
 					if ( blending === undefined ) {
 						blending = primitives.some( p => !!p.geometry.material?.blend );
