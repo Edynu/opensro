@@ -13,7 +13,8 @@ distinct key clocks, blended event and timed layers, a non-single-track
 clip, authored node matrices, body volume, bone rotators set and dropped,
 a clip admitted mid-run) and compare every palette and socket after every
 evaluation; then many poses in phases on real worker threads, and every
-chunk run twice as a stalled worker's chunk is.
+chunk run twice as a stalled worker's chunk is. The phase writes the
+palettes too, which must not be read once the body volume changed.
 
 ===========================================================================
 */
@@ -274,6 +275,23 @@ test("a skeleton chunk run twice, as after a stalled worker, leaves the same mat
 	const workers = createInlineWorkers( 2, true );
 	phases( workers, 8 );
 	assert.ok( workers.phases() >= 8 );
+});
+
+test("a body volume changed after its pose was queued is not read from the phase's palettes", () => {
+	const workers = createInlineWorkers( 1, true ), skeletons = createSkeletons( workers );
+	const random = createRandom( 0xb0d1 ), model = createModel( random, 20 );
+	const flat = createCharacterPose( model, skeletons.pose ), object = createCharacterPose( model );
+	for ( let frame = 0; frame < 40; frame++ ) {
+		const input = drive( random, model, frame ), volume = [ frame % 5, frame % 2 === 0 ];
+		skeletons.collect();
+		assert.equal( apply( flat, input ), apply( object, input ) );
+		// The phase's palettes take the thickness the inputs were queued with.
+		flat.bodyVolume( ...volume );
+		object.bodyVolume( ...volume );
+		skeletons.fork();
+		compare( flat, object, model, `frame ${frame}` );
+	}
+	flat.release();
 });
 
 test("plain memory keeps the poses' own arrays", () => {

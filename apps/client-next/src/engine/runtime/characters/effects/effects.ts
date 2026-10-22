@@ -3751,18 +3751,34 @@ export function createCharacterEffects(
 		/*
 		================
 		hostMotions
-		The motions attached effects impose on their host character.
+		The motions attached effects impose on their host character, in the
+		attached effects' order. Every character asks every frame, so the
+		other hosts' effects are passed over before anything is read.
 		================
 		*/
 		hostMotions( gid: number ) {
-			return [ ...attached.values() ].filter( row =>
-				row.effect.gid === gid && (row.effect.phase === 1 || catalog?.[String( row.effect.skill )]?.overlap)
-			).flatMap( row => {
-				const motion = catalog?.[String( row.effect.skill )]?.attachedMotion;
-				return motion ?
-					[ { ...motion, key: attachedKey( row.effect ), started: row.started, stoppedAt: row.stoppedAt } ] :
-					[];
-			} );
+			const motions: {
+				readonly set: string;
+				readonly id: number;
+				key: string;
+				started: number;
+				stoppedAt: number | undefined;
+			}[] = [];
+			for ( const row of attached.values() ) {
+				if ( row.effect.gid !== gid ) continue;
+				const entry = catalog?.[String( row.effect.skill )];
+				if ( row.effect.phase !== 1 && !entry?.overlap ) continue;
+				const motion = entry?.attachedMotion;
+				if ( motion ) {
+					motions.push( {
+						...motion,
+						key: attachedKey( row.effect ),
+						started: row.started,
+						stoppedAt: row.stoppedAt
+					} );
+				}
+			}
+			return motions;
 		},
 		/*
 		================

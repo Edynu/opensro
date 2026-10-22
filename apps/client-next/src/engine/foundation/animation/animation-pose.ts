@@ -15,7 +15,10 @@ Given a PoseSkeleton, the pose keeps its sampled transforms, blend scratch
 and matrices in memory the frame workers share (skeleton-record.ts STATE_*
 layout) and materializes through foundation/kernels/skeleton-kernel.ts,
 now or in the frame's skeleton phase (renderer/characters/skeletons.ts);
-every other rule here is the same code either way.
+every other rule here is the same code either way. A phase that knows the
+palettes will be read on this thread (readsPalettes, or an evaluation the
+GPU does not take) writes them too, and palette copies those while they
+are current.
 
 ===========================================================================
 */
@@ -26,6 +29,9 @@ import { compose, multiplyDisjoint as multiply, multiplyQuaternion, slerp } from
 import { paletteBindings } from "./palette-bindings";
 import { bodyBoneScale } from "./body-shape";
 import {
+	PALETTES_ALWAYS,
+	PALETTES_CHANGED,
+	PALETTES_NONE,
 	STATE_ANIMATED,
 	STATE_CHANGED,
 	STATE_COMMITTED,
@@ -37,6 +43,7 @@ import {
 	STATE_TRANSLATIONS,
 	STATE_WEIGHTS
 } from "@/engine/foundation/kernels/skeleton-record";
+import { skeletonPalettes } from "@/engine/foundation/kernels/skeleton-kernel";
 
 const DEFAULT_BODY_VOLUME = 2;
 
@@ -61,7 +68,9 @@ PoseSkeletonInput
 
 One materialization's inputs: the resolved layers, whether a single
 full-weight single-track layer samples directly, the bone rotator's node
-and quaternion, and the node a dropped rotator held.
+and quaternion, and the node a dropped rotator held; whether it writes the
+palettes (skeleton-record.ts PALETTES_*), the body thickness they use and
+that thickness's version, handed back with the result.
 ================
 */
 export interface PoseSkeletonInput {
@@ -70,6 +79,9 @@ export interface PoseSkeletonInput {
 	rotatedNode: number;
 	releasedNode: number;
 	readonly rotation: Float32Array;
+	palettes: number;
+	readonly thickness: Float32Array;
+	thicknessVersion: number;
 }
 
 /*
@@ -90,18 +102,49 @@ PoseSkeleton
 
 Where a pose's matrices live and what computes them
 (renderer/characters/skeletons.ts). state is a fixed view of the pose's
-region: 60 floats a node and 4 (skeleton-record.ts). materialize computes
-it from input as timing says and calls done( changed ) once the matrices
-are ready. resetDirect makes the next materialization recompose rather
-than reuse a direct sample; release returns the region.
+region: 61 floats a node, 4, then the palettes of skeletonBindings
+(skeleton-record.ts). materialize computes it from input as timing says
+and calls done( changed, paletted, thicknessVersion ) once the matrices
+are ready, with the thickness version of the input it materialized.
+resetDirect makes the next materialization recompose rather than reuse a
+direct sample; release returns the region.
 ================
 */
 export interface PoseSkeleton {
 	readonly state: Float32Array;
-	materialize( input: PoseSkeletonInput, done: ( changed: boolean ) => void, timing: PoseSkeletonTiming ): void;
+	materialize(
+		input: PoseSkeletonInput,
+		done: ( changed: boolean, paletted: boolean, thicknessVersion: number ) => void,
+		timing: PoseSkeletonTiming
+	): void;
 	resetDirect(): void;
 	release(): void;
 }
+/*
+================
+skeletonBindings
+
+The model's distinct palette bindings (paletteBindings) in primitive
+order, as a skeleton writes their palettes; none when a joint is not one
+of its nodes.
+================
+*/
+export function skeletonBindings(
+	model: CharacterModel,
+	bindings: ReturnType<typeof paletteBindings> = paletteBindings( model )
+): readonly CharacterPrimitive[] {
+	const canonical: CharacterPrimitive[] = [];
+	for ( const primitive of model.primitives ) {
+		const binding = bindings.get( primitive ) ?? primitive;
+		if ( canonical.includes( binding ) ) continue;
+		for ( const joint of binding.joints ) {
+			if ( !Number.isInteger( joint ) || joint < 0 || joint >= model.nodes.length ) return [];
+		}
+		canonical.push( binding );
+	}
+	return canonical;
+}
+
 /*
 ================
 createCharacterPose
@@ -133,6 +176,15 @@ export function createCharacterPose( model: CharacterModel, skeletons?: ( model:
 		if ( marker && marker !== "$root" && !sockets.has( marker ) ) sockets.set( marker, index );
 	}
 	const thickness = new Float32Array( model.nodes.length ).fill( 1 ), radial = new Float32Array( 16 );
+	// The skeleton's palettes by binding, as its phase writes them.
+	const skeletonPaletteViews = new Map<CharacterPrimitive, Float32Array>();
+	if ( skeleton ) {
+		let at = skeletonPalettes( count );
+		for ( const binding of skeletonBindings( model, bindings ) ) {
+			skeletonPaletteViews.set( binding, skeleton.state.subarray( at, at + binding.joints.length * 16 ) );
+			at += binding.joints.length * 16;
+		}
+	}
 	const localData = skeleton ? region( STATE_LOCALS, 16 ) : new Float32Array( count * 16 ),
 		globalData = skeleton ? region( STATE_GLOBALS, 16 ) : new Float32Array( count * 16 );
 	const locals = model.nodes.map( ( _, i ) => localData.subarray( i * 16, i * 16 + 16 ) ),
@@ -234,13 +286,21 @@ without changing skeleton storage, the selected layers or their revision.
 	const boneRotation = new Float32Array( 4 );
 	let rotatedNode = -1, releasedNode = -1, rotationChanged = false;
 	let cpuPending = false, cpuEvaluations = 0;
+	// Whether this thread reads the palettes whatever the GPU samples, and
+	// the palette version the skeleton's palettes are (-1: none). A body
+	// volume change after a materialization's inputs leaves its palettes
+	// out of date (thicknessVersion).
+	let readsPalettes = false, skeletonPaletteVersion = -1, thicknessVersion = 0;
 	const sampleRequest = { clip: model.clips[0]!, time: 0 };
 	const skeletonInput: PoseSkeletonInput = {
 		layers: resolved,
 		direct: false,
 		rotatedNode: -1,
 		releasedNode: -1,
-		rotation: boneRotation
+		rotation: boneRotation,
+		palettes: PALETTES_NONE,
+		thickness,
+		thicknessVersion: 0
 	};
 	/*
 ================
@@ -283,8 +343,9 @@ finishSkeleton
 The skeleton's materialization is in its state: the tail of materialize.
 ================
 	*/
-	function finishSkeleton( changed: boolean ) {
+	function finishSkeleton( changed: boolean, paletted: boolean, materialized: number ) {
 		if ( changed ) paletteVersion++;
+		if ( paletted && materialized === thicknessVersion ) skeletonPaletteVersion = paletteVersion;
 		releasedNode = -1;
 		cpuPending = false;
 		cpuEvaluations++;
@@ -306,6 +367,14 @@ arrays materialize at once.
 				(!resolved[0]!.clip || singleTrackClips.has( resolved[0]!.clip ));
 			skeletonInput.rotatedNode = rotatedNode;
 			skeletonInput.releasedNode = releasedNode;
+			// The phase writes the palettes this thread will read: the owner's
+			// (readsPalettes) or an evaluation the GPU did not take.
+			skeletonInput.palettes = !skeletonPaletteViews.size || !readsPalettes && timing !== "frame" ?
+				PALETTES_NONE :
+				skeletonPaletteVersion === paletteVersion ?
+				PALETTES_CHANGED :
+				PALETTES_ALWAYS;
+			skeletonInput.thicknessVersion = thicknessVersion;
 			skeleton.materialize( skeletonInput, finishSkeleton, timing );
 			return;
 		}
@@ -508,11 +577,24 @@ quaternion scratch is charged and allocated only when playback needs it.
 			female = isFemale;
 			poseVersion++;
 			paletteVersion++;
+			thicknessVersion++;
 			for ( let i = 0; i < model.nodes.length; i++ ) {
 				thickness[i] = bodyBoneScale( model.nodes[i]!.name, index, isFemale );
 			}
 		},
 		revision: () => poseVersion,
+		/*
+		================
+		readsPalettes
+
+		Whether the owner reads this pose's palettes on this thread even when
+		the GPU samples it (a cloth wearer's batch), so the skeleton phase
+		writes them.
+		================
+		*/
+		readsPalettes( reads: boolean ) {
+			readsPalettes = reads;
+		},
 		/*
         ================
         setBoneRotation
@@ -619,6 +701,13 @@ quaternion scratch is charged and allocated only when playback needs it.
 		palette( primitive: CharacterPrimitive, out: Float32Array, offset = 0 ) {
 			materialize();
 			primitive = bindings.get( primitive ) ?? primitive;
+			const written = skeletonPaletteVersion === paletteVersion ?
+				skeletonPaletteViews.get( primitive ) :
+				undefined;
+			if ( written ) {
+				out.set( written, offset );
+				return;
+			}
 			let views = inverseViews.get( primitive );
 			if ( !views ) {
 				views = Array.from(

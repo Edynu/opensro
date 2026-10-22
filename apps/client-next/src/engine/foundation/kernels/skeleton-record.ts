@@ -6,12 +6,15 @@ skeleton-record.ts - one character pose's skeleton as flat numbers
 The layout skeleton-kernel.ts reads and writes to materialize one pose
 (animation-pose.ts materialize): sample its layers' clips, blend event
 lanes before timed ones, compose local matrices and multiply them into
-global matrices parent first. Six tables (frame-kernels.ts):
+global matrices parent first, then, when asked, its skin palettes
+(animation-pose.ts palette). Six tables (frame-kernels.ts):
 
 - skeletonModels (doubles): a model's skeleton, written once: S_HEADER,
   then for n nodes their parents (n), parent-first order (n), whether each
   has an authored matrix (n), those matrices (16n), and the rest
-  translations (3n), rotations (4n) and scales (3n).
+  translations (3n), rotations (4n) and scales (3n); then its palette
+  bindings (animation-pose.ts skeletonBindings), each its joint count j,
+  its joints (j) and its inverse bind matrices (16j).
 - skeletonClips (doubles): a clip's channels, written once while a pose
   samples it: CLIP_HEADER, then CLIP_TIMELINE words a distinct key clock
   (its keys' offset in skeletonKeys and count), then CLIP_CHANNEL words a
@@ -25,19 +28,23 @@ global matrices parent first. Six tables (frame-kernels.ts):
 - skeletonState (floats): a pose's sampled translations (3n), rotations
   (4n) and scales (3n), blend passes (10n), lane weights (3n) and committed
   weights (3n), local and global matrices (16n each), changed-global and
-  animated-local flags (n each) and a 4-float sample: STATE_* offsets in
-  units of n.
+  animated-local flags (n each), body thickness (n), a 4-float sample
+  (STATE_* offsets in units of n), then the palettes of its bindings in
+  their order (16 floats a joint).
 
 R_BUSY makes a chunk run again after a stalled worker recompute every
-matrix, and R_CHANGED only ever gains, so the pose's owner reads the same
-result either way.
+matrix, and R_CHANGED and R_PALETTED only ever gain, so the pose's owner
+reads the same result either way.
 
 ===========================================================================
 */
 
 // Skeleton header; the arrays follow in the order above.
 export const S_NODES = 0;
+export const S_BINDINGS = 1; // palette bindings after the node arrays
 export const S_HEADER = 4;
+// Doubles a node takes in a skeleton, after S_HEADER.
+export const S_NODE_WORDS = 29;
 
 // Clip header, then its clocks and channels.
 export const CLIP_CHANNELS = 0;
@@ -69,7 +76,15 @@ export const R_CACHE_CLIP = 15; // the clip whose quaternion brackets the scratc
 export const R_LAYER_CAPACITY = 16; // layers the scratch holds
 export const R_CHANNEL_CAPACITY = 17; // quaternion brackets the scratch holds
 export const R_CLOCK_CAPACITY = 18; // key clocks the scratch holds
-export const SKELETON_RECORD = 20;
+export const R_PALETTES = 19; // input: PALETTES_* below
+export const R_PALETTED = 20; // output: the palettes were written (only ever set by the kernel)
+export const SKELETON_RECORD = 21;
+
+// Whether a materialization writes the pose's palettes: never, when a
+// matrix changed (the palettes written last are current otherwise), always.
+export const PALETTES_NONE = 0;
+export const PALETTES_CHANGED = 1;
+export const PALETTES_ALWAYS = 2;
 
 // One layer in the scratch: clip offset (or -1), time, weight, lane.
 export const LAYER_WORDS = 4;
@@ -87,5 +102,7 @@ export const STATE_LOCALS = 26;
 export const STATE_GLOBALS = 42;
 export const STATE_CHANGED = 58;
 export const STATE_ANIMATED = 59;
-export const STATE_SAMPLE = 60; // 4 floats, not scaled by n
-export const STATE_FLOATS_PER_NODE = 60;
+export const STATE_THICKNESS = 60;
+export const STATE_SAMPLE = 61; // 4 floats, not scaled by n
+export const STATE_SAMPLE_FLOATS = 4;
+export const STATE_FLOATS_PER_NODE = 61;

@@ -11,7 +11,9 @@ frame's poses (collect), each pose that needs CPU matrices is queued;
 fork then materializes them all in one KERNEL_SKELETON phase on the frame
 workers, and the first palette or socket read joins it. A pose read
 before the fork, or outside the window, materializes at once on this
-thread through the same kernel. The matrices are the object code's bit for
+thread through the same kernel. The phase also writes the palettes of the
+poses whose palettes this thread will read (animation-pose.ts
+readsPalettes). The matrices and palettes are the object code's bit for
 bit (skeleton-kernel.test.mjs), so this changes when they are computed,
 not what they are.
 
@@ -22,10 +24,14 @@ pass three quarters full, between phases.
 
 ===========================================================================
 */
-import type { CharacterClip, CharacterModel } from "@/engine/contracts/character";
+import type { CharacterClip, CharacterModel, CharacterPrimitive } from "@/engine/contracts/character";
 import type { FrameKernelPhases } from "@/engine/contracts/frame-workers";
 import type { FrameJobRunner } from "@/engine/foundation/workers/frame-jobs";
-import type { PoseSkeleton, PoseSkeletonInput } from "@/engine/foundation/animation/animation-pose";
+import {
+	type PoseSkeleton,
+	type PoseSkeletonInput,
+	skeletonBindings
+} from "@/engine/foundation/animation/animation-pose";
 import {
 	KERNEL_SKELETON,
 	MAX_SKELETONS,
@@ -57,6 +63,7 @@ import {
 	LANE_EVENT,
 	LANE_TIMED,
 	LAYER_WORDS,
+	PALETTES_NONE,
 	PATH_ROTATION,
 	PATH_SCALE,
 	PATH_TRANSLATION,
@@ -70,14 +77,19 @@ import {
 	R_LAYERS,
 	R_LAYER_CAPACITY,
 	R_MODEL,
+	R_PALETTED,
+	R_PALETTES,
 	R_RELEASED,
 	R_ROTATED,
 	R_ROTATION,
 	R_SCRATCH,
 	R_STATE,
 	SKELETON_RECORD,
+	STATE_THICKNESS,
+	S_BINDINGS,
 	S_HEADER,
-	S_NODES
+	S_NODES,
+	S_NODE_WORDS
 } from "@/engine/foundation/kernels/skeleton-record";
 import {
 	materializeSkeleton,
@@ -107,8 +119,9 @@ interface Region {
 ================
 SkeletonSlot
 
-A live pose: its model, regions, scratch capacities and, while queued,
-what to call once its matrices are ready.
+A live pose: its model, regions, scratch capacities, the thickness
+version of its last inputs and, while queued, what to call once its
+matrices are ready.
 ================
 */
 interface SkeletonSlot {
@@ -118,7 +131,8 @@ interface SkeletonSlot {
 	layers: number;
 	channels: number;
 	clocks: number;
-	done: (( changed: boolean ) => void) | undefined;
+	thicknessVersion: number;
+	done: (( changed: boolean, paletted: boolean, thicknessVersion: number ) => void) | undefined;
 }
 
 /*
@@ -142,6 +156,8 @@ createSkeletons
 export function createSkeletons( workers: FrameKernelPhases ) {
 	const memory = workers.memory(), views = frameKernelViews( memory );
 	const models = new Map<CharacterModel, number>();
+	// A model's palette bindings (skeletonBindings) and their joints in all.
+	const bindings = new WeakMap<CharacterModel, { list: readonly CharacterPrimitive[]; joints: number; }>();
 	const clips = new Map<CharacterClip, number>();
 	const slots: (SkeletonSlot | undefined)[] = [], freeSlots: number[] = [];
 	const freeState = new Map<number, number[]>(), freeScratch = new Map<number, number[]>();
@@ -198,17 +214,33 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 
 	/*
 	================
+	bindingsOf
+	================
+	*/
+	function bindingsOf( model: CharacterModel ) {
+		let known = bindings.get( model );
+		if ( !known ) {
+			const list = skeletonBindings( model );
+			known = { list, joints: list.reduce( ( sum, binding ) => sum + binding.joints.length, 0 ) };
+			bindings.set( model, known );
+		}
+		return known;
+	}
+
+	/*
+	================
 	modelOf
 
 	The model's skeleton offset, written once: parents, parent-first order,
 	authored matrices and float32 rest transforms (as animation-pose.ts
-	keeps them).
+	keeps them), then its palette bindings' joints and inverse binds.
 	================
 	*/
 	function modelOf( model: CharacterModel ): number {
 		const known = models.get( model );
 		if ( known !== undefined ) return known;
-		const n = model.nodes.length, words = skeletonModelWords( n );
+		const palettes = bindingsOf( model );
+		const n = model.nodes.length, words = skeletonModelWords( n, palettes.list.length, palettes.joints );
 		reserve( "skeletonModels", 8, modelUsed, words, MAX_SKELETON_MODEL_WORDS );
 		const at = modelUsed, table = views.skeletonModels;
 		modelUsed += words;
@@ -241,6 +273,15 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 			for ( let c = 0; c < 3; c++ ) table[restT + node * 3 + c] = Math.fround( source.translation[c]! );
 			for ( let c = 0; c < 4; c++ ) table[restR + node * 4 + c] = Math.fround( source.rotation[c]! );
 			for ( let c = 0; c < 3; c++ ) table[restS + node * 3 + c] = Math.fround( source.scale[c]! );
+		}
+		table[at + S_BINDINGS] = palettes.list.length;
+		let binding = at + S_HEADER + n * S_NODE_WORDS;
+		for ( const primitive of palettes.list ) {
+			const joints = primitive.joints.length;
+			table[binding] = joints;
+			for ( let i = 0; i < joints; i++ ) table[binding + 1 + i] = primitive.joints[i]!;
+			for ( let i = 0; i < joints * 16; i++ ) table[binding + 1 + joints + i] = primitive.inverseBind[i]!;
+			binding += 1 + joints * 17;
 		}
 		models.set( model, at );
 		return at;
@@ -382,6 +423,15 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 		records[w + R_RELEASED] = input.releasedNode;
 		for ( let c = 0; c < 4; c++ ) records[w + R_ROTATION + c] = input.rotation[c]!;
 		records[w + R_CHANGED] = 0;
+		records[w + R_PALETTES] = input.palettes;
+		records[w + R_PALETTED] = 0;
+		slot.thicknessVersion = input.thicknessVersion;
+		if ( input.palettes !== PALETTES_NONE ) {
+			views.skeletonState.set(
+				input.thickness,
+				slot.state.offset + slot.model.nodes.length * STATE_THICKNESS
+			);
+		}
 	}
 
 	/*
@@ -391,11 +441,11 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 	A materialized slot's result to its pose.
 	================
 	*/
-	function handOut( index: number, done: ( changed: boolean ) => void ) {
+	function handOut( index: number, done: ( changed: boolean, paletted: boolean, thicknessVersion: number ) => void ) {
 		const records = views.skeletonRecords, w = index * SKELETON_RECORD;
-		const changed = records[w + R_CHANGED] === 1;
-		records[w + R_CHANGED] = 0;
-		done( changed );
+		const changed = records[w + R_CHANGED] === 1, paletted = records[w + R_PALETTED] === 1;
+		records[w + R_CHANGED] = records[w + R_PALETTED] = 0;
+		done( changed, paletted, slots[index]!.thicknessVersion );
 	}
 
 	/*
@@ -479,7 +529,7 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 					MAX_SKELETONS * SKELETON_RECORD
 				);
 			}
-			const n = model.nodes.length, floats = skeletonStateFloats( n );
+			const n = model.nodes.length, floats = skeletonStateFloats( n, bindingsOf( model ).joints );
 			const state = allocate( freeState, floats, () => {
 				reserve( "skeletonState", 4, stateUsed, floats, MAX_SKELETON_STATE_FLOATS );
 				const offset = stateUsed;
@@ -501,6 +551,7 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 				layers: INITIAL_LAYERS,
 				channels,
 				clocks: channels,
+				thicknessVersion: 0,
 				done: undefined
 			};
 			slots[index] = slot;

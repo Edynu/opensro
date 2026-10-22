@@ -368,6 +368,9 @@ export function createCharacters(
 	let frameWork: import("@/engine/contracts/runtime").FrameWork | undefined;
 	let poseSeconds = 0;
 	const poseOrder: CharacterActor[] = [];
+	// evaluateNeededPoses' sort: each actor's two keys, and the actors' order.
+	let poseKeys = new Float64Array( 0 );
+	const poseIndices: number[] = [];
 	// Birth transforms belong to the actor lifetime, not GPU batches. Keep them
 	// across culling, batch membership changes and device recreation.
 	const particleRandom: ParticleRandom = { table: particleRandomTable(), index: 0 };
@@ -698,6 +701,9 @@ export function createCharacters(
 			state.clips = model.clips;
 		}
 		poses.set( actor.gid, state );
+		// A cloth batch reads every palette on this thread (writeBatchRows):
+		// the skeleton phase writes them while it materializes the pose.
+		state.pose.readsPalettes( resource!.plan.cloth );
 		const optional = actor.animationLod?.optional && !actor.attachment && !actor.mountedOn &&
 			!resource!.plan.emission;
 		const mustSample = catalogChanged || state.sampled === undefined || state.clip !== actor.clip ||
@@ -1033,6 +1039,9 @@ export function createCharacters(
 	//
 	// ============================================================================
 	type ModelResource = NonNullable<ReturnType<typeof models.get>>;
+	// Whether a model's primitives blend (prepare's group order), by its
+	// readonly primitives: every group asks every frame.
+	const blendedPrimitives = new WeakMap<readonly CharacterModel["primitives"][number][], boolean>();
 	type CharacterBatch = NonNullable<ReturnType<typeof batches.get>>;
 	type CharacterChains = ReturnType<typeof hierarchy.update>["chains"];
 	/*
@@ -1781,10 +1790,21 @@ export function createCharacters(
 		poseOrder.length = 0;
 		poseOrder.push( ...frameActors );
 		if ( frameWork ) {
-			poseOrder.sort( ( a, b ) =>
-				Number( !!a.animationLod?.optional ) - Number( !!b.animationLod?.optional ) ||
-				(ownedPoses.get( a.gid )?.sampled ?? -1) - (ownedPoses.get( b.gid )?.sampled ?? -1)
+			// A stable sort of the actors by cosmetic, then by last sample: the
+			// keys are read once an actor rather than twice a comparison.
+			const count = frameActors.length;
+			if ( poseKeys.length < count * 2 ) poseKeys = new Float64Array( count * 4 );
+			poseIndices.length = count;
+			for ( let i = 0; i < count; i++ ) {
+				const actor = frameActors[i]!;
+				poseKeys[i * 2] = Number( !!actor.animationLod?.optional );
+				poseKeys[i * 2 + 1] = ownedPoses.get( actor.gid )?.sampled ?? -1;
+				poseIndices[i] = i;
+			}
+			poseIndices.sort( ( a, b ) =>
+				poseKeys[a * 2]! - poseKeys[b * 2]! || poseKeys[a * 2 + 1]! - poseKeys[b * 2 + 1]!
 			);
+			for ( let i = 0; i < count; i++ ) poseOrder[i] = frameActors[poseIndices[i]!]!;
 		}
 		for ( const actor of poseOrder ) {
 			if ( !needed.has( actor.gid ) ) {
@@ -3483,8 +3503,13 @@ export function createCharacters(
 					const sample = rows[0]!;
 					const fading = frame.opacity( sample ) < 1;
 					const effect = sample.model.includes( EFFECT_PROGRAMS );
-					const blended = fading || effect ||
-						models.get( sample.model )!.model.primitives.some( p => !!p.geometry.material?.blend );
+					const primitives = models.get( sample.model )!.model.primitives;
+					let blending = blendedPrimitives.get( primitives );
+					if ( blending === undefined ) {
+						blending = primitives.some( p => !!p.geometry.material?.blend );
+						blendedPrimitives.set( primitives, blending );
+					}
+					const blended = fading || effect || blending;
 					let depth = -Infinity;
 					if ( blended ) {
 						for ( const row of rows ) depth = Math.max( depth, actorDepth( row ) );

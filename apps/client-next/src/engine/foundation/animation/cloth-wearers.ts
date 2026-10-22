@@ -447,11 +447,11 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 		vertices
 
 		The wearer's packed vertices as the last phase left them; a view, valid
-		until the state arena next grows.
+		until the state arena next grows. Only this owner grows its bank's
+		tables, and refreshes its views when it does.
 		================
 		*/
 		vertices( slot: number ): Float32Array {
-			refreshViews( views );
 			const n = slotVertices[slot]!, at = clothStateVertices( slotState[slot]!, n );
 			return views[bank.state].subarray( at, at + n * CLOTH_VERTEX_FLOATS );
 		},
