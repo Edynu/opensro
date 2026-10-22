@@ -788,6 +788,49 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   of cloth batches 12, the arena's copies 24, `copyBufferToBuffer` 12),
   simulation snapshot decoding 20, garbage collection 16.
 
+### 6.14 Step 4, part 7: a casting crowd's effects (2026-10-22)
+
+The town crowd restarted walking and casting (Fire Force): about 300 skill
+effect actors where the still crowd had 85, the 512-actor room full, 3,366
+draws a frame. Particle presentation became the main thread's largest
+item (Auto, ms/s): `drawParticles` 105 (the device's `presentParticles`
+40, the actor rows 38), the device's particle encoding 83 (its buffer
+copies 31, `writeBuffer` 22).
+
+- **The deferred particles' continuation is skipped when it would draw
+  nothing** (`renderer.ts`, `deferred-particles.ts` `drawing`): after the
+  occlusion query the renderer prepared the whole crowd a second time even
+  when no queued emitter draws (occluded, faded out, or night-only by day).
+  Exact: every pass presents the same streams
+  (`deferred-continuation.test.mjs`); by day in Jangan the continuation
+  drew nothing in any of about 450 frames, and with night forced its
+  lanterns look the same skipped or not.
+- **A skill effect instance was a model of its own**
+  (`presentation-auxiliary.ts` assembles `effect:<gid>:<program>`), so
+  every cast batched alone: one batch, one draw a primitive and one
+  particle stream an emitter an instance. In the crowd a frame presented
+  about 405 particle streams for about 420 rows, the Fire Force "keep"
+  program alone in 58 batches.
+- **Experimental "Batched effects"** (port-only, off): the instances of a
+  program share `effect:<program>`, so a crowd's casts of it draw as one
+  batch. A batch's rows present what the instances' own batches did,
+  through casts that start, end and change rows
+  (`batched-effects.test.mjs`, with and without the frame workers); only
+  the rows' order differs, so overlapping translucent instances can blend
+  in gid order where each took its own place in the far-to-near order.
+  10-second rounds in the crowd (about 140 bodies and 80 effects in view),
+  alternating: Auto 80, 85, 83 fps against 70, 74, 70 (main thread 11.9,
+  11.2, 11.5 ms against 13.7, 12.9, 13.6); Off 44.5, 43.8 against 41.0,
+  41.8.
+- **What the device's particle encoding still does a frame** (counted in
+  the crowd before batching): about 405 streams in one dispatch, 1,030
+  `copyBufferToBuffer` (each stream's instances and palettes back into its
+  draw's buffers, and 217 streams' dirty records), the material tables
+  uploaded again (58,600 floats, unchanged since the stream began) and the
+  dirty records copied three times on the CPU. Batching cuts the stream
+  count; binding the draws to the arena's output would remove the copies
+  back, and a resident material table the uploads.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
