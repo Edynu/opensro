@@ -4,7 +4,8 @@
 frame-workers.ts - what a frame worker is given, and what its owner reports
 
 The main thread starts each frame worker with one message and never sends
-another: everything after it is shared memory (frame-jobs.ts).
+another: everything after it is shared memory, the control block
+(frame-jobs.ts) and the kernels' growable tables (frame-kernels.ts).
 
 ===========================================================================
 */
@@ -16,6 +17,7 @@ FrameWorkerStart
 */
 export interface FrameWorkerStart {
 	readonly control: SharedArrayBuffer;
+	readonly kernels: import("@/engine/foundation/kernels/frame-kernels").FrameKernelMemory;
 }
 
 /*

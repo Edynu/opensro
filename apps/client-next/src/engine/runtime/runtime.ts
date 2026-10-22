@@ -475,7 +475,8 @@ export function startRuntime(
 				random,
 				world.soundSurface,
 				presentation,
-				audio.effectsEnabled
+				audio.effectsEnabled,
+				frameWorkers
 			)
 		);
 		// Platform installation publishes saved preferences synchronously. Install

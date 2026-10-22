@@ -2359,7 +2359,29 @@
 			"consumer": "src/engine/foundation/workers/frame-jobs.ts",
 			"provider": "src/engine/runtime/frame-workers/worker/entry.ts",
 			"functions": [
-				"runFrameKernel"
+				"callback:serveFrameJobs:1"
+			]
+		},
+		{
+			"consumer": "src/engine/foundation/kernels/frame-kernels.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"sharedBuffer"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/pose-presentation.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"memory",
+				"run"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"provider": "src/engine/runtime/characters/pose-presentation.ts",
+			"functions": [
+				"runLocal"
 			]
 		}
 	],
@@ -3875,6 +3897,27 @@
 			"function": "runLocal",
 			"kind": "callback",
 			"reason": "Port-only frame workers: the caller's synchronous kernel runner for the chunks the main thread claims; the first error is kept to rethrow after the join."
+		},
+		{
+			"file": "src/engine/foundation/kernels/frame-kernels.ts",
+			"expression": "shared.grow",
+			"function": "growTable",
+			"kind": "callback",
+			"reason": "Port-only frame kernels: grows a growable SharedArrayBuffer in place through a typed projection (ES2024); every thread remakes its fixed-length views at its next refreshViews."
+		},
+		{
+			"file": "src/engine/runtime/characters/presentation-events.ts",
+			"expression": "localMover",
+			"function": "posed",
+			"kind": "callback",
+			"reason": "Current frame presentation-sample owner lends this synchronous operation through characters.ts; it decides which characters the anchoring poses, for prepare and the pose call alike."
+		},
+		{
+			"file": "src/engine/runtime/characters/presentation-events.ts",
+			"expression": "posePresentation.prepare",
+			"function": "step",
+			"kind": "callback",
+			"reason": "Port-only frame workers: the pose presentation owner computes the anchoring poses together before the pose calls hand them out, through characters.ts; effect and hit order remain unchanged."
 		}
 	],
 	"sequences": [
@@ -3919,7 +3962,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "e9356f4de2284aac06878f6780c88f3f1c69085073710bb8864dc3d70f7e9584",
+			"sourceSha256": "4ae6a40ba556bcc383a52dbcaac4dd684a4d2c29189ec2c08bd487ca73f494cc",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. A hidden frame renders only while a world entry awaits game-ready, under the same barrier: native keeps updating while inactive (A0F430 OnUpdate; A11650 skips drawing) and finishes loading in CPSMission_OnUpdate (728E10). A visible window that gets no RAF for STARVED_FRAME_MS runs the same delivery-paced maintenance frames. Device disposal cancels pending mapping. Startup also hands the asset owner the device texture features once (port-only texture variants), outside the frame.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

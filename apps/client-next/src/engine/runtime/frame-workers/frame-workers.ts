@@ -24,6 +24,11 @@ reload.
 import type { FrameWorkerStart, FrameWorkerStatistics } from "@/engine/contracts/frame-workers";
 import { storedExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
 import {
+	createFrameKernelMemory,
+	plainBuffer,
+	type FrameKernelMemory
+} from "@/engine/foundation/kernels/frame-kernels";
+import {
 	FRAME_CONTROL_WORDS,
 	type FrameJobRunner,
 	finishFramePhase,
@@ -45,6 +50,18 @@ const JOIN_CLOCK_SPINS = 1024;
 
 /*
 ================
+sharedBuffer
+
+The kernel tables' allocator while frame workers run: growable shared
+memory every worker's views follow.
+================
+*/
+function sharedBuffer( bytes: number, maxBytes: number ): ArrayBufferLike {
+	return new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } );
+}
+
+/*
+================
 createFrameWorkers
 ================
 */
@@ -54,10 +71,16 @@ export function createFrameWorkers() {
 		setting = storedExperimentalOptions( globalThis.localStorage ).options.frameWorkers;
 	} catch {}
 	const isolated = globalThis.crossOriginIsolated === true;
-	const started = isolated ? frameWorkerCount( globalThis.navigator?.hardwareConcurrency ?? 1, setting ) : 0;
+	// Kernel tables grow in place between phases (frame-kernels.ts); a page
+	// whose shared memory cannot grow keeps its frame on this thread.
+	const growable = isolated && typeof SharedArrayBuffer.prototype.grow === "function";
+	const started = growable ? frameWorkerCount( globalThis.navigator?.hardwareConcurrency ?? 1, setting ) : 0;
 	const bytes = FRAME_CONTROL_WORDS * Int32Array.BYTES_PER_ELEMENT;
 	const memory = started > 0 ? new SharedArrayBuffer( bytes ) : new ArrayBuffer( bytes );
 	const control = new Int32Array( memory );
+	const kernels: FrameKernelMemory = createFrameKernelMemory(
+		started > 0 ? sharedBuffer : plainBuffer
+	);
 	const workers: Worker[] = [];
 	let generation = 0, phases = 0, joinWaitMs = 0, retired: string | null = null;
 	for ( let index = 0; index < started; index++ ) {
@@ -65,7 +88,7 @@ export function createFrameWorkers() {
 			type: "module",
 			name: `sro-frame-${index}`
 		} );
-		worker.postMessage( { control: memory as SharedArrayBuffer } satisfies FrameWorkerStart );
+		worker.postMessage( { control: memory as SharedArrayBuffer, kernels } satisfies FrameWorkerStart );
 		workers.push( worker );
 	}
 	/*
@@ -118,6 +141,16 @@ export function createFrameWorkers() {
 			if ( framePhaseFailed( control, generation ) ) {
 				throw failure ?? Error( "A frame worker chunk failed" );
 			}
+		},
+		/*
+		================
+		memory
+
+		The kernel tables every frame thread shares; growable in place.
+		================
+		*/
+		memory(): FrameKernelMemory {
+			return kernels;
 		},
 		/*
 		================

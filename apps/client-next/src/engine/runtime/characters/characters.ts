@@ -129,7 +129,10 @@ export function createCharacterPresentation(
 		release( key: string, now: number ): void;
 		finishedCasts(): void;
 	},
-	soundEnabled?: () => boolean
+	soundEnabled?: () => boolean,
+	// Port-only: the frame workers the movement presentation runs on, when
+	// the runtime has them (frame-workers.ts); absent, it runs here.
+	frameWorkers?: import("./pose-presentation").PoseFrameWorkers
 ) {
 	let probe: CharacterFrameProbe | undefined;
 	let frameWork: import("@/engine/contracts/runtime").FrameWork | undefined;
@@ -190,7 +193,7 @@ export function createCharacterPresentation(
 		allocateActor,
 		statusOwner
 	);
-	const posePresentation = createPosePresentation();
+	const posePresentation = createPosePresentation( frameWorkers );
 	const selection = createCharacterSelection( CHARACTER_ACTORS, auxiliary.effectDistances );
 	const stateIndex = createCharacterStateIndex();
 	const presentationActions = createPresentationActions();

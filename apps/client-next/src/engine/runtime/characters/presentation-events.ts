@@ -131,7 +131,10 @@ interface PresentationEventFrame {
 	readonly logicalPose: ( entity: EntityState ) => Pose;
 	readonly appearanceRef: ( entity: EntityState ) => number;
 	readonly soundContext: ( entity: EntityState, skill?: number, critical?: boolean ) => CharacterSoundContext;
-	readonly posePresentation: { pose( gid: number, native: Pose, seconds: number ): Pose; };
+	readonly posePresentation: {
+		pose( gid: number, native: Pose, seconds: number ): Pose;
+		prepare( requests: readonly { readonly gid: number; readonly target: Pose; }[], now: number ): void;
+	};
 	readonly referenceAppearances: Pick<ReturnType<typeof createReferenceAppearances>, "step">;
 	readonly effects: PresentationEventEffects;
 	readonly effectDetail: number;
@@ -260,6 +263,16 @@ export function createPresentationEvents() {
 			// not the worker's latest sample, or entity-attached effects jitter
 			// against the body. pose() is idempotent within one frame time.
 			let drawnLocal: import("@/engine/contracts/gameplay").Pose | null = null;
+			// The characters this anchoring poses, computed together first (on the
+			// frame workers when the page has them; pose-presentation.ts prepare):
+			// the same condition and target as the pose() call below.
+			const posed = ( entity: EntityState ) =>
+				!heldPoses.get( entity.gid ) && samples.has( entity.gid ) &&
+				(localMover( entity.gid ) || !!entity.moving);
+			posePresentation.prepare(
+				entities.filter( posed ).map( entity => ({ gid: entity.gid, target: logicalPose( entity ) }) ),
+				seconds
+			);
 			const effectEntities = entities.map( entity => {
 				const local = entity.gid === gameplay?.localGid && !!gameplay.pose;
 				// A held body (a cast's navigation hold, including the burst
@@ -280,7 +293,7 @@ export function createPresentationEvents() {
 						heading: held.angle
 					};
 				}
-				if ( !samples.has( entity.gid ) || !localMover( entity.gid ) && !entity.moving ) return entity;
+				if ( !posed( entity ) ) return entity;
 				const drawn = posePresentation.pose( entity.gid, logicalPose( entity ), seconds );
 				if ( local ) {
 					drawnLocal = { ...gameplay!.pose!, regionId: drawn.regionId, x: drawn.x, y: drawn.y, z: drawn.z };
