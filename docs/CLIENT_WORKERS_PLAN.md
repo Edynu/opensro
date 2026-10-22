@@ -1,6 +1,6 @@
 # Client worker threads: plan
 
-Status: step 1 and step 2 (parts 1, 2a, 2b, 2c) done (2026-10-22). Scope: the browser client's
+Status: step 1 and step 2 (parts 1, 2a, 2b, 2c, 3a) done (2026-10-22). Scope: the browser client's
 per-actor frame work (players, monsters, NPCs and pets, their poses, cloth,
 particles and the parallel parts of presentation) and the draw path that
 feeds it to the GPU. Goal: hundreds of players and monsters with their
@@ -478,6 +478,57 @@ thread:
   character presentation 8.7, 9.3 ms off against 8.3, 8.2 auto. The poses
   are a small part of the frame since part 1; the machinery is proven, and
   the next kernels carry the gain.
+
+### 6.6 Step 2, part 3a: walking histories leave the worker flat (2026-10-22)
+
+- **Measured first.** World batches captured in the browser with 214
+  players walking (60 batches, about 45 moving states each): every moving
+  state carried its whole walking history, 194 point objects on average.
+  Histories were 87% of a batch's bytes and 80% of its structured-clone
+  time (3.63 ms a batch whole, 0.73 ms without them). A history is a new
+  array at every step, so the main thread also copied every point into the
+  walk arena again.
+- **Change.** `entities.ts` `take()` publishes each history as one
+  `Float64Array` in the walk arena's entry layout (point count, then 5
+  doubles a point), flattened once per history
+  (`walking-history.ts` `publishWalkingChains`); the main thread copies it
+  into the arena with one `set()`. The simulation worker keeps its own
+  `Pose[]` histories, which its movement owners extend; on the main thread
+  `MovementPath` and `MovementTransition` carry `walkingChain`, and
+  `SampleInput.walkingChain` replaces `walkingPath`. No isolation and no
+  setting: the drawn poses are the same bits, so everyone gets it.
+- **Proof.** The differential tests hand the frozen object code `Pose[]`
+  chains and the current code the same chains flat, through the shipping
+  flattener (`walk-scenario.mjs` `chainOf`): every pose bit for bit, on
+  worker threads too. `walking-chain-publication.test.mjs`: the flat numbers
+  bit for bit, every other field and object kept (leg ends keep their
+  identity), the worker's own value untouched, and a batch through `take()`,
+  a structured clone, `apply` and the sample builder. Five deliberate breaks
+  (the flattener swapping y and z, `take()` publishing the worker's values,
+  the sample builder ignoring a transition's chain, a transition left
+  unpublished, the arena copy dropping a point) each fail a test.
+- **Browser**, CPU profiles back to back against the previous commit, ms
+  per second of main thread: `worker.onmessage` (decoding world batches)
+  50.2 to 15.1, garbage collection 33.8 to 25.9, `chainAt` 2.9 to 0.55;
+  about 2 ms a frame. The captured batches clone in 0.99 ms instead of 3.63.
+  Frame rate, still, 20-second rounds alternating with the previous commit:
+  25, 29, 28 fps against 25, 25, 26 (two 8-second rounds, 24, 23 against
+  25, 23, are within the crowd's noise).
+- **The setup did not move in Node** (`frame-kernel-bench.mjs`: 0.28, 1.65
+  and 8.5 ms at 200, 1,000 and 4,000 characters): its chains are short and
+  seldom republished. Its profile at 4,000 puts the setup in `prepare`
+  copying each whole 228-double record into its snapshot (129 ms/s),
+  `writeInput` reading the sample objects (127 ms/s) and the leg-end
+  identity map (38 ms/s); those, not chains, are what input rows written
+  by the worker would remove.
+- **Why not straight into shared memory yet.** With flat chains, what is
+  left of the histories is 0.26 ms of clone a batch (the main thread pays
+  about half) and 0.016 ms of arena copy. Writing them into the shared
+  arena would save that, but needs a lifetime protocol: the main thread
+  keeps an idle character's last chain as long as its record names it, so
+  the worker cannot reuse that memory until told. The larger remainders of
+  a batch are the local player's gameplay snapshots (0.45 ms a batch) and
+  whole-entity state events (about 0.3 ms).
 
 ## 7. Open decisions for the owner
 
