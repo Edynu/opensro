@@ -9,6 +9,7 @@ Recovery must retain the admitted path and bound its temporary catch-up speed.
 ===========================================================================
 */
 import "../helpers/native-source-loader.mjs";
+import { chainOf } from "../helpers/walk-scenario.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 const { createPosePresentation } = await import( "../../src/engine/runtime/characters/pose-presentation.ts" );
@@ -33,7 +34,7 @@ test("vertical-only accepted recovery still settles", () => {
 			atMs: 1000,
 			revision: 2,
 			moving: false,
-			walkingPath: [ from, to ],
+			walkingChain: chainOf( [ from, to ] ),
 			transition: { relocation: 0, reason: "receipt", eligible: true }
 		} ] ] )
 	);
@@ -69,7 +70,7 @@ test("a worker stall at fifty rendered FPS has bounded recovery speed", () => {
 				from,
 				to,
 				durationMs: 2000,
-				walkingPath
+				walkingChain: chainOf( walkingPath )
 			} ] ] )
 		);
 		const drawn = presentation.pose( 1, target, now / 1000 );
@@ -97,7 +98,7 @@ for ( const terrain of [ "flat", "hill" ] ) {
 					from,
 					to: corner,
 					durationMs: 600,
-					walkingPath
+					walkingChain: chainOf( walkingPath )
 				} ] ] )
 			);
 			presentation.pose( 1, from, 0 );
@@ -109,7 +110,7 @@ for ( const terrain of [ "flat", "hill" ] ) {
 					from: blocked ? to : undefined,
 					to: blocked ? to : undefined,
 					durationMs: blocked ? 100 : undefined,
-					walkingPath,
+					walkingChain: chainOf( walkingPath ),
 					transition: { relocation: 0, reason: "receipt", eligible: true }
 				} ] ] )
 			);
@@ -142,7 +143,7 @@ for ( const speed of [ 20, 50, 150 ] ) {
 					from,
 					to,
 					durationMs: 2000,
-					walkingPath
+					walkingChain: chainOf( walkingPath )
 				} ] ] )
 			);
 			const shown = presentation.pose( 1, target, atMs / 1000 );

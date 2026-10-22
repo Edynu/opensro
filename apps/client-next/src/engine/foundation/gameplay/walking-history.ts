@@ -7,10 +7,16 @@ Movement owners call this after accepting a native step. Extra queries only
 prove displayed recovery through terrain; they never change the native step.
 The caller owns immutable history and reuses it until accepted motion changes.
 
+A history leaves the simulation worker flat (publishWalkingChains): up to
+MAX_HISTORY_POINTS point objects per moving character per world batch were
+most of what the main thread decoded in a crowd (about 194 points a state,
+73% of a batch's structured-clone time with 214 players walking).
+
 ===========================================================================
 */
-import type { Pose } from "@/engine/contracts/gameplay";
+import type { MovementPath, MovementTransition, Pose } from "@/engine/contracts/gameplay";
 import type { NavOwner } from "@/engine/foundation/navigation/dungeon-ownership";
+import { POSE_WORDS } from "@/engine/foundation/kernels/pose-record";
 import { planarDistance, sameCoordinateSpace } from "@/engine/foundation/world/world-space";
 import { interpolateMovement, poseDistance } from "./native-movement";
 
@@ -174,4 +180,85 @@ export function extendWalkingHistory( input: WalkingHistoryInput ): readonly Pos
 		accepted = resolved;
 	}
 	return points.length > MAX_HISTORY_POINTS ? points.slice( -MAX_HISTORY_POINTS ) : points;
+}
+
+// ============================================================================
+
+/*
+================
+WalkingChains
+
+Flat chains by the history they were made from: a history published again
+unchanged (a walking monster's HP state) is flattened once, and a batch's
+structured clone sends a chain its events share once.
+================
+*/
+export type WalkingChains = WeakMap<readonly Pose[], Float64Array>;
+
+/*
+================
+flattenWalkingPath
+
+A history as it is published: its point count, then POSE_WORDS doubles a
+point (region, x, y, z, heading). This is an entry of the pose owner's walk
+arena (kernels/pose-record.ts), so the main thread copies it in one block.
+================
+*/
+export function flattenWalkingPath( points: readonly Pose[] ): Float64Array {
+	const chain = new Float64Array( 1 + points.length * POSE_WORDS );
+	chain[0] = points.length;
+	for ( let i = 0; i < points.length; i++ ) {
+		const point = points[i]!, at = 1 + i * POSE_WORDS;
+		chain[at] = point.regionId;
+		chain[at + 1] = point.x;
+		chain[at + 2] = point.y;
+		chain[at + 3] = point.z;
+		chain[at + 4] = point.angle;
+	}
+	return chain;
+}
+
+/*
+================
+publishedLeg
+
+A movement path or transition with its walkingPath replaced by the flat
+walkingChain; the leg itself when it holds no history.
+================
+*/
+function publishedLeg<T extends { readonly walkingPath?: readonly Pose[]; }>(
+	leg: T | undefined,
+	chains: WalkingChains
+): T | undefined {
+	if ( !leg?.walkingPath ) return leg;
+	const { walkingPath, ...rest } = leg;
+	let chain = chains.get( walkingPath );
+	if ( !chain ) {
+		chain = flattenWalkingPath( walkingPath );
+		chains.set( walkingPath, chain );
+	}
+	return { ...rest, walkingChain: chain } as unknown as T;
+}
+
+/*
+================
+publishWalkingChains
+
+An entity state or gameplay snapshot as it leaves the simulation worker:
+the histories of its movement path and transition flat, every other field
+and object as it was. The value itself when it holds no history. The
+worker keeps its own values, whose movement owners extend the histories.
+================
+*/
+export function publishWalkingChains<
+	T extends { readonly movementPath?: MovementPath; readonly movementTransition?: MovementTransition; }
+>( value: T, chains: WalkingChains ): T {
+	const movementPath = publishedLeg( value.movementPath, chains );
+	const movementTransition = publishedLeg( value.movementTransition, chains );
+	if ( movementPath === value.movementPath && movementTransition === value.movementTransition ) return value;
+	return {
+		...value,
+		...(movementPath === value.movementPath ? {} : { movementPath }),
+		...(movementTransition === value.movementTransition ? {} : { movementTransition })
+	};
 }

@@ -17,6 +17,9 @@ const { createEntityMotion } = await import(
 );
 const { createPosePresentation } = await import( "../../src/engine/runtime/characters/pose-presentation.ts" );
 const { createPresentationSamples } = await import( "../../src/engine/runtime/characters/presentation-samples.ts" );
+const { publishWalkingChains } = await import( "../../src/engine/foundation/gameplay/walking-history.ts" );
+// The simulation worker's flat chains by history (publishWalkingChains).
+const CHAINS = new WeakMap();
 const START = { regionId: 0x0101, x: 100, y: 0, z: 100, angle: 0 };
 const ENTITY = {
 	...START,
@@ -44,7 +47,10 @@ for ( const speed of [ 150, 240 ] ) {
 		*/
 		function draw( state, at ) {
 			const entity = { ...ENTITY, ...state, kind: "player" };
-			const { samples, logicalPose } = createPresentationSamples( [ entity ], null );
+			const { samples, logicalPose } = createPresentationSamples(
+				[ publishWalkingChains( entity, CHAINS ) ],
+				null
+			);
 			assert.equal(
 				samples.get( ENTITY.gid )?.transition,
 				undefined,
@@ -262,7 +268,7 @@ for ( const method of [ "source", "correct" ] ) {
 			================
 			*/
 			function draw( at ) {
-				const source = createPresentationSamples( [ entity ], null );
+				const source = createPresentationSamples( [ publishWalkingChains( entity, CHAINS ) ], null );
 				presentation.samples( source.samples );
 				return presentation.pose( entity.gid, source.logicalPose( entity ), at );
 			}
@@ -333,7 +339,7 @@ for ( const method of [ "receive", "steer", "mode", "speed", "sit", "stop-speed"
 		================
 		*/
 		function draw( at ) {
-			const source = createPresentationSamples( [ entity ], null );
+			const source = createPresentationSamples( [ publishWalkingChains( entity, CHAINS ) ], null );
 			presentation.samples( source.samples );
 			return presentation.pose( entity.gid, source.logicalPose( entity ), at );
 		}

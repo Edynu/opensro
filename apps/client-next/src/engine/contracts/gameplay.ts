@@ -113,12 +113,17 @@ MovementPath
 The worker's admitted leg. Its duration includes receipt reconciliation and
 speed changes; presentation must not replace it with the nominal run speed.
 Older untimed publishers retain sample-based presentation.
+
+walkingPath is the movement owner's own history and never leaves the
+simulation worker: a published leg carries the same points flat as
+walkingChain instead (walking-history.ts publishWalkingChains).
 ================
 */
 export interface MovementPath {
 	readonly from: Pose;
 	readonly to: Pose;
 	readonly walkingPath?: readonly Pose[];
+	readonly walkingChain?: Float64Array;
 	readonly durationMs?: number;
 	/** Simulation clock origin of a fixed-timing displacement leg. */
 	readonly startedAtMs?: number;
@@ -152,7 +157,9 @@ export interface MovementTransition {
 	readonly corridor?: { readonly from: Pose; readonly to: Pose; };
 	// Ordered connected ground samples, including terrain-following heights.
 	// This proves recovery behind the current pose, not future velocity.
+	// Published flat as walkingChain, as MovementPath's.
 	readonly walkingPath?: readonly Pose[];
+	readonly walkingChain?: Float64Array;
 	// An accepted receipt can replace the first publication of its click.
 	// Retain the admitted walk behind its rebased anchor for presentation.
 	readonly previousPath?: { readonly from: Pose; readonly to: Pose; };

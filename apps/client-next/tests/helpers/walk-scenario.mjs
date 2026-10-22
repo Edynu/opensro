@@ -9,9 +9,14 @@ them, in every shape the pose rules branch on, from one seeded random
 source, so two presentations driven with the same seed see the same
 inputs. sameBits compares two drawn poses bit for bit.
 
+An input's chain comes in both forms: walkingPath for the frozen object
+code, walkingChain as the simulation worker publishes it (chainOf).
+
 ===========================================================================
 */
 import assert from "node:assert/strict";
+
+const { flattenWalkingPath } = await import( "../../src/engine/foundation/gameplay/walking-history.ts" );
 
 const REGION_SIZE = 1920;
 const DUNGEON_REGION = 0x8000 | 3;
@@ -20,6 +25,8 @@ export const SAMPLE_DISTANCE = 2;
 const MAX_POINTS = 256;
 export const WALK_SPEED = 30;
 export const TICK_MS = 50;
+// One published flat chain per chain object (chainOf).
+const flatChains = new WeakMap();
 
 /*
 ================
@@ -28,6 +35,24 @@ createRandom
 */
 export function createRandom( seed ) {
 	return () => (seed = (Math.imul( seed, 1664525 ) + 1013904223) >>> 0) / 2 ** 32;
+}
+
+/*
+================
+chainOf
+
+A chain as the simulation worker publishes it (walking-history.ts
+flattenWalkingPath), one flat array per chain object, as the worker's
+own cache gives.
+================
+*/
+export function chainOf( points ) {
+	let chain = flatChains.get( points );
+	if ( !chain ) {
+		chain = flattenWalkingPath( points );
+		flatChains.set( points, chain );
+	}
+	return chain;
 }
 
 /*
@@ -114,7 +139,9 @@ export function sampleOf( random, walk, kind ) {
 	const end = walk.points.at( -1 ), start = walk.points[0];
 	const moving = walk.walked < walk.length;
 	const path = walk.published.slice();
-	if ( kind < .5 ) return { atMs: walk.atMs, revision: walk.revision, moving, walkingPath: path };
+	if ( kind < .5 ) {
+		return { atMs: walk.atMs, revision: walk.revision, moving, walkingPath: path, walkingChain: chainOf( path ) };
+	}
 	if ( kind < .7 ) {
 		return {
 			atMs: walk.atMs,
@@ -123,7 +150,14 @@ export function sampleOf( random, walk, kind ) {
 			from: start,
 			to: end,
 			durationMs: walk.length / WALK_SPEED * 1000,
-			transition: { relocation: 0, reason: "receipt", eligible: true, pathEligible: true, walkingPath: path }
+			transition: {
+				relocation: 0,
+				reason: "receipt",
+				eligible: true,
+				pathEligible: true,
+				walkingPath: path,
+				walkingChain: chainOf( path )
+			}
 		};
 	}
 	if ( kind < .85 ) {
@@ -135,6 +169,7 @@ export function sampleOf( random, walk, kind ) {
 			to: end,
 			durationMs: walk.length / WALK_SPEED * 1000,
 			walkingPath: path,
+			walkingChain: chainOf( path ),
 			ownLeg: random() < .5
 		};
 	}
@@ -211,7 +246,10 @@ export function shapedSample( random, walk, at, simulationMs ) {
 		if ( random() < .85 ) input.startedAtMs = walk.legStartedMs ?? simulationMs;
 	}
 	if ( random() < .3 ) input.ownLeg = random() < .8;
-	if ( walk.chained && random() < .6 ) input.walkingPath = walk.chain;
+	if ( walk.chained && random() < .6 ) {
+		input.walkingPath = walk.chain;
+		input.walkingChain = chainOf( walk.chain );
+	}
 	if ( random() < .7 ) {
 		const corner = walk.points[Math.min( walk.points.length - 1, at.edge )];
 		input.transition = {
@@ -225,7 +263,7 @@ export function shapedSample( random, walk, at, simulationMs ) {
 			...(random() < .3 ?
 				{ turn: { incoming: { from: leg.from, to: corner }, outgoing: { from: corner, to: leg.to } } } :
 				{}),
-			...(walk.chained && random() < .3 ? { walkingPath: walk.chain } : {})
+			...(walk.chained && random() < .3 ? { walkingPath: walk.chain, walkingChain: chainOf( walk.chain ) } : {})
 		};
 	}
 	return input;

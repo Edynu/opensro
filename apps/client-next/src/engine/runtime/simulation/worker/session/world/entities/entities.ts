@@ -36,6 +36,7 @@ import type { EntityState, WorldBatch, WorldEvent } from "@/engine/contracts/wor
 import { isDungeonRegion } from "@/engine/foundation/world/world-space";
 import { journalCost } from "@/engine/foundation/gameplay/journal-cost";
 import { mergeGameplaySnapshots } from "@/engine/foundation/gameplay/gameplay-snapshot";
+import { publishWalkingChains, type WalkingChains } from "@/engine/foundation/gameplay/walking-history";
 import type { Degradation, WireFrame } from "@/engine/contracts/network";
 import { SYSTEM_PET_APPEAR } from "@/engine/contracts/orb";
 import { STALL_TITLE_MODE } from "@/engine/foundation/gameplay/interaction-approach";
@@ -123,6 +124,8 @@ export function createEntities(
 	// costed against their own graph instead, so replacing one never uncounts
 	// a shared value.
 	let sharedArrays = new WeakSet<object>();
+	// Each published walking history, flat (publishedEvent).
+	const walkingChains: WalkingChains = new WeakMap();
 	let stagedMode = 1, removalTail = new Uint8Array( 0 );
 	let synchronized = false, localName = "", localActiveJob = 4;
 	let localSkills: readonly import("@/engine/foundation/gameplay/spawn-skills").SpawnSkill[] = [];
@@ -164,6 +167,26 @@ export function createEntities(
 	*/
 	function batchCost( event: WorldEvent ) {
 		return event.kind === "native" ? event.payload.byteLength : journalCost( event, sharedArrays );
+	}
+	/*
+	================
+	publishedEvent
+
+	An event as the batch sends it: entity states and gameplay snapshots carry
+	their walking histories flat (walking-history.ts publishWalkingChains).
+	The journal keeps and costs the worker's own values.
+	================
+	*/
+	function publishedEvent( event: WorldEvent ): WorldEvent {
+		if ( event.kind === "spawn" || event.kind === "state" ) {
+			const entity = publishWalkingChains( event.entity, walkingChains );
+			return entity === event.entity ? event : { kind: event.kind, entity };
+		}
+		if ( event.kind === "gameplay" ) {
+			const state = publishWalkingChains( event.state, walkingChains );
+			return state === event.state ? event : { kind: "gameplay", state };
+		}
+		return event;
 	}
 	/*
 	================
@@ -1466,7 +1489,7 @@ export function createEntities(
 			if ( inflight || !events.length ) {
 				return null;
 			}
-			inflight = { sequence: ++sequence, events };
+			inflight = { sequence: ++sequence, events: events.map( publishedEvent ) };
 			inflightAt = performance.now();
 			events = [];
 			pendingPoses.clear();

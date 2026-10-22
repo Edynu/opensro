@@ -17,6 +17,9 @@ const { createMovement } = await import(
 	"../../src/engine/runtime/simulation/worker/session/world/gameplay/movement/movement.ts"
 );
 const { createPosePresentation } = await import( "../../src/engine/runtime/characters/pose-presentation.ts" );
+const { publishWalkingChains } = await import( "../../src/engine/foundation/gameplay/walking-history.ts" );
+// The simulation worker's flat chains by history (publishWalkingChains).
+const CHAINS = new WeakMap();
 const FROM = { regionId: 257, x: 100, y: 0, z: 100, angle: 0 };
 const TO = { ...FROM, x: 200 };
 
@@ -270,9 +273,13 @@ test("terrain walking stays continuous through repeated worker catch-up publicat
 /*
 ================
 publish
+
+The local mover's sample from its movement state as the world batch
+delivers it: histories flat (walking-history.ts publishWalkingChains).
 ================
 */
-function publish( presentation, state, timed = true ) {
+function publish( presentation, worker, timed = true ) {
+	const state = publishWalkingChains( worker, CHAINS );
 	presentation.samples(
 		new Map( [ [ 7, {
 			atMs: state.poseAtMs,

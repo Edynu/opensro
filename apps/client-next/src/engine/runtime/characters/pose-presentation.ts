@@ -210,8 +210,8 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 	const views = frameKernelViews( memory );
 	const slots = new Map<number, number>(), freeSlots: number[] = [];
 	let slotCount = 0, arenaUsed = 0;
-	// Per slot: the chain object last written as input, and its arena offset.
-	const inputChains: (readonly Pose[] | undefined)[] = [], inputChainAt: number[] = [];
+	// Per slot: the chain last written as input, and its arena offset.
+	const inputChains: (Float64Array | undefined)[] = [], inputChainAt: number[] = [];
 	// Per slot: predicted calls not yet handed out (2, 1 or 0), and the target
 	// they were computed for; the frame time is the prepare's.
 	const pending: number[] = [], pendingSlots: number[] = [];
@@ -377,18 +377,18 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 	================
 	chainAt
 
-	The arena offset of the slot's input chain, written once per chain
-	object: published chains are immutable (walking-history.ts).
+	The arena offset of the slot's input chain, copied in once per published
+	chain: chains are immutable and already in the arena's entry layout
+	(walking-history.ts flattenWalkingPath).
 	================
 	*/
-	function chainAt( slot: number, chain: readonly Pose[] | undefined ): number {
+	function chainAt( slot: number, chain: Float64Array | undefined ): number {
 		if ( !chain ) return NO_CHAIN;
 		if ( inputChains[slot] === chain ) return inputChainAt[slot]!;
-		const words = 1 + chain.length * POSE_WORDS;
+		const words = chain.length;
 		reserveArena( words );
-		const arena = views.walkArena, at = arenaUsed;
-		arena[at] = chain.length;
-		for ( let i = 0; i < chain.length; i++ ) writePose( arena, at + 1 + i * POSE_WORDS, chain[i]! );
+		const at = arenaUsed;
+		views.walkArena.set( chain, at );
 		arenaUsed += words;
 		inputChains[slot] = chain;
 		inputChainAt[slot] = at;
@@ -406,7 +406,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		// The chain first: reserving arena room can compact it, which remaps
 		// this record's chain offsets too.
 		const chain = input ?
-			chainAt( slot, input.displacement ? undefined : input.walkingPath ?? input.transition?.walkingPath ) :
+			chainAt( slot, input.displacement ? undefined : input.walkingChain ?? input.transition?.walkingChain ) :
 			NO_CHAIN;
 		const base = slot * POSE_RECORD, table = views.poseRecords;
 		table[base + I_SET] = input ? 1 : 0;

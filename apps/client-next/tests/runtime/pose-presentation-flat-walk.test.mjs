@@ -21,6 +21,7 @@ import {
 	TICK_MS,
 	WALK_SPEED,
 	alongWalk,
+	chainOf,
 	createRandom,
 	createWalk,
 	sameBits,
@@ -341,11 +342,13 @@ test("chains compacted while a prepare writes its inputs keep every pose exact",
 			walk.walked = Math.min( walk.length, walk.walked + WALK_SPEED / 60 );
 			walk.atMs = simulationMs;
 			walk.target = alongWalk( walk, walk.walked ).pose;
+			const walkingPath = walk.points.slice();
 			samples.set( gid, {
 				atMs: simulationMs,
 				revision: 1,
 				moving: true,
-				walkingPath: walk.points.slice()
+				walkingPath,
+				walkingChain: chainOf( walkingPath )
 			} );
 			requests.push( { gid, target: walk.target } );
 		}

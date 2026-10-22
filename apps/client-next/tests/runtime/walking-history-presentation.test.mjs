@@ -10,6 +10,7 @@ chain with a straight endpoint chord.
 ===========================================================================
 */
 import "../helpers/native-source-loader.mjs";
+import { chainOf } from "../helpers/walk-scenario.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { defined } from "../helpers/defined.mjs";
@@ -64,7 +65,7 @@ for (
 			atMs: 1000,
 			revision: 2,
 			moving: false,
-			walkingPath: path,
+			walkingChain: chainOf( path ),
 			transition: { relocation: 0, reason: "receipt", eligible: true }
 		} );
 		assert.deepEqual(
@@ -97,7 +98,7 @@ test("a sampled path cannot join disconnected dungeon spaces", () => {
 		atMs: 1000,
 		revision: 2,
 		moving: false,
-		walkingPath: [ start, end ],
+		walkingChain: chainOf( [ start, end ] ),
 		transition: { relocation: 0, reason: "receipt", eligible: true }
 	} );
 	assert.deepEqual( presentation.pose( 7, end, 1 ), end );
@@ -112,7 +113,7 @@ test("an overlapping floor is not an admitted recovery start", () => {
 		atMs: 1000,
 		revision: 2,
 		moving: false,
-		walkingPath: [ pose( 100, 10 ), end ],
+		walkingChain: chainOf( [ pose( 100, 10 ), end ] ),
 		transition: { relocation: 0, reason: "receipt", eligible: true }
 	} );
 	assert.deepEqual( presentation.pose( 7, end, 1 ), end, "planar overlap cannot authorize a glide between floors" );
@@ -127,7 +128,7 @@ test("a retraced lookahead consumes its returning edge without oscillation", () 
 		atMs: 1000,
 		revision: 2,
 		moving: false,
-		walkingPath: [ corner, beyond, corner ],
+		walkingChain: chainOf( [ corner, beyond, corner ] ),
 		transition: { relocation: 0, reason: "receipt", eligible: true }
 	} );
 	let previous = presentation.pose( 7, corner, 1 );
@@ -152,7 +153,7 @@ test("a replacement command cannot borrow a previous command's recovery edge", (
 		atMs: 1000,
 		revision: 2,
 		moving: false,
-		walkingPath: [ pose( 110, 0, 110 ), end ],
+		walkingChain: chainOf( [ pose( 110, 0, 110 ), end ] ),
 		transition: { relocation: 0, reason: "receipt", eligible: true }
 	} );
 	assert.deepEqual(
@@ -178,7 +179,7 @@ test("authored displacement ignores a stale ground history", () => {
 			durationMs: 1000,
 			startedAtMs: 100,
 			displacement: true,
-			walkingPath,
+			walkingChain: walkingPath && chainOf( walkingPath ),
 			transition: { relocation: 1, reason: "displacement", eligible: false }
 		} );
 		return [ .1, .116, .15, .2 ].map( now => presentation.pose( 7, start, now ) );
@@ -198,7 +199,7 @@ test("a delayed large receipt spends only the correction that existed before its
 			atMs: 16,
 			revision: 2,
 			moving: false,
-			walkingPath: path,
+			walkingChain: chainOf( path ),
 			transition: { relocation: 0, reason: "receipt", eligible: true }
 		} );
 		assert.deepEqual( owner.pose( 7, small, .016 ), start );
@@ -210,7 +211,7 @@ test("a delayed large receipt spends only the correction that existed before its
 		atMs: 1049,
 		revision: 3,
 		moving: false,
-		walkingPath: path,
+		walkingChain: chainOf( path ),
 		transition: { relocation: 0, reason: "receipt", eligible: true }
 	} );
 	const received = changed.pose( 7, large, 1.049 );
@@ -237,7 +238,7 @@ test("repeated receipts preserve the progress and velocity of the existing corre
 			atMs: 16,
 			revision: 2,
 			moving: false,
-			walkingPath: path,
+			walkingChain: chainOf( path ),
 			transition: { relocation: 0, reason: "receipt", eligible: true }
 		} );
 		owner.pose( 7, end, .016 );
@@ -249,7 +250,7 @@ test("repeated receipts preserve the progress and velocity of the existing corre
 			atMs: now * 1000,
 			revision: frame + 2,
 			moving: false,
-			walkingPath: path,
+			walkingChain: chainOf( path ),
 			transition: { relocation: 0, reason: "receipt", eligible: true }
 		} );
 		const expected = control.pose( 7, end, now ), shown = repeated.pose( 7, end, now );
@@ -269,7 +270,7 @@ test("a candidate past the certified path's end never draws behind the previous 
 		from: pose( 100, 0 ),
 		to: pose( 200, 4 ),
 		durationMs: 2000,
-		walkingPath: path,
+		walkingChain: chainOf( path ),
 		ownLeg: true
 	});
 	publish( presentation, input( 0 ) );
