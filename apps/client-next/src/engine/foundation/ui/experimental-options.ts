@@ -31,6 +31,12 @@ export interface ExperimentalOptions {
 	// thread as the original does. Read at startup, so it applies after a
 	// reload.
 	readonly frameWorkers: FrameWorkerSetting;
+	// Port-only, not native: the character presentation runs on a worker of
+	// its own (runtime/character-worker), so characters are drawn one frame
+	// after the simulation state they show. Off unless turned on; off runs
+	// it on the main thread, in the frame, as the original does. Read at
+	// startup, so it applies after a reload.
+	readonly characterWorker: boolean;
 	readonly chatTimestamps: boolean;
 	readonly developerDiagnostics: boolean;
 	// Video: renderer stages that deviate from the 2005 D3D9 look.
@@ -230,6 +236,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 	return {
 		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
 		frameWorkers: workerThreads( record.frameWorkers ),
+		characterWorker: enabled( "characterWorker" ),
 		chatTimestamps: enabled( "chatTimestamps" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),

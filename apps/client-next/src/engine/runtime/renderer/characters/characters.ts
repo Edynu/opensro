@@ -2643,6 +2643,19 @@ export function createCharacters(
 		},
 		/*
 		================
+		skeletonFrame
+
+		Port-only: a frame of an owner that only answers skeleton queries
+		(the character worker's, docs/CLIENT_WORKERS_PLAN.md 5.11), which
+		never prepares: the level-of-detail samples advance as prepare's.
+		================
+		*/
+		skeletonFrame( seconds: number ) {
+			poseFrame++;
+			poseSeconds = seconds;
+		},
+		/*
+		================
 		labelAnchors
 
 		Project retained actor anchors through the same world view used by rendering.

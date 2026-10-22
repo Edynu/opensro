@@ -19,13 +19,13 @@ unacknowledged cancellations is treated as dead.
 ===========================================================================
 */
 
-import { assetRequestBudget } from "@/engine/foundation/assets/asset-budget";
+import { ASSET_REQUEST_SLOTS, assetRequestBudget } from "@/engine/foundation/assets/asset-budget";
 import { createWorldLease } from "./world-lease";
 import type { AssetOwner, AssetRequest, AssetResult, AssetWorkerMessage } from "@/engine/contracts/assets";
 import type { Degradation } from "@/engine/contracts/network";
 import { storedExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
 import { chooseTextureVariant } from "@/engine/foundation/assets/texture-variants";
-const REQUEST_CAPACITY = 4;
+const REQUEST_CAPACITY = ASSET_REQUEST_SLOTS;
 // A load's watchdog is a stall window, not a total budget: the worker notes
 // the bytes it reads per job (job-progress), and a job that keeps moving
 // bytes may run past any fixed total on a slow link (a trickling route to

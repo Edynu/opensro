@@ -25,6 +25,8 @@ const { MAX_FRAME_WORKERS } = await import( "../../src/engine/foundation/workers
 const OFF = Object.freeze( {
 	renderScale: 100,
 	frameWorkers: "off",
+	// Off by default (port-only): the presentation runs on the main thread.
+	characterWorker: false,
 	chatTimestamps: false,
 	developerDiagnostics: false,
 	postProcessing: false,
@@ -396,6 +398,14 @@ test("the shared actor room is on unless explicitly false, and reaches the rende
 	assert.equal( off.sharedActorRoom, false );
 	assert.equal( experimentalVideo( off ).sharedActorRoom, false );
 	assert.equal( experimentalVideo( experimentalOptions( {} ) ).sharedActorRoom, true );
+});
+
+test("characters on a worker is off unless explicitly true and stays out of the renderer's video options", () => {
+	for ( const value of [ undefined, null, {}, { characterWorker: 1 }, { characterWorker: "true" } ] ) {
+		assert.equal( experimentalOptions( value ).characterWorker, false );
+	}
+	assert.equal( experimentalOptions( { characterWorker: true } ).characterWorker, true );
+	assert.equal( "characterWorker" in experimentalVideo( experimentalOptions( { characterWorker: true } ) ), false );
 });
 
 test("batched effects is off unless explicitly true, and reaches the renderer's video options", () => {

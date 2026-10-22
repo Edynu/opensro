@@ -429,6 +429,8 @@ export function createWorldStream(
 			}
 		},
 		soundSurface: ( pose: Pose ) => sampleSoundTerrain( soundTerrain, pose ),
+		// The rows soundSurface samples, for the character worker's own sampler.
+		soundTerrain: () => soundTerrain,
 		ready: () => transaction.phase === "ready" && previous?.regionId === transaction.region,
 		/*
 		================

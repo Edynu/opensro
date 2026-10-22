@@ -187,7 +187,12 @@
     "src/engine/runtime/characters/spawn-fades.ts": "src/engine/runtime/characters/characters.ts",
     "src/engine/runtime/characters/appearance-lookup.ts": "src/engine/runtime/characters/characters.ts",
     "src/engine/runtime/characters/viewer-queries.ts": "src/engine/runtime/characters/characters.ts",
-    "src/engine/runtime/ui/hud/compact-hud.ts": "src/engine/runtime/ui/ui.ts"
+    "src/engine/runtime/ui/hud/compact-hud.ts": "src/engine/runtime/ui/ui.ts",
+    "src/engine/runtime/character-worker/character-worker.ts": "src/engine/runtime/runtime.ts",
+    "src/engine/runtime/character-worker/asset-relay.ts": "src/engine/runtime/character-worker/character-worker.ts",
+    "src/engine/runtime/character-worker/worker/entry.ts": "src/engine/runtime/character-worker/character-worker.ts",
+    "src/engine/runtime/character-worker/worker/renderer-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts",
+    "src/engine/runtime/character-worker/worker/asset-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts"
   },
   "internals": {
     "src/engine/runtime/platform/telemetry.ts": "src/engine/runtime/platform/platform.ts",
@@ -234,7 +239,8 @@
   "workers": {
     "src/engine/runtime/frame-workers/worker/entry.ts": "src/engine/runtime/frame-workers/frame-workers.ts",
     "src/engine/runtime/simulation/worker/entry.ts": "src/engine/runtime/simulation/host.ts",
-    "src/engine/runtime/assets/worker/entry.ts": "src/engine/runtime/assets/assets.ts"
+    "src/engine/runtime/assets/worker/entry.ts": "src/engine/runtime/assets/assets.ts",
+    "src/engine/runtime/character-worker/worker/entry.ts": "src/engine/runtime/character-worker/character-worker.ts"
   },
   "contracts": {
     "src/engine/runtime/assets/worker/packs/internal/pack-contract.ts": "src/engine/runtime/assets/worker/packs/packs.ts",
@@ -242,5 +248,19 @@
     "src/engine/runtime/assets/worker/world/internal/resource-contract.ts": "src/engine/runtime/assets/worker/world/world.ts",
     "src/engine/runtime/ui/title/internal/title-contract.ts": "src/engine/runtime/ui/title/title.ts",
     "src/engine/runtime/characters/internal/presentation-contract.ts": "src/engine/runtime/characters/characters.ts"
+  },
+  "replicas": {
+    "src/engine/runtime/characters/characters.ts": [
+      "src/engine/runtime/character-worker/worker/entry.ts"
+    ],
+    "src/engine/runtime/presentation/presentation.ts": [
+      "src/engine/runtime/character-worker/worker/entry.ts"
+    ],
+    "src/engine/runtime/random/random.ts": [
+      "src/engine/runtime/character-worker/worker/entry.ts"
+    ],
+    "src/engine/runtime/renderer/characters/characters.ts": [
+      "src/engine/runtime/character-worker/worker/entry.ts"
+    ]
   }
 }

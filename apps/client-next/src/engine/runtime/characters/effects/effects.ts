@@ -64,7 +64,7 @@ import {
 	radialDestination,
 	stepMoving
 } from "@/engine/foundation/animation/moving-stage";
-import type { AssetOwner } from "@/engine/contracts/assets";
+import type { PresentationAssets } from "@/engine/contracts/assets";
 import type { SoundEvent } from "@/engine/contracts/audio";
 import type { EffectCatalog, EffectStage, EffectVisual, EffectTrigger } from "@/engine/contracts/effects";
 import { importedModelBasis, nativeRootOffset } from "@/engine/foundation/rendering/world-math";
@@ -274,7 +274,7 @@ sink, presentation randomness and item reference lookup.
 ================
 */
 export function createCharacterEffects(
-	assets: AssetOwner,
+	assets: PresentationAssets,
 	origin: string,
 	play: ( event: SoundEvent ) => void,
 	random: PresentationRandom,

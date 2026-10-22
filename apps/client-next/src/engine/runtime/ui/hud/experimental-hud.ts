@@ -91,6 +91,12 @@ export const EXPERIMENTAL_TABS: readonly {
 				id: "experimental-hdr-tone-map",
 				label: "HDR tone map",
 				description: "Float frame with filmic highlight roll-off."
+			},
+			{
+				key: "characterWorker",
+				id: "experimental-character-worker",
+				label: "Characters on a worker",
+				description: "Animate characters on another CPU core. After reload."
 			}
 		]
 	},

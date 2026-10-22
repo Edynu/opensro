@@ -245,6 +245,18 @@ export function createRenderer(
 		},
 		/*
 		================
+		dungeonVisibility
+
+		Port-only: dungeonBlockHides' room table while Experimental "Dungeon
+		character PVS" is on, null (nothing hides) while it is off; the
+		character worker answers dungeonBlockHides from it.
+		================
+		*/
+		dungeonVisibility() {
+			return experimental.dungeonCharacterPvs ? world.dungeonVisibility() : null;
+		},
+		/*
+		================
 		experimentalVideo
 		================
 		*/

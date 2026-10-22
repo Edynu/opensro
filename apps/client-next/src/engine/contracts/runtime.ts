@@ -261,6 +261,10 @@ export interface Renderer extends Disposable {
 	// same frame's navigation block) does not draw it (Experimental
 	// "Dungeon character PVS", on by default; off is the native frame).
 	dungeonBlockHides?( block: number, activeBlock?: number ): boolean;
+	// Port-only: dungeonBlockHides' room table (the rooms each room draws)
+	// while that row is on, null while it is off; the character worker
+	// answers dungeonBlockHides from it (CLIENT_WORKERS_PLAN.md 5.11).
+	dungeonVisibility?(): readonly (readonly number[])[] | null;
 	setSelectionDecal(
 		value: { readonly pose: import("./gameplay").Pose; readonly slot: 0 | 1 | 2 | 3; } | null
 	): void;

@@ -209,7 +209,8 @@ export const rules = {
 	Worker: [
 		runtime + "simulation/host.ts",
 		runtime + "assets/assets.ts",
-		runtime + "frame-workers/frame-workers.ts"
+		runtime + "frame-workers/frame-workers.ts",
+		runtime + "character-worker/character-worker.ts"
 	],
 	// Shared memory has one owner: the frame workers' control block and the
 	// stateless jobs that run over it (docs/CLIENT_WORKERS_PLAN.md).

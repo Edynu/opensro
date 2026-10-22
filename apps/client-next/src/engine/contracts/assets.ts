@@ -204,3 +204,14 @@ export interface AssetOwner {
 	install( listUrl: string ): void;
 	dispose(): void;
 }
+
+/*
+================
+PresentationAssets
+
+The asset calls the character presentation makes, and so what a stand-in
+implements where it runs on a worker of its own (CLIENT_WORKERS_PLAN.md
+5.11).
+================
+*/
+export type PresentationAssets = Pick<AssetOwner, "available" | "request" | "take" | "cancel">;

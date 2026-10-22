@@ -2480,6 +2480,263 @@
 				"reset",
 				"vertices"
 			]
+		},
+		{
+			"consumer": "src/engine/foundation/workers/transferables.ts",
+			"provider": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"functions": [
+				"callback:collectTransferables:1"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/asset-relay.ts",
+			"provider": "src/engine/runtime/assets/assets.ts",
+			"functions": [
+				"available",
+				"cancel",
+				"request",
+				"take"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/audio/audio.ts",
+			"functions": [
+				"effectsEnabled",
+				"enqueue"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/frame-work.ts",
+			"functions": [
+				"level"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/presentation/effective-hp.ts",
+			"functions": [
+				"impact",
+				"release"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/presentation/presentation.ts",
+			"functions": [
+				"finishedCasts"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"actors",
+				"animation",
+				"assembly",
+				"model",
+				"particleTime",
+				"retain"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/renderer/renderer.ts",
+			"functions": [
+				"audioListener",
+				"batchedEffects",
+				"dungeonVisibility",
+				"enchantSparks",
+				"presentationCamera",
+				"presentationNight",
+				"sharedActorRoom",
+				"vHidesCompanions"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/renderer/world/world.ts",
+			"functions": [
+				"footprints",
+				"scenery"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/runtime.ts",
+			"functions": [
+				"report"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
+			"provider": "src/engine/runtime/world/world.ts",
+			"functions": [
+				"soundTerrain"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/entry.ts",
+			"provider": "src/engine/runtime/characters/characters.ts",
+			"functions": [
+				"cameraTarget",
+				"createCharacterPresentation",
+				"damageText",
+				"dockReady",
+				"entryReady",
+				"error",
+				"eventRain",
+				"frameWork",
+				"mallOutfit",
+				"mallPreviewState",
+				"options",
+				"orbGauge",
+				"previewReady",
+				"ready",
+				"receiveFeedback",
+				"receiveLifecycle",
+				"reset",
+				"simulationOrigin",
+				"step",
+				"takeCameraScripts",
+				"uncensored"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/entry.ts",
+			"provider": "src/engine/runtime/presentation/effective-hp.ts",
+			"functions": [
+				"currentResult",
+				"dead",
+				"impact",
+				"release",
+				"step"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/entry.ts",
+			"provider": "src/engine/runtime/presentation/presentation.ts",
+			"functions": [
+				"apply",
+				"createPresentation",
+				"entities",
+				"finishedCasts",
+				"gameplay",
+				"takeFeedback"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/entry.ts",
+			"provider": "src/engine/runtime/random/random.ts",
+			"functions": [
+				"createPresentationRandom"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/entry.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"createCharacters"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"animation",
+				"assembly",
+				"localMatrix",
+				"matrix",
+				"model",
+				"retain",
+				"skeletonFrame",
+				"socket"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/characters.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"dead",
+				"release"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/characters.ts",
+			"provider": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"functions": [
+				"audioListener",
+				"characterSocket",
+				"presentationCamera",
+				"setCharacterActors"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/effects/effects.ts",
+			"provider": "src/engine/runtime/character-worker/worker/asset-stand-in.ts",
+			"functions": [
+				"available",
+				"cancel",
+				"request",
+				"take"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/effects/effects.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"callback:createCharacterPresentation:3"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/footprints.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"callback:createCharacterPresentation:5"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/footprints.ts",
+			"provider": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"functions": [
+				"characterSocket",
+				"setFootprints"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/orbs/orbs.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"callback:createCharacterPresentation:3"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/resources/resources.ts",
+			"provider": "src/engine/runtime/character-worker/worker/asset-stand-in.ts",
+			"functions": [
+				"available",
+				"cancel",
+				"request",
+				"take"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/resources/resources.ts",
+			"provider": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"functions": [
+				"retainCharacterModels",
+				"setCharacterAnimation",
+				"setCharacterModel"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/characters/sounds/sounds.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"callback:createCharacterPresentation:3",
+				"callback:createCharacterPresentation:7"
+			]
 		}
 	],
 	"boundaries": [
@@ -4015,6 +4272,13 @@
 			"function": "posed",
 			"kind": "callback",
 			"reason": "Current frame presentation-sample owner lends this synchronous operation through characters.ts; it decides which characters the anchoring poses."
+		},
+		{
+			"file": "src/engine/runtime/character-worker/worker/entry.ts",
+			"expression": "port.postMessage",
+			"function": "callback:port.onmessage",
+			"kind": "worker-port",
+			"reason": "Typed DedicatedWorker port projection; the character worker's outputs and failure cross the parent/worker boundary, their buffers and bitmaps transferred."
 		}
 	],
 	"sequences": [
@@ -4059,7 +4323,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "4e14cd0093363e6884b0df0a645763b46836171aeaf4db90ebbeecbab5bf0994",
+			"sourceSha256": "90da829f24df13fa27f3ab36965ec1621a4eea8ce7512465daf1f353da7ff7c7",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. A hidden frame renders only while a world entry awaits game-ready, under the same barrier: native keeps updating while inactive (A0F430 OnUpdate; A11650 skips drawing) and finishes loading in CPSMission_OnUpdate (728E10). A visible window that gets no RAF for STARVED_FRAME_MS runs the same delivery-paced maintenance frames. Device disposal cancels pending mapping. Startup also hands the asset owner the device texture features once (port-only texture variants), outside the frame.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

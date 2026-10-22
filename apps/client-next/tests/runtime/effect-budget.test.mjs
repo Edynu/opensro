@@ -34,13 +34,6 @@ function effectOwner() {
 	return createCharacterEffects(
 		{
 			available: () => 4,
-			progress: () => null,
-			health: () => ({ phase: "running" }),
-			install() {},
-			textureFeatures() {},
-			dispose() {
-				jobs.clear();
-			},
 			request( url, limit, decode ) {
 				const result = decode === "effects" ?
 					{

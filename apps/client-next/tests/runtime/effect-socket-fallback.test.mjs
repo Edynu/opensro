@@ -202,11 +202,6 @@ for ( const targetBone of [ null, "missing-target-marker" ] ) {
 		const effects = createCharacterEffects(
 			{
 				available: () => 4,
-				progress: () => null,
-				health: () => ({ phase: "running" }),
-				install: () => {},
-				textureFeatures() {},
-				dispose: () => jobs.clear(),
 				/*
 				================
 				request

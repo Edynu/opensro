@@ -18,6 +18,7 @@ import type { CharacterActor, CharacterModel } from "@/engine/contracts/characte
 import type { PortraitPart, PortraitSource } from "@/engine/contracts/portrait";
 import { isCharacterAnimationExtension } from "@/engine/foundation/animation/character-render-plan";
 import type { GeometryCommands, ImageCommands, GeometryDraw } from "../internal/gpu-contract";
+import { sameValue } from "@/engine/foundation/data/same-value";
 
 const DEFAULT_PREVIEW_YAW = 0.100000001;
 const PORTRAIT_PITCH = 0.2;
@@ -40,37 +41,6 @@ const OVERRIDDEN_ROOT = new Set( [
 	"scale"
 ] );
 const OVERRIDDEN_CHILD = new Set( [ "pose", "time", "opacity", "layers", "animationLod", "modelAnimation" ] );
-
-/*
-================
-sameValue
-
-Structural equality of plain actor data (numbers, strings, arrays, typed
-arrays, plain objects). Snapshots are owned deep copies, so an in-place
-edit of a source snapshot can never hide behind shared identity.
-================
-*/
-function sameValue( a: unknown, b: unknown, skip?: ReadonlySet<string> ): boolean {
-	if ( Object.is( a, b ) ) return true;
-	if ( typeof a !== "object" || typeof b !== "object" || a === null || b === null ) return false;
-	if ( ArrayBuffer.isView( a ) || ArrayBuffer.isView( b ) ) {
-		if ( !ArrayBuffer.isView( a ) || !ArrayBuffer.isView( b ) || a.constructor !== b.constructor ) return false;
-		const x = a as unknown as ArrayLike<number>, y = b as unknown as ArrayLike<number>;
-		if ( x.length !== y.length ) return false;
-		for ( let i = 0; i < x.length; i++ ) if ( !Object.is( x[i], y[i] ) ) return false;
-		return true;
-	}
-	if ( Array.isArray( a ) !== Array.isArray( b ) ) return false;
-	const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
-	let count = 0;
-	for ( const key in x ) {
-		if ( skip?.has( key ) || x[key] === undefined ) continue;
-		count++;
-		if ( !sameValue( x[key], y[key] ) ) return false;
-	}
-	for ( const key in y ) if ( !skip?.has( key ) && y[key] !== undefined ) count--;
-	return count === 0;
-}
 
 // Synchronous GPU projection. Model/bitmap lifetime stays with world characters;
 // this owner owns only its pose, preview geometry and texture uploads.

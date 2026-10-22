@@ -1291,6 +1291,16 @@ export function createWorldRenderer(
 		},
 		/*
 		================
+		dungeonVisibility
+
+		The rooms each dungeon room draws (blockHides' table); null outdoors.
+		================
+		*/
+		dungeonVisibility() {
+			return current?.dungeonVisibility ?? null;
+		},
+		/*
+		================
 		pickGround
 		================
 		*/

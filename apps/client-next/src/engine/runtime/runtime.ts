@@ -16,7 +16,11 @@ import { nativeHeadingYaw } from "@/engine/foundation/math/angles";
 import { createRuntimeErrors } from "./runtime-errors";
 import { createPresentationRandom } from "./random/random";
 import { worldCursor } from "@/engine/foundation/ui/world-cursor";
-import { experimentalGameplay, experimentalVideo } from "@/engine/foundation/ui/experimental-options";
+import {
+	experimentalGameplay,
+	experimentalVideo,
+	storedExperimentalOptions
+} from "@/engine/foundation/ui/experimental-options";
 import { sampleWorldClock } from "@/engine/foundation/gameplay/world-clock";
 import { createWorldDoubleClick } from "@/engine/foundation/gameplay/world-double-click";
 import type { WorldClickInput } from "@/engine/contracts/input";
@@ -43,6 +47,7 @@ import { createRenderer } from "./renderer/renderer";
 import { createViewer } from "./viewer/viewer";
 import { createSimulationHost } from "./simulation/host";
 import { createFrameWorkers } from "./frame-workers/frame-workers";
+import { createCharacterWorker } from "./character-worker/character-worker";
 import type { RuntimeControl } from "@/engine/contracts/runtime";
 import { worldAudioPosition } from "@/engine/foundation/world/world-space";
 
@@ -472,7 +477,29 @@ export function startRuntime(
 				new URL( "/", import.meta.url ).href
 			)
 		);
-		const characters = own(
+		// Port-only, not native (Experimental "Characters on a worker", read
+		// at startup): the presentation runs on a worker of its own and this
+		// host stands in its place (CLIENT_WORKERS_PLAN.md 5.11).
+		let characterWorkerOn = false;
+		try {
+			characterWorkerOn = storedExperimentalOptions( globalThis.localStorage ).options.characterWorker;
+		} catch {}
+		const characterWorker = characterWorkerOn ?
+			own(
+				createCharacterWorker( {
+					assets,
+					renderer,
+					play: audio.enqueue,
+					soundEnabled: audio.effectsEnabled,
+					soundTerrain: world.soundTerrain,
+					health: presentation,
+					origin: new URL( "/", import.meta.url ).href,
+					seed: (presentationSeed ^ 0x5eed) >>> 0,
+					report: message => bugReport.note( message )
+				} )
+			) :
+			null;
+		const characters = characterWorker ?? own(
 			createCharacterPresentation(
 				assets,
 				renderer,
@@ -622,7 +649,9 @@ export function startRuntime(
 				const batch = simulation.pollWorld();
 				if ( batch ) {
 					try {
-						if ( presentation.apply( batch ) ) {
+						const reset = presentation.apply( batch );
+						characterWorker?.receiveBatch( batch );
+						if ( reset ) {
 							// An attempted connection publishes a world clear before admission.
 							// Keep the dock's shared renderer resources until entry is accepted.
 							if ( [ "world", "loading-world" ].includes( frontend.snapshot().phase ) ) {

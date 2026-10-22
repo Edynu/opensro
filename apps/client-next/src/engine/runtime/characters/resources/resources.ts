@@ -14,7 +14,7 @@ import {
 import { assetRequestBudget } from "@/engine/foundation/assets/asset-budget";
 import { decodeNativeClip } from "@/engine/foundation/animation/native-clip";
 import { withBearRoar } from "@/engine/foundation/animation/bear-roar";
-import type { AssetOwner } from "@/engine/contracts/assets";
+import type { PresentationAssets } from "@/engine/contracts/assets";
 import type { CharacterModel } from "@/engine/contracts/character";
 import type { Renderer } from "@/engine/contracts/runtime";
 import type { NativeTexture } from "@/engine/contracts/texture";
@@ -502,7 +502,7 @@ Own one decode reservation and a bounded cache of admitted character sources.
 ================
 */
 export function createCharacterResources(
-	assets: AssetOwner,
+	assets: PresentationAssets,
 	renderer: Pick<Renderer, "setCharacterModel" | "setCharacterAnimation" | "retainCharacterModels">,
 	origin: string
 ) {
