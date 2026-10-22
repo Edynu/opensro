@@ -52,6 +52,23 @@ test("cloth groups built first still leave every draw in its place", () => {
 	assert.ok( object.frames.some( row => new Set( row.order.map( draw => draw.split( "@" )[1] ) ).size > 1 ) );
 });
 
+test("a frame's cloth goes up at finishCloth, and a frame that never finished at the next prepare", () => {
+	const finished = captureClothPalettes( false, false, { frameWorkers: createInlineWorkers() } );
+	const held = captureClothPalettes( false, false, { frameWorkers: createInlineWorkers(), holdCloth: true } );
+	let lagged = 0, current = 0;
+	for ( let frame = 1; frame < finished.frames.length; frame++ ) {
+		const before = finished.frames[frame - 1], now = finished.frames[frame];
+		// The same draws in both frames: a new draw starts from its upload.
+		if ( !now.draws || before.drawIds.join() !== now.drawIds.join() ) continue;
+		for ( const name of CLOTH ) {
+			assert.equal( held.frames[frame].vertices[name], before.vertices[name], `frame ${frame}, ${name}` );
+			lagged++;
+			if ( now.vertices[name] !== before.vertices[name] ) current++;
+		}
+	}
+	assert.ok( lagged > 20 && current > lagged / 2, `compared ${lagged}, moved ${current}` );
+});
+
 test("cloth on worker threads draws as cloth on one thread", async () => {
 	const threads = await createThreadedWorkers( 4 );
 	try {

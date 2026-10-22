@@ -255,6 +255,9 @@ export function createCharacters(
 	// Port-only, not native: with Worker threads on, the world's cloth steps on
 	// the frame workers, each wearer from its own random stream (cloth-wearers.ts).
 	const clothWearers = frameWorkers ? createClothWearers( frameWorkers ) : undefined;
+	// The cloth phase a full prepare forked and the draws whose vertices it
+	// writes, until finishCloth joins it and uploads them.
+	let pendingCloth: { geometry: GeometryCommands; draws: GeometryDraw[]; slots: number[]; } | undefined;
 	// With them on and shared memory, the world's poses keep their matrices in
 	// the workers' tables and materialize in one phase a frame (skeletons.ts).
 	const skeletons = sharedSkeletons( frameWorkers );
@@ -1369,6 +1372,24 @@ export function createCharacters(
 			particleBirths.set( actor.gid, history );
 		}
 		return history;
+	}
+	/*
+	================
+	finishCloth
+
+	The cloth phase prepare left open, joined, and each of its wearers'
+	vertices uploaded (the arena copies them from shared memory; no draw
+	mirror is read back).
+	================
+	*/
+	function finishCloth() {
+		const pending = pendingCloth;
+		if ( !pending || !clothWearers ) return;
+		pendingCloth = undefined;
+		clothWearers.joinCloth();
+		for ( let i = 0; i < pending.slots.length; i++ ) {
+			pending.geometry.streamVertices( pending.draws[i]!, 0, clothWearers.vertices( pending.slots[i]! ) );
+		}
 	}
 	/*
 	================
@@ -3432,15 +3453,14 @@ export function createCharacters(
 				frameGroups =
 					0;
 			framePoses = new Map();
+			// A frame that never reached finishCloth still uploads its cloth.
+			finishCloth();
 			clothWearers?.begin();
 			const { frameActors, cycles } = sampleFrameActors( continuation );
 			// Residency retires draws and textures; the first pass's recorded
 			// commands still use them, so the continuation leaves it for the next
 			// full pass.
 			if ( residencyDirty && !continuation ) retireResidency( geometry, images, frameActors );
-			if ( hasMaterialClocks && !continuation ) {
-				materialClocks.step( actors, seconds, path => models.get( path )?.model );
-			}
 			const { byGid, chains } = hierarchy.update( frameActors );
 			const frame: PrepareFrame = {
 				geometry,
@@ -3475,6 +3495,10 @@ export function createCharacters(
 					if ( mount ) poseFor( mount );
 				}
 				skeletons.fork();
+			}
+			// The material clocks read no pose: they step while those materialize.
+			if ( hasMaterialClocks && !continuation ) {
+				materialClocks.step( actors, seconds, path => models.get( path )?.model );
 			}
 			const particles = advanceParticles( frame );
 			const visible = selectVisible( frame, particles.accepted, reflectedView );
@@ -3527,9 +3551,11 @@ export function createCharacters(
 					return right.depth - left.depth || left.index - right.index;
 				} );
 			}
-			// Port-only, not native: with Worker threads on, the cloth wearers'
-			// groups build first and their phase runs on the frame workers while
-			// this thread builds the rest; each group's draws keep their place.
+			// Port-only, not native: with Worker threads on, the groups without
+			// cloth build first, while the skeleton phase runs; the cloth groups
+			// then read its palettes, and their phase runs on the frame workers
+			// while the renderer goes on to its labels and interface, until
+			// finishCloth. Each group's draws keep their place.
 			const final = frame.output, outputs: (GeometryDraw[] | undefined)[] = [];
 			/*
 			================
@@ -3553,16 +3579,11 @@ export function createCharacters(
 				}
 			};
 			if ( clothWearers ) {
-				build( true );
-				skeletons?.join();
-				clothWearers.forkCloth();
 				build( false );
-				clothWearers.joinCloth();
-				for ( let i = 0; i < frame.clothSlots.length; i++ ) {
-					// The wearer's state keeps the stream; no draw mirror is read
-					// back, so the arena copies it straight from shared memory.
-					geometry.streamVertices( frame.clothDraws[i]!, 0, clothWearers.vertices( frame.clothSlots[i]! ) );
-				}
+				skeletons?.join();
+				build( true );
+				clothWearers.forkCloth();
+				pendingCloth = { geometry, draws: frame.clothDraws, slots: frame.clothSlots };
 				frame.output = final;
 				for ( const list of outputs ) if ( list ) final.push( ...list );
 			} else build( undefined );
@@ -3574,6 +3595,7 @@ export function createCharacters(
 			framePoses = null;
 			return frame.output;
 		},
+		finishCloth,
 		/*
 		================
 		invalidate
@@ -3583,6 +3605,7 @@ export function createCharacters(
 		*/
 		invalidate() {
 			rowStreams.rowScratch = rowStreams.lightScratch = undefined;
+			pendingCloth = undefined;
 			clothWearers?.reset();
 			batches.clear();
 			retiredDraws = [];
@@ -3627,6 +3650,7 @@ export function createCharacters(
 				images?.release( draw );
 			}
 			textures.clear();
+			pendingCloth = undefined;
 			clothWearers?.reset();
 			batches.clear();
 			models.clear();

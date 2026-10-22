@@ -881,6 +881,9 @@ export function createRenderer(
 						[ scene.environment[84]!, scene.environment[85]!, scene.environment[86]! ] :
 						[ 0.70710678, 0.70710678, 0 ];
 				sunShadow.prepare( shadowOn, scene.camera.eye, shadowLight );
+				// The characters' cloth phase ran while this frame was assembled;
+				// its vertices go up before anything is encoded.
+				characters.finishCloth();
 				const pending = frame!.draw(
 					scaled ? targetSurface.frameView() : color,
 					draw ?? (scene.sky ? device.sky() ?? undefined : undefined),

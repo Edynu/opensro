@@ -399,13 +399,31 @@ function drawDigest( draws, randomTrace ) {
 
 /*
 ================
+vertexDigest
+
+The vertices the primitive's draws hold, in draw order.
+================
+*/
+function vertexDigest( draws, name ) {
+	const hash = createHash( "sha256" );
+	for ( const draw of draws ) {
+		if ( draw.tag !== name ) continue;
+		const values = draw.capturedVertices;
+		hash.update( `${values?.byteLength ?? -1}:` );
+		if ( values ) hash.update( Buffer.from( values.buffer, values.byteOffset, values.byteLength ) );
+	}
+	return hash.digest( "hex" );
+}
+
+/*
+================
 captureClothPalettes
 ================
 */
 export function captureClothPalettes(
 	gpuAvailable = false,
 	admitUnusedClip = false,
-	{ moving = false, variants = false, frameWorkers = undefined, mixed = false } = {}
+	{ moving = false, variants = false, frameWorkers = undefined, mixed = false, holdCloth = false } = {}
 ) {
 	const random = createPresentationRandom( RANDOM_SEED, 1, 100000 );
 	const owner = createCharacters( random, frameWorkers ), tags = new Map();
@@ -414,8 +432,8 @@ export function captureClothPalettes(
 	// mixed: actor 3 wears a model without cloth, so cloth and plain groups interleave.
 	if ( mixed ) owner.model( "plain", model( false, tags, false ), [] );
 	const geometry = captureGeometry( tags, gpuAvailable ), clock = clothVertexCase( true, true );
-	const frames = [];
-	let boneWriteBytes = 0;
+	const frames = [], drawIds = new WeakMap();
+	let boneWriteBytes = 0, nextDrawId = 0;
 	try {
 		for ( let frame = 0; frame < FRAME_COUNT; frame++ ) {
 			if ( admitUnusedClip && frame === 31 ) {
@@ -491,6 +509,9 @@ export function captureClothPalettes(
 				true,
 				input.enabled
 			));
+			// The renderer uploads the cloth phase's vertices before it encodes
+			// (holdCloth leaves them to the next prepare).
+			if ( !holdCloth ) owner.finishCloth();
 			assert.equal( draws.length, gids.length * PRIMITIVE_NAMES.length );
 			if ( variants ) {
 				for ( const draw of draws ) {
@@ -530,7 +551,14 @@ export function captureClothPalettes(
 				randomCalls: trace.length,
 				primitives: Object.fromEntries(
 					PRIMITIVE_NAMES.map( name => [ name, drawDigest( draws.filter( draw => draw.tag === name ), [] ) ] )
-				)
+				),
+				// Each primitive's uploaded vertices alone, in draw order, and
+				// which draws (a draw uploaded again is a new one).
+				vertices: Object.fromEntries( PRIMITIVE_NAMES.map( name => [ name, vertexDigest( draws, name ) ] ) ),
+				drawIds: draws.map( draw => {
+					if ( !drawIds.has( draw ) ) drawIds.set( draw, nextDrawId++ );
+					return drawIds.get( draw );
+				} )
 			} );
 		}
 	} finally {
