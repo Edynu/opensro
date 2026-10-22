@@ -600,6 +600,33 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   thread builds the other groups while the workers simulate instead of
   running a share of the phase itself.
 
+### 6.9 Step 4, part 2: phases overlap the main thread's work (2026-10-22)
+
+- **Fork and join.** The frame workers gain `fork` (open a phase the
+  workers start at once) and `join` (run what they have not claimed, then
+  wait) beside `run`. With Worker threads on, `prepare` builds the cloth
+  wearers' groups first, forks the cloth phase, builds every other group
+  while the workers simulate, then joins and uploads; each group's draws
+  keep their place (`character-cloth-workers.test.mjs` holds the object
+  path's draw order with cloth and plain groups interleaved).
+- **Every posed character predicted.** The pose phase predicted only moving
+  characters, about 23 of 214: actor motion's call for every other
+  presented character ran the kernel inline, 158 calls a frame and 40 ms/s
+  of `presentPose` on the main thread. The characters step now prepares,
+  right after choosing the presented characters, the calls effect
+  anchoring and actor motion will make, and forks the phase; the first
+  call that needs a record joins it. Counted in the crowd: 0 misses and 0
+  inline calls in 142 frames. `presentPose` on the main thread fell to
+  9 ms/s (the share the main thread still runs when the first call joins).
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off:
+  32, 32, 32 fps against 28, 26, 28; main thread 29.9, 30.4, 30.2 ms
+  against 34.1, 36.9, 34.5.
+- **Where the main thread goes now** (Auto, ms per second of main thread):
+  character particles 127 (`advanceParticles`, holder sockets included),
+  CPU poses 105 (`materialize`, mostly for the 120 cloth wearers whose body
+  palettes come from the CPU) and their palettes 54, actor presentation
+  125, the draw path's group building about 200, world cloth 17.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
