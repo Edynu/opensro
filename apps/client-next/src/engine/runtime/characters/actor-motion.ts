@@ -77,6 +77,51 @@ export function createActorMotion( owner: ActorOwner ) {
 		}
 		return set;
 	}
+	// Names present builds for every character every frame, made once: a
+	// weapon set's motion set, a motion set's native state roles and a
+	// weapon set's preview idle. The same string each frame also keeps the
+	// catalog lookups keyed by it from hashing a new one.
+	const motionSets = new Map<string, string>(), nativeRoles = new Map<string, string[]>();
+	const previewIdles = new Map<string | undefined, string>();
+	/*
+	================
+	motionSetOf
+	================
+	*/
+	function motionSetOf( weaponSet: string ): string {
+		let set = motionSets.get( weaponSet );
+		if ( set === undefined ) {
+			set = weaponSet.replaceAll( "-", "_" );
+			motionSets.set( weaponSet, set );
+		}
+		return set;
+	}
+	/*
+	================
+	nativeRole
+	================
+	*/
+	function nativeRole( set: string, stateId: number ): string {
+		let roles = nativeRoles.get( set );
+		if ( !roles ) {
+			roles = [];
+			nativeRoles.set( set, roles );
+		}
+		return roles[stateId] ??= `native:${set}:${stateId}`;
+	}
+	/*
+	================
+	previewIdle
+	================
+	*/
+	function previewIdle( weaponSet: string | undefined ): string {
+		let idle = previewIdles.get( weaponSet );
+		if ( idle === undefined ) {
+			idle = "preview-state0-" + weaponSet;
+			previewIdles.set( weaponSet, idle );
+		}
+		return idle;
+	}
 	return {
 		/*
 		================
@@ -413,7 +458,7 @@ export function createActorMotion( owner: ActorOwner ) {
 					weaponAnimationSet( weapon.typeFlags ) :
 					undefined,
 				overrideSet = override?.animation,
-				weaponMotionSet = weaponSet?.replaceAll( "-", "_" ),
+				weaponMotionSet = weaponSet === undefined ? undefined : motionSetOf( weaponSet ),
 				motionSet = overrideSet || weaponMotionSet,
 				motionSetKey = overrideSet && weaponMotionSet ?
 					`${overrideSet}:${weaponMotionSet}` :
@@ -505,7 +550,7 @@ export function createActorMotion( owner: ActorOwner ) {
 				const stateId = baseRole === "run" ? 7 : baseRole === "walk" ? 1 : 0;
 				for ( const set of [ overrideSet, weaponMotionSet ] ) {
 					if ( !set ) continue;
-					const candidate = `native:${set}:${stateId}`,
+					const candidate = nativeRole( set, stateId ),
 						definition = published.animationStates.get( resource.codename )?.[candidate] ??
 							resource.animationStates?.[candidate],
 						url = published.nativeMotionUrls.get( resource.codename )?.get( candidate );
@@ -615,7 +660,7 @@ export function createActorMotion( owner: ActorOwner ) {
 								const stateId = role === "run" ? 7 : role === "walk" ? 1 : 0;
 								for ( const set of [ definition?.animation, weaponMotionSet ] ) {
 									if ( !set ) continue;
-									const candidate = `native:${set}:${stateId}`,
+									const candidate = nativeRole( set, stateId ),
 										stateDef = published.animationStates.get( resource.codename )?.[candidate] ??
 											resource.animationStates?.[candidate],
 										url = published.nativeMotionUrls.get( resource.codename )?.get( candidate );
@@ -885,13 +930,8 @@ export function createActorMotion( owner: ActorOwner ) {
 					entity.kind === "cos" ?
 					cosScale( resource.scalePercent ) :
 					1;
-			const previewWeapon = wornEquipment( entity, gameplay ).find( item => item.slot === 6 ),
-				disguise = referenceAppearances.get( entity.gid ),
-				armedIdle = disguise ?
-					"preview-state0-" + weaponAnimationSet( disguise.weapon << 11 ) :
-					previewWeapon ?
-					"preview-state0-" + weaponAnimationSet( previewWeapon.typeFlags ) :
-					"stand";
+			// The disguise and weapon the motion set came from.
+			const armedIdle = motionDisguise || weapon ? previewIdle( weaponSet ) : "stand";
 			state.modifierResource = resource;
 			state.modifierLayers = layers;
 			state.lastDrawnPose = { ...renderPose };
