@@ -4,7 +4,7 @@
 cloth-record.ts - one cloth wearer as flat numbers
 
 The layout cloth-kernel.ts reads and writes for each cloth primitive an
-actor wears. Three tables (frame-kernels.ts):
+actor wears. Four tables (frame-kernels.ts):
 
 - clothPrograms (doubles): a mesh's cloth, written once per primitive and
   shared by every wearer of it: a P_HEADER header, then, for n vertices
@@ -15,8 +15,11 @@ actor wears. Three tables (frame-kernels.ts):
   state are, this frame's inputs, and its clock and random state twice,
   current (W_*) and next (N_*).
 - clothState (floats): a wearer's arrays: two halves of positions (3n) and
-  previous positions (3n), skin anchors (3n), its packed vertex stream
-  (geometry-vertices.ts, 14n) and this frame's palette (16 a joint).
+  previous positions (3n), skin anchors (3n) and this frame's palette (16
+  a joint).
+- clothVertices (floats): a wearer's packed vertex stream
+  (geometry-vertices.ts, 14n), the kernel's output, which the renderer
+  uploads straight from the table (frame-kernels.ts OUTPUT_TABLES).
 
 The kernel reads the current half and writes the other and the N_* fields,
 so a chunk run again after a stalled worker starts from the same state;
@@ -60,6 +63,7 @@ export const N_INITIALIZED = 16;
 // Output: 0 when the last advance stepped and left a pin off its anchor,
 // so the next advance moves it back (cloth.ts due); else 1.
 export const N_SETTLED = 17;
+export const W_VERTICES = 18; // offset of the packed vertices in clothVertices
 export const CLOTH_RECORD = 20;
 
 // Packed vertex stride (geometry-vertices.ts): position, normal, uv, color, mask uv.

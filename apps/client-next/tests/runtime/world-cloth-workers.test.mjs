@@ -81,7 +81,8 @@ function recorder() {
 			release() {},
 			updateInstances: draw => draw,
 			writeVertices: write,
-			streamVertices: write
+			streamVertices: write,
+			streamOutputVertices: write
 		}),
 		textures: /** @type {any} */ ({ upload: () => ({}), release() {} })
 	};

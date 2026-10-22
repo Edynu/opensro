@@ -4,9 +4,10 @@
 frame-kernel-threads.mjs - frame workers for tests: real threads, or inline
 
 createThreadedWorkers runs the shipping frame-jobs loop and kernel dispatch
-on Node worker threads over growable shared kernel tables
-(frame-kernel-worker.mjs), and runs a phase as the browser's
-frame-workers.ts does: publish, serve beside the threads, join.
+on Node worker threads over growable shared kernel tables and fixed-size
+output tables (frame-kernel-worker.mjs), and runs a phase as the browser's
+frame-workers.ts does: post the output tables replaced since the last
+phase, publish, serve beside the threads, join.
 createInlineWorkers runs every chunk on this thread over ordinary buffers
 (growable shared ones when shared), each chunk `repeat` times, as a chunk
 a stalled worker left is run again.
@@ -19,6 +20,7 @@ import { Worker } from "node:worker_threads";
 const { createFrameKernelMemory, plainBuffer } = await import(
 	"../../src/engine/foundation/kernels/frame-kernels.ts"
 );
+const { OUTPUT_TABLES } = await import( "../../src/engine/foundation/kernels/frame-kernels.ts" );
 const {
 	FRAME_CONTROL_WORDS,
 	framePhaseComplete,
@@ -26,6 +28,7 @@ const {
 	nextFrameGeneration,
 	publishFramePhase,
 	readyFrameWorkers,
+	replaceFrameTables,
 	serveFramePhase,
 	stopFrameJobs
 } = await import( "../../src/engine/foundation/workers/frame-jobs.ts" );
@@ -40,9 +43,10 @@ createThreadedWorkers
 */
 export async function createThreadedWorkers( count ) {
 	const control = new Int32Array( new SharedArrayBuffer( FRAME_CONTROL_WORDS * Int32Array.BYTES_PER_ELEMENT ) );
-	const kernels = createFrameKernelMemory( ( bytes, maxBytes ) =>
-		new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } )
+	const kernels = createFrameKernelMemory( ( bytes, maxBytes, fixed ) =>
+		fixed ? new SharedArrayBuffer( bytes ) : new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } )
 	);
+	const posted = new Map( OUTPUT_TABLES.map( table => [ table, kernels[table] ] ) );
 	const threads = Array.from(
 		{ length: count },
 		() => new Worker( WORKER, { workerData: { control: control.buffer, kernels } } )
@@ -52,7 +56,7 @@ export async function createThreadedWorkers( count ) {
 		if ( Date.now() - started > JOIN_LIMIT_MS ) throw Error( "kernel threads did not start" );
 		await new Promise( resolve => setTimeout( resolve, 5 ) );
 	}
-	let generation = 0, phases = 0, open = 0;
+	let generation = 0, phases = 0, open = 0, tables = 0;
 	const workers = {
 		memory: () => kernels,
 		run( kernel, chunks, local ) {
@@ -61,6 +65,16 @@ export async function createThreadedWorkers( count ) {
 		},
 		fork( kernel, chunks ) {
 			if ( open ) throw Error( "a frame phase is already open" );
+			const buffers = {};
+			for ( const table of OUTPUT_TABLES ) {
+				if ( posted.get( table ) === kernels[table] ) continue;
+				posted.set( table, kernels[table] );
+				buffers[table] = kernels[table];
+			}
+			if ( Object.keys( buffers ).length ) {
+				for ( const thread of threads ) thread.postMessage( { kind: "tables", tables: tables + 1, buffers } );
+				tables = replaceFrameTables( control );
+			}
 			generation = nextFrameGeneration( generation );
 			phases++;
 			publishFramePhase( control, generation, kernel, chunks );
@@ -78,6 +92,8 @@ export async function createThreadedWorkers( count ) {
 			if ( framePhaseFailed( control, phase ) ) throw Error( "a frame chunk failed" );
 		},
 		phases: () => phases,
+		// Output table replacements the threads were sent.
+		replacements: () => tables,
 		async close() {
 			stopFrameJobs( control );
 			await Promise.all( threads.map( thread => thread.terminate() ) );

@@ -8,7 +8,11 @@ worker) keeps its own fixed-length views over the same kernel memory
 (frameKernelViews) and runs chunks through runFrameKernel, which first
 remakes any view whose table grew. With frame workers the tables are
 growable shared buffers that grow in place, so a worker never needs a new
-message when a table grows between phases.
+message when a table grows between phases. The tables the GPU reads
+straight from (OUTPUT_TABLES) are the exception: writeBuffer refuses a
+growable buffer, so they are fixed-size and replaced by larger copies,
+which the frame workers' owner posts to its workers before the next phase
+(runtime/frame-workers/frame-workers.ts).
 
 KERNEL_POSE: each requested character's next two pose() calls (the
 movement presentation, pose-kernel.ts), speculatively: the record before
@@ -17,8 +21,8 @@ them and after the first are kept as snapshots, so the record's owner
 back to the right state when one does not.
 
 KERNEL_CLOTH: each requested cloth wearer's frame (cloth-kernel.ts) into
-its packed vertices, for its owner (foundation/animation/cloth-wearers.ts)
-to upload. KERNEL_WORLD_CLOTH: the same over the world's cloth meshes,
+its packed vertices in clothVertices, for its owner
+(foundation/animation/cloth-wearers.ts) to upload. KERNEL_WORLD_CLOTH: the same over the world's cloth meshes,
 which keep their own tables (the world* cloth tables) and lifetime.
 
 KERNEL_SKELETON: each requested character pose's matrices
@@ -73,11 +77,16 @@ export const INITIAL_CLOTH_PROGRAM_WORDS = 262144;
 export const MAX_CLOTH_PROGRAM_WORDS = 8388608;
 export const INITIAL_CLOTH_STATE_FLOATS = 1048576;
 export const MAX_CLOTH_STATE_FLOATS = 33554432;
+// Packed cloth vertices before growing, and at most: 14 floats a vertex;
+// 120 wearers of a few hundred vertices fill about a quarter.
+export const INITIAL_CLOTH_VERTEX_FLOATS = 524288;
+export const MAX_CLOTH_VERTEX_FLOATS = 16777216;
 // The world's cloth tables before growing: a town shows tens of flags and
 // banners; they grow to the same maxima.
 export const INITIAL_WORLD_CLOTH_MESHES = 32;
 export const INITIAL_WORLD_CLOTH_PROGRAM_WORDS = 65536;
 export const INITIAL_WORLD_CLOTH_STATE_FLOATS = 262144;
+export const INITIAL_WORLD_CLOTH_VERTEX_FLOATS = 131072;
 // Poses per KERNEL_SKELETON chunk; poses the records hold before growing
 // and at most, and per phase (MAX_FRAME_CHUNKS chunks of two). The world
 // draws at most 512 actors (character-budget.ts CHARACTER_ACTORS).
@@ -122,13 +131,15 @@ POSE_RECORD doubles a character, poseSnapshots POSE_SNAPSHOTS records a
 character, walkArena the certified chains and poseRequests the characters
 of the open pose phase; clothRecords, clothPrograms and clothState the
 cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
-cloth phase, the worldCloth* tables likewise the world's cloth meshes; the
+cloth phase, clothVertices their packed vertices, the worldCloth* tables
+likewise the world's cloth meshes; the
 skeleton* tables the character poses (skeleton-record.ts) and
 skeletonRequests the poses of the open skeleton phase; the particle*
 tables the particle graphs (particle-record.ts), particleRequests those of
 the open particle phase. With frame workers they are growable shared
-buffers that grow in place; on one thread they are ordinary buffers that
-growTable replaces with larger copies.
+buffers that grow in place, but for the OUTPUT_TABLES, fixed-size shared
+buffers growTable replaces with larger copies; on one thread they are
+ordinary buffers that growTable replaces with larger copies.
 ================
 */
 export interface FrameKernelMemory {
@@ -139,10 +150,12 @@ export interface FrameKernelMemory {
 	clothRecords: ArrayBufferLike;
 	clothPrograms: ArrayBufferLike;
 	clothState: ArrayBufferLike;
+	clothVertices: ArrayBufferLike;
 	clothRequests: ArrayBufferLike;
 	worldClothRecords: ArrayBufferLike;
 	worldClothPrograms: ArrayBufferLike;
 	worldClothState: ArrayBufferLike;
+	worldClothVertices: ArrayBufferLike;
 	worldClothRequests: ArrayBufferLike;
 	skeletonModels: ArrayBufferLike;
 	skeletonClips: ArrayBufferLike;
@@ -168,12 +181,24 @@ export type KernelTable = keyof FrameKernelMemory;
 
 /*
 ================
-KernelBufferAllocator
+OUTPUT_TABLES
 
-Makes one table's buffer: initial bytes, and the most it may grow to.
+The tables the renderer uploads straight from (queue.writeBuffer, through
+the upload arena), so never growable: Chrome refuses a resizable buffer
+("must not be resizable", docs/CLIENT_WORKERS_PLAN.md 6.13).
 ================
 */
-export type KernelBufferAllocator = ( bytes: number, maxBytes: number ) => ArrayBufferLike;
+export const OUTPUT_TABLES = [ "clothVertices", "worldClothVertices" ] as const;
+
+/*
+================
+KernelBufferAllocator
+
+Makes one table's buffer: initial bytes, and the most it may grow to;
+fixed (true) for an output table, which is replaced, never grown in place.
+================
+*/
+export type KernelBufferAllocator = ( bytes: number, maxBytes: number, fixed?: boolean ) => ArrayBufferLike;
 
 /*
 ================
@@ -182,6 +207,7 @@ createFrameKernelMemory
 */
 export function createFrameKernelMemory( allocate: KernelBufferAllocator ): FrameKernelMemory {
 	const record = POSE_RECORD * Float64Array.BYTES_PER_ELEMENT;
+	const output = ( bytes: number, maxBytes: number ) => allocate( bytes, maxBytes, true );
 	return {
 		poseRecords: allocate( INITIAL_POSE_SLOTS * record, MAX_POSE_SLOTS * record ),
 		poseSnapshots: allocate(
@@ -208,6 +234,10 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 			INITIAL_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT,
 			MAX_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT
 		),
+		clothVertices: output(
+			INITIAL_CLOTH_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT
+		),
 		clothRequests: allocate(
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT
@@ -223,6 +253,10 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 		worldClothState: allocate(
 			INITIAL_WORLD_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT,
 			MAX_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT
+		),
+		worldClothVertices: output(
+			INITIAL_WORLD_CLOTH_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT
 		),
 		worldClothRequests: allocate(
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
@@ -283,8 +317,10 @@ growTable
 
 Grow one kernel table to at least bytes. A growable shared buffer grows in
 place, and every thread's views take the new length at their next
-refreshViews; an ordinary buffer, used by one thread only, is replaced by
-a larger copy. Throws past a shared buffer's maximum.
+refreshViews. An ordinary buffer, used by one thread only, is replaced by
+a larger copy; so is a fixed-size shared buffer (an output table), which
+the frame workers' owner then posts to its workers. Throws past a shared
+buffer's maximum.
 ================
 */
 export function growTable( memory: FrameKernelMemory, table: KernelTable, bytes: number ) {
@@ -295,7 +331,7 @@ export function growTable( memory: FrameKernelMemory, table: KernelTable, bytes:
 		shared.grow( bytes );
 		return;
 	}
-	const larger = new ArrayBuffer( bytes );
+	const larger = buffer instanceof ArrayBuffer ? new ArrayBuffer( bytes ) : new SharedArrayBuffer( bytes );
 	new Uint8Array( larger ).set( new Uint8Array( buffer ) );
 	memory[table] = larger;
 }
@@ -316,10 +352,12 @@ export interface FrameKernelViews {
 	clothRecords: Float64Array;
 	clothPrograms: Float64Array;
 	clothState: Float32Array;
+	clothVertices: Float32Array;
 	clothRequests: Int32Array;
 	worldClothRecords: Float64Array;
 	worldClothPrograms: Float64Array;
 	worldClothState: Float32Array;
+	worldClothVertices: Float32Array;
 	worldClothRequests: Int32Array;
 	skeletonModels: Float64Array;
 	skeletonClips: Float64Array;
@@ -356,10 +394,12 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		clothRecords: new Float64Array( 0 ),
 		clothPrograms: new Float64Array( 0 ),
 		clothState: new Float32Array( 0 ),
+		clothVertices: new Float32Array( 0 ),
 		clothRequests: new Int32Array( 0 ),
 		worldClothRecords: new Float64Array( 0 ),
 		worldClothPrograms: new Float64Array( 0 ),
 		worldClothState: new Float32Array( 0 ),
+		worldClothVertices: new Float32Array( 0 ),
 		worldClothRequests: new Int32Array( 0 ),
 		skeletonModels: new Float64Array( 0 ),
 		skeletonClips: new Float64Array( 0 ),
@@ -402,10 +442,12 @@ export function refreshViews( views: FrameKernelViews ) {
 	views.clothRecords = float64View( views.clothRecords, memory.clothRecords );
 	views.clothPrograms = float64View( views.clothPrograms, memory.clothPrograms );
 	views.clothState = float32View( views.clothState, memory.clothState );
+	views.clothVertices = float32View( views.clothVertices, memory.clothVertices );
 	views.clothRequests = int32View( views.clothRequests, memory.clothRequests );
 	views.worldClothRecords = float64View( views.worldClothRecords, memory.worldClothRecords );
 	views.worldClothPrograms = float64View( views.worldClothPrograms, memory.worldClothPrograms );
 	views.worldClothState = float32View( views.worldClothState, memory.worldClothState );
+	views.worldClothVertices = float32View( views.worldClothVertices, memory.worldClothVertices );
 	views.worldClothRequests = int32View( views.worldClothRequests, memory.worldClothRequests );
 	views.skeletonModels = float64View( views.skeletonModels, memory.skeletonModels );
 	views.skeletonClips = float64View( views.skeletonClips, memory.skeletonClips );
@@ -535,16 +577,11 @@ advanceClothChunk
 One KERNEL_CLOTH or KERNEL_WORLD_CLOTH chunk over its owner's tables.
 ================
 */
-function advanceClothChunk(
-	requests: Int32Array,
-	records: Float64Array,
-	programs: Float64Array,
-	state: Float32Array,
-	chunk: number
-) {
+function advanceClothChunk( views: FrameKernelViews, world: boolean, chunk: number ) {
+	const requests = world ? views.worldClothRequests : views.clothRequests;
 	const end = Math.min( requests[REQUEST_COUNT]!, (chunk + 1) * CLOTH_CHUNK );
 	for ( let i = chunk * CLOTH_CHUNK; i < end; i++ ) {
-		advanceClothWearer( records, programs, state, requests[REQUEST_SLOTS + i]! );
+		advanceClothWearer( views, world, requests[REQUEST_SLOTS + i]! );
 	}
 }
 
@@ -563,18 +600,8 @@ export function runFrameKernel( views: FrameKernelViews, kernel: number, chunk: 
 		for ( let i = chunk * POSE_CHUNK; i < end; i++ ) presentPredicted( views, requests[REQUEST_SLOTS + i]! );
 		return;
 	}
-	if ( kernel === KERNEL_CLOTH ) {
-		advanceClothChunk( views.clothRequests, views.clothRecords, views.clothPrograms, views.clothState, chunk );
-		return;
-	}
-	if ( kernel === KERNEL_WORLD_CLOTH ) {
-		advanceClothChunk(
-			views.worldClothRequests,
-			views.worldClothRecords,
-			views.worldClothPrograms,
-			views.worldClothState,
-			chunk
-		);
+	if ( kernel === KERNEL_CLOTH || kernel === KERNEL_WORLD_CLOTH ) {
+		advanceClothChunk( views, kernel === KERNEL_WORLD_CLOTH, chunk );
 		return;
 	}
 	if ( kernel === KERNEL_SKELETON ) {

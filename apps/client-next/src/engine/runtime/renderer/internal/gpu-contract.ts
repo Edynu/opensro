@@ -427,6 +427,10 @@ export interface GeometryCommands {
 	// Writes a packed vertex stream at vertex base of any draw, keeping no CPU
 	// copy: the caller owns the stream (a terrain layer member's vertices).
 	streamVertices( draw: GeometryDraw, base: number, vertices: Float32Array ): void;
+	// streamVertices for a frame kernel's output (frame-kernels.ts
+	// OUTPUT_TABLES): read from shared memory at the frame's submit, not
+	// copied; the kernel does not write the range again before then.
+	streamOutputVertices( draw: GeometryDraw, base: number, vertices: Float32Array ): void;
 	// Forgets a dynamicVertices draw's CPU mirror once its positions are final
 	// (a settled frontend scene); a later position or vertex write throws.
 	dropMirror( draw: GeometryDraw ): void;

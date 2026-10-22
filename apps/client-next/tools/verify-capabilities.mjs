@@ -47,7 +47,10 @@ const ASYNC_OWNERS = [
 	// The character worker waits for its frames without blocking its message
 	// loop (Atomics.waitAsync), so loads still arrive (CLIENT_WORKERS_PLAN.md 5.11).
 	"src/engine/foundation/workers/shared-frame.ts",
-	runtime + "character-worker/worker/entry.ts"
+	runtime + "character-worker/worker/entry.ts",
+	// A frame worker returns to its message loop to take the output tables
+	// its owner replaced (frame-jobs.ts replaceFrameTables), then serves again.
+	runtime + "frame-workers/worker/entry.ts"
 ];
 const device = runtime + "renderer/device/device.ts",
 	frame = runtime + "renderer/frame/frame.ts",
@@ -216,12 +219,15 @@ export const rules = {
 		runtime + "frame-workers/frame-workers.ts",
 		runtime + "character-worker/character-worker.ts"
 	],
-	// Shared memory has two owners: the frame workers' control block and the
-	// stateless jobs that run over it, and the character worker's tables
-	// (strings, value blocks, the actor table, its frame counters) and their
-	// contract (docs/CLIENT_WORKERS_PLAN.md 5.1, 5.11).
+	// Shared memory has two owners: the frame workers' control block, the
+	// stateless jobs that run over it and the kernel tables (an output table
+	// is replaced by a larger fixed-size one, frame-kernels.ts growTable), and
+	// the character worker's tables (strings, value blocks, the actor table,
+	// its frame counters) and their contract (docs/CLIENT_WORKERS_PLAN.md
+	// 5.1, 5.11).
 	SharedArrayBuffer: [
 		runtime + "frame-workers/frame-workers.ts",
+		"src/engine/foundation/kernels/frame-kernels.ts",
 		"src/engine/contracts/frame-workers.ts",
 		"src/engine/contracts/character-worker.ts",
 		"src/engine/foundation/workers/shared-frame.ts",

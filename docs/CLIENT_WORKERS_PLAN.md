@@ -1044,6 +1044,41 @@ shared memory (section 5.11, Transport).
   generation the frame workers re-attach to, since a worker blocked in
   `Atomics.wait` never reads a second message.
 
+### 6.17 Step 6: the frame kernels' GPU outputs uploaded from shared memory (2026-10-23)
+
+`writeBuffer` refuses a growable shared buffer (6.13), so the kernels'
+GPU-bound outputs were copied out on the main thread before upload. They
+move into tables of their own that are never growable.
+
+- **Output tables** (`frame-kernels.ts OUTPUT_TABLES`): fixed-size shared
+  memory, which `growTable` replaces with a larger copy. A frame worker
+  blocked in `Atomics.wait` reads no message, so the owner posts a
+  replaced table before the next phase opens and bumps the control
+  block's table count (`frame-jobs.ts replaceFrameTables`); a worker that
+  sees the count change claims nothing more, returns to its message loop,
+  takes the tables and serves again, while the join runs the chunks it
+  would have claimed. The owner bumps the count before it publishes the
+  phase, so a worker that reads the phase's claim word reads the bump.
+  On one thread the tables are ordinary buffers, as before.
+- **Cloth vertices**: each bank's packed vertices left its state arena for
+  an output table (`clothVertices`, `worldClothVertices`; the record's
+  `W_VERTICES`). The upload arena records a range of an output table
+  instead of copying it (`geometry-uploads.ts writeOutput`); the submit
+  writes each table's span into the copy source with one `writeBuffer`
+  straight from shared memory, and the copies keep their order with every
+  other write. The cloth kernel does not run over a range again before the
+  submit. The arena's copy of the cloth vertices (30 ms/s in the town
+  crowd) is gone; Chrome's own copy into the GPU process, inside that one
+  `writeBuffer`, stays: it is what any upload costs.
+- **Tests**: cloth on four Node threads against one thread while wearers
+  arrive in waves and the vertex table is replaced more than eight times
+  (it fails with the table check removed); the arena's output ranges
+  against the immediate path in both orders, read at the submit, spilling
+  under a small `maxBufferSize`.
+- **Next**: particle records (copied three times between the kernel and
+  the GPU) and bone palettes (copied into batch order, then uploaded per
+  batch).
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame

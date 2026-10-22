@@ -15,18 +15,27 @@ A worker that misses a join's deadline retires them all: they stop, this
 thread finishes the phase, and every later phase runs here. The frame never
 loses a chunk and the session does not end for it.
 
+The kernels' output tables are fixed-size and replaced, not grown
+(frame-kernels.ts OUTPUT_TABLES). Before each phase opens, a table
+replaced since the last is posted to every worker and the control
+block's table count bumped (frame-jobs.ts replaceFrameTables): a worker
+claims nothing until it holds the new tables, and the join runs what it
+would have.
+
 Port-only, not native: the original client runs its frame on one thread.
 The setting is read when the runtime starts, so a change applies after a
 reload.
 
 ===========================================================================
 */
-import type { FrameWorkerStart, FrameWorkerStatistics } from "@/engine/contracts/frame-workers";
+import type { FrameWorkerStart, FrameWorkerStatistics, FrameWorkerTables } from "@/engine/contracts/frame-workers";
 import { storedExperimentalOptions } from "@/engine/foundation/ui/experimental-options";
 import {
 	createFrameKernelMemory,
+	OUTPUT_TABLES,
 	plainBuffer,
-	type FrameKernelMemory
+	type FrameKernelMemory,
+	type KernelTable
 } from "@/engine/foundation/kernels/frame-kernels";
 import {
 	FRAME_CONTROL_WORDS,
@@ -38,6 +47,7 @@ import {
 	nextFrameGeneration,
 	publishFramePhase,
 	readyFrameWorkers,
+	replaceFrameTables,
 	serveFramePhase,
 	stopFrameJobs
 } from "@/engine/foundation/workers/frame-jobs";
@@ -53,11 +63,13 @@ const JOIN_CLOCK_SPINS = 1024;
 sharedBuffer
 
 The kernel tables' allocator while frame workers run: growable shared
-memory every worker's views follow.
+memory every worker's views follow, or, for an output table the GPU reads
+straight from, fixed-size shared memory (writeBuffer refuses a growable
+buffer).
 ================
 */
-function sharedBuffer( bytes: number, maxBytes: number ): ArrayBufferLike {
-	return new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } );
+function sharedBuffer( bytes: number, maxBytes: number, fixed = false ): ArrayBufferLike {
+	return fixed ? new SharedArrayBuffer( bytes ) : new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } );
 }
 
 /*
@@ -82,15 +94,21 @@ export function createFrameWorkers() {
 		started > 0 ? sharedBuffer : plainBuffer
 	);
 	const workers: Worker[] = [];
+	// The output tables the workers hold, as last posted.
+	const posted = new Map<KernelTable, ArrayBufferLike>( OUTPUT_TABLES.map( table => [ table, kernels[table] ] ) );
 	let generation = 0, phases = 0, joinWaitMs = 0, retired: string | null = null;
 	// The generation of the phase started and not yet finished; 0 when none.
 	let open = 0;
+	// The control block's table count (frame-jobs.ts replaceFrameTables).
+	let frameTables = 0;
 	for ( let index = 0; index < started; index++ ) {
 		const worker = new Worker( new URL( "./worker/entry.ts", import.meta.url ), {
 			type: "module",
 			name: `sro-frame-${index}`
 		} );
-		worker.postMessage( { control: memory as SharedArrayBuffer, kernels } satisfies FrameWorkerStart );
+		worker.postMessage(
+			{ kind: "start", control: memory as SharedArrayBuffer, kernels } satisfies FrameWorkerStart
+		);
 		workers.push( worker );
 	}
 	/*
@@ -106,6 +124,29 @@ export function createFrameWorkers() {
 	}
 	/*
 	================
+	postTables
+
+	The output tables replaced since the workers last got them, posted
+	before the phase that may write them opens.
+	================
+	*/
+	function postTables() {
+		let replaced: Partial<FrameKernelMemory> | null = null;
+		for ( const table of OUTPUT_TABLES ) {
+			if ( posted.get( table ) === kernels[table] ) continue;
+			posted.set( table, kernels[table] );
+			(replaced ??= {})[table] = kernels[table];
+		}
+		if ( !replaced || !workers.length ) return;
+		// Posted first: a worker that sees the count waits for its message.
+		const tables = frameTables + 1;
+		for ( const worker of workers ) {
+			worker.postMessage( { kind: "tables", tables, buffers: replaced } satisfies FrameWorkerTables );
+		}
+		frameTables = replaceFrameTables( control );
+	}
+	/*
+	================
 	fork
 
 	Open a phase of kernel over chunks: the workers start claiming at once.
@@ -113,6 +154,7 @@ export function createFrameWorkers() {
 	*/
 	function fork( kernel: number, chunks: number ) {
 		if ( open ) throw Error( "A frame phase is already open" );
+		postTables();
 		generation = nextFrameGeneration( generation );
 		phases++;
 		publishFramePhase( control, generation, kernel, chunks );

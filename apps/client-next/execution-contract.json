@@ -4,12 +4,19 @@
 		{
 			"consumer": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
 			"provider": "src/engine/runtime/simulation/worker/session/world/gameplay/pet-training/pet-training.ts",
-			"functions": ["createPetTraining", "clear", "receive", "state"]
+			"functions": [
+				"createPetTraining",
+				"clear",
+				"receive",
+				"state"
+			]
 		},
 		{
 			"consumer": "src/engine/runtime/simulation/worker/session/world/gameplay/pet-training/pet-training.ts",
 			"provider": "src/engine/runtime/simulation/worker/session/world/gameplay/gameplay.ts",
-			"functions": ["callback:createPetTraining:0"]
+			"functions": [
+				"callback:createPetTraining:0"
+			]
 		},
 		{
 			"consumer": "src/engine/runtime/viewer/viewer.ts",
@@ -234,6 +241,7 @@
 			"functions": [
 				"characterShadows",
 				"streamVertices",
+				"streamOutputVertices",
 				"writeVertices"
 			]
 		},
@@ -635,6 +643,7 @@
 				"updateMaterialColors",
 				"updateTextureFactor",
 				"streamVertices",
+				"streamOutputVertices",
 				"writeVertices"
 			],
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
@@ -722,6 +731,7 @@
 				"presentParticles",
 				"updateTextureFactor",
 				"streamVertices",
+				"streamOutputVertices",
 				"writeVertices"
 			]
 		},
@@ -2362,7 +2372,7 @@
 			"consumer": "src/engine/foundation/workers/frame-jobs.ts",
 			"provider": "src/engine/runtime/frame-workers/worker/entry.ts",
 			"functions": [
-				"callback:serveFrameJobs:1"
+				"run"
 			]
 		},
 		{
@@ -4302,6 +4312,13 @@
 			"function": "assets",
 			"kind": "callback",
 			"reason": "The frame loop's resolver while it waits for the asset results message a frame names; resolving it resumes the loop on this worker."
+		},
+		{
+			"file": "src/engine/runtime/frame-workers/worker/entry.ts",
+			"expression": "waiting",
+			"function": "callback:port.onmessage",
+			"kind": "callback",
+			"reason": "The serve loop's resolver while it waits for the replaced output tables the control block's table count names (frame-jobs.ts replaceFrameTables); resolving it resumes serving on this worker."
 		},
 		{
 			"file": "src/engine/runtime/character-worker/worker/entry.ts",

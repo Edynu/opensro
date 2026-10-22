@@ -16,6 +16,13 @@ between two slots, so the next phase never overwrites the one a straggler
 is still reading. Stateless: the control block belongs to its owner
 (runtime/frame-workers/frame-workers.ts).
 
+The kernels' GPU outputs are fixed-size tables the owner replaces with
+larger ones (frame-kernels.ts OUTPUT_TABLES), and a worker blocked here
+reads no message. The owner posts the new tables, then bumps TABLES; a
+worker that sees TABLES differ from the tables it holds claims nothing
+more and returns from serveFrameJobs to take them, while the owner's join
+runs the chunks it would have claimed.
+
 ===========================================================================
 */
 
@@ -48,7 +55,8 @@ export type FrameWorkerSetting = "off" | "auto" | number;
 //   32   READY   workers that have started serving
 //   48   NEXT    (generation << GENERATION_SHIFT) | next unclaimed chunk
 //   64   SLOTS   two phase slots, one line each: kernel, chunks, done, failed
-//   96   CHUNK_STATES  one state per chunk of the open phase, for recovery
+//   96   TABLES  bumped each time the owner replaces kernel tables
+//   112  CHUNK_STATES  one state per chunk of the open phase, for recovery
 const LINE = 16;
 const WAKE = 0;
 const STOP = 16;
@@ -59,7 +67,8 @@ const SLOT_KERNEL = 0;
 const SLOT_CHUNKS = 1;
 const SLOT_DONE = 2;
 const SLOT_FAILED = 3;
-const CHUNK_STATES = 96;
+const TABLES = 96;
+const CHUNK_STATES = 112;
 const CHUNK_FREE = 0;
 const CHUNK_CLAIMED = 1;
 const CHUNK_DONE = 2;
@@ -72,7 +81,10 @@ const CHUNK_MASK = 0xffff;
 // The largest phase, in chunks.
 export const MAX_FRAME_CHUNKS = 1024;
 // The control block's length in 32-bit words: CHUNK_STATES + MAX_FRAME_CHUNKS.
-export const FRAME_CONTROL_WORDS = 1120;
+export const FRAME_CONTROL_WORDS = 1136;
+// A thread that holds the owner's own tables (the owner, at its join): it
+// never leaves a phase for replaced ones.
+export const OWNER_TABLES = -1;
 // The most frame workers Auto starts: past it each worker's own heap and
 // compiled kernels (about 15 MB) outweigh what one more adds.
 export const AUTO_FRAME_WORKERS = 8;
@@ -165,15 +177,21 @@ serveFramePhase
 Claim and run chunks of the open phase until none is left. Main thread and
 workers alike. A chunk that throws marks its phase failed and still counts
 as done, so the owner's join ends and the owner decides what follows.
+
+tables is the TABLES count whose tables the thread holds (OWNER_TABLES for
+the owner): a worker stops claiming once the owner has replaced them. The
+owner bumps TABLES before it opens the next phase, so a worker that reads
+that phase's claim word reads the bump too.
 ================
 */
-export function serveFramePhase( control: Int32Array, run: FrameJobRunner ): void {
+export function serveFramePhase( control: Int32Array, run: FrameJobRunner, tables = OWNER_TABLES ): void {
 	for ( ;; ) {
 		const word = Atomics.load( control, NEXT );
 		const slot = SLOTS + ((word >>> GENERATION_SHIFT) & 1) * LINE, chunk = word & CHUNK_MASK;
 		const chunks = Atomics.load( control, slot + SLOT_CHUNKS ),
 			kernel = Atomics.load( control, slot + SLOT_KERNEL );
 		if ( chunk >= chunks ) return;
+		if ( tables !== OWNER_TABLES && Atomics.load( control, TABLES ) !== tables ) return;
 		// A changed word means another claim or a newer phase: read again.
 		if ( Atomics.compareExchange( control, NEXT, word, word + 1 ) !== word ) continue;
 		Atomics.store( control, CHUNK_STATES + chunk, CHUNK_CLAIMED );
@@ -251,22 +269,56 @@ export function stopFrameJobs( control: Int32Array ): void {
 
 /*
 ================
-serveFrameJobs
+replaceFrameTables
 
-A frame worker's whole life: serve each phase as it opens, sleep between
-them, return when stopped. Blocks; workers only.
+Owner only, after posting the replaced tables to every worker: each
+worker leaves serveFrameJobs to take them. Returns the new TABLES count,
+which the posted tables carry.
 ================
 */
-export function serveFrameJobs( control: Int32Array, run: FrameJobRunner ): void {
+export function replaceFrameTables( control: Int32Array ): number {
+	const tables = Atomics.add( control, TABLES, 1 ) + 1;
+	Atomics.add( control, WAKE, 1 );
+	Atomics.notify( control, WAKE );
+	return tables;
+}
+
+/*
+================
+frameTables
+
+The TABLES count: the tables a worker must hold to serve.
+================
+*/
+export function frameTables( control: Int32Array ): number {
+	return Atomics.load( control, TABLES );
+}
+
+/*
+================
+serveFrameJobs
+
+A frame worker's life between table replacements: serve each phase as it
+opens, sleep between them. Returns "stopped" when stopped, "tables" when
+the owner replaced tables after the TABLES count tables the worker holds,
+so it can take them from its messages and serve again. Blocks; workers
+only.
+================
+*/
+export function serveFrameJobs( control: Int32Array, run: FrameJobRunner, tables = 0 ): "stopped" | "tables" {
 	Atomics.add( control, READY, 1 );
-	let seen = Atomics.load( control, WAKE );
-	// A phase may already be open when the worker starts: join it.
-	serveFramePhase( control, run );
-	while ( Atomics.load( control, STOP ) === 0 ) {
+	let seen = Atomics.load( control, WAKE ), result: "stopped" | "tables" = "stopped";
+	for ( ;; ) {
+		if ( Atomics.load( control, STOP ) !== 0 ) break;
+		if ( Atomics.load( control, TABLES ) !== tables ) {
+			result = "tables";
+			break;
+		}
+		// A phase may already be open when the worker starts: join it.
+		serveFramePhase( control, run, tables );
 		Atomics.wait( control, WAKE, seen );
 		seen = Atomics.load( control, WAKE );
-		if ( Atomics.load( control, STOP ) !== 0 ) break;
-		serveFramePhase( control, run );
 	}
 	Atomics.sub( control, READY, 1 );
+	return result;
 }

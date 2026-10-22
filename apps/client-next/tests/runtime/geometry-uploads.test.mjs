@@ -5,6 +5,8 @@ geometry-uploads.test.mjs - submission upload counts, bytes and retirement
 
 The immediate path is the old writeBuffer reference. A fake queue executes
 copies only at submit and checks every byte of each original destination.
+A frame kernel's output table (fixed-size shared memory) is read at the
+submit, one queue write a table, in order with every snapshotted write.
 The shared loader imports the shipped TypeScript without a private bundle.
 
 ===========================================================================
@@ -35,7 +37,7 @@ Copies capture buffer references, not source bytes, until queue.submit.
 ================
 */
 function fixture( options = {} ) {
-	const buffers = [], writes = [], targets = [], retirement = createRetirement();
+	const buffers = [], writes = [], sources = [], targets = [], retirement = createRetirement();
 	let bindings = 0, submissions = 0;
 	const device = {
 		limits: { maxBufferSize: options.limit ?? 256 * 1024 * 1024 },
@@ -91,6 +93,7 @@ function fixture( options = {} ) {
 				assert.ok( offset + size <= buffer.size );
 				buffer.bytes.set( new Uint8Array( data, start, size ), offset );
 				writes.push( buffer );
+				sources.push( data );
 			},
 			submit( commandBuffers ) {
 				submissions++;
@@ -119,6 +122,7 @@ function fixture( options = {} ) {
 		resources,
 		buffers,
 		writes,
+		sources,
 		targets,
 		retirement,
 		bindings: () => bindings,
@@ -351,5 +355,102 @@ test("device-sized pages spill without exceeding maxBufferSize or losing byte or
 	arena.resources.endFrame();
 	arena.retirement.close();
 	old.resources.dispose();
+	arena.resources.dispose();
+});
+
+/*
+================
+outputTable
+
+A frame kernel's output table: fixed-size shared memory holding a packed
+stream per actor.
+================
+*/
+function outputTable( actors ) {
+	return new Float32Array( new SharedArrayBuffer( actors * VERTEX_FLOATS * 3 * Float32Array.BYTES_PER_ELEMENT ) );
+}
+
+/*
+================
+outputFrame
+
+Each actor's vertices from the output table, an odd actor's before a
+snapshotted write to the same vertices and an even one's after it, so the
+last write must win either way.
+================
+*/
+function outputFrame( resources, draws, table, tick ) {
+	const commands = resources.commands, stream = VERTEX_FLOATS * 3;
+	for ( let actor = 0; actor < draws.length; actor++ ) {
+		const vertices = table.subarray( actor * stream, (actor + 1) * stream );
+		vertices.fill( actor + tick * ACTORS + .5 );
+		const snapshot = new Float32Array( VERTEX_FLOATS ).fill( -actor - 1 );
+		if ( actor & 1 ) commands.streamOutputVertices( draws[actor], 0, vertices );
+		commands.writeVertices( draws[actor], 1, snapshot );
+		if ( !(actor & 1) ) commands.streamOutputVertices( draws[actor], 0, vertices );
+	}
+}
+
+test("output table ranges upload in order with snapshotted writes, one queue write for the table", () => {
+	const old = fixture(), arena = fixture();
+	const expected = Array.from( { length: ACTORS }, () => old.resources.commands.upload( geometry() ) );
+	const actual = Array.from( { length: ACTORS }, () => arena.resources.commands.upload( geometry() ) );
+	const before = outputTable( ACTORS ), table = outputTable( ACTORS );
+	for ( let tick = 0; tick < 3; tick++ ) {
+		arena.writes.length = arena.sources.length = 0;
+		arena.retirement.open();
+		arena.resources.beginFrame();
+		outputFrame( old.resources, expected, before, tick );
+		outputFrame( arena.resources, actual, table, tick );
+		arena.resources.uploads.submit( [ () => compare( expected, actual ) ] );
+		// The arena's snapshots, then the table's span straight from shared memory.
+		assert.equal( arena.writes.length, 2 );
+		assert.equal( arena.sources[1], table.buffer );
+		arena.resources.endFrame();
+		arena.retirement.close();
+	}
+	old.resources.dispose();
+	arena.resources.dispose();
+});
+
+/*
+================
+streamOutputs
+
+Each draw's vertices from its range of the output table; filled with the
+actor's number plus offset after admission, when after is set, else before.
+================
+*/
+function streamOutputs( resources, draws, table, after ) {
+	const stream = VERTEX_FLOATS * 3, range = actor => table.subarray( actor * stream, (actor + 1) * stream );
+	resources.retirement.open();
+	resources.resources.beginFrame();
+	if ( !after ) draws.forEach( ( _, actor ) => range( actor ).fill( actor + 1 ) );
+	draws.forEach( ( draw, actor ) => resources.resources.commands.streamOutputVertices( draw, 0, range( actor ) ) );
+	if ( after ) draws.forEach( ( _, actor ) => range( actor ).fill( actor + 1 ) );
+	resources.resources.endFrame();
+	draws.forEach( ( draw, actor ) => {
+		const uploaded = new Float32Array( draw.vertices.bytes.buffer, 0, stream );
+		assert.ok( uploaded.every( value => value === actor + 1 ), `actor ${actor}` );
+	} );
+	resources.retirement.close();
+}
+
+test("an output table is read at the submit, not copied when admitted", () => {
+	const arena = fixture(), table = outputTable( 4 );
+	const draws = Array.from( { length: 4 }, () => arena.resources.commands.upload( geometry() ) );
+	streamOutputs( arena, draws, table, true );
+	assert.equal( arena.submissions(), 1 );
+	arena.resources.dispose();
+});
+
+test("output table spans spill within maxBufferSize and keep their bytes", () => {
+	const arena = fixture( { limit: 512 } ), table = outputTable( 4 );
+	const draws = Array.from( { length: 4 }, () => arena.resources.commands.upload( geometry() ) );
+	streamOutputs( arena, draws, table, false );
+	assert.ok(
+		arena.buffers.filter( buffer => buffer.label === "geometry-upload-arena" ).every( buffer => buffer.size <= 512 )
+	);
+	assert.ok( arena.submissions() > 1, "spilled" );
 	arena.resources.dispose();
 });

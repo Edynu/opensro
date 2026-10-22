@@ -3,9 +3,10 @@
 
 frame-workers.ts - what a frame worker is given, and what its owner reports
 
-The main thread starts each frame worker with one message and never sends
-another: everything after it is shared memory, the control block
-(frame-jobs.ts) and the kernels' growable tables (frame-kernels.ts).
+The main thread starts each frame worker with one message; everything
+after it is shared memory, the control block (frame-jobs.ts) and the
+kernels' tables (frame-kernels.ts). The one other message carries the
+output tables the owner replaced with larger ones.
 
 ===========================================================================
 */
@@ -16,8 +17,23 @@ FrameWorkerStart
 ================
 */
 export interface FrameWorkerStart {
+	readonly kind: "start";
 	readonly control: SharedArrayBuffer;
 	readonly kernels: import("@/engine/foundation/kernels/frame-kernels").FrameKernelMemory;
+}
+
+/*
+================
+FrameWorkerTables
+
+Output tables the owner replaced, and the control block's table count
+(frame-jobs.ts replaceFrameTables) a worker holding them may serve.
+================
+*/
+export interface FrameWorkerTables {
+	readonly kind: "tables";
+	readonly tables: number;
+	readonly buffers: Partial<import("@/engine/foundation/kernels/frame-kernels").FrameKernelMemory>;
 }
 
 /*

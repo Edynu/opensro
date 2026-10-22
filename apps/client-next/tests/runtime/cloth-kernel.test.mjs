@@ -12,8 +12,8 @@ every packed vertex of every frame, through option changes, stalls, wind,
 shared programs and released and reused state; a world mesh's wearer
 holding exactly when its object cloth holds, beside the characters' bank
 on the same memory; then the same wearers on real worker threads over
-growing shared tables, and every chunk run twice as a stalled worker's
-chunk is.
+growing shared tables and a replaced output table, and every chunk run
+twice as a stalled worker's chunk is.
 
 ===========================================================================
 */
@@ -28,7 +28,7 @@ const { crtRandomRange } = await import( "../../src/engine/foundation/math/crt-r
 const { CHARACTER_CLOTH, WORLD_CLOTH, clothSeed, createClothWearers } = await import(
 	"../../src/engine/foundation/animation/cloth-wearers.ts"
 );
-const { INITIAL_CLOTH_STATE_FLOATS, INITIAL_CLOTH_WEARERS } = await import(
+const { INITIAL_CLOTH_VERTEX_FLOATS, INITIAL_CLOTH_WEARERS, MAX_CLOTH_WEARERS, growTable } = await import(
 	"../../src/engine/foundation/kernels/frame-kernels.ts"
 );
 
@@ -170,19 +170,27 @@ test("a cloth chunk run twice, as after a stalled worker, leaves the same bits",
 	}
 });
 
-test("cloth wearers on worker threads over growing shared tables draw as one thread does", async () => {
+test("cloth wearers on worker threads over growing and replaced tables draw as one thread does", async () => {
 	const fixture = clothVertexCase( true, true ), primitive = primitiveOf( fixture );
-	const count = 1500, frames = 40;
+	const count = MAX_CLOTH_WEARERS, waves = 4, frames = 40, n = fixture.primitive.geometry.positions.length / 3;
 	const threads = await createThreadedWorkers( 4 );
 	try {
 		const inline = createClothWearers( createInlineWorkers() ), threaded = createClothWearers( threads );
-		const slots = Array.from(
-			{ length: count },
-			( _, i ) => [ inline.admit( primitive, clothSeed( i, 0 ) ), threaded.admit( primitive, clothSeed( i, 0 ) ) ]
-		);
-		const stateFloats = count * (29 * fixture.primitive.geometry.positions.length / 3 + 16 * JOINTS);
-		assert.ok( count > INITIAL_CLOTH_WEARERS && stateFloats > INITIAL_CLOTH_STATE_FLOATS, "the tables grow" );
+		const memory = threads.memory(), slots = [];
+		assert.ok( count > INITIAL_CLOTH_WEARERS, "the records grow in place" );
+		assert.ok( count * 14 * n > INITIAL_CLOTH_VERTEX_FLOATS, "the wearers outgrow the vertex table" );
 		for ( let frame = 0; frame < frames; frame++ ) {
+			// Wearers arrive in waves while the threads serve, and the output
+			// table is replaced besides every few frames: the threads must take
+			// each replacement before they write it.
+			if ( frame % (frames / waves) === 0 ) {
+				for ( let i = slots.length, end = i + count / waves; i < end; i++ ) {
+					slots.push( [
+						inline.admit( primitive, clothSeed( i, 0 ) ),
+						threaded.admit( primitive, clothSeed( i, 0 ) )
+					] );
+				}
+			} else if ( frame % 3 === 0 ) growTable( memory, "clothVertices", memory.clothVertices.byteLength + 4096 );
 			const input = fixture.input( frame );
 			for ( const [a, b] of slots ) {
 				inline.request( a, input.palette, input.seconds, input.enabled, input.motion );
@@ -194,7 +202,11 @@ test("cloth wearers on worker threads over growing shared tables draw as one thr
 				sameFloats( threaded.vertices( b ), inline.vertices( a ), `frame ${frame} wearer ${index}` );
 			}
 		}
+		assert.equal( slots.length, count );
 		assert.equal( threads.phases(), frames );
+		assert.ok( threads.replacements() > 8, `replaced ${threads.replacements()} times` );
+		const vertices = /** @type {SharedArrayBuffer} */ (memory.clothVertices);
+		assert.equal( vertices.growable, false, "the output table stays fixed-size" );
 	} finally {
 		await threads.close();
 	}

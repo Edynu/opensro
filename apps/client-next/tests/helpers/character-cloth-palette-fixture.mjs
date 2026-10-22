@@ -247,6 +247,18 @@ function captureGeometry( tags, gpuAvailable ) {
 		},
 		/*
 		================
+		streamOutputVertices
+
+		The wearers' upload from their output table: the same capture.
+		================
+		*/
+		streamOutputVertices( draw, offset, vertices ) {
+			device.resources.commands.streamOutputVertices( draw.deviceDraw, offset, vertices );
+			assert.equal( offset, 0 );
+			draw.capturedVertices = vertices.slice();
+		},
+		/*
+		================
 		updateTransform
 		================
 		*/

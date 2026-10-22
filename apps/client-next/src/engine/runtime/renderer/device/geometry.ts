@@ -222,6 +222,21 @@ export function createGeometryResources(
 	}
 	/*
 	================
+	checkStream
+
+	A packed stream's bounds and stride, as writeVertices checks them.
+	================
+	*/
+	function checkStream( draw: GeometryDraw, base: number, vertices: Float32Array ) {
+		const meta = metadata.get( draw );
+		if ( !meta ) throw Error( "Stale geometry handle" );
+		if (
+			!Number.isInteger( base ) || base < 0 || vertices.length % 14 ||
+			base * 14 + vertices.length > meta.vertexFloats
+		) throw Error( "Invalid vertex write" );
+	}
+	/*
+	================
 	writeStream
 
 	GPU-written palettes and particle streams retain their immediate path.
@@ -727,13 +742,22 @@ export function createGeometryResources(
 		================
 		*/
 		streamVertices( draw: GeometryDraw, base: number, vertices: Float32Array ) {
-			const meta = metadata.get( draw );
-			if ( !meta ) throw Error( "Stale geometry handle" );
-			if (
-				!Number.isInteger( base ) || base < 0 || vertices.length % 14 ||
-				base * 14 + vertices.length > meta.vertexFloats
-			) throw Error( "Invalid vertex write" );
+			checkStream( draw, base, vertices );
 			writeStream( draw.vertices, ((draw.baseVertex ?? 0) + base) * VERTEX_BYTES, vertices );
+		},
+		/*
+		================
+		streamOutputVertices
+
+		streamVertices for a frame kernel's output table: the upload arena
+		reads the range from shared memory at the submit (geometry-uploads.ts
+		writeOutput), so no copy is made here.
+		================
+		*/
+		streamOutputVertices( draw: GeometryDraw, base: number, vertices: Float32Array ) {
+			checkStream( draw, base, vertices );
+			current();
+			uploads.writeOutput( draw.vertices, ((draw.baseVertex ?? 0) + base) * VERTEX_BYTES, vertices );
 		},
 		/*
 		================

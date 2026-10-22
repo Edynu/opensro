@@ -1382,8 +1382,8 @@ export function createCharacters(
 	finishCloth
 
 	The cloth phase prepare left open, joined, and each of its wearers'
-	vertices uploaded (the arena copies them from shared memory; no draw
-	mirror is read back).
+	vertices uploaded straight from the kernel's output table (no copy, no
+	draw mirror).
 	================
 	*/
 	function finishCloth() {
@@ -1392,7 +1392,7 @@ export function createCharacters(
 		pendingCloth = undefined;
 		clothWearers.joinCloth();
 		for ( let i = 0; i < pending.slots.length; i++ ) {
-			pending.geometry.streamVertices( pending.draws[i]!, 0, clothWearers.vertices( pending.slots[i]! ) );
+			pending.geometry.streamOutputVertices( pending.draws[i]!, 0, clothWearers.vertices( pending.slots[i]! ) );
 		}
 	}
 	/*

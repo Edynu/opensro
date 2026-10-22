@@ -860,9 +860,9 @@ export function createWorldRenderer(
 			wearerSlots.push( slot );
 		}
 		wearers.run();
-		// The wearers keep the streams; the arena copies them from shared memory.
+		// The wearers keep the streams in their output table, uploaded from it.
 		for ( let i = 0; i < wearerDraws.length; i++ ) {
-			geometry.streamVertices( wearerDraws[i]!, 0, wearers.vertices( wearerSlots[i]! ) );
+			geometry.streamOutputVertices( wearerDraws[i]!, 0, wearers.vertices( wearerSlots[i]! ) );
 		}
 	}
 	/*

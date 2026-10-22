@@ -8,7 +8,8 @@ inline with no workers, then with real worker threads sharing the control
 block (tests/helpers/frame-job-worker.mjs runs the shipping serveFrameJobs).
 Every chunk of every phase must run exactly once, with its phase's kernel,
 however the threads race; a failed chunk must not hang the join; a stalled
-worker's chunk must be finishable by the owner.
+worker's chunk must be finishable by the owner; a worker whose tables the
+owner replaced must claim nothing until it holds the new ones.
 
 ===========================================================================
 */
@@ -23,12 +24,15 @@ const {
 	finishFramePhase,
 	framePhaseComplete,
 	framePhaseFailed,
+	frameTables,
 	frameWorkerCount,
 	frameWorkerLimit,
 	nextFrameGeneration,
 	publishFramePhase,
 	readyFrameWorkers,
+	replaceFrameTables,
 	serveFramePhase,
+	serveFrameJobs,
 	stopFrameJobs
 } = await import( "../../src/engine/foundation/workers/frame-jobs.ts" );
 
@@ -209,4 +213,34 @@ test("the owner finishes the chunk a stalled worker holds", async () => {
 	} finally {
 		await Promise.all( workers.map( worker => worker.terminate() ) );
 	}
+});
+
+test("a thread holding replaced tables claims nothing; one holding the new tables serves", () => {
+	const control = new Int32Array( FRAME_CONTROL_WORDS ), ran = [];
+	const run = ( _, chunk ) => ran.push( chunk );
+	assert.equal( replaceFrameTables( control ), 1 );
+	assert.equal( frameTables( control ), 1 );
+	const generation = nextFrameGeneration( 0 );
+	publishFramePhase( control, generation, 3, 4 );
+	serveFramePhase( control, run, 0 );
+	assert.deepEqual( ran, [], "stale tables" );
+	serveFramePhase( control, run, 1 );
+	assert.deepEqual( ran, [ 0, 1, 2, 3 ] );
+	assert.ok( framePhaseComplete( control, generation ) );
+	// The owner holds its own tables whatever the count.
+	const next = nextFrameGeneration( generation );
+	replaceFrameTables( control );
+	publishFramePhase( control, next, 3, 2 );
+	serveFramePhase( control, run );
+	assert.deepEqual( ran.slice( 4 ), [ 0, 1 ] );
+});
+
+test("a worker leaves to take replaced tables, or when stopped, and counts itself out", () => {
+	const control = new Int32Array( new SharedArrayBuffer( FRAME_CONTROL_WORDS * Int32Array.BYTES_PER_ELEMENT ) );
+	replaceFrameTables( control );
+	assert.equal( serveFrameJobs( control, () => assert.fail( "served with stale tables" ), 0 ), "tables" );
+	assert.equal( readyFrameWorkers( control ), 0 );
+	stopFrameJobs( control );
+	assert.equal( serveFrameJobs( control, () => {}, 1 ), "stopped" );
+	assert.equal( readyFrameWorkers( control ), 0 );
 });

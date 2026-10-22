@@ -61,8 +61,10 @@ import {
 	W_RANDOM,
 	W_SECONDS,
 	W_SPEED,
-	W_STATE
+	W_STATE,
+	W_VERTICES
 } from "./cloth-record";
+import type { FrameKernelViews } from "./frame-kernels";
 
 // The object code draws random.range( 0, 32768 ): the whole rand() value.
 const CLOTH_RANDOM_SPAN = 32768;
@@ -83,22 +85,12 @@ export function clothProgramWords( vertices: number, constraints: number ): numb
 clothStateFloats
 
 Floats a wearer of vertices and palette joints takes in clothState: two
-halves of positions and previous, anchors, packed vertices, palette.
+halves of positions and previous, anchors, palette. Its packed vertices
+are in clothVertices.
 ================
 */
 export function clothStateFloats( vertices: number, joints: number ): number {
-	return vertices * (12 + 3 + CLOTH_VERTEX_FLOATS) + joints * CLOTH_JOINT_FLOATS;
-}
-
-/*
-================
-clothStateVertices
-
-Where a wearer's packed vertices start in clothState.
-================
-*/
-export function clothStateVertices( state: number, vertices: number ): number {
-	return state + vertices * 15;
+	return vertices * (12 + 3) + joints * CLOTH_JOINT_FLOATS;
 }
 
 /*
@@ -109,7 +101,7 @@ Where a wearer's palette starts in clothState.
 ================
 */
 export function clothStatePalette( state: number, vertices: number ): number {
-	return state + vertices * (15 + CLOTH_VERTEX_FLOATS);
+	return state + vertices * 15;
 }
 
 /*
@@ -209,17 +201,22 @@ advanceClothWearer
 
 One wearer's frame (cloth-vertices.ts update): skin, advance, pack. Reads
 the record's inputs and current half; writes the other half, anchors,
-vertices, N_RANDOM, N_ELAPSED and N_SETTLED.
+vertices, N_RANDOM, N_ELAPSED and N_SETTLED. world picks the world's cloth
+tables (the world* cloth tables) over the characters'.
 ================
 */
-export function advanceClothWearer( records: Float64Array, programs: Float64Array, state: Float32Array, slot: number ) {
+export function advanceClothWearer( views: FrameKernelViews, world: boolean, slot: number ) {
+	const records = world ? views.worldClothRecords : views.clothRecords;
+	const programs = world ? views.worldClothPrograms : views.clothPrograms;
+	const state = world ? views.worldClothState : views.clothState;
+	const output = world ? views.worldClothVertices : views.clothVertices;
 	const w = slot * CLOTH_RECORD, program = records[w + W_PROGRAM]!, base = records[w + W_STATE]!;
 	const n = programs[program + P_VERTICES]!, skinned = programs[program + P_SKINNED] === 1;
 	const rest = program + P_HEADER, normals = rest + n * 3, joints = normals + n * 3, weights = joints + n * 4;
 	const pins = weights + n * 5;
 	const current = records[w + W_CURRENT]!;
 	const from = clothStateHalf( base, n, current ), positions = clothStateHalf( base, n, 1 - current );
-	const anchors = base + n * 12, vertices = clothStateVertices( base, n ), palette = clothStatePalette( base, n );
+	const anchors = base + n * 12, vertices = records[w + W_VERTICES]!, palette = clothStatePalette( base, n );
 	const seconds = records[w + W_SECONDS]!, enabled = records[w + W_ENABLED] === 1;
 	const updated = records[w + W_LAST_SET] === 1;
 	// Unskinned meshes have immutable model-space anchors. Option changes
@@ -279,9 +276,9 @@ export function advanceClothWearer( records: Float64Array, programs: Float64Arra
 		state[anchors + at + 2] = pz;
 		if ( !enabled || programs[pins + i] !== 0 || !updated ) {
 			const vertex = vertices + i * CLOTH_VERTEX_FLOATS;
-			state[vertex + 3] = normalX;
-			state[vertex + 4] = normalY;
-			state[vertex + 5] = normalZ;
+			output[vertex + 3] = normalX;
+			output[vertex + 4] = normalY;
+			output[vertex + 5] = normalZ;
 		}
 	}
 	// cloth.ts advance, on the other half.
@@ -328,9 +325,9 @@ export function advanceClothWearer( records: Float64Array, programs: Float64Arra
 	}
 	for ( let i = 0; i < n; i++ ) {
 		const vertex = vertices + i * CLOTH_VERTEX_FLOATS, at = positions + i * 3;
-		state[vertex] = state[at]!;
-		state[vertex + 1] = state[at + 1]!;
-		state[vertex + 2] = state[at + 2]!;
+		output[vertex] = state[at]!;
+		output[vertex + 1] = state[at + 1]!;
+		output[vertex + 2] = state[at + 2]!;
 	}
 	records[w + N_RANDOM] = random;
 	records[w + N_ELAPSED] = elapsed;

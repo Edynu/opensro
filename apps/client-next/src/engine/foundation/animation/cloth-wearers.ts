@@ -12,7 +12,10 @@ simulation is otherwise the object code's (cloth-vertices.ts), which keeps
 running with Worker threads off.
 
 Owns one bank's wearer records, programs (one per cloth primitive, written
-once and freed with its last wearer) and state arena. The characters'
+once and freed with its last wearer), state arena and packed vertices.
+The vertices are an output table (frame-kernels.ts OUTPUT_TABLES): the
+renderer uploads them straight from shared memory, so no thread copies
+them. The characters'
 wearers (CHARACTER_CLOTH, renderer/characters/characters.ts) and the
 world's meshes (WORLD_CLOTH, renderer/world/world.ts) are two owners over
 two banks, so each admits, resets and releases its own. The renderer
@@ -34,6 +37,7 @@ import {
 	type KernelTable,
 	MAX_CLOTH_PROGRAM_WORDS,
 	MAX_CLOTH_STATE_FLOATS,
+	MAX_CLOTH_VERTEX_FLOATS,
 	MAX_CLOTH_WEARERS,
 	REQUEST_COUNT,
 	REQUEST_SLOTS,
@@ -72,14 +76,14 @@ import {
 	W_RANDOM,
 	W_SECONDS,
 	W_SPEED,
-	W_STATE
+	W_STATE,
+	W_VERTICES
 } from "@/engine/foundation/kernels/cloth-record";
 import {
 	clothProgramWords,
 	clothStateFloats,
 	clothStateHalf,
-	clothStatePalette,
-	clothStateVertices
+	clothStatePalette
 } from "@/engine/foundation/kernels/cloth-kernel";
 import { CLOTH_STEP_MS, type ClothData } from "./cloth";
 
@@ -100,6 +104,7 @@ interface ClothBank {
 	readonly records: "clothRecords" | "worldClothRecords";
 	readonly programs: "clothPrograms" | "worldClothPrograms";
 	readonly state: "clothState" | "worldClothState";
+	readonly vertices: "clothVertices" | "worldClothVertices";
 	readonly requests: "clothRequests" | "worldClothRequests";
 }
 
@@ -115,6 +120,7 @@ function clothBank( name: ClothBankName ): ClothBank {
 			records: "worldClothRecords",
 			programs: "worldClothPrograms",
 			state: "worldClothState",
+			vertices: "worldClothVertices",
 			requests: "worldClothRequests"
 		} :
 		{
@@ -122,6 +128,7 @@ function clothBank( name: ClothBankName ): ClothBank {
 			records: "clothRecords",
 			programs: "clothPrograms",
 			state: "clothState",
+			vertices: "clothVertices",
 			requests: "clothRequests"
 		};
 }
@@ -175,15 +182,17 @@ createClothWearers
 export function createClothWearers( workers: FrameKernelPhases, name: ClothBankName = CHARACTER_CLOTH ) {
 	const memory = workers.memory(), views = frameKernelViews( memory ), bank = clothBank( name );
 	const programs = new Map<ClothPrimitive, Program>();
-	// Per wearer slot: its primitive's program, its state offset and size.
+	// Per wearer slot: its primitive's program, its state offset and size,
+	// its vertex count and where its packed vertices start.
 	const slotPrograms: (Program | undefined)[] = [], slotState: number[] = [], slotFloats: number[] = [];
-	const slotVertices: number[] = [];
+	const slotVertices: number[] = [], slotOutput: number[] = [];
 	// A slot requested twice in one phase would run on two threads at once.
 	const slotPhase: number[] = [];
 	const freeSlots: number[] = [];
 	// Released regions by size: programs and wearers of one mesh repeat.
 	const freePrograms = new Map<number, number[]>(), freeState = new Map<number, number[]>();
-	let slotCount = 0, programUsed = 0, stateUsed = 0, phase = 1, started = false;
+	const freeOutput = new Map<number, number[]>();
+	let slotCount = 0, programUsed = 0, stateUsed = 0, outputUsed = 0, phase = 1, started = false;
 	const requested: number[] = [];
 	/*
 	================
@@ -357,21 +366,30 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 				state = stateUsed;
 				stateUsed += floats;
 			}
+			const packed = n * CLOTH_VERTEX_FLOATS;
+			let output = freeOutput.get( packed )?.pop();
+			if ( output === undefined ) {
+				reserve( bank.vertices, outputUsed, packed, MAX_CLOTH_VERTEX_FLOATS );
+				output = outputUsed;
+				outputUsed += packed;
+			}
 			program.users++;
 			slotPrograms[slot] = program;
 			slotState[slot] = state;
 			slotFloats[slot] = floats;
 			slotVertices[slot] = n;
+			slotOutput[slot] = output;
 			slotPhase[slot] = 0;
 			const records = views[bank.records], w = slot * CLOTH_RECORD, cloth = views[bank.state];
 			records.fill( 0, w, w + CLOTH_RECORD );
 			records[w + W_PROGRAM] = program.offset;
 			records[w + W_STATE] = state;
+			records[w + W_VERTICES] = output;
 			records[w + W_RANDOM] = seed >>> 0;
 			cloth.fill( 0, state, state + floats );
 			cloth.set( mesh.positions, clothStateHalf( state, n, 0 ) );
 			cloth.set( mesh.positions, clothStateHalf( state, n, 0 ) + n * 3 );
-			cloth.set( packGeometryVertices( mesh ), clothStateVertices( state, n ) );
+			views[bank.vertices].set( packGeometryVertices( mesh ), output );
 			return slot;
 		},
 		/*
@@ -446,14 +464,15 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 		================
 		vertices
 
-		The wearer's packed vertices as the last phase left them; a view, valid
-		until the state arena next grows. Only this owner grows its bank's
-		tables, and refreshes its views when it does.
+		The wearer's packed vertices as the last phase left them: a view of the
+		bank's output table, which only the next phase over the wearer changes.
+		Valid until the table is next replaced; only this owner replaces its
+		bank's tables, and refreshes its views when it does.
 		================
 		*/
 		vertices( slot: number ): Float32Array {
-			const n = slotVertices[slot]!, at = clothStateVertices( slotState[slot]!, n );
-			return views[bank.state].subarray( at, at + n * CLOTH_VERTEX_FLOATS );
+			const at = slotOutput[slot]!;
+			return views[bank.vertices].subarray( at, at + slotVertices[slot]! * CLOTH_VERTEX_FLOATS );
 		},
 		/*
 		================
@@ -469,6 +488,10 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 			const free = freeState.get( floats ) ?? [];
 			free.push( slotState[slot]! );
 			freeState.set( floats, free );
+			const packed = slotVertices[slot]! * CLOTH_VERTEX_FLOATS;
+			const freePacked = freeOutput.get( packed ) ?? [];
+			freePacked.push( slotOutput[slot]! );
+			freeOutput.set( packed, freePacked );
 			freeSlots.push( slot );
 			const index = requested.indexOf( slot );
 			if ( index >= 0 ) requested.splice( index, 1 );
@@ -492,13 +515,19 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 				slotState.length =
 				slotFloats.length =
 				slotVertices.length =
+				slotOutput.length =
 				slotPhase.length =
 					0;
 			freeSlots.length = 0;
 			freePrograms.clear();
 			freeState.clear();
+			freeOutput.clear();
 			requested.length = 0;
-			slotCount = programUsed = stateUsed = 0;
+			slotCount =
+				programUsed =
+				stateUsed =
+				outputUsed =
+					0;
 			phase++;
 		}
 	};
