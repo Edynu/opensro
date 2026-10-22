@@ -13,10 +13,11 @@ wearer draws from its own CRT stream, seeded from its gid and primitive
 
 Owns the wearer records, the programs (one per cloth primitive, written
 once and freed with its last wearer) and the state arena. drawCloth
-admits a wearer and requests its frame, prepare runs the phase once after
-every group, then each cloth draw uploads its wearer's packed vertices. A
-wearer lives as long as the batch that holds it; the renderer releases it
-with the batch.
+admits a wearer and requests its frame; prepare forks the phase once the
+wearers' groups are built, builds the other groups while the workers
+simulate, joins it, then each cloth draw uploads its wearer's packed
+vertices. A wearer lives as long as the batch that holds it; the renderer
+releases it with the batch.
 
 ===========================================================================
 */
@@ -118,7 +119,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 	const freeSlots: number[] = [];
 	// Released regions by size: programs and wearers of one mesh repeat.
 	const freePrograms = new Map<number, number[]>(), freeState = new Map<number, number[]>();
-	let slotCount = 0, programUsed = 0, stateUsed = 0, phase = 1;
+	let slotCount = 0, programUsed = 0, stateUsed = 0, phase = 1, started = false;
 	const requested: number[] = [];
 	/*
 	================
@@ -200,16 +201,62 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		return program;
 	}
 
+	/*
+	================
+	forkCloth
+
+	Open the KERNEL_CLOTH phase over the wearers requested so far: the frame
+	workers start on them while the caller goes on. Nothing may be admitted,
+	requested or released until joinCloth.
+	================
+	*/
+	function forkCloth() {
+		if ( started || !requested.length ) return;
+		refreshViews( views );
+		const list = views.clothRequests;
+		list[REQUEST_COUNT] = requested.length;
+		for ( let i = 0; i < requested.length; i++ ) list[REQUEST_SLOTS + i] = requested[i]!;
+		workers.fork( KERNEL_CLOTH, Math.ceil( requested.length / CLOTH_CHUNK ) );
+		started = true;
+	}
+
+	/*
+	================
+	joinCloth
+
+	The forked phase's remaining wearers here, then each requested wearer's
+	current half switched and its clock and random state committed.
+	================
+	*/
+	function joinCloth() {
+		if ( !started ) return;
+		started = false;
+		workers.join( runLocal );
+		const records = views.clothRecords;
+		for ( const slot of requested ) {
+			const w = slot * CLOTH_RECORD;
+			records[w + W_CURRENT] = 1 - records[w + W_CURRENT]!;
+			records[w + W_RANDOM] = records[w + N_RANDOM]!;
+			records[w + W_ELAPSED] = records[w + N_ELAPSED]!;
+			records[w + W_INITIALIZED] = 1;
+			records[w + W_LAST_SET] = 1;
+			records[w + W_LAST_SECONDS] = records[w + W_SECONDS]!;
+		}
+		requested.length = 0;
+		phase++;
+	}
+
 	return {
 		/*
 		================
 		begin
 
-		A new frame: requests a frame that failed before its phase left are
-		dropped, so a wearer can be requested again.
+		A new frame: a phase a failed frame left open is finished, and requests
+		it never ran are dropped, so a wearer can be requested again.
 		================
 		*/
 		begin() {
+			if ( started ) joinCloth();
 			requested.length = 0;
 			phase++;
 		},
@@ -223,6 +270,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		================
 		*/
 		admit( primitive: CharacterPrimitive, seed: number ): number {
+			if ( started ) throw Error( "Cloth wearer admitted during its phase" );
 			const program = programOf( primitive ), mesh = primitive.geometry;
 			const n = mesh.positions.length / 3, floats = clothStateFloats( n, primitive.joints.length );
 			const slot = freeSlots.pop() ?? slotCount;
@@ -278,6 +326,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			enabled: boolean,
 			motion: { readonly direction: readonly number[]; readonly speed: number; }
 		) {
+			if ( started ) throw Error( "Cloth wearer requested during its phase" );
 			if ( slotPhase[slot] === phase ) throw Error( "Cloth wearer requested twice in one phase" );
 			slotPhase[slot] = phase;
 			const records = views.clothRecords, w = slot * CLOTH_RECORD;
@@ -295,33 +344,18 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			);
 			requested.push( slot );
 		},
+		forkCloth,
+		joinCloth,
 		/*
 		================
 		run
 
-		One KERNEL_CLOTH phase over the requested wearers, then each one's
-		current half switched and its clock and random state committed.
+		forkCloth then joinCloth.
 		================
 		*/
 		run() {
-			if ( !requested.length ) return;
-			refreshViews( views );
-			const list = views.clothRequests;
-			list[REQUEST_COUNT] = requested.length;
-			for ( let i = 0; i < requested.length; i++ ) list[REQUEST_SLOTS + i] = requested[i]!;
-			workers.run( KERNEL_CLOTH, Math.ceil( requested.length / CLOTH_CHUNK ), runLocal );
-			const records = views.clothRecords;
-			for ( const slot of requested ) {
-				const w = slot * CLOTH_RECORD;
-				records[w + W_CURRENT] = 1 - records[w + W_CURRENT]!;
-				records[w + W_RANDOM] = records[w + N_RANDOM]!;
-				records[w + W_ELAPSED] = records[w + N_ELAPSED]!;
-				records[w + W_INITIALIZED] = 1;
-				records[w + W_LAST_SET] = 1;
-				records[w + W_LAST_SECONDS] = records[w + W_SECONDS]!;
-			}
-			requested.length = 0;
-			phase++;
+			forkCloth();
+			joinCloth();
 		},
 		/*
 		================
@@ -342,6 +376,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		================
 		*/
 		release( slot: number ) {
+			if ( started ) throw Error( "Cloth wearer released during its phase" );
 			const program = slotPrograms[slot];
 			if ( !program ) return;
 			slotPrograms[slot] = undefined;
@@ -366,6 +401,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		================
 		*/
 		reset() {
+			if ( started ) joinCloth();
 			programs.clear();
 			slotPrograms.length =
 				slotState.length =

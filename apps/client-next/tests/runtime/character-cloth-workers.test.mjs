@@ -44,6 +44,14 @@ test("cloth on the frame workers leaves the shared stream and every other primit
 	}
 });
 
+test("cloth groups built first still leave every draw in its place", () => {
+	const options = { mixed: true, variants: true, moving: true };
+	const workers = captureClothPalettes( false, false, { ...options, frameWorkers: createInlineWorkers() } );
+	const object = captureClothPalettes( false, false, options );
+	assert.deepEqual( workers.frames.map( row => row.order ), object.frames.map( row => row.order ) );
+	assert.ok( object.frames.some( row => new Set( row.order.map( draw => draw.split( "@" )[1] ) ).size > 1 ) );
+});
+
 test("cloth on worker threads draws as cloth on one thread", async () => {
 	const threads = await createThreadedWorkers( 4 );
 	try {

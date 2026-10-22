@@ -1029,7 +1029,8 @@ export function createCharacters(
 		// Frame-local actor matrices (transformFor's cache).
 		readonly transforms: Map<number, Float32Array>;
 		readonly opacity: ( actor: CharacterActor ) => number;
-		readonly output: GeometryDraw[];
+		// The frame's draws; while groups build apart, the current group's.
+		output: GeometryDraw[];
 		// With Worker threads on: cloth draws and their wearers, uploaded after
 		// the frame's cloth phase.
 		readonly clothDraws: GeometryDraw[];
@@ -3374,22 +3375,42 @@ export function createCharacters(
 					return right.depth - left.depth || left.index - right.index;
 				} );
 			}
-			for ( const [id, rows] of orderedGroups ) {
-				if ( !continuation ) submitted.add( id );
-				// The first pass already submitted ordinary geometry. Keep its
-				// admission/budget accounting, but do not rebuild or upload it
-				// again when visibility completes the deferred pass.
-				if ( continuation && !rows[0]!.deferredParticle ) continue;
-				prepareGroup( frame, id, rows );
-			}
-			// Port-only, not native: every requested cloth wearer in one phase on
-			// the frame workers, then their vertices into the draws.
-			if ( clothWearers && frame.clothSlots.length ) {
-				clothWearers.run();
+			// Port-only, not native: with Worker threads on, the cloth wearers'
+			// groups build first and their phase runs on the frame workers while
+			// this thread builds the rest; each group's draws keep their place.
+			const final = frame.output, outputs: (GeometryDraw[] | undefined)[] = [];
+			/*
+			================
+			build
+
+			The groups whose model wears cloth, or the others; all of them
+			without Worker threads.
+			================
+			*/
+			const build = ( cloth: boolean | undefined ) => {
+				for ( let i = 0; i < orderedGroups.length; i++ ) {
+					const [id, rows] = orderedGroups[i]!;
+					if ( cloth !== undefined && !!models.get( rows[0]!.model )!.plan.cloth !== cloth ) continue;
+					if ( !continuation ) submitted.add( id );
+					// The first pass already submitted ordinary geometry. Keep its
+					// admission/budget accounting, but do not rebuild or upload it
+					// again when visibility completes the deferred pass.
+					if ( continuation && !rows[0]!.deferredParticle ) continue;
+					if ( clothWearers ) frame.output = outputs[i] = [];
+					prepareGroup( frame, id, rows );
+				}
+			};
+			if ( clothWearers ) {
+				build( true );
+				clothWearers.forkCloth();
+				build( false );
+				clothWearers.joinCloth();
 				for ( let i = 0; i < frame.clothSlots.length; i++ ) {
 					geometry.writeVertices( frame.clothDraws[i]!, 0, clothWearers.vertices( frame.clothSlots[i]! ) );
 				}
-			}
+				frame.output = final;
+				for ( const list of outputs ) if ( list ) final.push( ...list );
+			} else build( undefined );
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );
 			frameGroups = grouped.size;

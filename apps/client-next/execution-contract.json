@@ -2388,8 +2388,9 @@
 			"consumer": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
 			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
 			"functions": [
-				"memory",
-				"run"
+				"fork",
+				"join",
+				"memory"
 			]
 		},
 		{
@@ -2407,10 +2408,11 @@
 				"begin",
 				"clothSeed",
 				"createClothWearers",
+				"forkCloth",
+				"joinCloth",
 				"release",
 				"request",
 				"reset",
-				"run",
 				"vertices"
 			]
 		}

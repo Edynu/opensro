@@ -83,6 +83,8 @@ export function createFrameWorkers() {
 	);
 	const workers: Worker[] = [];
 	let generation = 0, phases = 0, joinWaitMs = 0, retired: string | null = null;
+	// The generation of the phase started and not yet finished; 0 when none.
+	let open = 0;
 	for ( let index = 0; index < started; index++ ) {
 		const worker = new Worker( new URL( "./worker/entry.ts", import.meta.url ), {
 			type: "module",
@@ -102,6 +104,58 @@ export function createFrameWorkers() {
 		workers.length = 0;
 		retired ??= reason;
 	}
+	/*
+	================
+	fork
+
+	Open a phase of kernel over chunks: the workers start claiming at once.
+	================
+	*/
+	function fork( kernel: number, chunks: number ) {
+		if ( open ) throw Error( "A frame phase is already open" );
+		generation = nextFrameGeneration( generation );
+		phases++;
+		publishFramePhase( control, generation, kernel, chunks );
+		open = generation;
+	}
+	/*
+	================
+	join
+
+	Run the open phase's unclaimed chunks here, then wait for the last one.
+	local must be the kernel the workers run (frame-kernels dispatch).
+	Throws when a chunk threw, as the single-threaded frame would have.
+	================
+	*/
+	function join( local: FrameJobRunner ) {
+		if ( !open ) throw Error( "No frame phase is open" );
+		const phase = open;
+		open = 0;
+		let failure: unknown = undefined;
+		const runLocal: FrameJobRunner = ( k, chunk ) => {
+			try {
+				local( k, chunk );
+			} catch ( error ) {
+				failure ??= error;
+				throw error;
+			}
+		};
+		serveFramePhase( control, runLocal );
+		if ( !framePhaseComplete( control, phase ) ) {
+			const waitStarted = performance.now();
+			for ( let spins = 1; !framePhaseComplete( control, phase ); spins++ ) {
+				if ( spins % JOIN_CLOCK_SPINS === 0 && performance.now() - waitStarted > JOIN_TIMEOUT_MS ) {
+					retire( "A frame worker missed its join deadline" );
+					finishFramePhase( control, phase, runLocal );
+					break;
+				}
+			}
+			joinWaitMs += performance.now() - waitStarted;
+		}
+		if ( framePhaseFailed( control, phase ) ) {
+			throw failure ?? Error( "A frame worker chunk failed" );
+		}
+	}
 	return {
 		/*
 		================
@@ -118,40 +172,15 @@ export function createFrameWorkers() {
 		run
 
 		One phase: kernel over chunks, on the workers and this thread. Returns
-		once every chunk has run. local runs a chunk here and must be the same
-		kernel the workers run (frame-kernels dispatch). Throws when a chunk
-		threw, as the single-threaded frame would have.
+		once every chunk has run.
 		================
 		*/
 		run( kernel: number, chunks: number, local: FrameJobRunner ) {
-			let failure: unknown = undefined;
-			const runLocal: FrameJobRunner = ( k, chunk ) => {
-				try {
-					local( k, chunk );
-				} catch ( error ) {
-					failure ??= error;
-					throw error;
-				}
-			};
-			generation = nextFrameGeneration( generation );
-			phases++;
-			publishFramePhase( control, generation, kernel, chunks );
-			serveFramePhase( control, runLocal );
-			if ( !framePhaseComplete( control, generation ) ) {
-				const waitStarted = performance.now();
-				for ( let spins = 1; !framePhaseComplete( control, generation ); spins++ ) {
-					if ( spins % JOIN_CLOCK_SPINS === 0 && performance.now() - waitStarted > JOIN_TIMEOUT_MS ) {
-						retire( "A frame worker missed its join deadline" );
-						finishFramePhase( control, generation, runLocal );
-						break;
-					}
-				}
-				joinWaitMs += performance.now() - waitStarted;
-			}
-			if ( framePhaseFailed( control, generation ) ) {
-				throw failure ?? Error( "A frame worker chunk failed" );
-			}
+			fork( kernel, chunks );
+			join( local );
 		},
+		fork,
+		join,
 		/*
 		================
 		memory

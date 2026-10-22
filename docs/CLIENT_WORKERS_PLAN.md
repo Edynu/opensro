@@ -561,9 +561,54 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   93 ms/s, navigation `segment` 68 ms/s. It keeps up with 214 players on
   its own thread; it is a limit for more players, not for the frame rate.
 
+### 6.8 Step 4, part 1: character cloth on the frame workers (2026-10-22)
+
+- **Decision first** (section 7, item 1): cloth and particles on the
+  workers need only look the same, so each cloth wearer draws from its own
+  CRT stream (seeded from gid and primitive). Worker threads off keeps the
+  object path and the shared stream unchanged.
+- **Kernel** (`foundation/kernels/cloth-kernel.ts`, `cloth-record.ts`):
+  `cloth-vertices.ts` update and `cloth.ts` advance and step on one
+  wearer's flat record, expression by expression. A wearer's positions and
+  previous positions are double-buffered, so a chunk run again after a
+  stalled worker starts from the same state. Programs (rest shape, skin,
+  mobility, pins, constraints in solve order) are written once per cloth
+  mesh and freed with its last wearer.
+- **Owner** (`renderer/characters/cloth-wearers.ts`): `drawCloth` admits a
+  wearer per cloth primitive of a batch and requests its frame; `prepare`
+  runs one `KERNEL_CLOTH` phase after the groups and uploads each wearer's
+  packed vertices. A wearer is released with its batch.
+- **Proof**: `cloth-kernel.test.mjs` gives the object cloth the wearer's
+  stream and requires every packed vertex bit for bit (skinned or not,
+  normals or not, option changes, stalls, wind, a shared program, released
+  and reused state), a chunk run twice, and 1,500 wearers on 4 threads over
+  growing tables. `character-cloth-workers.test.mjs` runs the shipped
+  renderer: no shared-stream draws, every non-cloth primitive's draws as
+  before, threads equal to one thread. Deliberate breaks fail them.
+- **Browser** (214 players, 120 cloth wearers, CPU profiles, ms per second
+  of main thread): character cloth `step` + `update` about 65 to the
+  wearers' share the main thread runs in the phase (about 11), `request` 5
+  and `writeVertices` 14 (4 before: the vertices are now written on other
+  cores, so the main thread's copy reads them from another core's cache;
+  Chrome copies shared buffers as fast as ordinary ones, 0.1 ms per
+  3.6 MB). World cloth (flags) still runs the object path, about 17 ms/s.
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off
+  (both include the movement poses on the workers when on): 31, 32, 37 fps
+  against 30, 30, 29; main thread 31.0, 29.8, 26.3 ms against 32.2, 32.5,
+  33.4.
+- **Next**: start the cloth phase early and join it late, so the main
+  thread builds the other groups while the workers simulate instead of
+  running a share of the phase itself.
+
 ## 7. Open decisions for the owner
 
-1. **Random order.** Options, best first:
+1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
+   workers need not be bit-identical, only look the same; the frame rate
+   decides. Each cloth wearer and each effect draws from its own random
+   stream, so no worker waits on another and the main thread draws nothing
+   for them. This runs only with Worker threads on (Experimental, off by
+   default); with it off the frame keeps today's exact code. The options
+   that were weighed, best first:
    - **Pre-drawn per actor.** The main thread draws each actor's random
      numbers from the shared stream, in today's order, into the actor's
      input slot before the fork. Exact, but only where the count of draws

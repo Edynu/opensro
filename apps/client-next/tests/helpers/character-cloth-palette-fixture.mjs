@@ -37,7 +37,7 @@ The second model reverses the canonical primitive's cloth/body ownership.
 ================
 */
 /** @returns {import("../../src/engine/contracts/character.ts").CharacterModel} */
-function model( clothFirst, tags ) {
+function model( clothFirst, tags, cloth = true ) {
 	const inverseBind = new Float32Array( JOINTS * 16 );
 	for ( let joint = 0; joint < JOINTS; joint++ ) inverseBind.set( identity(), joint * 16 );
 	const fixture = clothVertexCase( true, true );
@@ -56,7 +56,7 @@ function model( clothFirst, tags ) {
 			joints: Array.from( { length: JOINTS }, ( _, i ) => i ),
 			inverseBind: binding,
 			geometry,
-			cloth: name.startsWith( "cloth" ) ? fixture.primitive.cloth : undefined
+			cloth: cloth && name.startsWith( "cloth" ) ? fixture.primitive.cloth : undefined
 		};
 	} );
 	if ( clothFirst ) [primitives[0], primitives[1]] = [ primitives[1], primitives[0] ];
@@ -393,12 +393,14 @@ captureClothPalettes
 export function captureClothPalettes(
 	gpuAvailable = false,
 	admitUnusedClip = false,
-	{ moving = false, variants = false, frameWorkers = undefined } = {}
+	{ moving = false, variants = false, frameWorkers = undefined, mixed = false } = {}
 ) {
 	const random = createPresentationRandom( RANDOM_SEED, 1, 100000 );
 	const owner = createCharacters( random, frameWorkers ), tags = new Map();
 	owner.model( "body-first", model( false, tags ), [] );
 	owner.model( "cloth-first", model( true, tags ), [] );
+	// mixed: actor 3 wears a model without cloth, so cloth and plain groups interleave.
+	if ( mixed ) owner.model( "plain", model( false, tags, false ), [] );
 	const geometry = captureGeometry( tags, gpuAvailable ), clock = clothVertexCase( true, true );
 	const frames = [];
 	let boneWriteBytes = 0;
@@ -429,7 +431,7 @@ export function captureClothPalettes(
 			/** @type {import("../../src/engine/contracts/character.ts").CharacterActor[]} */
 			const actors = gids.map( gid => ({
 				gid,
-				model: frame % 13 === 0 && gid === 2 ? "cloth-first" : "body-first",
+				model: mixed && gid === 3 ? "plain" : frame % 13 === 0 && gid === 2 ? "cloth-first" : "body-first",
 				clip: frame % 5 === 0 ? "stand" : "move",
 				time: frame % 5 === 0 ? 0 : (frame * .031 + gid * .13) % 1,
 				loop: true,
@@ -511,6 +513,8 @@ export function captureClothPalettes(
 				poseEligibility: owner.stats( true ).poseEligibility,
 				digest: drawDigest( draws, trace ),
 				draws: draws.length,
+				// Each draw's primitive and first row's placement, in draw order.
+				order: draws.map( draw => `${draw.tag}@${draw.instances[12]}` ),
 				randomCalls: trace.length,
 				primitives: Object.fromEntries(
 					PRIMITIVE_NAMES.map( name => [ name, drawDigest( draws.filter( draw => draw.tag === name ), [] ) ] )
