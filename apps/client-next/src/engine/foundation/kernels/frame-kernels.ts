@@ -20,16 +20,22 @@ KERNEL_CLOTH: each requested cloth wearer's frame (cloth-kernel.ts) into
 its packed vertices, for its owner (renderer/characters/cloth-wearers.ts)
 to upload.
 
+KERNEL_SKELETON: each requested character pose's matrices
+(skeleton-kernel.ts), for its owner (renderer/characters/skeletons.ts).
+
 ===========================================================================
 */
 import { advanceClothWearer } from "./cloth-kernel";
 import { CLOTH_RECORD } from "./cloth-record";
+import { materializeSkeleton } from "./skeleton-kernel";
+import { SKELETON_RECORD } from "./skeleton-record";
 import { POSE_SCRATCH, presentPose } from "./pose-kernel";
 import { O_POSE, POSE_RECORD } from "./pose-record";
 
 // Kernel ids, as published in a phase.
 export const KERNEL_POSE = 1;
 export const KERNEL_CLOTH = 2;
+export const KERNEL_SKELETON = 3;
 // Characters per KERNEL_POSE chunk.
 export const POSE_CHUNK = 8;
 // Snapshots per character record: before the first call, after it.
@@ -58,6 +64,24 @@ export const INITIAL_CLOTH_PROGRAM_WORDS = 262144;
 export const MAX_CLOTH_PROGRAM_WORDS = 8388608;
 export const INITIAL_CLOTH_STATE_FLOATS = 1048576;
 export const MAX_CLOTH_STATE_FLOATS = 33554432;
+// Poses per KERNEL_SKELETON chunk; poses the records hold before growing
+// and at most, and per phase (MAX_FRAME_CHUNKS chunks of two). The world
+// draws at most 512 actors (character-budget.ts CHARACTER_ACTORS).
+export const SKELETON_CHUNK = 2;
+export const INITIAL_SKELETONS = 256;
+export const MAX_SKELETONS = 8192;
+export const MAX_SKELETON_REQUESTS = 2048;
+// Skeleton tables before growing, and at most (skeleton-record.ts).
+export const INITIAL_SKELETON_MODEL_WORDS = 65536;
+export const MAX_SKELETON_MODEL_WORDS = 4194304;
+export const INITIAL_SKELETON_CLIP_WORDS = 65536;
+export const MAX_SKELETON_CLIP_WORDS = 2097152;
+export const INITIAL_SKELETON_KEY_FLOATS = 1048576;
+export const MAX_SKELETON_KEY_FLOATS = 33554432;
+export const INITIAL_SKELETON_SCRATCH_WORDS = 131072;
+export const MAX_SKELETON_SCRATCH_WORDS = 4194304;
+export const INITIAL_SKELETON_STATE_FLOATS = 2097152;
+export const MAX_SKELETON_STATE_FLOATS = 33554432;
 
 /*
 ================
@@ -68,7 +92,8 @@ POSE_RECORD doubles a character, poseSnapshots POSE_SNAPSHOTS records a
 character, walkArena the certified chains and poseRequests the characters
 of the open pose phase; clothRecords, clothPrograms and clothState the
 cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
-cloth phase. With frame workers they are growable shared buffers that
+cloth phase; the skeleton* tables the character poses (skeleton-record.ts)
+and skeletonRequests the poses of the open skeleton phase. With frame workers they are growable shared buffers that
 grow in place; on one thread they are ordinary buffers that growTable
 replaces with larger copies.
 ================
@@ -82,6 +107,13 @@ export interface FrameKernelMemory {
 	clothPrograms: ArrayBufferLike;
 	clothState: ArrayBufferLike;
 	clothRequests: ArrayBufferLike;
+	skeletonModels: ArrayBufferLike;
+	skeletonClips: ArrayBufferLike;
+	skeletonKeys: ArrayBufferLike;
+	skeletonRecords: ArrayBufferLike;
+	skeletonScratch: ArrayBufferLike;
+	skeletonState: ArrayBufferLike;
+	skeletonRequests: ArrayBufferLike;
 }
 
 /*
@@ -136,6 +168,16 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 		clothRequests: allocate(
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT
+		),
+		skeletonModels: allocate( INITIAL_SKELETON_MODEL_WORDS * 8, MAX_SKELETON_MODEL_WORDS * 8 ),
+		skeletonClips: allocate( INITIAL_SKELETON_CLIP_WORDS * 8, MAX_SKELETON_CLIP_WORDS * 8 ),
+		skeletonKeys: allocate( INITIAL_SKELETON_KEY_FLOATS * 4, MAX_SKELETON_KEY_FLOATS * 4 ),
+		skeletonRecords: allocate( INITIAL_SKELETONS * SKELETON_RECORD * 8, MAX_SKELETONS * SKELETON_RECORD * 8 ),
+		skeletonScratch: allocate( INITIAL_SKELETON_SCRATCH_WORDS * 8, MAX_SKELETON_SCRATCH_WORDS * 8 ),
+		skeletonState: allocate( INITIAL_SKELETON_STATE_FLOATS * 4, MAX_SKELETON_STATE_FLOATS * 4 ),
+		skeletonRequests: allocate(
+			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT,
+			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT
 		)
 	};
 }
@@ -150,6 +192,18 @@ larger copy when its table grows.
 */
 export function plainBuffer( bytes: number ): ArrayBufferLike {
 	return new ArrayBuffer( bytes );
+}
+
+/*
+================
+growsInPlace
+
+Whether a table grows in place (a growable shared buffer): a fixed view
+made over it now then stays valid however the table grows.
+================
+*/
+export function growsInPlace( memory: FrameKernelMemory, table: KernelTable ): boolean {
+	return (memory[table] as unknown as { readonly growable?: boolean; }).growable === true;
 }
 
 /*
@@ -192,6 +246,13 @@ export interface FrameKernelViews {
 	clothPrograms: Float64Array;
 	clothState: Float32Array;
 	clothRequests: Int32Array;
+	skeletonModels: Float64Array;
+	skeletonClips: Float64Array;
+	skeletonKeys: Float32Array;
+	skeletonRecords: Float64Array;
+	skeletonScratch: Float64Array;
+	skeletonState: Float32Array;
+	skeletonRequests: Int32Array;
 	readonly scratch: Float64Array;
 }
 
@@ -213,6 +274,13 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		clothPrograms: new Float64Array( 0 ),
 		clothState: new Float32Array( 0 ),
 		clothRequests: new Int32Array( 0 ),
+		skeletonModels: new Float64Array( 0 ),
+		skeletonClips: new Float64Array( 0 ),
+		skeletonKeys: new Float32Array( 0 ),
+		skeletonRecords: new Float64Array( 0 ),
+		skeletonScratch: new Float64Array( 0 ),
+		skeletonState: new Float32Array( 0 ),
+		skeletonRequests: new Int32Array( 0 ),
 		scratch: new Float64Array( POSE_SCRATCH )
 	};
 	refreshViews( views );
@@ -240,6 +308,13 @@ export function refreshViews( views: FrameKernelViews ) {
 	views.clothPrograms = float64View( views.clothPrograms, memory.clothPrograms );
 	views.clothState = float32View( views.clothState, memory.clothState );
 	views.clothRequests = int32View( views.clothRequests, memory.clothRequests );
+	views.skeletonModels = float64View( views.skeletonModels, memory.skeletonModels );
+	views.skeletonClips = float64View( views.skeletonClips, memory.skeletonClips );
+	views.skeletonKeys = float32View( views.skeletonKeys, memory.skeletonKeys );
+	views.skeletonRecords = float64View( views.skeletonRecords, memory.skeletonRecords );
+	views.skeletonScratch = float64View( views.skeletonScratch, memory.skeletonScratch );
+	views.skeletonState = float32View( views.skeletonState, memory.skeletonState );
+	views.skeletonRequests = int32View( views.skeletonRequests, memory.skeletonRequests );
 }
 
 /*
@@ -374,6 +449,12 @@ export function runFrameKernel( views: FrameKernelViews, kernel: number, chunk: 
 				requests[REQUEST_SLOTS + i]!
 			);
 		}
+		return;
+	}
+	if ( kernel === KERNEL_SKELETON ) {
+		const requests = views.skeletonRequests, count = requests[REQUEST_COUNT]!;
+		const end = Math.min( count, (chunk + 1) * SKELETON_CHUNK );
+		for ( let i = chunk * SKELETON_CHUNK; i < end; i++ ) materializeSkeleton( views, requests[REQUEST_SLOTS + i]! );
 		return;
 	}
 	throw Error( `Unknown frame kernel ${kernel}` );

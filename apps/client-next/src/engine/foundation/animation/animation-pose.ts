@@ -11,6 +11,12 @@ live fade without truncating sparse bone tracks.
 Equipment branches join the socket table without changing explicit private
 bone names (A981A0 searches compound branches in order for a marker).
 
+Given a PoseSkeleton, the pose keeps its sampled transforms, blend scratch
+and matrices in memory the frame workers share (skeleton-record.ts STATE_*
+layout) and materializes through foundation/kernels/skeleton-kernel.ts,
+now or in the frame's skeleton phase (renderer/characters/skeletons.ts);
+every other rule here is the same code either way.
+
 ===========================================================================
 */
 import { createAttachmentBindPose } from "./equipment-sockets";
@@ -19,15 +25,100 @@ import type { CharacterModel, CharacterPrimitive, CharacterLayer, CharacterClip 
 import { compose, multiplyDisjoint as multiply, multiplyQuaternion, slerp } from "@/engine/foundation/math/pose-math";
 import { paletteBindings } from "./palette-bindings";
 import { bodyBoneScale } from "./body-shape";
+import {
+	STATE_ANIMATED,
+	STATE_CHANGED,
+	STATE_COMMITTED,
+	STATE_GLOBALS,
+	STATE_LOCALS,
+	STATE_PASSES,
+	STATE_ROTATIONS,
+	STATE_SCALES,
+	STATE_TRANSLATIONS,
+	STATE_WEIGHTS
+} from "@/engine/foundation/kernels/skeleton-record";
 
 const DEFAULT_BODY_VOLUME = 2;
+
+/*
+================
+PoseSkeletonLayer
+
+One layer as the pose resolved it: its clip (undefined for none), clip
+time, weight and lane.
+================
+*/
+export interface PoseSkeletonLayer {
+	clip: CharacterClip | undefined;
+	time: number;
+	weight: number;
+	lane: "event" | "timed";
+}
+
+/*
+================
+PoseSkeletonInput
+
+One materialization's inputs: the resolved layers, whether a single
+full-weight single-track layer samples directly, the bone rotator's node
+and quaternion, and the node a dropped rotator held.
+================
+*/
+export interface PoseSkeletonInput {
+	layers: readonly PoseSkeletonLayer[];
+	direct: boolean;
+	rotatedNode: number;
+	releasedNode: number;
+	readonly rotation: Float32Array;
+}
+
+/*
+================
+PoseSkeletonTiming
+
+When a skeleton materializes: "now", a reader needs the matrices; "frame",
+an evaluation needs them this frame, in the frame's skeleton phase while
+one collects; "spare", an evaluation left them to the GPU, so only while a
+phase collects, in case a CPU reader asks.
+================
+*/
+export type PoseSkeletonTiming = "now" | "frame" | "spare";
+
+/*
+================
+PoseSkeleton
+
+Where a pose's matrices live and what computes them
+(renderer/characters/skeletons.ts). state is a fixed view of the pose's
+region: 60 floats a node and 4 (skeleton-record.ts). materialize computes
+it from input as timing says and calls done( changed ) once the matrices
+are ready. resetDirect makes the next materialization recompose rather
+than reuse a direct sample; release returns the region.
+================
+*/
+export interface PoseSkeleton {
+	readonly state: Float32Array;
+	materialize( input: PoseSkeletonInput, done: ( changed: boolean ) => void, timing: PoseSkeletonTiming ): void;
+	resetDirect(): void;
+	release(): void;
+}
 /*
 ================
 createCharacterPose
 ================
 */
-export function createCharacterPose( model: CharacterModel ) {
+export function createCharacterPose( model: CharacterModel, skeletons?: ( model: CharacterModel ) => PoseSkeleton ) {
 	const bindings = paletteBindings( model );
+	const skeleton = skeletons?.( model ), count = model.nodes.length;
+	/*
+	================
+	region
+
+	The skeleton's view of one STATE_* array, width floats a node.
+	================
+	*/
+	const region = ( offset: number, width: number ) =>
+		skeleton!.state.subarray( count * offset, count * offset + count * width );
 	const attachmentBind = createAttachmentBindPose( model.nodes );
 	let volume = DEFAULT_BODY_VOLUME, female = false;
 	// Body nodes precede attached handles. Keep that compound order for
@@ -42,14 +133,21 @@ export function createCharacterPose( model: CharacterModel ) {
 		if ( marker && marker !== "$root" && !sockets.has( marker ) ) sockets.set( marker, index );
 	}
 	const thickness = new Float32Array( model.nodes.length ).fill( 1 ), radial = new Float32Array( 16 );
-	const locals = model.nodes.map( () => new Float32Array( 16 ) ),
-		globals = model.nodes.map( () => new Float32Array( 16 ) );
+	const localData = skeleton ? region( STATE_LOCALS, 16 ) : new Float32Array( count * 16 ),
+		globalData = skeleton ? region( STATE_GLOBALS, 16 ) : new Float32Array( count * 16 );
+	const locals = model.nodes.map( ( _, i ) => localData.subarray( i * 16, i * 16 + 16 ) ),
+		globals = model.nodes.map( ( _, i ) => globalData.subarray( i * 16, i * 16 + 16 ) );
 	const restTranslations = new Float32Array( model.nodes.flatMap( n => [ ...n.translation ] ) ),
 		restRotations = new Float32Array( model.nodes.flatMap( n => [ ...n.rotation ] ) ),
 		restScales = new Float32Array( model.nodes.flatMap( n => [ ...n.scale ] ) );
-	const translationData = restTranslations.slice(),
-		rotationData = restRotations.slice(),
-		scaleData = restScales.slice();
+	const translationData = skeleton ? region( STATE_TRANSLATIONS, 3 ) : restTranslations.slice(),
+		rotationData = skeleton ? region( STATE_ROTATIONS, 4 ) : restRotations.slice(),
+		scaleData = skeleton ? region( STATE_SCALES, 3 ) : restScales.slice();
+	if ( skeleton ) {
+		translationData.set( restTranslations );
+		rotationData.set( restRotations );
+		scaleData.set( restScales );
+	}
 	const translations = model.nodes.map( ( _, i ) => translationData.subarray( i * 3, i * 3 + 3 ) ),
 		rotations = model.nodes.map( ( _, i ) => rotationData.subarray( i * 4, i * 4 + 4 ) ),
 		scales = model.nodes.map( ( _, i ) => scaleData.subarray( i * 3, i * 3 + 3 ) );
@@ -76,7 +174,8 @@ visit
 	for ( let n = 0; n < model.nodes.length; n++ ) {
 		visit( n );
 	}
-	const animatedLocal = new Uint8Array( model.nodes.length ), changedGlobal = new Uint8Array( model.nodes.length );
+	const animatedLocal = skeleton ? region( STATE_ANIMATED, 1 ) : new Uint8Array( count ),
+		changedGlobal = skeleton ? region( STATE_CHANGED, 1 ) : new Uint8Array( count );
 	let matricesInitialized = false, directMatrices = false;
 	const clips = new Map<string, CharacterClip>();
 	const timelines = new Map<CharacterClip, ReturnType<typeof createAnimationTimelines>>();
@@ -112,9 +211,14 @@ without changing skeleton storage, the selected layers or their revision.
 		) gpuClips.add( clip );
 	}
 	for ( const clip of model.clips ) registerClip( clip );
-	const pass = model.nodes.map( () => [ new Float32Array( 3 ), new Float32Array( 4 ), new Float32Array( 3 ) ] );
-	const weights = new Float32Array( model.nodes.length * 3 ),
-		committed = new Float32Array( model.nodes.length * 3 ),
+	const passData = skeleton ? region( STATE_PASSES, 10 ) : new Float32Array( count * 10 );
+	const pass = model.nodes.map( ( _, i ) => [
+		passData.subarray( i * 10, i * 10 + 3 ),
+		passData.subarray( i * 10 + 3, i * 10 + 7 ),
+		passData.subarray( i * 10 + 7, i * 10 + 10 )
+	] );
+	const weights = skeleton ? region( STATE_WEIGHTS, 3 ) : new Float32Array( count * 3 ),
+		committed = skeleton ? region( STATE_COMMITTED, 3 ) : new Float32Array( count * 3 ),
 		sample = new Float32Array( 4 );
 	const sample3 = sample.subarray( 0, 3 );
 	/*
@@ -131,6 +235,13 @@ without changing skeleton storage, the selected layers or their revision.
 	let rotatedNode = -1, releasedNode = -1, rotationChanged = false;
 	let cpuPending = false, cpuEvaluations = 0;
 	const sampleRequest = { clip: model.clips[0]!, time: 0 };
+	const skeletonInput: PoseSkeletonInput = {
+		layers: resolved,
+		direct: false,
+		rotatedNode: -1,
+		releasedNode: -1,
+		rotation: boneRotation
+	};
 	/*
 ================
 gpuSample
@@ -167,11 +278,37 @@ words numerically with signed-zero preservation; NaNs always recompute.
 	}
 	/*
 ================
-materialize
+finishSkeleton
+
+The skeleton's materialization is in its state: the tail of materialize.
 ================
 	*/
-	function materialize() {
+	function finishSkeleton( changed: boolean ) {
+		if ( changed ) paletteVersion++;
+		releasedNode = -1;
+		cpuPending = false;
+		cpuEvaluations++;
+	}
+	/*
+================
+materialize
+
+timing: a reader needs the matrices now; evaluate asks for the frame or,
+having left them to the GPU, spare (PoseSkeletonTiming). The pose's own
+arrays materialize at once.
+================
+	*/
+	function materialize( timing: PoseSkeletonTiming = "now" ) {
 		if ( !cpuPending ) return;
+		if ( skeleton ) {
+			skeletonInput.layers = resolved;
+			skeletonInput.direct = resolved.length === 1 && resolved[0]!.weight === 1 &&
+				(!resolved[0]!.clip || singleTrackClips.has( resolved[0]!.clip ));
+			skeletonInput.rotatedNode = rotatedNode;
+			skeletonInput.releasedNode = releasedNode;
+			skeleton.materialize( skeletonInput, finishSkeleton, timing );
+			return;
+		}
 		// A single full-weight pass with one channel per node/path has no
 		// blending to accumulate. Sample with the identical interpolation,
 		// then commit directly. Layered/duplicate-channel inputs keep the
@@ -357,6 +494,7 @@ quaternion scratch is charged and allocated only when playback needs it.
 			// A newly animated node has no retained direct sample in blend
 			// scratch; the next materialization must not compare against it.
 			directMatrices = false;
+			skeleton?.resetDirect();
 			return true;
 		},
 		/*
@@ -445,7 +583,8 @@ quaternion scratch is charged and allocated only when playback needs it.
 			// Validate the entire request before publishing its identity. A bad
 			// later layer must not poison the retained pose or its revision.
 			if ( !changed ) {
-				if ( !defer ) materialize();
+				if ( !defer ) materialize( "frame" );
+				else if ( skeleton ) materialize( "spare" );
 				return false;
 			}
 			pendingLayers.length = count;
@@ -456,11 +595,22 @@ quaternion scratch is charged and allocated only when playback needs it.
 			hasPose = true;
 			poseVersion++;
 			cpuPending = true;
-			if ( !defer || !gpuSample() ) materialize();
+			if ( !defer || !gpuSample() ) materialize( "frame" );
+			else if ( skeleton ) materialize( "spare" );
 			return true;
 		},
 		gpuSample,
 		cpuEvaluations: () => cpuEvaluations,
+		/*
+		================
+		release
+
+		Return a skeleton's shared region; the pose is not used after.
+		================
+		*/
+		release() {
+			skeleton?.release();
+		},
 		/*
         ================
         palette

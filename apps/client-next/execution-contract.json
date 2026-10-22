@@ -2402,6 +2402,43 @@
 			]
 		},
 		{
+			"consumer": "src/engine/runtime/renderer/characters/skeletons.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"fork",
+				"join",
+				"memory"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"provider": "src/engine/runtime/renderer/characters/skeletons.ts",
+			"functions": [
+				"runLocal"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
+			"provider": "src/engine/runtime/renderer/characters/skeletons.ts",
+			"functions": [
+				"collect",
+				"fork",
+				"join",
+				"reset",
+				"sharedSkeletons"
+			]
+		},
+		{
+			"consumer": "src/engine/foundation/animation/animation-pose.ts",
+			"provider": "src/engine/runtime/renderer/characters/skeletons.ts",
+			"functions": [
+				"materialize",
+				"pose",
+				"release",
+				"resetDirect"
+			]
+		},
+		{
 			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
 			"provider": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
 			"functions": [

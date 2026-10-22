@@ -7,6 +7,7 @@ characters.ts - admitted character models, world batches and separate portrait s
 */
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
 import { clothSeed, createClothWearers } from "./cloth-wearers";
+import { sharedSkeletons } from "./skeletons";
 import { characterLabelHeight } from "@/engine/foundation/ui/character-labels";
 import { regionOffsetXZ, regionRelativeXZ } from "@/engine/foundation/world/world-space";
 import type { WorldTexture } from "@/engine/contracts/texture";
@@ -227,6 +228,9 @@ export function createCharacters(
 	// Port-only, not native: with Worker threads on, the world's cloth steps on
 	// the frame workers, each wearer from its own random stream (cloth-wearers.ts).
 	const clothWearers = frameWorkers ? createClothWearers( frameWorkers ) : undefined;
+	// With them on and shared memory, the world's poses keep their matrices in
+	// the workers' tables and materialize in one phase a frame (skeletons.ts).
+	const skeletons = sharedSkeletons( frameWorkers );
 	// prepareGroup consumes this scratch synchronously before the next group.
 	// Account it separately from admission: caching must not remove actors
 	// that fit the existing draw budget. Actor snapshots bound both arrays.
@@ -646,10 +650,13 @@ export function createCharacters(
 		}
 		let state = ownedPoses.get( actor.gid );
 		if ( !state || state.model !== actor.model ) {
-			if ( state ) retiredCpuEvaluations += state.pose.cpuEvaluations();
+			if ( state ) {
+				retiredCpuEvaluations += state.pose.cpuEvaluations();
+				state.pose.release();
+			}
 			state = {
 				model: actor.model,
-				pose: createCharacterPose( model ),
+				pose: createCharacterPose( model, skeletons?.pose ),
 				lod: createPoseLod(),
 				clips: model.clips
 			};
@@ -1630,6 +1637,7 @@ export function createCharacters(
 		for ( const [gid, state] of ownedPoses ) {
 			if ( !needed.has( gid ) ) {
 				retiredCpuEvaluations += state.pose.cpuEvaluations();
+				state.pose.release();
 				ownedPoses.delete( gid );
 				probe?.characterCount( "pose-retired" );
 			}
@@ -3335,12 +3343,32 @@ export function createCharacters(
 				clothDraws: [],
 				clothSlots: []
 			};
+			// Port-only, not native: with shared skeletons, the owners and mounts
+			// whose sockets advanceParticles reads materialize together on the
+			// frame workers first; the first socket read joins them.
+			if ( skeletons ) {
+				skeletons.collect();
+				for ( const actor of frameActors ) {
+					const ownerId = actor.attachment?.gid ?? actor.mountedOn;
+					const owner = ownerId === undefined || actor.attachment?.root ? undefined : byGid.get( ownerId );
+					if ( !owner ) continue;
+					poseFor( owner );
+					const mount = owner.mountedOn === undefined ? undefined : byGid.get( owner.mountedOn );
+					if ( mount ) poseFor( mount );
+				}
+				skeletons.fork();
+			}
 			const particles = advanceParticles( frame );
 			const visible = selectVisible( frame, particles.accepted, reflectedView );
 			const { grouped, needed } = planBatches( frame, visible, particles );
 			retireUnplanned( frame, grouped, needed );
 			countPlan( frame, visible, needed, particles.needed );
+			// Port-only, not native: with shared skeletons, the poses evaluated
+			// here materialize together on the frame workers, and the first
+			// palette or socket read joins them.
+			skeletons?.collect();
 			evaluateNeededPoses( frameActors, needed );
+			skeletons?.fork();
 			releaseUngrouped( frame, grouped );
 			const orderedGroups = [ ...grouped.entries() ];
 			if ( frame.view && !frame.preview && orderedGroups.length > 1 ) {
@@ -3402,6 +3430,7 @@ export function createCharacters(
 			};
 			if ( clothWearers ) {
 				build( true );
+				skeletons?.join();
 				clothWearers.forkCloth();
 				build( false );
 				clothWearers.joinCloth();
@@ -3411,6 +3440,8 @@ export function createCharacters(
 				frame.output = final;
 				for ( const list of outputs ) if ( list ) final.push( ...list );
 			} else build( undefined );
+			// The next frame phase (the pose presentation's) must find none open.
+			skeletons?.join();
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );
 			frameGroups = grouped.size;
@@ -3474,8 +3505,12 @@ export function createCharacters(
 			batches.clear();
 			models.clear();
 			poses.clear();
-			for ( const state of ownedPoses.values() ) retiredCpuEvaluations += state.pose.cpuEvaluations();
+			for ( const state of ownedPoses.values() ) {
+				retiredCpuEvaluations += state.pose.cpuEvaluations();
+				state.pose.release();
+			}
 			ownedPoses.clear();
+			skeletons?.reset();
 			cullFrame.valid = false;
 			cullFrame.frusta = [];
 			cullFrame.visible = [];

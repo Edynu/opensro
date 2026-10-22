@@ -15,6 +15,9 @@ import type { CharacterModel } from "@/engine/contracts/character";
 createCharacterPose
 ================
 */
-export function createCharacterPose( model: CharacterModel ) {
-	return createPose( model );
+export function createCharacterPose(
+	model: CharacterModel,
+	skeletons?: ( model: CharacterModel ) => import("@/engine/foundation/animation/animation-pose").PoseSkeleton
+) {
+	return createPose( model, skeletons );
 }

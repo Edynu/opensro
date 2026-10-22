@@ -7,8 +7,9 @@ createThreadedWorkers runs the shipping frame-jobs loop and kernel dispatch
 on Node worker threads over growable shared kernel tables
 (frame-kernel-worker.mjs), and runs a phase as the browser's
 frame-workers.ts does: publish, serve beside the threads, join.
-createInlineWorkers runs every chunk on this thread over ordinary buffers,
-each chunk `repeat` times, as a chunk a stalled worker left is run again.
+createInlineWorkers runs every chunk on this thread over ordinary buffers
+(growable shared ones when shared), each chunk `repeat` times, as a chunk
+a stalled worker left is run again.
 
 ===========================================================================
 */
@@ -90,8 +91,10 @@ export async function createThreadedWorkers( count ) {
 createInlineWorkers
 ================
 */
-export function createInlineWorkers( repeat = 1 ) {
-	const kernels = createFrameKernelMemory( plainBuffer );
+export function createInlineWorkers( repeat = 1, shared = false ) {
+	const kernels = createFrameKernelMemory(
+		shared ? ( bytes, maxBytes ) => new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } ) : plainBuffer
+	);
 	let phases = 0, open = null;
 	const workers = {
 		memory: () => kernels,
