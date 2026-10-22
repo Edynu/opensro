@@ -913,6 +913,64 @@ copies 31, `writeBuffer` 22).
   count; binding the draws to the arena's output would remove the copies
   back, and a resident material table the uploads.
 
+### 6.15 Step 5, stages 1 to 3: the character presentation on its own worker (2026-10-23)
+
+Section 5.11's design, built: Experimental "Characters on a worker"
+(port-only, off, read at startup). runtime/characters runs unchanged on
+`runtime/character-worker/worker/entry.ts`; `character-worker.ts` stands
+in its place in the runtime.
+
+- **Stage 1**: the presentation asks for `PresentationRenderer` (20
+  renderer calls) and `PresentationAssets` (4 asset calls).
+- **Ownership**: `ownership.json` gains `replicas`, the modules a worker
+  builds its own instance of (the presentation, the simulation projection,
+  the random stream and the renderer's character owner); the gate refuses
+  any other import across owners, as before.
+- **Skeleton queries** on the worker: the renderer's character owner,
+  given the models without their vertices, images or cloth (`cloth` is
+  checked against the vertices), answers `characterSocket`,
+  `characterMatrix` and `characterLocalMatrix` as the renderer does; its
+  `skeletonFrame` advances the level-of-detail clock `prepare` would. Byte
+  costs come from the full models (`character-worker.test.mjs`).
+- **Assets**: the relay issues the worker's requests on the shared owner
+  as the output arrives and at the start of the main frame, before the
+  world streams; the worker is offered the owner's slots less its own
+  outstanding requests. Offered only what was free at the last frame, it
+  asked a frame late and lost every freed slot to the world's streaming.
+- **Identity**: the UI compares the mall state, the orb gauge and the
+  damage text by identity; posted copies made it rebuild every frame (0.7
+  ms a frame), so an unchanged answer keeps the previous object
+  (`sameValue`, now in `foundation/data`).
+- **Frame rate**, 2560x1440, Worker threads Auto and Batched effects,
+  alternating 10-second rounds after a 25-second settle, about 177 bodies
+  in view: 69.1 fps against 85.4 with the worker, main thread 13.8 against
+  10.5 ms; earlier rounds at the same density 74.0, 72.5, 74.6 against
+  91.9, 97.0, 89.9. At about 350 bodies the main thread went from about
+  16.3 to 13 ms.
+- **Where it differs from the main-thread path**: characters are drawn a
+  frame after the state they show; the worker's random stream; renderer
+  answers that come after the fact (a model over budget, an emitter's last
+  drawn matrix and clock) arrive a frame later; and loading after login is
+  slower. The presentation loads one model, clip or effect program at a
+  time, and on the worker each waits for the next main frame to carry its
+  result over: in the town the scenery effects started about six seconds
+  later than on the main thread. The steady state matches (live particles
+  1,921 against 1,940, mean effect age 11.8 s against 11.9 s).
+- **What the frame workers' level of detail does with the time**: the
+  frame-work level rises only while frames stay over 16.7 ms; a lighter
+  main thread keeps it at 0, so the renderer evaluates more cosmetic poses
+  (`evaluateNeededPoses` 39 to 54 ms/s) and spends part of the saving on
+  smoother animation.
+- **Where the main thread goes now** (worker on, 78 fps, ms/s): character
+  prepare 393 (group building 202, needed poses 54, particles 28), draw
+  encoding 97, UI 87 plus 35 in the device, the host's step 82 (repeating
+  the output, of which the actor snapshot copy 19) and receiving the
+  output 57, world 37, cloth upload 30, simulation decoding 22.
+- **Next**: the actor list through shared memory (stage 4) removes most of
+  the 57 ms/s of receiving it and the copy; results pushed to the worker as
+  the asset owner gets them would make its loading as fast as the main
+  thread's; character prepare is now the largest single item.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
