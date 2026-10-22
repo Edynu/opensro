@@ -627,6 +627,42 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   palettes come from the CPU) and their palettes 54, actor presentation
   125, the draw path's group building about 200, world cloth 17.
 
+### 6.10 Step 4, part 3: character poses on the frame workers (2026-10-22)
+
+- **Kernel** (`foundation/kernels/skeleton-kernel.ts`, `skeleton-record.ts`):
+  `animation-pose.ts` materialize on one pose's flat record: rest reset,
+  layer sampling (linear, step, cubic, quaternion slerp with its bracket
+  cache), event-before-timed blending with headroom, the bone rotator, and
+  parent-first locals and globals, the pose math repeated on offsets with
+  the same arithmetic. Restartable: `R_BUSY` recomposes a chunk a stalled
+  worker left; `R_CHANGED` only ever gains.
+- **One pose code.** `animation-pose.ts` takes an optional `PoseSkeleton`:
+  its arrays become fixed views of the shared state and `materialize` goes
+  through the kernel; layer resolution, palettes, sockets, body volume and
+  rotators stay the same code. Without one nothing changes.
+- **Owner** (`renderer/characters/skeletons.ts`): a skeleton a model, a clip
+  entry a sampled clip (key clocks shared as the timelines share them),
+  state and scratch a pose; used only when the frame workers' tables grow
+  in place (shared memory). `prepare` collects twice: while it evaluates
+  the attachment owners and mounts `advanceParticles` reads sockets of,
+  and around `evaluateNeededPoses`; each time it forks one
+  `KERNEL_SKELETON` phase and the first palette or socket read joins.
+  Poses left to the GPU are queued too, so the cloth wearers' CPU palettes
+  are ready when read.
+- **Proof**: `skeleton-kernel.test.mjs` (flat against object poses, every
+  palette and socket bit for bit, on threads, with chunks run twice; seven
+  deliberate breaks fail it) and `character-cloth-workers.test.mjs`
+  (skeleton poses on threads against object poses through the shipped
+  renderer, digest for digest).
+- **Browser**: pose work on the main thread 78 to 16 ms/s including joins;
+  `writeBatchRows` 107 to 70.
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off:
+  34, 38, 37 fps against 27, 26, 26; main thread 28.1, 25.5, 26.3 ms
+  against 36.2, 37.5, 37.3.
+- **Main-thread churn found on the way** (not threading): every clip
+  admission builds a new `clips` array, so the GPU clip plan of the whole
+  set is rebuilt and validated again (`createGpuClipPlan`, 21 ms/s).
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
