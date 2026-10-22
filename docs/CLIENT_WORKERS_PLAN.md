@@ -67,8 +67,8 @@ scene from the profile, to be replaced by a measurement at each step:
 | Plus the GPU-driven draw path | about 12 to 14 ms | about 70 to 80 |
 | Plus the pipelined schedule | about 10 to 12 ms | about 80 to 100 |
 
-GPU time for this scene has not been measured; it may become the limit
-after the draw path.
+GPU time for this scene was measured in section 6.7: the GPU allows 100 fps
+on the measuring machine, and Chrome's GPU process is the next limit.
 
 ## 2. What earlier attempts taught
 
@@ -529,6 +529,37 @@ thread:
   the worker cannot reuse that memory until told. The larger remainders of
   a batch are the local player's gameplay snapshots (0.45 ms a batch) and
   whole-entity state events (about 0.3 ms).
+
+### 6.7 What else limits the frame: GPU, GPU process, simulation worker (2026-10-22)
+
+Before the draw path, the limits a 10 ms (100 fps) frame would meet besides
+the main thread. Town crowd, 214 players, still, 1600 x 900, AMD Radeon
+RX 6900 XT, after part 3a (main thread about 35 ms a frame).
+
+- **GPU execution** (`town-crowd-bench.mjs --gpu`, `tools/perf/core/gpu-timing.mjs`:
+  timestamps around every render and compute pass the page encodes, the
+  renderer's own `?gpu-timing=1` timer leaving water reflection, bloom, HDR
+  and the final passes out). Busy time a frame, the sum of its passes:
+
+  | Settings | Mean | p50 | p95 | Largest passes (ms a frame) |
+  | --- | --- | --- | --- | --- |
+  | New player defaults | 4.9 to 5.2 | 5.1 to 5.5 | 5.8 to 6.0 | main pass 3.0 to 3.3, skeletal animation 1.7 |
+  | High preset (`--preset 2`) | 6.6 | 6.7 | 7.9 | main pass 2.3, water reflection 2.2, skeletal animation 1.7 |
+
+  On this card the GPU allows 100 fps. A card with a third of its speed
+  would need 15 to 20 ms and limit the frame to 50 to 65 fps, so for most
+  players 100 fps also needs GPU work (the water reflection redraws the
+  scene, the main pass draws about 1,600 draws).
+- **Chrome's GPU process** (`--trace`, `CrGpuMain`): 9.0 ms a frame, 22% busy
+  at 24 fps, almost all `GpuChannel::ExecuteDeferredRequest`: validating
+  and translating the page's WebGPU commands. It runs beside the main
+  thread, but at this command volume it limits the frame to about 110 fps.
+  The draw path's fewer draws and reused bundles are what shrink it.
+- **Simulation worker** (same trace): 67% busy, 28 ms of its own time a
+  frame: `navContactDetail` 269 ms/s (navigation queries for every 2-unit
+  sample of each remote walker's history), journal costing (`jsonChars`)
+  93 ms/s, navigation `segment` 68 ms/s. It keeps up with 214 players on
+  its own thread; it is a limit for more players, not for the frame rate.
 
 ## 7. Open decisions for the owner
 
