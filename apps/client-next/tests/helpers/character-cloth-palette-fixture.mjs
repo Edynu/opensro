@@ -235,6 +235,18 @@ function captureGeometry( tags, gpuAvailable ) {
 		},
 		/*
 		================
+		streamVertices
+
+		The wearers' upload: the same capture, without the draw's mirror.
+		================
+		*/
+		streamVertices( draw, offset, vertices ) {
+			device.resources.commands.streamVertices( draw.deviceDraw, offset, vertices );
+			assert.equal( offset, 0 );
+			draw.capturedVertices = vertices.slice();
+		},
+		/*
+		================
 		updateTransform
 		================
 		*/

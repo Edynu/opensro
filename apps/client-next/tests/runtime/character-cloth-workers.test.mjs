@@ -5,7 +5,7 @@ character-cloth-workers.test.mjs - the renderer's cloth on the frame workers
 
 With Worker threads on, the world's characters step their cloth in one
 frame-worker phase, each wearer from its own random stream
-(renderer/characters/cloth-wearers.ts). Driven through the shipped renderer
+(foundation/animation/cloth-wearers.ts). Driven through the shipped renderer
 by the cloth palette fixture (membership changes, model swaps, fades,
 tints, layered clips, a device invalidation and disposal), cloth must stop
 drawing from the shared presentation stream and leave every other

@@ -4,14 +4,16 @@
 cloth-kernel.test.mjs - the cloth wearers' kernel against the object cloth
 
 With Worker threads on, cloth steps in one frame-worker phase for every
-wearer (renderer/characters/cloth-wearers.ts, foundation/kernels/
+wearer (foundation/animation/cloth-wearers.ts, foundation/kernels/
 cloth-kernel.ts), each wearer drawing from its own CRT stream. Given the
 same draws, the kernel must be the object code (cloth-vertices.ts) bit for
 bit: these tests give each object cloth the wearer's stream and compare
 every packed vertex of every frame, through option changes, stalls, wind,
-shared programs and released and reused state; then the same wearers on
-real worker threads over growing shared tables, and every chunk run twice
-as a stalled worker's chunk is.
+shared programs and released and reused state; a world mesh's wearer
+holding exactly when its object cloth holds, beside the characters' bank
+on the same memory; then the same wearers on real worker threads over
+growing shared tables, and every chunk run twice as a stalled worker's
+chunk is.
 
 ===========================================================================
 */
@@ -23,8 +25,8 @@ import { createInlineWorkers, createThreadedWorkers } from "../helpers/frame-ker
 
 const { createClothVertices } = await import( "../../src/engine/foundation/animation/cloth-vertices.ts" );
 const { crtRandomRange } = await import( "../../src/engine/foundation/math/crt-random.ts" );
-const { clothSeed, createClothWearers } = await import(
-	"../../src/engine/runtime/renderer/characters/cloth-wearers.ts"
+const { CHARACTER_CLOTH, WORLD_CLOTH, clothSeed, createClothWearers } = await import(
+	"../../src/engine/foundation/animation/cloth-wearers.ts"
 );
 const { INITIAL_CLOTH_STATE_FLOATS, INITIAL_CLOTH_WEARERS } = await import(
 	"../../src/engine/foundation/kernels/frame-kernels.ts"
@@ -108,6 +110,47 @@ test("the cloth kernel draws every packed vertex bit as the object cloth for the
 				);
 			}
 		}
+	}
+});
+
+test("a world cloth wearer holds when its object cloth holds, apart from the characters' bank", () => {
+	for ( const [skinned, normals] of SHAPES ) {
+		const fixture = clothVertexCase( skinned, normals ), primitive = primitiveOf( fixture );
+		const workers = createInlineWorkers();
+		const world = createClothWearers( workers, WORLD_CLOTH ),
+			characters = createClothWearers( workers, CHARACTER_CLOTH );
+		const seed = clothSeed( 9, 0 ), slot = world.admit( primitive, seed );
+		const cloth = createClothVertices( primitive, crtStream( seed ) );
+		let other = characters.admit( primitive, 3 ), palette = null, held = 0, ran = 0;
+		for ( let frame = 0; frame < fixture.frames; frame++ ) {
+			const input = fixture.input( frame );
+			// A world mesh's palette changes only with its animation, which
+			// always updates; otherwise both are asked whether they hold.
+			const changed = frame % 40 === 0;
+			if ( changed ) palette = input.palette;
+			const hold = !changed && cloth.hold( input.seconds, input.enabled );
+			if ( !changed ) assert.equal( world.hold( slot, input.seconds, input.enabled ), hold, `frame ${frame}` );
+			if ( hold ) {
+				held++;
+				continue;
+			}
+			ran++;
+			world.request( slot, palette, input.seconds, input.enabled, input.motion );
+			world.run();
+			// The characters' bank resets and reuses its tables: the world's stay.
+			if ( frame === 90 ) {
+				characters.reset();
+				other = characters.admit( primitive, 4 );
+			}
+			characters.request( other, input.palette, input.seconds, input.enabled, input.motion );
+			characters.run();
+			sameFloats(
+				world.vertices( slot ),
+				cloth.update( palette, input.seconds, input.enabled, input.motion ),
+				`skinned=${skinned} normals=${normals} frame ${frame}`
+			);
+		}
+		assert.ok( held > 10 && ran > 10, `held ${held} ran ${ran}` );
 	}
 });
 

@@ -101,8 +101,9 @@ export function createRenderer(
 	// each frame; its glyphs stay resident while such a scene is.
 	let damageRows: readonly import("@/engine/contracts/damage-text").DamageText[] = [];
 	const damageTextures = damageTextAssets();
-	const world = createWorldRenderer( undefined, readPickAlpha, random, sound ),
-		// The world's cloth steps on the frame workers when given them.
+	// The world's and the characters' cloth, and the characters' poses, run
+	// on the frame workers when given them.
+	const world = createWorldRenderer( undefined, readPickAlpha, random, sound, frameWorkers ),
 		characters = createCharacters( random, frameWorkers );
 	let device = createDevice( diagnostics.gpuTiming, diagnostics.gpuAnimation !== false ), recoveries = 0;
 	// The texture features of the first device that learns them; the variant

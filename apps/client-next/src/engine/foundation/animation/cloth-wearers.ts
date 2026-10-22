@@ -1,33 +1,37 @@
 /*
 ===========================================================================
 
-cloth-wearers.ts - the world's cloth on the frame workers
+cloth-wearers.ts - cloth meshes on the frame workers
 
 Port-only, not native, used with Worker threads on: every cloth primitive
-an actor wears is one wearer record (foundation/kernels/cloth-record.ts),
-and a frame's wearers step together in one KERNEL_CLOTH phase on the frame
-workers (cloth-kernel.ts) instead of one at a time in drawCloth. Each
-wearer draws from its own CRT stream, seeded from its gid and primitive
-(clothSeed); the simulation is otherwise the object code's
-(cloth-vertices.ts), which keeps running with Worker threads off.
+an actor wears, and every cloth mesh of the world, is one wearer record
+(foundation/kernels/cloth-record.ts), and a frame's wearers step together
+in one phase on the frame workers (cloth-kernel.ts) instead of one at a
+time. Each wearer draws from its own CRT stream (clothSeed); the
+simulation is otherwise the object code's (cloth-vertices.ts), which keeps
+running with Worker threads off.
 
-Owns the wearer records, the programs (one per cloth primitive, written
-once and freed with its last wearer) and the state arena. drawCloth
-admits a wearer and requests its frame; prepare forks the phase once the
-wearers' groups are built, builds the other groups while the workers
-simulate, joins it, then each cloth draw uploads its wearer's packed
-vertices. A wearer lives as long as the batch that holds it; the renderer
-releases it with the batch.
+Owns one bank's wearer records, programs (one per cloth primitive, written
+once and freed with its last wearer) and state arena. The characters'
+wearers (CHARACTER_CLOTH, renderer/characters/characters.ts) and the
+world's meshes (WORLD_CLOTH, renderer/world/world.ts) are two owners over
+two banks, so each admits, resets and releases its own. The renderer
+admits a wearer and requests its frame, forks the phase, may do other
+work while the workers simulate, joins it, then uploads each wearer's
+packed vertices. A wearer lives as long as what holds it (a character
+batch, a world group); its holder releases it.
 
 ===========================================================================
 */
-import type { CharacterPrimitive } from "@/engine/contracts/character";
+import type { Geometry } from "@/engine/contracts/geometry";
 import type { FrameKernelPhases } from "@/engine/contracts/frame-workers";
 import type { FrameJobRunner } from "@/engine/foundation/workers/frame-jobs";
 import { packGeometryVertices } from "@/engine/foundation/rendering/geometry-vertices";
 import {
 	CLOTH_CHUNK,
 	KERNEL_CLOTH,
+	KERNEL_WORLD_CLOTH,
+	type KernelTable,
 	MAX_CLOTH_PROGRAM_WORDS,
 	MAX_CLOTH_STATE_FLOATS,
 	MAX_CLOTH_WEARERS,
@@ -44,6 +48,7 @@ import {
 	CLOTH_VERTEX_FLOATS,
 	N_ELAPSED,
 	N_RANDOM,
+	N_SETTLED,
 	P_CONSTRAINTS,
 	P_DAMPING,
 	P_FORCE,
@@ -76,6 +81,65 @@ import {
 	clothStatePalette,
 	clothStateVertices
 } from "@/engine/foundation/kernels/cloth-kernel";
+import { CLOTH_STEP_MS, type ClothData } from "./cloth";
+
+/*
+================
+ClothBank
+
+One cloth owner's tables and the kernel that runs them: the characters'
+wearers (CHARACTER_CLOTH) or the world's cloth meshes (WORLD_CLOTH).
+================
+*/
+export const CHARACTER_CLOTH = "characters";
+export const WORLD_CLOTH = "world";
+export type ClothBankName = typeof CHARACTER_CLOTH | typeof WORLD_CLOTH;
+
+interface ClothBank {
+	readonly kernel: number;
+	readonly records: "clothRecords" | "worldClothRecords";
+	readonly programs: "clothPrograms" | "worldClothPrograms";
+	readonly state: "clothState" | "worldClothState";
+	readonly requests: "clothRequests" | "worldClothRequests";
+}
+
+/*
+================
+clothBank
+================
+*/
+function clothBank( name: ClothBankName ): ClothBank {
+	return name === WORLD_CLOTH ?
+		{
+			kernel: KERNEL_WORLD_CLOTH,
+			records: "worldClothRecords",
+			programs: "worldClothPrograms",
+			state: "worldClothState",
+			requests: "worldClothRequests"
+		} :
+		{
+			kernel: KERNEL_CLOTH,
+			records: "clothRecords",
+			programs: "clothPrograms",
+			state: "clothState",
+			requests: "clothRequests"
+		};
+}
+
+/*
+================
+ClothPrimitive
+
+A cloth mesh as a wearer's program reads it: its geometry, its cloth and
+how many palette joints its skin reads (a character primitive's joints; a
+world mesh's bones).
+================
+*/
+export interface ClothPrimitive {
+	readonly geometry: Geometry;
+	readonly cloth?: ClothData;
+	readonly joints: { readonly length: number; };
+}
 
 /*
 ================
@@ -97,7 +161,7 @@ A cloth primitive's program in clothPrograms and the wearers using it.
 ================
 */
 interface Program {
-	readonly primitive: CharacterPrimitive;
+	readonly primitive: ClothPrimitive;
 	readonly offset: number;
 	readonly words: number;
 	users: number;
@@ -108,9 +172,9 @@ interface Program {
 createClothWearers
 ================
 */
-export function createClothWearers( workers: FrameKernelPhases ) {
-	const memory = workers.memory(), views = frameKernelViews( memory );
-	const programs = new Map<CharacterPrimitive, Program>();
+export function createClothWearers( workers: FrameKernelPhases, name: ClothBankName = CHARACTER_CLOTH ) {
+	const memory = workers.memory(), views = frameKernelViews( memory ), bank = clothBank( name );
+	const programs = new Map<ClothPrimitive, Program>();
 	// Per wearer slot: its primitive's program, its state offset and size.
 	const slotPrograms: (Program | undefined)[] = [], slotState: number[] = [], slotFloats: number[] = [];
 	const slotVertices: number[] = [];
@@ -136,8 +200,8 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 	most to its maximum.
 	================
 	*/
-	function reserve( table: "clothPrograms" | "clothState", used: number, size: number, max: number ) {
-		const unit = table === "clothPrograms" ? Float64Array.BYTES_PER_ELEMENT : Float32Array.BYTES_PER_ELEMENT;
+	function reserve( table: KernelTable, used: number, size: number, max: number ) {
+		const unit = table === bank.programs ? Float64Array.BYTES_PER_ELEMENT : Float32Array.BYTES_PER_ELEMENT;
 		const length = memory[table].byteLength / unit;
 		if ( used + size <= length ) return;
 		if ( used + size > max ) throw Error( "Cloth wearer capacity exceeded" );
@@ -154,18 +218,18 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 	The primitive's program, written once while any wearer uses it.
 	================
 	*/
-	function programOf( primitive: CharacterPrimitive ): Program {
+	function programOf( primitive: ClothPrimitive ): Program {
 		const known = programs.get( primitive );
 		if ( known ) return known;
 		const mesh = primitive.geometry, data = primitive.cloth!;
 		const n = mesh.positions.length / 3, m = data.order.length, words = clothProgramWords( n, m );
 		let offset = freePrograms.get( words )?.pop();
 		if ( offset === undefined ) {
-			reserve( "clothPrograms", programUsed, words, MAX_CLOTH_PROGRAM_WORDS );
+			reserve( bank.programs, programUsed, words, MAX_CLOTH_PROGRAM_WORDS );
 			offset = programUsed;
 			programUsed += words;
 		}
-		const table = views.clothPrograms, skinned = !!mesh.joints && !!mesh.weights;
+		const table = views[bank.programs], skinned = !!mesh.joints && !!mesh.weights;
 		table.fill( 0, offset, offset + words );
 		table[offset + P_VERTICES] = n;
 		table[offset + P_CONSTRAINTS] = m;
@@ -205,7 +269,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 	================
 	forkCloth
 
-	Open the KERNEL_CLOTH phase over the wearers requested so far: the frame
+	Open the bank's phase over the wearers requested so far: the frame
 	workers start on them while the caller goes on. Nothing may be admitted,
 	requested or released until joinCloth.
 	================
@@ -213,10 +277,10 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 	function forkCloth() {
 		if ( started || !requested.length ) return;
 		refreshViews( views );
-		const list = views.clothRequests;
+		const list = views[bank.requests];
 		list[REQUEST_COUNT] = requested.length;
 		for ( let i = 0; i < requested.length; i++ ) list[REQUEST_SLOTS + i] = requested[i]!;
-		workers.fork( KERNEL_CLOTH, Math.ceil( requested.length / CLOTH_CHUNK ) );
+		workers.fork( bank.kernel, Math.ceil( requested.length / CLOTH_CHUNK ) );
 		started = true;
 	}
 
@@ -232,7 +296,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		if ( !started ) return;
 		started = false;
 		workers.join( runLocal );
-		const records = views.clothRecords;
+		const records = views[bank.records];
 		for ( const slot of requested ) {
 			const w = slot * CLOTH_RECORD;
 			records[w + W_CURRENT] = 1 - records[w + W_CURRENT]!;
@@ -269,7 +333,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		starts them.
 		================
 		*/
-		admit( primitive: CharacterPrimitive, seed: number ): number {
+		admit( primitive: ClothPrimitive, seed: number ): number {
 			if ( started ) throw Error( "Cloth wearer admitted during its phase" );
 			const program = programOf( primitive ), mesh = primitive.geometry;
 			const n = mesh.positions.length / 3, floats = clothStateFloats( n, primitive.joints.length );
@@ -278,10 +342,10 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			if ( slot === slotCount ) {
 				slotCount++;
 				const bytes = slotCount * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT;
-				if ( bytes > memory.clothRecords.byteLength ) {
+				if ( bytes > memory[bank.records].byteLength ) {
 					growTable(
 						memory,
-						"clothRecords",
+						bank.records,
 						Math.min( MAX_CLOTH_WEARERS * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT, bytes * 2 )
 					);
 					refreshViews( views );
@@ -289,7 +353,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			}
 			let state = freeState.get( floats )?.pop();
 			if ( state === undefined ) {
-				reserve( "clothState", stateUsed, floats, MAX_CLOTH_STATE_FLOATS );
+				reserve( bank.state, stateUsed, floats, MAX_CLOTH_STATE_FLOATS );
 				state = stateUsed;
 				stateUsed += floats;
 			}
@@ -299,7 +363,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			slotFloats[slot] = floats;
 			slotVertices[slot] = n;
 			slotPhase[slot] = 0;
-			const records = views.clothRecords, w = slot * CLOTH_RECORD, cloth = views.clothState;
+			const records = views[bank.records], w = slot * CLOTH_RECORD, cloth = views[bank.state];
 			records.fill( 0, w, w + CLOTH_RECORD );
 			records[w + W_PROGRAM] = program.offset;
 			records[w + W_STATE] = state;
@@ -329,7 +393,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			if ( started ) throw Error( "Cloth wearer requested during its phase" );
 			if ( slotPhase[slot] === phase ) throw Error( "Cloth wearer requested twice in one phase" );
 			slotPhase[slot] = phase;
-			const records = views.clothRecords, w = slot * CLOTH_RECORD;
+			const records = views[bank.records], w = slot * CLOTH_RECORD;
 			records[w + W_SECONDS] = seconds;
 			records[w + W_ENABLED] = enabled ? 1 : 0;
 			records[w + W_DIRECTION] = motion.direction[0]!;
@@ -337,12 +401,33 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 			records[w + W_DIRECTION + 2] = motion.direction[2]!;
 			records[w + W_SPEED] = motion.speed;
 			const n = slotVertices[slot]!, program = slotPrograms[slot]!.offset;
-			const joints = views.clothPrograms[program + P_JOINTS]! * CLOTH_JOINT_FLOATS;
-			views.clothState.set(
+			const joints = views[bank.programs][program + P_JOINTS]! * CLOTH_JOINT_FLOATS;
+			views[bank.state].set(
 				palette.subarray( 0, Math.min( joints, palette.length ) ),
 				clothStatePalette( slotState[slot]!, n )
 			);
 			requested.push( slot );
+		},
+		/*
+		================
+		hold
+
+		True when a request now would leave the wearer's vertices as they are,
+		given an unchanged palette, so the caller may skip it and its upload
+		(cloth-vertices.ts hold). Enabled, no step may fall due and the skipped
+		time stays owed; disabled, an update would reset the clock, so the
+		frame's time passes here instead.
+		================
+		*/
+		hold( slot: number, seconds: number, enabled: boolean ): boolean {
+			const records = views[bank.records], w = slot * CLOTH_RECORD;
+			if ( records[w + W_LAST_SET] !== 1 || (records[w + W_ENABLED] === 1) !== enabled ) return false;
+			if ( !enabled ) {
+				records[w + W_LAST_SECONDS] = seconds;
+				return true;
+			}
+			const deltaMs = Math.trunc( seconds * 1000 ) - Math.trunc( records[w + W_LAST_SECONDS]! * 1000 );
+			return records[w + W_ELAPSED]! + Math.max( 0, deltaMs ) < CLOTH_STEP_MS && records[w + N_SETTLED] === 1;
 		},
 		forkCloth,
 		joinCloth,
@@ -368,7 +453,7 @@ export function createClothWearers( workers: FrameKernelPhases ) {
 		vertices( slot: number ): Float32Array {
 			refreshViews( views );
 			const n = slotVertices[slot]!, at = clothStateVertices( slotState[slot]!, n );
-			return views.clothState.subarray( at, at + n * CLOTH_VERTEX_FLOATS );
+			return views[bank.state].subarray( at, at + n * CLOTH_VERTEX_FLOATS );
 		},
 		/*
 		================

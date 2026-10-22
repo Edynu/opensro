@@ -233,6 +233,7 @@
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
 			"functions": [
 				"characterShadows",
+				"streamVertices",
 				"writeVertices"
 			]
 		},
@@ -633,6 +634,7 @@
 				"updateTextureTransform",
 				"updateMaterialColors",
 				"updateTextureFactor",
+				"streamVertices",
 				"writeVertices"
 			],
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
@@ -719,6 +721,7 @@
 				"updateEquipmentGlow",
 				"presentParticles",
 				"updateTextureFactor",
+				"streamVertices",
 				"writeVertices"
 			]
 		},
@@ -2386,7 +2389,7 @@
 			]
 		},
 		{
-			"consumer": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"consumer": "src/engine/foundation/animation/cloth-wearers.ts",
 			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
 			"functions": [
 				"fork",
@@ -2396,7 +2399,7 @@
 		},
 		{
 			"consumer": "src/engine/runtime/frame-workers/frame-workers.ts",
-			"provider": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"provider": "src/engine/foundation/animation/cloth-wearers.ts",
 			"functions": [
 				"runLocal"
 			]
@@ -2440,7 +2443,7 @@
 		},
 		{
 			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
-			"provider": "src/engine/runtime/renderer/characters/cloth-wearers.ts",
+			"provider": "src/engine/foundation/animation/cloth-wearers.ts",
 			"functions": [
 				"admit",
 				"begin",

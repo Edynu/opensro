@@ -37,6 +37,7 @@ import {
 	CLOTH_RECORD,
 	CLOTH_VERTEX_FLOATS,
 	N_ELAPSED,
+	N_SETTLED,
 	N_RANDOM,
 	P_CONSTRAINTS,
 	P_DAMPING,
@@ -208,7 +209,7 @@ advanceClothWearer
 
 One wearer's frame (cloth-vertices.ts update): skin, advance, pack. Reads
 the record's inputs and current half; writes the other half, anchors,
-vertices, N_RANDOM and N_ELAPSED.
+vertices, N_RANDOM, N_ELAPSED and N_SETTLED.
 ================
 */
 export function advanceClothWearer( records: Float64Array, programs: Float64Array, state: Float32Array, slot: number ) {
@@ -302,6 +303,7 @@ export function advanceClothWearer( records: Float64Array, programs: Float64Arra
 		state[positions + at + 1] = state[anchors + at + 1]!;
 		state[positions + at + 2] = state[anchors + at + 2]!;
 	}
+	let stepped = false;
 	if ( enabled ) {
 		const authored = programs[program + P_FORCE_SET] === 1;
 		const fx = authored ? programs[program + P_FORCE]! : records[w + W_DIRECTION]!;
@@ -311,6 +313,17 @@ export function advanceClothWearer( records: Float64Array, programs: Float64Arra
 		while ( elapsed >= CLOTH_STEP_MS ) {
 			random = stepCloth( programs, program, state, positions, fx, fy, fz, records[w + W_SPEED]!, random );
 			elapsed -= CLOTH_STEP_MS;
+			stepped = true;
+		}
+	}
+	// cloth.ts due: a step that moved a pin off its anchor (or left NaN
+	// there, which Object.is cannot prove equal) is undone by the next advance.
+	let settled = 1;
+	for ( let i = 0; stepped && settled && i < n; i++ ) {
+		if ( programs[pins + i] === 0 ) continue;
+		for ( let axis = 0; axis < 3; axis++ ) {
+			const position = state[positions + i * 3 + axis]!;
+			if ( !Object.is( position, state[anchors + i * 3 + axis] ) || Number.isNaN( position ) ) settled = 0;
 		}
 	}
 	for ( let i = 0; i < n; i++ ) {
@@ -321,4 +334,5 @@ export function advanceClothWearer( records: Float64Array, programs: Float64Arra
 	}
 	records[w + N_RANDOM] = random;
 	records[w + N_ELAPSED] = elapsed;
+	records[w + N_SETTLED] = settled;
 }

@@ -17,8 +17,9 @@ them and after the first are kept as snapshots, so the record's owner
 back to the right state when one does not.
 
 KERNEL_CLOTH: each requested cloth wearer's frame (cloth-kernel.ts) into
-its packed vertices, for its owner (renderer/characters/cloth-wearers.ts)
-to upload.
+its packed vertices, for its owner (foundation/animation/cloth-wearers.ts)
+to upload. KERNEL_WORLD_CLOTH: the same over the world's cloth meshes,
+which keep their own tables (the world* cloth tables) and lifetime.
 
 KERNEL_SKELETON: each requested character pose's matrices
 (skeleton-kernel.ts), for its owner (renderer/characters/skeletons.ts).
@@ -36,6 +37,7 @@ import { O_POSE, POSE_RECORD } from "./pose-record";
 export const KERNEL_POSE = 1;
 export const KERNEL_CLOTH = 2;
 export const KERNEL_SKELETON = 3;
+export const KERNEL_WORLD_CLOTH = 4;
 // Characters per KERNEL_POSE chunk.
 export const POSE_CHUNK = 8;
 // Snapshots per character record: before the first call, after it.
@@ -64,6 +66,11 @@ export const INITIAL_CLOTH_PROGRAM_WORDS = 262144;
 export const MAX_CLOTH_PROGRAM_WORDS = 8388608;
 export const INITIAL_CLOTH_STATE_FLOATS = 1048576;
 export const MAX_CLOTH_STATE_FLOATS = 33554432;
+// The world's cloth tables before growing: a town shows tens of flags and
+// banners; they grow to the same maxima.
+export const INITIAL_WORLD_CLOTH_MESHES = 32;
+export const INITIAL_WORLD_CLOTH_PROGRAM_WORDS = 65536;
+export const INITIAL_WORLD_CLOTH_STATE_FLOATS = 262144;
 // Poses per KERNEL_SKELETON chunk; poses the records hold before growing
 // and at most, and per phase (MAX_FRAME_CHUNKS chunks of two). The world
 // draws at most 512 actors (character-budget.ts CHARACTER_ACTORS).
@@ -92,10 +99,11 @@ POSE_RECORD doubles a character, poseSnapshots POSE_SNAPSHOTS records a
 character, walkArena the certified chains and poseRequests the characters
 of the open pose phase; clothRecords, clothPrograms and clothState the
 cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
-cloth phase; the skeleton* tables the character poses (skeleton-record.ts)
-and skeletonRequests the poses of the open skeleton phase. With frame workers they are growable shared buffers that
-grow in place; on one thread they are ordinary buffers that growTable
-replaces with larger copies.
+cloth phase, the worldCloth* tables likewise the world's cloth meshes; the
+skeleton* tables the character poses (skeleton-record.ts) and
+skeletonRequests the poses of the open skeleton phase. With frame workers
+they are growable shared buffers that grow in place; on one thread they
+are ordinary buffers that growTable replaces with larger copies.
 ================
 */
 export interface FrameKernelMemory {
@@ -107,6 +115,10 @@ export interface FrameKernelMemory {
 	clothPrograms: ArrayBufferLike;
 	clothState: ArrayBufferLike;
 	clothRequests: ArrayBufferLike;
+	worldClothRecords: ArrayBufferLike;
+	worldClothPrograms: ArrayBufferLike;
+	worldClothState: ArrayBufferLike;
+	worldClothRequests: ArrayBufferLike;
 	skeletonModels: ArrayBufferLike;
 	skeletonClips: ArrayBufferLike;
 	skeletonKeys: ArrayBufferLike;
@@ -166,6 +178,22 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 			MAX_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT
 		),
 		clothRequests: allocate(
+			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
+			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT
+		),
+		worldClothRecords: allocate(
+			INITIAL_WORLD_CLOTH_MESHES * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_WEARERS * CLOTH_RECORD * Float64Array.BYTES_PER_ELEMENT
+		),
+		worldClothPrograms: allocate(
+			INITIAL_WORLD_CLOTH_PROGRAM_WORDS * Float64Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_PROGRAM_WORDS * Float64Array.BYTES_PER_ELEMENT
+		),
+		worldClothState: allocate(
+			INITIAL_WORLD_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT,
+			MAX_CLOTH_STATE_FLOATS * Float32Array.BYTES_PER_ELEMENT
+		),
+		worldClothRequests: allocate(
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_CLOTH_WEARERS) * Int32Array.BYTES_PER_ELEMENT
 		),
@@ -246,6 +274,10 @@ export interface FrameKernelViews {
 	clothPrograms: Float64Array;
 	clothState: Float32Array;
 	clothRequests: Int32Array;
+	worldClothRecords: Float64Array;
+	worldClothPrograms: Float64Array;
+	worldClothState: Float32Array;
+	worldClothRequests: Int32Array;
 	skeletonModels: Float64Array;
 	skeletonClips: Float64Array;
 	skeletonKeys: Float32Array;
@@ -274,6 +306,10 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		clothPrograms: new Float64Array( 0 ),
 		clothState: new Float32Array( 0 ),
 		clothRequests: new Int32Array( 0 ),
+		worldClothRecords: new Float64Array( 0 ),
+		worldClothPrograms: new Float64Array( 0 ),
+		worldClothState: new Float32Array( 0 ),
+		worldClothRequests: new Int32Array( 0 ),
 		skeletonModels: new Float64Array( 0 ),
 		skeletonClips: new Float64Array( 0 ),
 		skeletonKeys: new Float32Array( 0 ),
@@ -308,6 +344,10 @@ export function refreshViews( views: FrameKernelViews ) {
 	views.clothPrograms = float64View( views.clothPrograms, memory.clothPrograms );
 	views.clothState = float32View( views.clothState, memory.clothState );
 	views.clothRequests = int32View( views.clothRequests, memory.clothRequests );
+	views.worldClothRecords = float64View( views.worldClothRecords, memory.worldClothRecords );
+	views.worldClothPrograms = float64View( views.worldClothPrograms, memory.worldClothPrograms );
+	views.worldClothState = float32View( views.worldClothState, memory.worldClothState );
+	views.worldClothRequests = int32View( views.worldClothRequests, memory.worldClothRequests );
 	views.skeletonModels = float64View( views.skeletonModels, memory.skeletonModels );
 	views.skeletonClips = float64View( views.skeletonClips, memory.skeletonClips );
 	views.skeletonKeys = float32View( views.skeletonKeys, memory.skeletonKeys );
@@ -425,6 +465,26 @@ export function predictedPoseAt( slot: number, snapshot: number ): number {
 
 /*
 ================
+advanceClothChunk
+
+One KERNEL_CLOTH or KERNEL_WORLD_CLOTH chunk over its owner's tables.
+================
+*/
+function advanceClothChunk(
+	requests: Int32Array,
+	records: Float64Array,
+	programs: Float64Array,
+	state: Float32Array,
+	chunk: number
+) {
+	const end = Math.min( requests[REQUEST_COUNT]!, (chunk + 1) * CLOTH_CHUNK );
+	for ( let i = chunk * CLOTH_CHUNK; i < end; i++ ) {
+		advanceClothWearer( records, programs, state, requests[REQUEST_SLOTS + i]! );
+	}
+}
+
+/*
+================
 runFrameKernel
 
 One chunk of one kernel, on any thread.
@@ -439,16 +499,17 @@ export function runFrameKernel( views: FrameKernelViews, kernel: number, chunk: 
 		return;
 	}
 	if ( kernel === KERNEL_CLOTH ) {
-		const requests = views.clothRequests, count = requests[REQUEST_COUNT]!;
-		const end = Math.min( count, (chunk + 1) * CLOTH_CHUNK );
-		for ( let i = chunk * CLOTH_CHUNK; i < end; i++ ) {
-			advanceClothWearer(
-				views.clothRecords,
-				views.clothPrograms,
-				views.clothState,
-				requests[REQUEST_SLOTS + i]!
-			);
-		}
+		advanceClothChunk( views.clothRequests, views.clothRecords, views.clothPrograms, views.clothState, chunk );
+		return;
+	}
+	if ( kernel === KERNEL_WORLD_CLOTH ) {
+		advanceClothChunk(
+			views.worldClothRequests,
+			views.worldClothRecords,
+			views.worldClothPrograms,
+			views.worldClothState,
+			chunk
+		);
 		return;
 	}
 	if ( kernel === KERNEL_SKELETON ) {

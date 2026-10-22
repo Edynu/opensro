@@ -6,7 +6,7 @@ characters.ts - admitted character models, world batches and separate portrait s
 ===========================================================================
 */
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
-import { clothSeed, createClothWearers } from "./cloth-wearers";
+import { clothSeed, createClothWearers } from "@/engine/foundation/animation/cloth-wearers";
 import { sharedSkeletons } from "./skeletons";
 import { characterLabelHeight } from "@/engine/foundation/ui/character-labels";
 import { regionOffsetXZ, regionRelativeXZ } from "@/engine/foundation/world/world-space";
@@ -3437,7 +3437,9 @@ export function createCharacters(
 				build( false );
 				clothWearers.joinCloth();
 				for ( let i = 0; i < frame.clothSlots.length; i++ ) {
-					geometry.writeVertices( frame.clothDraws[i]!, 0, clothWearers.vertices( frame.clothSlots[i]! ) );
+					// The wearer's state keeps the stream; no draw mirror is read
+					// back, so the arena copies it straight from shared memory.
+					geometry.streamVertices( frame.clothDraws[i]!, 0, clothWearers.vertices( frame.clothSlots[i]! ) );
 				}
 				frame.output = final;
 				for ( const list of outputs ) if ( list ) final.push( ...list );

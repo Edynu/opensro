@@ -10,6 +10,7 @@ world. Diagnostics observe it only through the frame probe (profile).
 ===========================================================================
 */
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
+import { clothSeed, createClothWearers, WORLD_CLOTH } from "@/engine/foundation/animation/cloth-wearers";
 import { waterReflectionMatrix } from "@/engine/foundation/rendering/water-reflection";
 import { blendAdds } from "@/engine/foundation/rendering/blend-state";
 import {
@@ -224,7 +225,8 @@ export function createWorldRenderer(
 	budget?: number,
 	readAlpha?: ( image: ImageBitmap ) => PickAlpha,
 	random?: PresentationRandom,
-	sound?: ( event: import("@/engine/contracts/audio").SoundEvent ) => void
+	sound?: ( event: import("@/engine/contracts/audio").SoundEvent ) => void,
+	frameWorkers?: import("@/engine/contracts/frame-workers").FrameKernelPhases
 ) {
 	const weather = createWeather( random, sound );
 	/*
@@ -703,6 +705,13 @@ export function createWorldRenderer(
 	let animated: WorldGroup[] = [], activeAnimated: WorldGroup[] = [];
 	let dynamicAnimation = false;
 	const clothMeshes = new Map<WorldGroup, ReturnType<typeof createClothVertices>>();
+	// Port-only, not native: with Worker threads on, the cloth meshes are
+	// wearers instead (cloth-wearers.ts) and step together on the frame
+	// workers, each from its own random stream.
+	const clothWearers = frameWorkers ? createClothWearers( frameWorkers, WORLD_CLOTH ) : undefined;
+	const clothSlots = new Map<WorldGroup, number>();
+	const wearerDraws: GeometryDraw[] = [], wearerSlots: number[] = [];
+	let clothSeeds = 0;
 	// The draw each cloth stream was last written to; a new draw needs it all.
 	const clothDraws = new Map<WorldGroup, unknown>();
 	const dirtyAnimation = new Set<WorldGroup>();
@@ -769,13 +778,20 @@ export function createWorldRenderer(
 			clothMeshes.delete( group );
 			clothDraws.delete( group );
 		}
+		for ( const [group, slot] of clothSlots ) {
+			if ( scene?.groups.includes( group ) ) continue;
+			clothWearers!.release( slot );
+			clothSlots.delete( group );
+			clothDraws.delete( group );
+		}
 		for ( const group of scene?.groups ?? [] ) {
-			if ( group.geometry.cloth && !clothMeshes.has( group ) ) {
-				clothMeshes.set(
-					group,
-					createClothVertices( { geometry: group.geometry, cloth: group.geometry.cloth }, clothRandom )
-				);
-			}
+			if ( !group.geometry.cloth || clothMeshes.has( group ) || clothSlots.has( group ) ) continue;
+			const source = { geometry: group.geometry, cloth: group.geometry.cloth };
+			if ( clothWearers ) {
+				// A world mesh's skin reads its group's bones, 16 floats a joint.
+				const joints = { length: (group.geometry.bones?.length ?? 0) / 16 };
+				clothSlots.set( group, clothWearers.admit( { ...source, joints }, clothSeed( clothSeeds++, 0 ) ) );
+			} else clothMeshes.set( group, createClothVertices( source, clothRandom ) );
 		}
 		poses.clear();
 		animationKeys.clear();
@@ -813,6 +829,41 @@ export function createWorldRenderer(
 			}
 		}
 		return palettes;
+	}
+	/*
+	================
+	animateWearers
+
+	The cloth meshes' frame with Worker threads on, as animate's object
+	loop: each mesh whose stream would change is requested, they step
+	together in one phase, then each uploads its packed vertices.
+	================
+	*/
+	function animateWearers( geometry: GeometryCommands, seconds: number, force: boolean ) {
+		const wearers = clothWearers!;
+		wearers.begin();
+		wearerDraws.length = wearerSlots.length = 0;
+		for ( const [group, slot] of clothSlots ) {
+			const draw = draws.get( group );
+			if ( !draw || !draw.instanceCount ) continue;
+			const fresh = clothDraws.get( group ) !== draw;
+			if ( !force && !fresh && !dirtyAnimation.has( group ) && wearers.hold( slot, seconds, dynamicAnimation ) ) {
+				continue;
+			}
+			clothDraws.set( group, draw );
+			const matrix = group.geometry.instances ?? group.geometry.transform;
+			wearers.request( slot, group.geometry.bones ?? new Float32Array( 0 ), seconds, dynamicAnimation, {
+				direction: [ matrix[8]!, matrix[9]!, matrix[10]! * (group.animation ? -1 : 1) ],
+				speed: 0
+			} );
+			wearerDraws.push( draw );
+			wearerSlots.push( slot );
+		}
+		wearers.run();
+		// The wearers keep the streams; the arena copies them from shared memory.
+		for ( let i = 0; i < wearerDraws.length; i++ ) {
+			geometry.streamVertices( wearerDraws[i]!, 0, wearers.vertices( wearerSlots[i]! ) );
+		}
 	}
 	/*
 	================
@@ -861,6 +912,7 @@ export function createWorldRenderer(
 				} )
 			);
 		}
+		if ( clothWearers ) animateWearers( geometry, seconds, force );
 		for ( const group of activeAnimated ) {
 			if ( !group.geometry.cloth && (force || dirtyAnimation.has( group )) ) {
 				geometry.updateBones( draws.get( group )!, group.geometry.bones! );
@@ -2399,6 +2451,8 @@ export function createWorldRenderer(
 			if ( disposed ) return;
 			disposed = true;
 			clothMeshes.clear();
+			clothSlots.clear();
+			clothWearers?.reset();
 			clothDraws.clear();
 			for ( const row of footprintDraws.values() ) geometry?.release( row.draw );
 			footprintDraws.clear();

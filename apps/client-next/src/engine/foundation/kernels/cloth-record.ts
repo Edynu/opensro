@@ -20,7 +20,8 @@ actor wears. Three tables (frame-kernels.ts):
 
 The kernel reads the current half and writes the other and the N_* fields,
 so a chunk run again after a stalled worker starts from the same state;
-the owner (cloth-wearers.ts) switches halves after the phase.
+the owner (foundation/animation/cloth-wearers.ts) switches halves after
+the phase.
 
 ===========================================================================
 */
@@ -56,6 +57,9 @@ export const W_INITIALIZED = 13;
 export const N_RANDOM = 14;
 export const N_ELAPSED = 15;
 export const N_INITIALIZED = 16;
+// Output: 0 when the last advance stepped and left a pin off its anchor,
+// so the next advance moves it back (cloth.ts due); else 1.
+export const N_SETTLED = 17;
 export const CLOTH_RECORD = 20;
 
 // Packed vertex stride (geometry-vertices.ts): position, normal, uv, color, mask uv.
