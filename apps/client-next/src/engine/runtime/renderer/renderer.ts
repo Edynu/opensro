@@ -824,6 +824,10 @@ export function createRenderer(
 				const finishDeferred = ( results?: readonly boolean[] ) => {
 					if ( disposed ) throw Error( "Renderer disposed during particle query" );
 					characters.completeDeferred( results );
+					// No queued emitter draws (occluded, faded out, or night-only by
+					// day): the continuation would plan the whole crowd again to draw
+					// nothing. Its pose and batch retirements repeat on the next frame.
+					if ( !characters.deferredDrawing() ) return [];
 					// The continuation's draws reach the second submit: same rule.
 					return staleDraws.live(
 						"deferred-particles",

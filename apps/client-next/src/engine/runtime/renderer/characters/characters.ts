@@ -3419,6 +3419,7 @@ export function createCharacters(
 			return { query, points: input };
 		},
 		completeDeferred: deferred.complete,
+		deferredDrawing: deferred.drawing,
 		/*
 		================
 		prepare

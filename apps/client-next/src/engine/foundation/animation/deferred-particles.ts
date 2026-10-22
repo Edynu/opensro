@@ -121,6 +121,9 @@ export function createDeferredParticles() {
 				if ( row.draw ) row.time += ticks / 20;
 			}
 		},
+		// After complete: whether any queued emitter draws this frame. None
+		// means the continuation pass would draw nothing.
+		drawing: () => queued.some( id => rows.get( id )!.draw ),
 		sample: ( gid: number ) => rows.get( gid ),
 		// Presentation only: how far into the next 50 ms tick this frame is, in
 		// seconds (particle-presentation.ts smoothing deviation). Below one tick,

@@ -51,6 +51,27 @@ test("deferred visibility controls native 50-ms ticks and strict query cadence",
 	assert.equal( owner.sample( 1 ), undefined );
 	owner.reset();
 });
+test("drawing names whether the continuation pass has any queued emitter to draw", () => {
+	const owner = createDeferredParticles();
+	function frame( time, result ) {
+		owner.begin( time, [ { ...actor, time } ] );
+		const query = owner.plan( [ 1 ], new Set( [ 1 ] ) );
+		owner.complete( query ? [ result ] : undefined );
+		return owner.drawing();
+	}
+	// Queued but not yet visible, then visible, then occluded and faded out.
+	assert.equal( frame( 0 ), false );
+	assert.equal( frame( .5 ), false );
+	assert.equal( frame( .501, true ), true );
+	assert.equal( frame( .601 ), true );
+	assert.equal( frame( 1.002, false ), false );
+	// Night-only by day: queued, never allowed, never drawn.
+	owner.begin( 2, [ { ...actor, time: 2 } ] );
+	owner.plan( [ 1 ], new Set() );
+	owner.complete();
+	assert.equal( owner.drawing(), false );
+	owner.reset();
+});
 test("missing visible frames reset fading, retired IDs and model replacements cannot inherit query results", () => {
 	const owner = createDeferredParticles();
 	owner.begin( 0, [ actor ] );
