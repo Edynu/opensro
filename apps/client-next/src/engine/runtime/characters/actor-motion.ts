@@ -30,6 +30,7 @@ import { MOVEMENT_MODE_SEATED, type EntityState } from "@/engine/contracts/world
 import type { ActorAppearance, ActorFrame, ActorOwner, ActorPass } from "./internal/presentation-contract";
 import { STALL_TITLE_MODE } from "@/engine/foundation/gameplay/interaction-approach";
 import { worldAudioPosition } from "@/engine/foundation/world/world-space";
+import { createMotionNames } from "./motion-names";
 
 const PROTECTED_ANIMATION_DISTANCE = 300;
 const STALL_ACTION_MASK = 0x8000;
@@ -61,67 +62,7 @@ createActorMotion
 ================
 */
 export function createActorMotion( owner: ActorOwner ) {
-	// Each body's clip names as a set, by its readonly list: present asks a
-	// dozen times an actor a frame, and a body's list runs to hundreds.
-	const clipSets = new WeakMap<readonly string[], ReadonlySet<string>>();
-	/*
-	================
-	clipSet
-	================
-	*/
-	function clipSet( names: readonly string[] ): ReadonlySet<string> {
-		let set = clipSets.get( names );
-		if ( !set ) {
-			set = new Set( names );
-			clipSets.set( names, set );
-		}
-		return set;
-	}
-	// Names present builds for every character every frame, made once: a
-	// weapon set's motion set, a motion set's native state roles and a
-	// weapon set's preview idle. The same string each frame also keeps the
-	// catalog lookups keyed by it from hashing a new one.
-	const motionSets = new Map<string, string>(), nativeRoles = new Map<string, string[]>();
-	const previewIdles = new Map<string | undefined, string>();
-	/*
-	================
-	motionSetOf
-	================
-	*/
-	function motionSetOf( weaponSet: string ): string {
-		let set = motionSets.get( weaponSet );
-		if ( set === undefined ) {
-			set = weaponSet.replaceAll( "-", "_" );
-			motionSets.set( weaponSet, set );
-		}
-		return set;
-	}
-	/*
-	================
-	nativeRole
-	================
-	*/
-	function nativeRole( set: string, stateId: number ): string {
-		let roles = nativeRoles.get( set );
-		if ( !roles ) {
-			roles = [];
-			nativeRoles.set( set, roles );
-		}
-		return roles[stateId] ??= `native:${set}:${stateId}`;
-	}
-	/*
-	================
-	previewIdle
-	================
-	*/
-	function previewIdle( weaponSet: string | undefined ): string {
-		let idle = previewIdles.get( weaponSet );
-		if ( idle === undefined ) {
-			idle = "preview-state0-" + weaponSet;
-			previewIdles.set( weaponSet, idle );
-		}
-		return idle;
-	}
+	const { clipSet, motionSet: motionSetOf, nativeRole, previewIdle } = createMotionNames();
 	return {
 		/*
 		================
