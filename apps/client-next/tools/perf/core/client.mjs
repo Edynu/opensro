@@ -22,6 +22,7 @@ import { resetMissionMovementFixture } from "../../../../../scripts/lib/missionM
 import { defaultVideoOptions, frameLimits } from "../../../src/engine/foundation/rendering/video-options.ts";
 import { EXPERIMENTAL_STORAGE_KEY } from "../../../src/engine/foundation/ui/experimental-options.ts";
 import { bootPlayableSession } from "../../../tests/browser/helpers/playable-session.mjs";
+import { GPU_TIMING_ARGS, installGpuTiming } from "./gpu-timing.mjs";
 
 export const CHARACTER = assertCharacterAllowed( process.env.SRO_PROBE_CHARACTER ?? "asd2", {
 	context: "frame benchmark"
@@ -467,7 +468,8 @@ browser and page; close the browser when done. counts and spans are
 instrument's options. lineInfo launches V8 with detailed line positions,
 for CPU profiles that attribute time to source lines. experimental, when
 given, is the saved Experimental preferences the page starts with (read
-at startup, as "Worker threads" is).
+at startup, as "Worker threads" is). gpuTiming times every GPU pass
+(gpu-timing.mjs; read it with gpuTimingReport).
 ================
 */
 export async function openClient(
@@ -484,7 +486,8 @@ export async function openClient(
 		backgroundThrottling = false,
 		beforeLogin = undefined,
 		lineInfo = false,
-		experimental = undefined
+		experimental = undefined,
+		gpuTiming = false
 	} = {}
 ) {
 	process.env.SRO_PROBE_UNLOCK_FPS = uncapped ? "1" : "0";
@@ -492,7 +495,7 @@ export async function openClient(
 	const { browser, page } = await launchProbeBrowser( {
 		headed,
 		backgroundThrottling,
-		extraBrowserArgs: lineInfo ? [ DETAILED_LINE_INFO ] : []
+		extraBrowserArgs: [ ...(lineInfo ? [ DETAILED_LINE_INFO ] : []), ...(gpuTiming ? GPU_TIMING_ARGS : []) ]
 	} );
 	try {
 		await page.addInitScript(
@@ -513,6 +516,7 @@ export async function openClient(
 				[ EXPERIMENTAL_STORAGE_KEY, JSON.stringify( experimental ) ]
 			);
 		}
+		if ( gpuTiming ) await page.addInitScript( installGpuTiming );
 		await page.addInitScript( instrument, { counts, spans } );
 		await bootPlayableSession( page, CHARACTER, beforeLogin );
 		await page.evaluate( () => globalThis.__benchRuntime = globalThis.__playableRuntime );

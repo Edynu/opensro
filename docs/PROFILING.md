@@ -120,7 +120,7 @@ from this morning with one from now, and measure a change more than once.
 
 ```
 node tools/perf/bench/town-crowd.mjs --near NAME --count 200
-node tools/perf/bench/town-crowd-bench.mjs --near NAME [--seconds 8] [--turn | --walk | --wiggle | --hover] [--spans] [--cpu | --trace] [--heap] [--clone-cost]
+node tools/perf/bench/town-crowd-bench.mjs --near NAME [--seconds 8] [--turn | --walk | --wiggle | --hover] [--spans] [--cpu | --trace] [--heap] [--clone-cost] [--gpu] [--preset 0|1|2|3]
 ```
 
 `town-crowd.mjs` admits up to 1000 throwaway players with random models
@@ -131,6 +131,13 @@ measures the real client inside the crowd. It writes
 `temp/artifacts/town-crowd/crowd-<scenario>.result.json` and any captures.
 The crowd moves on its own clocks, so compare runs made back to back.
 [CLIENT_WORKERS_PLAN.md](CLIENT_WORKERS_PLAN.md) uses it as its baseline.
+
+`--gpu` times every GPU pass of the measured frames
+(`tools/perf/core/gpu-timing.mjs`) and prints the GPU's busy time a frame,
+its largest passes and the adapter. `--preset` measures one of the Option
+window's graphic presets instead of a new player's defaults (2 is high:
+shadows, water reflection, bloom). Chrome's own GPU process, which
+validates the page's WebGPU commands, shows as `CrGpuMain` in a `--trace`.
 
 ### Effects without a server
 

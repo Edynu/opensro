@@ -17,7 +17,8 @@ Usage (from apps/client-next):
   node tools/perf/bench/town-crowd-bench.mjs --near NAME [--seconds 5]
        [--walk | --turn | --wiggle | --hover] [--spans] [--counts]
        [--cpu | --trace] [--heap] [--capped] [--frame-limit N] [--clone-cost]
-       [--frame-workers off|auto|1|2|4|8] [--monsters CODENAME:COUNT]
+       [--frame-workers off|auto|1|2|4|8] [--monsters CODENAME:COUNT] [--gpu]
+       [--preset 0|1|2|3]
 
 --spans adds runtime-stage timings (dense marks add overhead; use them to
 explain a frame, not to claim its rate). --counts adds WebGPU commands per
@@ -32,7 +33,11 @@ monsters of one reference near the observer up to COUNT with the native GM
 the scene holds players and monsters. GM monsters are ordinary monsters
 with no nest: they stay until killed, so a later run finds them and loads
 only what is missing. Choose a passive reference, such as MOB_EU_MOVOI
-(tactics AggressType 1): an aggressive one fights the crowd.
+(tactics AggressType 1): an aggressive one fights the crowd. --gpu times
+every GPU pass of the measured frames (core/gpu-timing.mjs) and reports
+the GPU's busy time per frame and its largest passes. --preset selects one
+of the Option window's graphic presets (0 low, 1 medium, 2 high, 3 the
+fourth) as the Option window does; unset keeps a new player's defaults.
 
 ===========================================================================
 */
@@ -44,6 +49,8 @@ import {
 	ensureMissionBenchmarkFixtureCharacter
 } from "../../../../../scripts/lib/missionMovementFixture.mjs";
 import { CHARACTER, openClient, closeClient, createCaptures, measure } from "../core/client.mjs";
+import { gpuTimingReport } from "../core/gpu-timing.mjs";
+import { changeVideo, defaultVideoOptions } from "../../../src/engine/foundation/rendering/video-options.ts";
 import { keepGoing, walk, drag, loadCombat, monsterReference, sceneMonsters } from "./scenarios.mjs";
 
 const SHARDS_PATH = new URL( "../../../../server/config/shards.json", import.meta.url );
@@ -59,6 +66,10 @@ const HOVER_STEP = 5;
 const INPUT_INTERVAL_MS = 8;
 // Clone cost: repetitions averaged per measurement.
 const CLONE_REPEATS = 200;
+// GPU timing: wait for the last measured frames' timestamps to be read back.
+const GPU_READBACK_MS = 500;
+// GPU timing: passes listed by their time per frame.
+const GPU_TOP_PASSES = 12;
 
 const { values } = parseArgs( {
 	options: {
@@ -78,7 +89,9 @@ const { values } = parseArgs( {
 		"frame-limit": { type: "string", default: "0" },
 		"clone-cost": { type: "boolean", default: false },
 		"frame-workers": { type: "string", default: "" },
-		monsters: { type: "string", default: "" }
+		monsters: { type: "string", default: "" },
+		gpu: { type: "boolean", default: false },
+		preset: { type: "string", default: "" }
 	}
 } );
 if ( !values.near ) throw Error( "--near NAME: the character the crowd stands around" );
@@ -91,6 +104,16 @@ const frameWorkers = Object.hasOwn( FRAME_WORKER_SETTINGS, values["frame-workers
 if ( values["frame-workers"] && frameWorkers === undefined ) {
 	throw Error( "--frame-workers must be one of " + Object.keys( FRAME_WORKER_SETTINGS ).join( ", " ) );
 }
+const PRESETS = [ "0", "1", "2", "3" ];
+if ( values.preset && !PRESETS.includes( values.preset ) ) {
+	throw Error( "--preset must be one of " + PRESETS.join( ", " ) );
+}
+const videoOptions = values.preset ?
+	{
+		...changeVideo( defaultVideoOptions(), 0, Number( values.preset ) ),
+		frameLimit: Number( values["frame-limit"] )
+	} :
+	undefined;
 const [monsterCodename, monsterCount] = values.monsters ? values.monsters.split( ":" ) : [];
 if (
 	values.monsters && !(monsterCodename && Number.isInteger( Number( monsterCount ) ) && Number( monsterCount ) > 0)
@@ -247,7 +270,9 @@ const client = await openClient( fixture, {
 	uncapped: !values.capped,
 	frameLimit: Number( values["frame-limit"] ),
 	lineInfo: values.cpu,
-	experimental: frameWorkers === undefined ? undefined : { frameWorkers }
+	experimental: frameWorkers === undefined ? undefined : { frameWorkers },
+	gpuTiming: values.gpu,
+	videoOptions
 } );
 try {
 	const monsters = monsterCodename ? await topUpMonsters( client.page, monsterCodename, Number( monsterCount ) ) : 0;
@@ -261,12 +286,14 @@ try {
 		trace: values.trace ? path.join( OUT_DIR, `crowd-${scenario.name}.json` ) : null
 	} );
 	await captures.start();
+	const gpuFrom = await client.page.evaluate( () => globalThis.__gpuTiming?.frame ?? 0 );
 	const row = await measure(
 		client.page,
 		`crowd-${scenario.name}`,
 		Number( values.seconds ) * 1000,
 		more => scenario.drive( client.page, more )
 	);
+	const gpuTo = await client.page.evaluate( () => globalThis.__gpuTiming?.frame ?? 0 );
 	const allocated = await captures.stop( `crowd-${scenario.name}` );
 	await captures.finish();
 	// Which actors animate on the GPU and which need CPU palettes, and the batch census.
@@ -284,10 +311,30 @@ try {
 	console.log( JSON.stringify( row.counts ) );
 	console.log( JSON.stringify( characters ) );
 	console.log( `[bench] frame workers ${JSON.stringify( workers )}` );
+	let gpu = null;
+	if ( values.gpu ) {
+		await client.page.waitForTimeout( GPU_READBACK_MS );
+		gpu = await client.page.evaluate( gpuTimingReport, [ gpuFrom, gpuTo ] );
+		if ( !gpu?.devices ) console.log( "[bench] gpu timing unavailable (no timestamp-query device)" );
+		else {
+			const { busy, span } = gpu;
+			console.log(
+				`[bench] gpu busy mean ${busy.mean.toFixed( 2 )} p50 ${busy.p50.toFixed( 2 )} p95 ${
+					busy.p95.toFixed( 2 )
+				} ms/frame, span p50 ${span.p50.toFixed( 2 )}; ${gpu.frames} of ${gpu.framesInWindow} frames timed${
+					gpu.rounded ? " (timestamps rounded to 0.1 ms)" : ""
+				}; ${gpu.untimedPasses} passes untimed; ${gpu.adapter.vendor} ${gpu.adapter.architecture} ${gpu.adapter.description}`
+					.trimEnd()
+			);
+			for ( const pass of gpu.passes.slice( 0, GPU_TOP_PASSES ) ) {
+				console.log( `[bench]   ${pass.ms.toFixed( 3 ).padStart( 8 )} ms  ${pass.label}` );
+			}
+		}
+	}
 	await writeFile(
 		path.join( OUT_DIR, `crowd-${scenario.name}.result.json` ),
 		JSON.stringify(
-			{ players: target.players, scenario: scenario.name, row, characters, clone, allocated },
+			{ players: target.players, scenario: scenario.name, row, characters, clone, allocated, gpu },
 			null,
 			"\t"
 		)
