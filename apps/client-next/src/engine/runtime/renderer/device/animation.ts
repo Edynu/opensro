@@ -19,9 +19,11 @@ import type { CharacterModel, CharacterPrimitive, CharacterClip } from "@/engine
 import {
 	createGpuClipPlan,
 	createGpuSkeletonPlan,
+	extendGpuClipPlan,
 	type GpuClipPlan,
 	type GpuSkeletonPlan
 } from "@/engine/foundation/animation/gpu-animation-plan";
+import { createClipCatalogCache } from "@/engine/foundation/animation/clip-catalogs";
 import type { GpuTimingFrame } from "../internal/gpu-contract";
 import { animationShader } from "./animation-shader";
 import { destroyNow, type Retire } from "./retirement";
@@ -104,8 +106,9 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		unsupported = new WeakSet<CharacterModel>();
 	// CPU-side plans. A model whose current clip is not GPU-eligible is refused
 	// before admission; without these it rebuilt its plan every frame. A null
-	// entry records a clip set or skeleton the GPU must not run.
-	const clipPlans = new WeakMap<readonly CharacterClip[], GpuClipPlan | null>(),
+	// entry records a clip set or skeleton the GPU must not run. A clip set
+	// grown by a lazy action extends its prefix's plan (clip-catalogs.ts).
+	const clipPlanFor = createClipCatalogCache<GpuClipPlan | null>( createGpuClipPlan, extendGpuClipPlan ),
 		skeletonPlans = new WeakMap<CharacterModel, GpuSkeletonPlan | null>();
 	const ready = Promise.resolve()
 		.then( () =>
@@ -124,20 +127,6 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		.catch( error => {
 			if ( !disposed ) failure = String( error );
 		} );
-
-	/*
-	================
-	clipPlanFor
-	================
-	*/
-	function clipPlanFor( clips: readonly CharacterClip[] ): GpuClipPlan | null {
-		let plan = clipPlans.get( clips );
-		if ( plan === undefined ) {
-			plan = createGpuClipPlan( clips );
-			clipPlans.set( clips, plan );
-		}
-		return plan;
-	}
 
 	/*
 	================

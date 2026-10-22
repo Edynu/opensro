@@ -65,6 +65,7 @@ import {
 	CHARACTER_ASSEMBLIES,
 	CHARACTER_MODELS,
 	characterBytes,
+	characterClipBytes,
 	CHARACTER_ACTORS,
 	CHARACTER_RENDER_BYTES,
 	CHARACTER_RESIDENT_BYTES
@@ -3026,9 +3027,10 @@ export function createCharacters(
 			if ( disposed || !base?.owned ) throw Error( "Animation body is not admitted" );
 			if ( base.plan.clips.has( name ) ) return base.bytes;
 			if ( base.model.clips.length >= 512 ) throw Error( "Character animation count budget" );
+			// The clone's buffers are the clip's own: its charge adds to the body's.
 			const clip = bindNativeClip( structuredClone( source ), name, base.model.nodes ),
 				model = { ...base.model, clips: [ ...base.model.clips, clip ] },
-				bytes = characterBytes( model, base.images );
+				bytes = characterClipBytes( base.bytes, clip );
 			// Hidden presentation can drop cache entries without a GPU prepare.
 			// Reclaim those charges before rejecting growth of the active body.
 			if ( residentBytes + bytes - base.bytes > CHARACTER_RESIDENT_BYTES ) relieveResidency( [ id ] );

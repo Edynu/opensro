@@ -10,7 +10,7 @@ budgets bound memory; the structural limits reject malformed sources.
 ===========================================================================
 */
 import { clothData, clothBytes } from "./cloth";
-import type { CharacterModel } from "@/engine/contracts/character";
+import type { CharacterClip, CharacterModel } from "@/engine/contracts/character";
 import type { NativeTexture } from "@/engine/contracts/texture";
 import { validateNativeTexture } from "@/engine/foundation/assets/native-texture";
 import { DECODED_IMAGE_BYTES, imageBytes } from "@/engine/foundation/assets/image-budget";
@@ -201,5 +201,28 @@ export function characterBytes(
 	if ( bytes > CHARACTER_MODEL_BYTES || pixels > DECODED_IMAGE_BYTES || total > CHARACTER_SOURCE_BYTES ) {
 		throw new Error( "Character decoded bytes exceed budget" );
 	}
+	return total;
+}
+/*
+================
+characterClipBytes
+
+characterBytes of a source charged bytes once clip is appended to its
+clips, when no buffer of clip's channels is one the source holds (a clip
+bound from its own clone): only clip's buffers are added, not every clip's
+counted again. The source's structure and pixels are unchanged and its
+byte total bounds its non-pixel bytes, so the source bound is the one
+check that can newly fail.
+================
+*/
+export function characterClipBytes( bytes: number, clip: CharacterClip ): number {
+	const buffers = new Set<ArrayBufferLike>();
+	for ( const channel of clip.channels ) {
+		buffers.add( channel.times.buffer );
+		buffers.add( channel.values.buffer );
+	}
+	let total = bytes;
+	for ( const buffer of buffers ) total += buffer.byteLength;
+	if ( total > CHARACTER_SOURCE_BYTES ) throw new Error( "Character decoded bytes exceed budget" );
 	return total;
 }

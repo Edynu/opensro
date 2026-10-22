@@ -16,11 +16,29 @@ main thread when a character came into view.
 A clip channel's largest key value is kept per values array for the same
 reason: every assembly of a body shares the body's clip objects, and each
 admitted clip re-measures every assembly of its body. Scanning every key of
-every clip again was 2.4 ms a frame in a 200-player town (2026-10-21).
+every clip again was 2.4 ms a frame in a 200-player town (2026-10-21). The
+catalog's whole contribution (its ClipEnvelope) is kept per clip array as
+well, extended clip by clip (clip-catalogs.ts): walking every channel of a
+body's catalog for each of its assemblies was 0.2 ms a frame (2026-10-22).
 
 ===========================================================================
 */
-import type { CharacterModel, CharacterPrimitive } from "@/engine/contracts/character";
+import type { CharacterClip, CharacterModel, CharacterPrimitive } from "@/engine/contracts/character";
+import { createClipCatalogCache, type ClipCatalogCache } from "./clip-catalogs";
+
+/*
+================
+ClipEnvelope
+
+What a clip catalog adds to characterRadius, by node: the largest reach of
+its translation keys (local) and of its scale keys (scale), cubic tangents
+included. A node no clip translates or scales has no entry.
+================
+*/
+export interface ClipEnvelope {
+	readonly local: readonly number[];
+	readonly scale: readonly number[];
+}
 
 /*
 ================
@@ -28,15 +46,17 @@ CharacterBoundsCache
 
 Per-geometry results of characterRadius, owned by the character renderer:
 bind-space joint distances of a skinned geometry (valid for one
-inverse-bind array), the longest vertex of an unskinned one, and the
-largest absolute key value of a clip channel. Clip values are written once
-when the clip is bound (native-clip.ts) and never changed afterwards.
+inverse-bind array), the longest vertex of an unskinned one, the largest
+absolute key value of a clip channel and the envelope of a clip catalog.
+Clip values are written once when the clip is bound (native-clip.ts) and
+never changed afterwards.
 ================
 */
 export interface CharacterBoundsCache {
 	readonly skin: WeakMap<object, { inverseBind: Float32Array; distances: Float64Array; }>;
 	readonly vertices: WeakMap<Float32Array, number>;
 	readonly values: WeakMap<Float32Array, number>;
+	readonly envelopes: ClipCatalogCache<ClipEnvelope>;
 }
 
 /*
@@ -45,7 +65,16 @@ createCharacterBoundsCache
 ================
 */
 export function createCharacterBoundsCache(): CharacterBoundsCache {
-	return { skin: new WeakMap(), vertices: new WeakMap(), values: new WeakMap() };
+	const cache: CharacterBoundsCache = {
+		skin: new WeakMap(),
+		vertices: new WeakMap(),
+		values: new WeakMap(),
+		envelopes: createClipCatalogCache<ClipEnvelope>(
+			clips => clipEnvelope( undefined, clips, 0, cache ),
+			( previous, clips, from ) => clipEnvelope( previous, clips, from, cache )
+		)
+	};
+	return cache;
 }
 
 /*
@@ -147,6 +176,37 @@ function valueMaximum( values: Float32Array, cache: CharacterBoundsCache | undef
 
 /*
 ================
+clipEnvelope
+
+previous (the envelope of the first from clips, or none) widened by the
+keys of clips from index from on. Maxima in any order are the same, so
+this equals one pass over every clip.
+================
+*/
+function clipEnvelope(
+	previous: ClipEnvelope | undefined,
+	clips: readonly CharacterClip[],
+	from: number,
+	cache: CharacterBoundsCache | undefined
+): ClipEnvelope {
+	const local = previous ? previous.local.slice() : [], scale = previous ? previous.scale.slice() : [];
+	for ( let c = from; c < clips.length; c++ ) {
+		const clip = clips[c]!;
+		for ( const channel of clip.channels ) {
+			if ( channel.path === "rotation" ) continue;
+			let maximum = valueMaximum( channel.values, cache );
+			if ( channel.interpolation === "CUBICSPLINE" ) maximum *= 4 + 2 * clip.duration;
+			const reach = channel.path === "translation" ? local : scale,
+				value = channel.path === "translation" ? maximum * Math.sqrt( 3 ) : maximum,
+				known = reach[channel.node];
+			reach[channel.node] = known === undefined ? value : Math.max( known, value );
+		}
+	}
+	return { local, scale };
+}
+
+/*
+================
 characterRadius
 
 Conservative envelope over every admitted clip, including cubic tangent
@@ -156,15 +216,11 @@ bounds.
 export function characterRadius( model: CharacterModel, cache?: CharacterBoundsCache ): number {
 	const local = model.nodes.map( node => Math.hypot( ...node.translation ) ),
 		scale = model.nodes.map( node => Math.max( ...node.scale.map( Math.abs ) ) );
-	for ( const clip of model.clips ) {
-		for ( const channel of clip.channels ) {
-			if ( channel.path === "rotation" ) continue;
-			let maximum = valueMaximum( channel.values, cache );
-			if ( channel.interpolation === "CUBICSPLINE" ) maximum *= 4 + 2 * clip.duration;
-			if ( channel.path === "translation" ) {
-				local[channel.node] = Math.max( local[channel.node]!, maximum * Math.sqrt( 3 ) );
-			} else scale[channel.node] = Math.max( scale[channel.node]!, maximum );
-		}
+	const envelope = cache ? cache.envelopes( model.clips ) : clipEnvelope( undefined, model.clips, 0, undefined );
+	for ( let n = 0; n < local.length; n++ ) {
+		const reach = envelope.local[n], keyScale = envelope.scale[n];
+		if ( reach !== undefined ) local[n] = Math.max( local[n]!, reach );
+		if ( keyScale !== undefined ) scale[n] = Math.max( scale[n]!, keyScale );
 	}
 	const translation: number[] = [], globalScale: number[] = [], visiting = new Set<number>();
 	/*

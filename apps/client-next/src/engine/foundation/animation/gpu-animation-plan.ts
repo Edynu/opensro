@@ -30,19 +30,26 @@ export const GPU_ANIMATION_MODEL_BYTES = 8388608;
 // Floats per node in a clip table: translation, rotation, scale entries of
 // [ key count, times offset, values offset, interpolation ].
 const TABLE_FLOATS_PER_NODE = 12;
+// Clip header entries a clip set reserves at least; it reserves the next
+// power of two above its clip count, so a lazily grown set extends within
+// its header (extendGpuClipPlan) until the count doubles.
+const MIN_HEADER_CLIPS = 16;
 
 /*
 ================
 GpuClipPlan
 
-data: per clip [ duration, table offset ], then each clip's table of
-nodes x 12 floats and its channel keys. index: a clip's position in the
-header. eligible: clips the GPU evaluator runs exactly like the CPU one.
+data: a header of capacity clips' [ duration, table offset ] (count of
+them used), then each clip's table of nodes x 12 floats and its channel
+keys. index: a clip's position in the header. eligible: clips the GPU
+evaluator runs exactly like the CPU one.
 ================
 */
 export interface GpuClipPlan {
 	readonly data: Float32Array;
 	readonly nodes: number;
+	readonly count: number;
+	readonly capacity: number;
 	readonly index: ReadonlyMap<CharacterClip, number>;
 	readonly eligible: ReadonlySet<CharacterClip>;
 }
@@ -81,35 +88,82 @@ function eligibleClip( clip: CharacterClip ): boolean {
 
 /*
 ================
-createGpuClipPlan
-
-The clip set buffer of a clip array, or null when the GPU must not run it
-(oversized, a degenerate rotation key, non-finite data).
+headerCapacity
 ================
 */
-export function createGpuClipPlan( clips: readonly CharacterClip[] ): GpuClipPlan | null {
-	let nodes = 1;
-	for ( const clip of clips ) {
-		for ( const channel of clip.channels ) nodes = Math.max( nodes, channel.node + 1 );
+function headerCapacity( count: number ): number {
+	let capacity = MIN_HEADER_CLIPS;
+	while ( capacity < count ) capacity *= 2;
+	return capacity;
+}
+
+/*
+================
+tableNodes
+
+The table width of clips from index from on: one past their highest
+animated node, and at least nodes.
+================
+*/
+function tableNodes( clips: readonly CharacterClip[], from: number, nodes: number ): number {
+	for ( let c = from; c < clips.length; c++ ) {
+		for ( const channel of clips[c]!.channels ) nodes = Math.max( nodes, channel.node + 1 );
 	}
-	let floats = clips.length * 2;
-	for ( const clip of clips ) {
+	return nodes;
+}
+
+/*
+================
+clipFloats
+
+The floats of the tables and keys of clips from index from on.
+================
+*/
+function clipFloats( clips: readonly CharacterClip[], from: number, nodes: number ): number {
+	let floats = 0;
+	for ( let c = from; c < clips.length; c++ ) {
 		floats += nodes * TABLE_FLOATS_PER_NODE;
-		for ( const channel of clip.channels ) floats += channel.times.length + channel.values.length;
+		for ( const channel of clips[c]!.channels ) floats += channel.times.length + channel.values.length;
 	}
-	if ( floats * 4 > GPU_ANIMATION_MODEL_BYTES ) return null;
-	// Reject unsafe GPU inputs to the existing CPU validator/evaluator.
-	for ( const clip of clips ) {
-		for ( const channel of clip.channels ) {
+	return floats;
+}
+
+/*
+================
+degenerateRotation
+
+A rotation key of clips from index from on with no direction: the GPU
+must not run the set; the CPU validator and evaluator handle it.
+================
+*/
+function degenerateRotation( clips: readonly CharacterClip[], from: number ): boolean {
+	for ( let c = from; c < clips.length; c++ ) {
+		for ( const channel of clips[c]!.channels ) {
 			if ( channel.path !== "rotation" || channel.interpolation === "CUBICSPLINE" ) continue;
 			const v = channel.values;
 			for ( let i = 0; i < v.length; i += 4 ) {
-				if ( Math.hypot( v[i]!, v[i + 1]!, v[i + 2]!, v[i + 3]! ) < 1e-12 ) return null;
+				if ( Math.hypot( v[i]!, v[i + 1]!, v[i + 2]!, v[i + 3]! ) < 1e-12 ) return true;
 			}
 		}
 	}
-	const data = new Float32Array( floats );
-	let cursor = clips.length * 2;
+	return false;
+}
+
+/*
+================
+writeClips
+
+Writes the header entries, tables and keys of clips from index from on,
+the tables starting at cursor; returns the end of what it wrote.
+================
+*/
+function writeClips(
+	data: Float32Array,
+	cursor: number,
+	clips: readonly CharacterClip[],
+	from: number,
+	nodes: number
+): number {
 	/*
 	================
 	append
@@ -121,7 +175,8 @@ export function createGpuClipPlan( clips: readonly CharacterClip[] ): GpuClipPla
 		cursor += values.length;
 		return at;
 	}
-	clips.forEach( ( clip, index ) => {
+	for ( let index = from; index < clips.length; index++ ) {
+		const clip = clips[index]!;
 		data[index * 2] = clip.duration;
 		data[index * 2 + 1] = cursor;
 		const table = cursor;
@@ -134,15 +189,86 @@ export function createGpuClipPlan( clips: readonly CharacterClip[] ): GpuClipPla
 			data[at + 2] = append( channel.values );
 			data[at + 3] = channel.interpolation === "STEP" ? 1 : channel.interpolation === "CUBICSPLINE" ? 2 : 0;
 		}
-	} );
-	if ( cursor !== data.length ) throw Error( "GPU clip plan accounting mismatch" );
-	if ( !data.every( Number.isFinite ) ) return null;
+	}
+	return cursor;
+}
+
+/*
+================
+finite
+
+Whether data's values in [ start, end ) are all finite.
+================
+*/
+function finite( data: Float32Array, start: number, end: number ): boolean {
+	for ( let i = start; i < end; i++ ) if ( !Number.isFinite( data[i]! ) ) return false;
+	return true;
+}
+
+/*
+================
+createGpuClipPlan
+
+The clip set buffer of a clip array, or null when the GPU must not run it
+(oversized, a degenerate rotation key, non-finite data).
+================
+*/
+export function createGpuClipPlan( clips: readonly CharacterClip[] ): GpuClipPlan | null {
+	const nodes = tableNodes( clips, 0, 1 ), capacity = headerCapacity( clips.length );
+	const floats = capacity * 2 + clipFloats( clips, 0, nodes );
+	if ( floats * 4 > GPU_ANIMATION_MODEL_BYTES ) return null;
+	// Reject unsafe GPU inputs to the existing CPU validator/evaluator.
+	if ( degenerateRotation( clips, 0 ) ) return null;
+	const data = new Float32Array( floats );
+	if ( writeClips( data, capacity * 2, clips, 0, nodes ) !== data.length ) {
+		throw Error( "GPU clip plan accounting mismatch" );
+	}
+	if ( !finite( data, 0, data.length ) ) return null;
 	return {
 		data,
 		nodes,
+		count: clips.length,
+		capacity,
 		index: new Map( clips.map( ( clip, index ) => [ clip, index ] ) ),
 		eligible: new Set( clips.filter( eligibleClip ) )
 	};
+}
+
+/*
+================
+extendGpuClipPlan
+
+The plan of clips, whose first previous.count clips are the clips previous
+was made of: previous's buffer copied unchanged, then the new clips' header
+entries, tables and keys. Equal to createGpuClipPlan( clips ), which it
+falls back to when the new clips animate a node past previous's tables or
+outgrow its header. A null previous stays null: every reason persists.
+================
+*/
+export function extendGpuClipPlan(
+	previous: GpuClipPlan | null,
+	clips: readonly CharacterClip[]
+): GpuClipPlan | null {
+	if ( !previous ) return null;
+	const from = previous.count, nodes = tableNodes( clips, from, previous.nodes );
+	if ( nodes !== previous.nodes || clips.length > previous.capacity ) return createGpuClipPlan( clips );
+	const floats = previous.data.length + clipFloats( clips, from, nodes );
+	if ( floats * 4 > GPU_ANIMATION_MODEL_BYTES || degenerateRotation( clips, from ) ) return null;
+	const data = new Float32Array( floats );
+	data.set( previous.data );
+	if ( writeClips( data, previous.data.length, clips, from, nodes ) !== data.length ) {
+		throw Error( "GPU clip plan accounting mismatch" );
+	}
+	if ( !finite( data, from * 2, clips.length * 2 ) || !finite( data, previous.data.length, data.length ) ) {
+		return null;
+	}
+	const index = new Map( previous.index ), eligible = new Set( previous.eligible );
+	for ( let i = from; i < clips.length; i++ ) {
+		const clip = clips[i]!;
+		index.set( clip, i );
+		if ( eligibleClip( clip ) ) eligible.add( clip );
+	}
+	return { data, nodes, count: clips.length, capacity: previous.capacity, index, eligible };
 }
 
 /*
