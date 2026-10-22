@@ -288,6 +288,88 @@ state that arrives during a frame appears one frame later. That timing
 differs from native, so the schedule is an Experimental row, off, tested
 against fork-join.
 
+### 5.11 The character presentation on its own worker
+
+Step 4 moved the presentation's arithmetic to the frame workers; what is
+left of it on the main thread is logic (animation choice, appearance,
+events and effects, publication), about a third of the frame in the town
+crowd (section 6.14). It cannot become a flat kernel without a rewrite,
+but the whole owner can move, unchanged, to a worker of its own, which
+runs it while the main thread draws. Port-only, not native: an
+Experimental row, "Characters on a worker", off; read at startup like
+Worker threads. The viewer and the row off keep today's path.
+
+**What makes it possible.** The presentation (`runtime/characters/**`
+and the 127 modules it imports) touches no DOM, WebGPU, AudioContext,
+storage or animation frame, and keeps no module-level state: everything
+outside it arrives through `createCharacterPresentation`'s arguments and
+`step`'s inputs. The worker builds the same owner with stand-ins for
+those arguments.
+
+**Schedule (pipelined).** Each main frame applies the newest finished
+output of the worker, then posts this frame's inputs; it never waits.
+Characters are drawn one frame after the simulation state they show; the
+camera follows the same output (`cameraTarget`), so the two agree. A
+worker slower than the display steps only the newest inputs.
+
+**Inputs.**
+- The simulation's world batches and snapshots reach the worker straight
+  from the simulation worker (a second port; that worker posts to both),
+  and the worker keeps its own projection (`createPresentation`): its
+  entities, gameplay, feedback, lifecycle events and effective HP.
+- From the main thread each frame: the frame time, the camera pitch,
+  V held, the front end's dock, preview and server name, the video
+  options read today, the mall preview choice, the Experimental flags,
+  and the renderer's facts of the frame it drew last (presentation
+  camera, audio listener, night, the deferred emitters' clocks, the last
+  drawn matrix of an emitter that restarts); scenery and dungeon room
+  visibility when they change.
+
+**Outputs, one message a frame.**
+- To the renderer: the actor and portrait lists (structured clone
+  first), the assemblies requested this frame (a definition only for an
+  id the main thread has not seen), models and clips as they load (their
+  buffers and bitmaps transferred), the retained model list, footprints,
+  damage text and event rain.
+- To the rest: sound events (`audio.enqueue`), the effective-HP
+  operations the step made (`impact`, `release`, `finishedCasts`,
+  replayed on the main thread's projection for the UI), the camera target
+  and camera scripts, the orb gauge, readiness, errors and the mall
+  state.
+
+**Services inside the worker.**
+- Assets: a stand-in for the asset owner that relays requests to the main
+  thread's owner, so every owner keeps sharing its four slots; results
+  are transferred to the worker.
+- Skeleton queries (`characterSocket`, `characterMatrix`,
+  `characterLocalMatrix`): the renderer's character owner
+  (`renderer/characters/characters.ts`), which needs no GPU (the tests
+  run it in Node), built in the worker without geometry commands and
+  given the same models, assemblies and clips; it answers on the rows
+  the presentation passes, as the renderer does.
+- Random: a stream of the worker's own, seeded from the main thread's
+  (decision 7.1: worker paths need not draw in the main thread's order).
+- Pose kernels: run inside the worker (the frame-worker pool stays the
+  renderer's, so its one open phase is never shared).
+
+**Where it differs from the main-thread path.** The one-frame display
+delay; the random order; answers the renderer gives after the fact (a
+model or assembly over budget, an emitter's last drawn matrix and clock)
+arrive a frame later; socket queries pose exactly where the renderer may
+reuse a level-of-detail sample. Tests drive the owner through the
+worker's stand-ins inline and compare its outputs with the main path's
+for the same inputs and random stream.
+
+**Stages.**
+1. The owner's arguments narrowed to what it uses (a renderer subset, an
+   HP subset), so stand-ins can implement them. Exact.
+2. The worker's services (asset relay, skeleton owner, renderer facts,
+   output collector, HP operations), tested inline against the main path.
+3. The worker, the main thread's host, the simulation's second port and
+   the Experimental row; measured in the town crowd.
+4. The actor list through shared memory instead of a clone, if receiving
+   it shows in the main thread's profile.
+
 ## 6. Steps
 
 Each step is measured with the town crowd (section 8) against the step
