@@ -16,6 +16,11 @@ export type HostMessage = { kind: "world-ack"; sequence: number; } | {
 	kind: "recycle";
 	buffer: ArrayBuffer;
 } | {
+	// Port-only: the character worker's port; each world batch is posted
+	// there as well (CLIENT_WORKERS_PLAN.md 5.11).
+	kind: "presentation-port";
+	port: MessagePort;
+} | {
 	kind: "stop";
 };
 export type WorkerMessage = { kind: "world"; batch: import("./world").WorldBatch; } | {

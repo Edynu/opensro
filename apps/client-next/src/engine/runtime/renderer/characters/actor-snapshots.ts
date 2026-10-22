@@ -13,6 +13,7 @@ here too instead of surviving from an older frame.
 */
 import type { CharacterActor, CharacterLayer } from "@/engine/contracts/character";
 import { CHARACTER_ACTORS } from "@/engine/foundation/animation/character-budget";
+import { type createActorTableReader, emptyActorRow } from "@/engine/foundation/animation/actor-table";
 type Mutable<T> = { -readonly [K in keyof T]: T[K]; };
 type Actor = Mutable<CharacterActor>;
 /*
@@ -322,6 +323,45 @@ export function createActorSnapshots() {
 				copy( row, source );
 				rows[i] = row;
 				seen.add( source.gid );
+			}
+			rows.length = count;
+			for ( const gid of index.keys() ) {
+				if ( !seen.has( gid ) ) {
+					reference( index.get( gid )!.model, -1 );
+					index.delete( gid );
+				}
+			}
+			return rows;
+		},
+		/*
+		================
+		updateFromTable
+
+		Port-only (the character worker, CLIENT_WORKERS_PLAN.md 5.11): admit a
+		list of the shared actor table (0 actors, 1 portraits) straight into
+		the rows, as update admits a published one. The worker checked the
+		publication before writing it (actor-table.ts).
+		================
+		*/
+		updateFromTable( table: ReturnType<typeof createActorTableReader>, list: 0 | 1 ) {
+			const count = Math.min( table.count( list ), CHARACTER_ACTORS );
+			seen.clear();
+			let offset = table.first( list );
+			for ( let i = 0; i < count; i++, offset = table.next( offset ) ) {
+				const gid = table.gid( offset ), model = table.model( offset );
+				let row = index.get( gid );
+				if ( !row ) {
+					row = emptyActorRow( gid, model );
+					index.set( gid, row );
+					created++;
+					reference( model, 1 );
+				} else if ( row.model !== model ) {
+					reference( row.model, -1 );
+					reference( model, 1 );
+				}
+				table.read( offset, row );
+				rows[i] = row;
+				seen.add( gid );
 			}
 			rows.length = count;
 			for ( const gid of index.keys() ) {

@@ -7,7 +7,8 @@ On the character worker (runtime/character-worker, CLIENT_WORKERS_PLAN.md
 5.11) the presentation talks to stand-ins for the renderer and the asset
 owner. These tests hold them to the real owners: the renderer stand-in's
 skeleton queries and byte costs against a renderer character owner given
-the full models, its record of commands, and its facts; the asset
+the full models, its record of commands, the load messages and actor
+table it fills, and its facts; the asset
 stand-in and the main thread's relay against an asset owner, round trip.
 
 ===========================================================================
@@ -24,6 +25,13 @@ const { createAssetStandIn } = await import( "../../src/engine/runtime/character
 const { createAssetRelay } = await import( "../../src/engine/runtime/character-worker/asset-relay.ts" );
 const { ASSET_REQUEST_SLOTS } = await import( "../../src/engine/foundation/assets/asset-budget.ts" );
 const { collectTransferables } = await import( "../../src/engine/foundation/workers/transferables.ts" );
+const { createActorTable, createActorTableReader, createActorTableWriter } = await import(
+	"../../src/engine/foundation/animation/actor-table.ts"
+);
+const { createSharedStrings, createStringReader, createStringWriter } = await import(
+	"../../src/engine/foundation/workers/shared-strings.ts"
+);
+const { createActorSnapshots } = await import( "../../src/engine/runtime/renderer/characters/actor-snapshots.ts" );
 
 const identity = () => Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
 const BONES = [ "root", "Bip01", "Bip01 Spine", "Bip01 R Hand" ];
@@ -179,11 +187,32 @@ function facts( overrides = {} ) {
 	};
 }
 
+/*
+================
+standInOf
+
+A renderer stand-in over a fresh actor table, recording the load messages
+it posts; reader reads the table back.
+================
+*/
+function standInOf( delivered = new WeakSet() ) {
+	const block = createActorTable(), strings = createSharedStrings();
+	/** @type {{ load: any, transfer: Transferable[] }[]} */
+	const posted = [];
+	const standIn = createRendererStandIn(
+		createCharacters(),
+		delivered,
+		createActorTableWriter( block, createStringWriter( strings ) ),
+		( load, transfer ) => posted.push( { load, transfer } )
+	);
+	return { standIn, posted, reader: createActorTableReader( block, createStringReader( strings ) ) };
+}
+
 test("the stand-in answers skeleton queries as the renderer given the full models", () => {
 	const renderer = createCharacters();
 	renderer.model( "body", bodyModel(), [] );
 	renderer.model( "item", itemModel(), [] );
-	const standIn = createRendererStandIn( createCharacters(), new WeakSet() );
+	const { standIn } = standInOf();
 	standIn.renderer.setCharacterModel( "body", bodyModel(), [] );
 	standIn.renderer.setCharacterModel( "item", itemModel(), [] );
 	let compared = 0;
@@ -238,7 +267,7 @@ test("a skeleton model keeps the skeleton and drops the geometry, images and clo
 
 test("the stand-in charges a clip as the renderer charges the full model", () => {
 	const renderer = createCharacters();
-	const standIn = createRendererStandIn( createCharacters(), new WeakSet() );
+	const { standIn } = standInOf();
 	renderer.model( "body", bodyModel(), [] );
 	standIn.renderer.setCharacterModel( "body", bodyModel(), [] );
 	/** @type {() => any} */
@@ -262,41 +291,68 @@ test("the stand-in charges a clip as the renderer charges the full model", () =>
 	assert.ok( charged > 0 );
 });
 
-test("the stand-in records the renderer commands in order; an assembly's definition goes once", () => {
+test("the stand-in records the renderer commands in order; loads and actors go through shared memory", () => {
 	const delivered = new WeakSet(), model = bodyModel();
 	// The model's positions arrived in an asset result; its normals did not.
 	delivered.add( model.primitives[0].geometry.positions.buffer );
-	const standIn = createRendererStandIn( createCharacters(), delivered );
+	const { standIn, posted, reader } = standInOf( delivered );
 	const { renderer } = standIn;
 	renderer.setCharacterModel( "body", model, [] );
 	renderer.setCharacterAssembly( "dressed", "body", [] );
 	renderer.setCharacterAssembly( "dressed", "body", [] );
 	renderer.retainCharacterModels( [ "body", "dressed" ] );
-	const actors = rows( 0 ).slice( 0, 1 );
-	renderer.setCharacterActors( actors, undefined );
+	renderer.retainCharacterModels( [ "body", "dressed" ] );
+	const actors = rows( 0 );
+	renderer.setCharacterActors( actors.slice( 1 ), undefined );
 	renderer.setFootprints( [] );
-	/** @type {{ commands: any[], transfer: Transferable[] }} */
-	const { commands, transfer } = standIn.take();
+	renderer.setCharacterActors( actors, undefined );
+	/** @type {{ commands: any[], loads: number }} */
+	const { commands, loads } = standIn.take();
+	// The same retain again changes nothing; a second publication replaces
+	// the first, at its own place.
 	assert.deepEqual( commands.map( command => command.kind ), [
-		"model",
+		"load",
 		"assembly",
 		"assembly",
 		"retain",
-		"actors",
-		"footprints"
+		"footprints",
+		"actors"
 	] );
 	assert.deepEqual( commands[1].definition, { base: "body", parts: [] } );
 	assert.equal( commands[2].definition, undefined );
-	assert.equal( commands[4].actors, actors );
-	assert.deepEqual( transfer, [ model.primitives[0].geometry.positions.buffer ] );
-	// Taken once.
+	// The model goes as a numbered load message; only its delivered buffer moves.
+	assert.equal( loads, 1 );
+	assert.equal( commands[0].sequence, 1 );
+	assert.equal( posted.length, 1 );
+	assert.equal( posted[0].load.sequence, 1 );
+	assert.equal( posted[0].load.model, model );
+	assert.deepEqual( posted[0].transfer, [ model.primitives[0].geometry.positions.buffer ] );
+	assert.ok( !delivered.has( model.primitives[0].geometry.positions.buffer ) );
+	// The table holds the last publication, as the renderer would admit it.
+	assert.deepEqual(
+		JSON.parse( JSON.stringify( createActorSnapshots().updateFromTable( reader, 0 ) ) ),
+		JSON.parse( JSON.stringify( createActorSnapshots().update( actors ) ) )
+	);
+	// Taken once; a clip is a load of its own.
 	assert.deepEqual( standIn.take().commands, [] );
+	renderer.setCharacterAnimation( "body", "walk", {
+		duration: 1,
+		channels: [ {
+			bone: "Bip01 Spine",
+			path: "rotation",
+			interpolation: "LINEAR",
+			times: Float32Array.of( 0, 1 ),
+			values: Float32Array.of( 0, 0, 0, 1, 0, 0, 0, 1 )
+		} ]
+	} );
+	assert.deepEqual( standIn.take(), { commands: [ { kind: "load", sequence: 2 } ], loads: 2 } );
+	assert.equal( posted[1].load.load, "animation" );
 	// The renderer's admission: an assembly needs an admitted body.
 	assert.throws( () => renderer.setCharacterAssembly( "other", "missing", [] ), /not admitted/ );
 });
 
 test("the stand-in answers the renderer's other queries from the frame's facts", () => {
-	const standIn = createRendererStandIn( createCharacters(), new WeakSet() );
+	const { standIn } = standInOf();
 	/** @type {any} */
 	const renderer = standIn.renderer;
 	const scenery = { emitters: [], night: true };

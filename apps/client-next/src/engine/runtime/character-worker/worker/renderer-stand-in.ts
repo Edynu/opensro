@@ -6,7 +6,9 @@ renderer-stand-in.ts - the renderer the character worker's presentation talks to
 Port-only, not native (docs/CLIENT_WORKERS_PLAN.md 5.11). On the character
 worker the presentation issues the renderer commands it issues on the main
 thread; this records them in their order for the main thread to repeat on
-the real renderer, and answers the presentation's queries: the skeleton
+the real renderer (the actor lists into the shared actor table, a model or
+clip as a load message that moves its buffers, the rest as commands for
+the shared outbox), and answers the presentation's queries: the skeleton
 queries from a renderer character owner of the worker's own, which is
 given the same models, clips and assemblies without their geometry, and
 the rest from the facts the main thread posted with the frame (the frame
@@ -14,12 +16,18 @@ it drew last).
 
 ===========================================================================
 */
-import type { CharacterWorkerCommand, CharacterWorkerFacts } from "@/engine/contracts/character-worker";
+import type {
+	CharacterWorkerCommand,
+	CharacterWorkerFacts,
+	CharacterWorkerLoad
+} from "@/engine/contracts/character-worker";
 import type { CharacterActor, CharacterAttachment, CharacterModel } from "@/engine/contracts/character";
 import type { PresentationRenderer } from "@/engine/contracts/runtime";
 import type { WorldTexture } from "@/engine/contracts/texture";
 import type { NativeClip } from "@/engine/foundation/animation/native-clip";
+import type { createActorTableWriter } from "@/engine/foundation/animation/actor-table";
 import { characterBytes } from "@/engine/foundation/animation/character-budget";
+import { sameValue } from "@/engine/foundation/data/same-value";
 import { collectTransferables } from "@/engine/foundation/workers/transferables";
 
 /*
@@ -80,8 +88,13 @@ export function skeletonModel( model: CharacterModel ): CharacterModel {
 createRendererStandIn
 ================
 */
-export function createRendererStandIn( skeletons: SkeletonOwner, delivered: WeakSet<object> ) {
-	let commands: CharacterWorkerCommand[] = [], transfer: Transferable[] = [];
+export function createRendererStandIn(
+	skeletons: SkeletonOwner,
+	delivered: WeakSet<object>,
+	table: ReturnType<typeof createActorTableWriter>,
+	post: ( load: CharacterWorkerLoad, transfer: Transferable[] ) => void
+) {
+	let commands: CharacterWorkerCommand[] = [], loads = 0, retained: readonly string[] | null = null;
 	let facts: CharacterWorkerFacts | null = null;
 	let scenery: CharacterWorkerFacts["scenery"] = null,
 		dungeonVisibility: CharacterWorkerFacts["dungeonVisibility"] = null;
@@ -103,8 +116,13 @@ export function createRendererStandIn( skeletons: SkeletonOwner, delivered: Weak
 	const charged = new Map<string, { bytes: number; skeleton: number; }>();
 	const renderer: PresentationRenderer = {
 		setCharacterActors( actors, portraits ) {
+			// The table holds one frame's lists: a second publication in a
+			// step replaces the first, as it would on the renderer.
+			table.write( actors, portraits ?? [] );
 			published = actors;
-			commands.push( { kind: "actors", actors, portraits } );
+			const earlier = commands.findIndex( command => command.kind === "actors" );
+			if ( earlier >= 0 ) commands.splice( earlier, 1 );
+			commands.push( { kind: "actors" } );
 		},
 		setCharacterAssembly( id, base, parts ) {
 			skeletons.assembly( id, base, parts );
@@ -120,13 +138,16 @@ export function createRendererStandIn( skeletons: SkeletonOwner, delivered: Weak
 			const bytes = characterBytes( model, images ), skeleton = skeletonModel( model );
 			skeletons.model( id, skeleton, [] );
 			charged.set( id, { bytes, skeleton: characterBytes( skeleton, [] ) } );
-			commands.push( { kind: "model", id, model, images } );
-			transfer.push( ...handOver( [ model, images ] ) );
+			post(
+				{ kind: "load", sequence: ++loads, load: "model", id, model, images },
+				handOver( [ model, images ] )
+			);
+			commands.push( { kind: "load", sequence: loads } );
 		},
 		setCharacterAnimation( id, name, clip ) {
 			const skeleton = skeletons.animation( id, name, clip ), row = charged.get( id );
-			commands.push( { kind: "animation", id, name, clip } );
-			transfer.push( ...handOver( clip ) );
+			post( { kind: "load", sequence: ++loads, load: "animation", id, name, clip }, handOver( clip ) );
+			commands.push( { kind: "load", sequence: loads } );
 			if ( !row ) return skeleton;
 			row.bytes += skeleton - row.skeleton;
 			row.skeleton = skeleton;
@@ -134,7 +155,10 @@ export function createRendererStandIn( skeletons: SkeletonOwner, delivered: Weak
 		},
 		retainCharacterModels( ids ) {
 			skeletons.retain( ids );
-			commands.push( { kind: "retain", ids } );
+			// The renderer's retain changes nothing for the same list again.
+			if ( retained && sameValue( retained, ids ) ) return;
+			retained = [ ...ids ];
+			commands.push( { kind: "retain", ids: retained } );
 		},
 		setFootprints( value ) {
 			commands.push( { kind: "footprints", value } );
@@ -185,13 +209,12 @@ export function createRendererStandIn( skeletons: SkeletonOwner, delivered: Weak
 		================
 		take
 
-		This step's commands and what they transfer.
+		This step's commands and the last load they name.
 		================
 		*/
 		take() {
-			const taken = { commands, transfer };
+			const taken = { commands, loads };
 			commands = [];
-			transfer = [];
 			return taken;
 		},
 		/*

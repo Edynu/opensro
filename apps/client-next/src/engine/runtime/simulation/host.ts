@@ -138,6 +138,17 @@ ackWorld
 		},
 		/*
 ================
+presentationPort
+
+Port-only: the worker posts each world batch to port as well, for the
+character worker's own projection (CLIENT_WORKERS_PLAN.md 5.11).
+================
+		*/
+		presentationPort( port ) {
+			send( { kind: "presentation-port", port }, [ port ] );
+		},
+		/*
+================
 session
 ================
 		*/

@@ -2624,6 +2624,32 @@ export function createCharacters(
 			output.slice( outputStart ).filter( draw => draw.indexCount > 0 && draw.instanceCount > 0 ).length
 		);
 	}
+	/*
+	================
+	admitActors
+
+	A frame's portraits and actors into their snapshots, then what follows
+	an admission: requested assemblies released, particle snapshots of
+	departed actors dropped, residency rechecked when model references
+	changed.
+	================
+	*/
+	function admitActors(
+		admitPortraits: () => typeof portraits,
+		admit: () => readonly CharacterActor[]
+	) {
+		const portraitRevision = portraitSnapshots.modelRevision();
+		portraits = admitPortraits();
+		if ( portraitSnapshots.modelRevision() !== portraitRevision ) residencyDirty = true;
+		const revision = snapshots.modelRevision();
+		actors = admit();
+		requestedAssemblies.clear();
+		for ( const gid of particleSnapshots.keys() ) {
+			if ( !snapshots.index.has( gid ) ) particleSnapshots.delete( gid );
+		}
+		hasDeferred = actors.some( actor => !!actor.deferredParticle );
+		if ( snapshots.modelRevision() !== revision ) residencyDirty = true;
+	}
 	return {
 		/*
 		================
@@ -3376,17 +3402,24 @@ export function createCharacters(
 		================
 		*/
 		actors( value: readonly CharacterActor[], portraitActors: readonly CharacterActor[] = [] ) {
-			const portraitRevision = portraitSnapshots.modelRevision();
-			portraits = portraitSnapshots.update( portraitActors );
-			if ( portraitSnapshots.modelRevision() !== portraitRevision ) residencyDirty = true;
-			const revision = snapshots.modelRevision();
-			actors = snapshots.update( value );
-			requestedAssemblies.clear();
-			for ( const gid of particleSnapshots.keys() ) {
-				if ( !snapshots.index.has( gid ) ) particleSnapshots.delete( gid );
-			}
-			hasDeferred = actors.some( actor => !!actor.deferredParticle );
-			if ( snapshots.modelRevision() !== revision ) residencyDirty = true;
+			admitActors( () => portraitSnapshots.update( portraitActors ), () => snapshots.update( value ) );
+		},
+		/*
+		================
+		actorsFromTable
+
+		Port-only: a frame's actors and portraits from the character worker's
+		shared table (CLIENT_WORKERS_PLAN.md 5.11), admitted as actors admits
+		a published list.
+		================
+		*/
+		actorsFromTable(
+			table: ReturnType<typeof import("@/engine/foundation/animation/actor-table").createActorTableReader>
+		) {
+			admitActors(
+				() => portraitSnapshots.updateFromTable( table, 1 ),
+				() => snapshots.updateFromTable( table, 0 )
+			);
 		},
 		/*
 		================

@@ -6,13 +6,18 @@ character-worker.ts - the main thread's side of the character worker
 Port-only, not native (Experimental "Characters on a worker",
 docs/CLIENT_WORKERS_PLAN.md 5.11). Stands where the character presentation
 stands in the runtime, with the methods the runtime calls on it, while the
-presentation itself runs on worker/entry.ts. Each step repeats the worker's
-last output on the main thread's owners (the renderer's commands in their
+presentation itself runs on worker/entry.ts. The two share memory, as the
+plan's tables do (5.1): this side writes each frame into the inbox and
+advances the frame counter; the worker writes the actor table and the
+outbox and advances the output counter. Each step here applies the
+worker's last answer once the counter shows it (the actor lists straight
+from the table into the renderer's rows, then the commands in their
 order, the sounds, the effective-HP operations, the asset requests) and,
-when the worker is idle, posts it this frame: what happened since the last
-frame, step's inputs, the renderer's facts and the asset answers. It never
-waits for the worker: characters are drawn one frame after the simulation
-state they show, and the camera follows the same output.
+when the worker is idle, writes it the next frame. It never waits:
+characters are drawn one frame after the simulation state they show, and
+the camera follows the same output. Only loads and asset results, whose
+buffers move, travel as messages; the simulation worker posts its world
+batches to the worker directly.
 
 ===========================================================================
 */
@@ -24,18 +29,39 @@ import type {
 	CharacterWorkerFacts,
 	CharacterWorkerHealth,
 	CharacterWorkerInput,
+	CharacterWorkerLoad,
+	CharacterWorkerMemory,
 	CharacterWorkerMessage,
 	CharacterWorkerOp,
 	CharacterWorkerOutput,
 	CharacterWorkerState,
 	CharacterWorkerStep
 } from "@/engine/contracts/character-worker";
+import type { Footprint } from "@/engine/contracts/footprint";
 import type { CastImpact, GameplayState } from "@/engine/contracts/gameplay";
 import type { FrameWork, Renderer } from "@/engine/contracts/runtime";
-import type { EntityState, WorldBatch, WorldEvent } from "@/engine/contracts/world";
+import type { EntityState, WorldEvent } from "@/engine/contracts/world";
+import { createActorTable, createActorTableReader } from "@/engine/foundation/animation/actor-table";
 import type { SoundTerrain } from "@/engine/foundation/audio/terrain-sounds";
-import type { GameOptions } from "@/engine/foundation/gameplay/game-options";
 import { sameValue } from "@/engine/foundation/data/same-value";
+import type { GameOptions } from "@/engine/foundation/gameplay/game-options";
+import {
+	answered,
+	COMMAND_ACTORS,
+	COMMAND_ASSEMBLY,
+	COMMAND_DEFINED_ASSEMBLY,
+	COMMAND_FOOTPRINTS,
+	COMMAND_LOAD,
+	COMMAND_RETAIN,
+	createFrameControl,
+	postFrame
+} from "@/engine/foundation/workers/shared-frame";
+import {
+	createSharedStrings,
+	createStringReader,
+	createStringWriter
+} from "@/engine/foundation/workers/shared-strings";
+import { createSharedBlock, createValueReader, createValueWriter } from "@/engine/foundation/workers/shared-values";
 import { createAssetRelay } from "./asset-relay";
 
 /*
@@ -49,7 +75,8 @@ export interface CharacterWorkerOwners {
 	readonly assets: Pick<AssetOwner, "available" | "request" | "take" | "cancel">;
 	readonly renderer: Pick<
 		Renderer,
-		| "setCharacterActors"
+		| "setCharacterActorTable"
+		| "characterActors"
 		| "setCharacterAssembly"
 		| "setCharacterModel"
 		| "setCharacterAnimation"
@@ -74,6 +101,10 @@ export interface CharacterWorkerOwners {
 		release( key: string, now: number ): void;
 		finishedCasts(): void;
 	};
+	// The front end's phase, which the runtime's world-reset rule reads.
+	readonly frontendPhase: () => string;
+	// The simulation worker's port for its world batches (simulation/host.ts presentationPort).
+	readonly simulation: MessagePort;
 	readonly origin: string;
 	readonly seed: number;
 	// Reports what the main thread's owners refused of the output (a model
@@ -103,24 +134,34 @@ createCharacterWorker
 ================
 */
 export function createCharacterWorker( owners: CharacterWorkerOwners ) {
+	const memory: CharacterWorkerMemory = {
+		control: createFrameControl(),
+		inboxStrings: createSharedStrings(),
+		inbox: createSharedBlock(),
+		outboxStrings: createSharedStrings(),
+		outbox: createSharedBlock(),
+		actors: createActorTable()
+	};
+	const control = new Int32Array( memory.control );
+	const inbox = createValueWriter( memory.inbox, createStringWriter( memory.inboxStrings ) );
+	const outboxStrings = createStringReader( memory.outboxStrings );
+	const outbox = createValueReader( memory.outbox, outboxStrings );
+	const table = createActorTableReader( memory.actors, outboxStrings );
 	const worker = new Worker( new URL( "./worker/entry.ts", import.meta.url ), {
 		type: "module",
 		name: "sro-characters"
 	} );
 	const relay = createAssetRelay( owners.assets );
-	let ops: CharacterWorkerOp[] = [], output: CharacterWorkerOutput | null = null, inFlight = false;
+	let ops: CharacterWorkerOp[] = [], posted = 0, applied = true, assetMessages = 0;
 	let state = INITIAL_STATE, cameraScripts: CameraScript[] = [];
 	let failure: string | null = null, disposed = false;
-	let frameWork: FrameWork | undefined,
-		mall: { items: readonly number[] | null; skin: CharacterWorkerStep["mallSkin"]; } = {
-			items: null,
-			skin: null
-		};
+	let frameWork: FrameWork | undefined;
+	let mall: { items: readonly number[] | null; skin: CharacterWorkerStep["mallSkin"]; } = { items: null, skin: null };
 	let sentTerrain: readonly SoundTerrain[] | null = null;
 	let sentVisibility: CharacterWorkerFacts["dungeonVisibility"] | undefined;
-	// The deferred-particle actors of the last applied list, whose clocks
-	// the worker's presentation asks the renderer for.
-	let deferredGids: number[] = [];
+	// Loads by number, until the outbox that names them is applied.
+	const loads = new Map<number, CharacterWorkerLoad>();
+	let loaded = 0;
 	// Every assembly definition the worker sent: it sends one once.
 	const assemblies = new Map<string, { base: string; parts: readonly CharacterAttachment[]; }>();
 	worker.onmessage = ( event: MessageEvent<CharacterWorkerMessage> ) => {
@@ -129,18 +170,17 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 			failure = `Character worker failed: ${event.data.message}`;
 			return;
 		}
-		output = event.data;
-		inFlight = false;
-		// Asset requests leave at once: a load the presentation waits on
-		// should not wait for the next frame as well.
-		relay.receive( output.requests, output.cancels );
+		loads.set( event.data.sequence, event.data );
+		loaded = Math.max( loaded, event.data.sequence );
 	};
 	worker.onerror = event => {
 		failure = `Character worker failed: ${event.message}`;
 	};
 	const send = ( message: CharacterWorkerInput, transfer: Transferable[] = [] ) =>
 		worker.postMessage( message, transfer );
-	send( { kind: "start", origin: owners.origin, seed: owners.seed } );
+	send( { kind: "start", origin: owners.origin, seed: owners.seed, memory, simulation: owners.simulation }, [
+		owners.simulation
+	] );
 	/*
 	================
 	attempt
@@ -158,54 +198,6 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 	};
 	/*
 	================
-	apply
-
-	The worker's output on the main thread, in the order it was made.
-	================
-	*/
-	const apply = ( value: CharacterWorkerOutput ) => {
-		for ( const command of value.commands ) {
-			if ( command.kind === "actors" ) {
-				owners.renderer.setCharacterActors( command.actors, command.portraits );
-				deferredGids = command.actors.filter( actor => actor.deferredParticle ).map( actor => actor.gid );
-			} else if ( command.kind === "assembly" ) {
-				if ( command.definition ) assemblies.set( command.id, command.definition );
-				const definition = assemblies.get( command.id );
-				if ( definition ) {
-					attempt(
-						"assembly",
-						() => owners.renderer.setCharacterAssembly( command.id, definition.base, definition.parts )
-					);
-				}
-			} else if ( command.kind === "model" ) {
-				attempt(
-					"model",
-					() => owners.renderer.setCharacterModel( command.id, command.model, command.images )
-				);
-			} else if ( command.kind === "animation" ) {
-				attempt(
-					"animation",
-					() => owners.renderer.setCharacterAnimation( command.id, command.name, command.clip )
-				);
-			} else if ( command.kind === "retain" ) owners.renderer.retainCharacterModels( command.ids );
-			else owners.renderer.setFootprints( command.value );
-		}
-		for ( const sound of value.sounds ) attempt( "sound", () => owners.play( sound ) );
-		for ( const operation of value.health ) repeat( operation );
-		// An answer the main thread compares by identity (the UI's mall and
-		// HUD state, the renderer's damage text) keeps it while unchanged.
-		const steady = <T>( previous: T, next: T ): T => sameValue( previous, next ) ? previous : next;
-		state = {
-			...value.state,
-			cameraTarget: steady( state.cameraTarget, value.state.cameraTarget ),
-			damageText: steady( state.damageText, value.state.damageText ),
-			orbGauge: steady( state.orbGauge, value.state.orbGauge ),
-			mallPreviewState: steady( state.mallPreviewState, value.state.mallPreviewState )
-		};
-		cameraScripts.push( ...value.state.cameraScripts );
-	};
-	/*
-	================
 	repeat
 
 	An effective-HP operation the worker's projection made, on the main
@@ -220,6 +212,61 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 	};
 	/*
 	================
+	apply
+
+	The worker's answer on the main thread, in the order it was made; false
+	while a load it names has not arrived (it is applied next frame).
+	================
+	*/
+	const apply = (): boolean => {
+		outbox.begin();
+		// The loads the commands name must have arrived.
+		if ( outbox.number() > loaded ) return false;
+		const commands = outbox.number();
+		for ( let i = 0; i < commands; i++ ) {
+			const kind = outbox.number();
+			if ( kind === COMMAND_ACTORS ) owners.renderer.setCharacterActorTable?.( table );
+			else if ( kind === COMMAND_ASSEMBLY || kind === COMMAND_DEFINED_ASSEMBLY ) {
+				const id = outbox.text();
+				if ( kind === COMMAND_DEFINED_ASSEMBLY ) {
+					assemblies.set( id, outbox.value() as { base: string; parts: readonly CharacterAttachment[]; } );
+				}
+				const definition = assemblies.get( id );
+				if ( definition ) {
+					attempt(
+						"assembly",
+						() => owners.renderer.setCharacterAssembly( id, definition.base, definition.parts )
+					);
+				}
+			} else if ( kind === COMMAND_LOAD ) {
+				const sequence = outbox.number(), load = loads.get( sequence )!;
+				loads.delete( sequence );
+				attempt( load.load, () => {
+					if ( load.load === "model" ) owners.renderer.setCharacterModel( load.id, load.model, load.images );
+					else owners.renderer.setCharacterAnimation( load.id, load.name, load.clip );
+				} );
+			} else if ( kind === COMMAND_RETAIN ) owners.renderer.retainCharacterModels( outbox.value() as string[] );
+			else owners.renderer.setFootprints( outbox.value() as Footprint[] );
+		}
+		const value = outbox.value() as CharacterWorkerOutput;
+		for ( const sound of value.sounds ) attempt( "sound", () => owners.play( sound ) );
+		for ( const operation of value.health ) repeat( operation );
+		relay.receive( value.requests, value.cancels );
+		// An answer the main thread compares by identity (the UI's mall and
+		// HUD state, the renderer's damage text) keeps it while unchanged.
+		const steady = <T>( previous: T, next: T ): T => sameValue( previous, next ) ? previous : next;
+		state = {
+			...value.state,
+			cameraTarget: steady( state.cameraTarget, value.state.cameraTarget ),
+			damageText: steady( state.damageText, value.state.damageText ),
+			orbGauge: steady( state.orbGauge, value.state.orbGauge ),
+			mallPreviewState: steady( state.mallPreviewState, value.state.mallPreviewState )
+		};
+		cameraScripts.push( ...value.state.cameraScripts );
+		return true;
+	};
+	/*
+	================
 	facts
 
 	The renderer's and the world's answers as of the frame drawn last.
@@ -227,19 +274,21 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 	*/
 	const facts = (): CharacterWorkerFacts => {
 		const terrain = owners.soundTerrain(), visibility = owners.renderer.dungeonVisibility?.() ?? null;
+		const particleTimes: [number, number][] = [];
+		for ( const actor of owners.renderer.characterActors() ) {
+			if ( !actor.deferredParticle ) continue;
+			const time = owners.renderer.characterParticleTime( actor.gid );
+			if ( time !== undefined ) particleTimes.push( [ actor.gid, time ] );
+		}
 		const value: CharacterWorkerFacts = {
 			camera: owners.renderer.presentationCamera(),
 			listener: owners.renderer.audioListener(),
 			night: owners.renderer.presentationNight(),
-			particleTimes: deferredGids.flatMap( gid => {
-				const time = owners.renderer.characterParticleTime( gid );
-				return time === undefined ? [] : [ [ gid, time ] as const ];
-			} ),
+			particleTimes,
 			enchantSparks: owners.renderer.enchantSparks?.(),
 			sharedActorRoom: owners.renderer.sharedActorRoom?.(),
 			batchedEffects: owners.renderer.batchedEffects?.(),
 			vHidesCompanions: owners.renderer.vHidesCompanions?.(),
-			dungeonPvs: visibility !== null,
 			scenery: owners.renderer.scenery(),
 			...(visibility !== sentVisibility ? { dungeonVisibility: visibility } : {}),
 			...(terrain !== sentTerrain ? { soundTerrain: terrain } : {})
@@ -259,19 +308,9 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 		options( value: GameOptions ) {
 			ops.push( { kind: "options", value } );
 		},
-		/*
-		================
-		receiveBatch
-
-		A world batch the main thread's projection applied, for the worker's.
-		================
-		*/
-		receiveBatch( batch: WorldBatch ) {
-			ops.push( { kind: "batch", batch } );
-		},
-		receiveLifecycle( _events: readonly WorldEvent[] ) {
-			ops.push( { kind: "lifecycle" } );
-		},
+		// The worker applies the simulation's batches, their lifecycle events
+		// and the world-reset rule itself (worker/entry.ts).
+		receiveLifecycle( _events: readonly WorldEvent[] ) {},
 		eventRain: () => state.eventRain,
 		// The worker takes the feedback from its own projection.
 		receiveFeedback( _events: unknown, _entities: readonly EntityState[] ) {},
@@ -279,8 +318,8 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 		================
 		step
 
-		Repeat the worker's last output here, then, unless a step is in
-		flight, post this frame.
+		Apply the worker's answer once the output counter shows it, then,
+		while it is idle, write it this frame.
 		================
 		*/
 		step(
@@ -298,17 +337,16 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 			normalFortressClothes = false
 		) {
 			if ( disposed || failure ) return;
-			if ( output ) {
-				const value = output;
-				output = null;
-				apply( value );
+			if ( !applied ) {
+				if ( !answered( control, posted ) || !apply() ) return;
+				applied = true;
 			}
-			if ( inFlight ) return;
 			const { results, transfer, available } = relay.poll();
-			send( {
-				kind: "frame",
-				ops,
-				step: {
+			if ( results.length ) send( { kind: "assets", sequence: ++assetMessages, results }, transfer );
+			inbox.begin();
+			inbox.value( ops );
+			inbox.value(
+				{
 					seconds,
 					simulationMs,
 					cameraPitch,
@@ -323,14 +361,17 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 					mallSkin: mall.skin,
 					localGid: gameplay?.localGid ?? 0,
 					frameLevel: frameWork?.level() ?? 0,
-					soundEnabled: owners.soundEnabled()
-				},
-				facts: facts(),
-				available,
-				results
-			}, transfer );
+					soundEnabled: owners.soundEnabled(),
+					phase: owners.frontendPhase(),
+					assets: assetMessages,
+					available
+				} satisfies CharacterWorkerStep
+			);
+			inbox.value( facts() );
+			inbox.end();
 			ops = [];
-			inFlight = true;
+			applied = false;
+			postFrame( control, ++posted );
 		},
 		uncensored: ( _nativeServerName: string | undefined ) => state.uncensored,
 		ready: ( _gid: number ) => state.ready,
@@ -346,9 +387,8 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 		simulationOrigin( ms: number ) {
 			ops.push( { kind: "origin", ms } );
 		},
-		reset() {
-			ops.push( { kind: "reset" } );
-		},
+		// The worker resets by the runtime's world-reset rule (worker/entry.ts).
+		reset() {},
 		dispose() {
 			if ( disposed ) return;
 			disposed = true;

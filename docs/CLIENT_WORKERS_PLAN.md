@@ -325,17 +325,43 @@ worker slower than the display steps only the newest inputs.
   drawn matrix of an emitter that restarts); scenery and dungeon room
   visibility when they change.
 
-**Outputs, one message a frame.**
-- To the renderer: the actor and portrait lists (structured clone
-  first), the assemblies requested this frame (a definition only for an
-  id the main thread has not seen), models and clips as they load (their
-  buffers and bitmaps transferred), the retained model list, footprints,
-  damage text and event rain.
+**Outputs.**
+- To the renderer: the actor and portrait lists, the assemblies requested
+  this frame (a definition only for an id the main thread has not seen),
+  models and clips as they load (their buffers and bitmaps transferred),
+  the retained model list, footprints, damage text and event rain.
 - To the rest: sound events (`audio.enqueue`), the effective-HP
   operations the step made (`impact`, `release`, `finishedCasts`,
   replayed on the main thread's projection for the UI), the camera target
   and camera scripts, the orb gauge, readiness, errors and the mall
   state.
+
+**Transport: shared memory, no per-frame message** (section 5.1). The
+host and the worker take turns on shared blocks, ordered by two counters
+in one shared `Int32Array` (`foundation/workers/shared-frame.ts`): the
+host writes its frame's inputs and facts into the inbox, stores the frame
+number in FRAME and notifies; the worker waits with `Atomics.waitAsync`
+(its message loop stays free), steps, writes the outbox and stores the
+number in OUTPUT. Neither side writes a block the other is reading, so
+there are no locks.
+- Names (models, clips, bones, keys) are integers: each direction has an
+  append-only string table (`shared-strings.ts`) that interns a string
+  once and publishes it with Atomics; the reader decodes an id once.
+- Small values (the step inputs, facts, commands, sounds, HP operations)
+  are tagged 64-bit words (`shared-values.ts`); a reader that knows a
+  layout (the commands) reads bare numbers and builds no object.
+- The actor and portrait lists go into an actor table
+  (`foundation/animation/actor-table.ts`): one record of words per actor,
+  flags packed, optional parts by presence bits, which the renderer reads
+  straight into its own rows (`actor-snapshots.ts updateFromTable`),
+  reusing their nested storage. Nothing is cloned or copied twice.
+- Messages remain only where something moves: the start (the shared
+  blocks and the simulation port), models and clips as they load (their
+  buffers transferred, numbered so the outbox can name them), asset
+  results to the worker (transferred), and a failure.
+- The blocks are growable `SharedArrayBuffer`s with length-tracking
+  views; the writer grows one before writing past it, and the reader sees
+  the new length after the counter that publishes the frame.
 
 **Services inside the worker.**
 - Assets: a stand-in for the asset owner that relays requests to the main
@@ -367,8 +393,8 @@ for the same inputs and random stream.
    output collector, HP operations), tested inline against the main path.
 3. The worker, the main thread's host, the simulation's second port and
    the Experimental row; measured in the town crowd.
-4. The actor list through shared memory instead of a clone, if receiving
-   it shows in the main thread's profile.
+4. Every per-frame exchange through shared memory (the transport above),
+   the actor list read straight into the renderer's rows.
 
 ## 6. Steps
 
@@ -970,6 +996,53 @@ in its place in the runtime.
   the 57 ms/s of receiving it and the copy; results pushed to the worker as
   the asset owner gets them would make its loading as fast as the main
   thread's; character prepare is now the largest single item.
+
+### 6.16 Step 5, stage 4: the character worker on shared memory (2026-10-23)
+
+Section 6.15's worker exchanged a structured-clone message each way every
+frame, against section 5.1. Every per-frame exchange now goes through
+shared memory (section 5.11, Transport).
+
+- **Primitives** (`foundation/workers`): `shared-frame.ts`, the frame and
+  output counters (the worker waits with `Atomics.waitAsync`, so loads and
+  world batches still arrive); `shared-strings.ts`, an append-only string
+  table per direction, so names cross as integers; `shared-values.ts`,
+  tagged 64-bit words for the small values, read back as bare numbers
+  where the layout is known (the commands).
+- **The actor table** (`foundation/animation/actor-table.ts`): a record of
+  words per actor, its flags in two bits each (absent, false, true), its
+  optional parts by presence bits. The renderer reads it straight into
+  its rows (`actor-snapshots.ts updateFromTable`), reusing their nested
+  storage, with the reference counting and admission checks of `update`.
+  A test drives two snapshot owners through 300 generated frames, one
+  from the published lists and one from the table, and requires the same
+  rows, model references and storage reuse; the writer refuses what
+  admission refuses (`actor-table.test.mjs`).
+- **What still travels as a message**: the start (the shared blocks and
+  the simulation port), models and clips as they load (their buffers
+  moved, numbered so the outbox names them), asset results (moved), a
+  failure. The simulation worker posts its world batches to the
+  character worker directly; the worker applies the runtime's world-reset
+  rule itself from the front end's phase in the step inputs.
+- **Growth across threads**: the blocks are growable with length-tracking
+  views; a test runs the protocol on a second Node thread that answers 40
+  frames while both sides outgrow their blocks and string tables
+  (`shared-memory.test.mjs`). It found a reader that returned `undefined`
+  for a negative id.
+- **The host's step**: 139 to about 92 ms/s; receiving the output (57
+  ms/s with messages) is gone. What is left is the actor table into the
+  renderer's rows, about 55 ms/s.
+- **Frame rate**, 2560x1440, Worker threads Auto and Batched effects on
+  both sides, alternating 10-second rounds after a 25-second settle, about
+  350 bodies in view: 70.8, 64.2, 64.2 fps against 84.9, 96.1, 80.3 with
+  the worker; main thread 13.6, 15.0, 15.0 against 11.3, 10.0, 11.9 ms.
+- **Next: the frame kernels' GPU outputs.** Palettes, cloth vertices and
+  particle records live in growable shared tables, which `writeBuffer`
+  refuses (6.13), so the main thread copies them out before uploading
+  (about 21, 31 and 30 ms/s, particles through three copies). They need
+  fixed-size shared tables of their own, re-created larger with a
+  generation the frame workers re-attach to, since a worker blocked in
+  `Atomics.wait` never reads a second message.
 
 ## 7. Open decisions for the owner
 

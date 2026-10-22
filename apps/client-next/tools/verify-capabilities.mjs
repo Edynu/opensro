@@ -43,7 +43,11 @@ const ASYNC_OWNERS = [
 	// The 3D viewer's still: one GPU copy mapped back, then encoded to a
 	// PNG and posted to the embedding page (docs/VIEWER.md).
 	runtime + "renderer/device/portrait-readback.ts",
-	runtime + "viewer/viewer.ts"
+	runtime + "viewer/viewer.ts",
+	// The character worker waits for its frames without blocking its message
+	// loop (Atomics.waitAsync), so loads still arrive (CLIENT_WORKERS_PLAN.md 5.11).
+	"src/engine/foundation/workers/shared-frame.ts",
+	runtime + "character-worker/worker/entry.ts"
 ];
 const device = runtime + "renderer/device/device.ts",
 	frame = runtime + "renderer/frame/frame.ts",
@@ -212,10 +216,24 @@ export const rules = {
 		runtime + "frame-workers/frame-workers.ts",
 		runtime + "character-worker/character-worker.ts"
 	],
-	// Shared memory has one owner: the frame workers' control block and the
-	// stateless jobs that run over it (docs/CLIENT_WORKERS_PLAN.md).
-	SharedArrayBuffer: [ runtime + "frame-workers/frame-workers.ts", "src/engine/contracts/frame-workers.ts" ],
-	Atomics: [ "src/engine/foundation/workers/frame-jobs.ts" ]
+	// Shared memory has two owners: the frame workers' control block and the
+	// stateless jobs that run over it, and the character worker's tables
+	// (strings, value blocks, the actor table, its frame counters) and their
+	// contract (docs/CLIENT_WORKERS_PLAN.md 5.1, 5.11).
+	SharedArrayBuffer: [
+		runtime + "frame-workers/frame-workers.ts",
+		"src/engine/contracts/frame-workers.ts",
+		"src/engine/contracts/character-worker.ts",
+		"src/engine/foundation/workers/shared-frame.ts",
+		"src/engine/foundation/workers/shared-strings.ts",
+		"src/engine/foundation/workers/shared-values.ts",
+		"src/engine/foundation/animation/actor-table.ts"
+	],
+	Atomics: [
+		"src/engine/foundation/workers/frame-jobs.ts",
+		"src/engine/foundation/workers/shared-frame.ts",
+		"src/engine/foundation/workers/shared-strings.ts"
+	]
 };
 // A geometry pipeline for a native state no scene precompiles is compiled
 // at its first upload, as D3D9 applies any render state at once.

@@ -2532,9 +2532,10 @@
 			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
 			"provider": "src/engine/runtime/renderer/characters/characters.ts",
 			"functions": [
-				"actors",
+				"actorsFromTable",
 				"animation",
 				"assembly",
+				"currentActors",
 				"model",
 				"particleTime",
 				"retain"
@@ -2566,6 +2567,7 @@
 			"consumer": "src/engine/runtime/character-worker/character-worker.ts",
 			"provider": "src/engine/runtime/runtime.ts",
 			"functions": [
+				"frontendPhase",
 				"report"
 			]
 		},
@@ -2638,6 +2640,13 @@
 			"provider": "src/engine/runtime/renderer/characters/characters.ts",
 			"functions": [
 				"createCharacters"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/character-worker/worker/renderer-stand-in.ts",
+			"provider": "src/engine/runtime/character-worker/worker/entry.ts",
+			"functions": [
+				"callback:createRendererStandIn:3"
 			]
 		},
 		{
@@ -4276,6 +4285,27 @@
 		{
 			"file": "src/engine/runtime/character-worker/worker/entry.ts",
 			"expression": "port.postMessage",
+			"function": "callback:createRendererStandIn:3",
+			"kind": "worker-port",
+			"reason": "Typed DedicatedWorker port projection; a model or clip the presentation loaded crosses to the main thread once, its buffers and bitmaps transferred (frames cross through shared memory)."
+		},
+		{
+			"file": "src/engine/runtime/character-worker/worker/entry.ts",
+			"expression": "port.postMessage",
+			"function": "fail",
+			"kind": "worker-port",
+			"reason": "Typed DedicatedWorker port projection; the character worker's failure crosses to the main thread, which reports it."
+		},
+		{
+			"file": "src/engine/runtime/character-worker/worker/entry.ts",
+			"expression": "resultWaiter",
+			"function": "assets",
+			"kind": "callback",
+			"reason": "The frame loop's resolver while it waits for the asset results message a frame names; resolving it resumes the loop on this worker."
+		},
+		{
+			"file": "src/engine/runtime/character-worker/worker/entry.ts",
+			"expression": "port.postMessage",
 			"function": "callback:port.onmessage",
 			"kind": "worker-port",
 			"reason": "Typed DedicatedWorker port projection; the character worker's outputs and failure cross the parent/worker boundary, their buffers and bitmaps transferred."
@@ -4323,7 +4353,7 @@
 		{
 			"file": "src/engine/runtime/runtime.ts",
 			"function": "frame",
-			"sourceSha256": "90da829f24df13fa27f3ab36965ec1621a4eea8ce7512465daf1f353da7ff7c7",
+			"sourceSha256": "d7c35e307a022fe81e0f3f185c73213737e0c7da712a5143b144bafc6687b124",
 			"reason": "AEBD90 synchronously waits for visibility before AEC180 advances EFP ticks. The browser yields at the GPU readback barrier; the runtime retains the current frame and schedules the next RAF only after completion. Ordinary frames do not await a readback. A hidden frame renders only while a world entry awaits game-ready, under the same barrier: native keeps updating while inactive (A0F430 OnUpdate; A11650 skips drawing) and finishes loading in CPSMission_OnUpdate (728E10). A visible window that gets no RAF for STARVED_FRAME_MS runs the same delivery-paced maintenance frames. Device disposal cancels pending mapping. Startup also hands the asset owner the device texture features once (port-only texture variants), outside the frame.",
 			"evidence": "tests/fixtures/native/bsr-query-native.json",
 			"nativeFunction": 11451792,

@@ -33,6 +33,9 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 		new ArrayBuffer( SNAPSHOT_BYTES )
 	];
 	let sequence = 0, timeMs = 0, started = false, stopped = false, journalSentAtMs = 0;
+	// Port-only: the character worker, which keeps its own projection of the
+	// world batches (CLIENT_WORKERS_PLAN.md 5.11); absent, no one else listens.
+	let presentation: MessagePort | null = null;
 	/*
 	================
 	fail
@@ -55,7 +58,10 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 		timeMs += skippedMs;
 		const sessionState = session.step( timeMs );
 		const batch = session.takeWorld();
-		if ( batch ) send( { kind: "world", batch }, [] );
+		if ( batch ) {
+			send( { kind: "world", batch }, [] );
+			presentation?.postMessage( { kind: "world", batch } );
+		}
 		// Bug-report frame journal: one transfer a second, not one per frame.
 		if ( timeMs - journalSentAtMs >= NET_JOURNAL_PUSH_MS ) {
 			journalSentAtMs = timeMs;
@@ -133,6 +139,8 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 				} catch ( error ) {
 					fail( error );
 				}
+			} else if ( message.kind === "presentation-port" ) {
+				presentation = message.port;
 			} else if ( message.kind === "recycle" ) {
 				if ( message.buffer.byteLength !== SNAPSHOT_BYTES || pool.length >= MAX_SNAPSHOTS ) {
 					fail( "Invalid recycled snapshot buffer" );

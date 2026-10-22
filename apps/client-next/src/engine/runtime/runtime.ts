@@ -484,8 +484,12 @@ export function startRuntime(
 		try {
 			characterWorkerOn = storedExperimentalOptions( globalThis.localStorage ).options.characterWorker;
 		} catch {}
-		const characterWorker = characterWorkerOn ?
-			own(
+		let characterWorker: ReturnType<typeof createCharacterWorker> | null = null;
+		if ( characterWorkerOn ) {
+			// The simulation posts its world batches to the worker directly.
+			const channel = new MessageChannel();
+			simulation.presentationPort?.( channel.port1 );
+			characterWorker = own(
 				createCharacterWorker( {
 					assets,
 					renderer,
@@ -493,12 +497,14 @@ export function startRuntime(
 					soundEnabled: audio.effectsEnabled,
 					soundTerrain: world.soundTerrain,
 					health: presentation,
+					frontendPhase: () => frontend.snapshot().phase,
+					simulation: channel.port2,
 					origin: new URL( "/", import.meta.url ).href,
 					seed: (presentationSeed ^ 0x5eed) >>> 0,
 					report: message => bugReport.note( message )
 				} )
-			) :
-			null;
+			);
+		}
 		const characters = characterWorker ?? own(
 			createCharacterPresentation(
 				assets,
@@ -649,9 +655,7 @@ export function startRuntime(
 				const batch = simulation.pollWorld();
 				if ( batch ) {
 					try {
-						const reset = presentation.apply( batch );
-						characterWorker?.receiveBatch( batch );
-						if ( reset ) {
+						if ( presentation.apply( batch ) ) {
 							// An attempted connection publishes a world clear before admission.
 							// Keep the dock's shared renderer resources until entry is accepted.
 							if ( [ "world", "loading-world" ].includes( frontend.snapshot().phase ) ) {

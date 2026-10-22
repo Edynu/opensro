@@ -473,6 +473,7 @@ export function createRenderer(
 		setCharacterModel: characters.model,
 		setCharacterAnimation: characters.animation,
 		setCharacterActors: characters.actors,
+		setCharacterActorTable: characters.actorsFromTable,
 		characterActors: characters.currentActors,
 		cancelWorldUpdate: () => world.cancelPending(),
 		textureFeatures: () => textureFeatures,

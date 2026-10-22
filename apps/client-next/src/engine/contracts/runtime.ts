@@ -320,6 +320,11 @@ export interface Renderer extends Disposable {
 		actors: readonly import("./character").CharacterActor[],
 		portraits?: readonly import("./character").CharacterActor[]
 	): void;
+	/** Port-only: a frame's actors and portraits from the character worker's
+	 * shared table (CLIENT_WORKERS_PLAN.md 5.11), as setCharacterActors. */
+	setCharacterActorTable?(
+		table: ReturnType<typeof import("@/engine/foundation/animation/actor-table").createActorTableReader>
+	): void;
 	/** The actor snapshots the last setCharacterActors retained (read-only). */
 	characterActors(): readonly import("./character").CharacterActor[];
 
@@ -416,6 +421,9 @@ export interface SimulationHost extends Disposable {
 	/** Resolves on the next worker message; paces frames while the tab is hidden. */
 	delivery(): Promise<void>;
 	ackWorld( sequence: number ): void;
+	// Port-only: the simulation posts each world batch to port as well (the
+	// character worker's own projection, CLIENT_WORKERS_PLAN.md 5.11).
+	presentationPort?( port: MessagePort ): void;
 	session( command: SessionCommand ): void;
 	pollSession(): SessionState | null;
 	sendInput( batch: InputBatch ): void;

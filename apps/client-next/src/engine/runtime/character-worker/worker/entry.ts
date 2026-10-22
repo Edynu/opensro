@@ -5,28 +5,52 @@ entry.ts - the character worker: the character presentation off the main thread
 
 Port-only, not native (Experimental "Characters on a worker",
 docs/CLIENT_WORKERS_PLAN.md 5.11). Started by character-worker.ts with one
-start message, then stepped by one frame message at a time. It builds the
-presentation the main thread would (runtime/characters, unchanged) with
-stand-ins for what lives on the main thread: the renderer, the asset owner,
-the audio queue and the effective-HP owner. It keeps its own projection of
-the simulation's world batches and its own random stream. Each frame it
-repeats what the main thread did to the presentation (batches, resets,
-lifecycle events, options, the clock origin), steps it once and posts back
-the renderer commands, sounds, HP operations and answers it produced.
+start message carrying the shared memory and the simulation worker's port.
+It builds the presentation the main thread would (runtime/characters,
+unchanged) with stand-ins for what lives on the main thread: the
+renderer, the asset owner, the audio queue and the effective-HP owner. It
+keeps its own projection of the simulation's world batches, which arrive
+straight from the simulation worker, and its own random stream.
+
+A frame crosses through shared memory: the worker waits for the frame
+counter (without blocking its message loop), reads the inbox, applies the
+world batches that arrived as the runtime does (its world-reset rule
+included), steps the presentation once, writes the actor table and the
+outbox, then advances the output counter. Only loads (models, clips) and
+asset results travel as messages, their buffers moved.
 
 ===========================================================================
 */
 import type {
-	CharacterWorkerFrame,
+	CharacterWorkerAssets,
+	CharacterWorkerCommand,
+	CharacterWorkerFacts,
 	CharacterWorkerHealth,
 	CharacterWorkerInput,
 	CharacterWorkerMessage,
-	CharacterWorkerState
+	CharacterWorkerOp,
+	CharacterWorkerOutput,
+	CharacterWorkerStart,
+	CharacterWorkerState,
+	CharacterWorkerStep
 } from "@/engine/contracts/character-worker";
 import type { SoundEvent } from "@/engine/contracts/audio";
 import type { FrameWork } from "@/engine/contracts/runtime";
 import type { WorldBatch } from "@/engine/contracts/world";
+import { createActorTableWriter } from "@/engine/foundation/animation/actor-table";
 import { sampleSoundTerrain, type SoundTerrain } from "@/engine/foundation/audio/terrain-sounds";
+import {
+	COMMAND_ACTORS,
+	COMMAND_ASSEMBLY,
+	COMMAND_DEFINED_ASSEMBLY,
+	COMMAND_FOOTPRINTS,
+	COMMAND_LOAD,
+	COMMAND_RETAIN,
+	nextFrame,
+	postOutput
+} from "@/engine/foundation/workers/shared-frame";
+import { createStringReader, createStringWriter } from "@/engine/foundation/workers/shared-strings";
+import { createValueReader, createValueWriter } from "@/engine/foundation/workers/shared-values";
 import { createCharacterPresentation } from "@/engine/runtime/characters/characters";
 import { createPresentation } from "@/engine/runtime/presentation/presentation";
 import { createPresentationRandom } from "@/engine/runtime/random/random";
@@ -39,35 +63,53 @@ const port = globalThis as unknown as {
 	postMessage( message: CharacterWorkerMessage, transfer: Transferable[] ): void;
 };
 
+// The runtime's world-reset rule (runtime.ts frame): a reset batch resets
+// the presentation at once in these front-end phases, else when the front
+// end next enters loading-world.
+const RESET_PHASES = [ "world", "loading-world" ];
+
 /*
 ================
-createCharacterWorkerStep
+createCharacterWorker
 
 The worker's presentation and everything it is given in place of the main
-thread's owners; step answers one frame message with one output.
+thread's owners; run steps it for every frame the host posts.
 ================
 */
-function createCharacterWorkerStep( origin: string, seed: number ) {
+function createCharacterWorker( start: CharacterWorkerStart ) {
+	const { memory } = start;
+	const control = new Int32Array( memory.control );
+	const inbox = createValueReader( memory.inbox, createStringReader( memory.inboxStrings ) );
+	const outboxStrings = createStringWriter( memory.outboxStrings );
+	const outbox = createValueWriter( memory.outbox, outboxStrings );
+	const table = createActorTableWriter( memory.actors, outboxStrings );
 	// Buffers and bitmaps the asset results brought, which move on to the
-	// main thread instead of being copied (renderer-stand-in.ts).
+	// main thread with the loads instead of being copied (renderer-stand-in.ts).
 	const delivered = new WeakSet<object>();
 	const assets = createAssetStandIn( delivered );
 	// A renderer character owner of the worker's own, without a GPU or
 	// frame workers: it answers the skeleton queries.
-	const skeletons = createCharacters();
-	const rendererStandIn = createRendererStandIn( skeletons, delivered );
+	const rendererStandIn = createRendererStandIn(
+		createCharacters(),
+		delivered,
+		table,
+		( load, transfer ) => port.postMessage( load, transfer )
+	);
 	const projection = createPresentation();
 	let sounds: SoundEvent[] = [], health: CharacterWorkerHealth[] = [];
 	let soundTerrain: readonly SoundTerrain[] = [], soundEnabled = true, frameLevel = 0;
-	let lastBatch: WorldBatch | null = null;
+	let batches: WorldBatch[] = [], pendingReset = false, stopped = false;
+	// Asset results by message, and the number of the last one received.
+	let results: CharacterWorkerAssets["results"][number][] = [], received = 0;
+	let resultWaiter: (() => void) | null = null;
 	// The main thread's frame-work level; the worker spends nothing of it.
 	const frameWork: FrameWork = { level: () => frameLevel, remaining: () => Infinity, spend() {} };
 	const characters = createCharacterPresentation(
 		assets.assets,
 		rendererStandIn.renderer,
-		origin,
+		start.origin,
 		event => sounds.push( event ),
-		createPresentationRandom( seed ),
+		createPresentationRandom( start.seed ),
 		pose => sampleSoundTerrain( soundTerrain, pose ),
 		{
 			impact( gid, key, impact, now, source ) {
@@ -87,100 +129,198 @@ function createCharacterWorkerStep( origin: string, seed: number ) {
 		},
 		() => soundEnabled
 	);
+	start.simulation.onmessage = ( event: MessageEvent<{ kind: "world"; batch: WorldBatch; }> ) => {
+		batches.push( event.data.batch );
+	};
+	/*
+	================
+	writeCommands
+
+	The step's renderer commands as bare words, read back by the host's
+	apply in the same layout.
+	================
+	*/
+	const writeCommands = ( commands: readonly CharacterWorkerCommand[] ) => {
+		outbox.number( commands.length );
+		for ( const command of commands ) {
+			if ( command.kind === "actors" ) outbox.number( COMMAND_ACTORS );
+			else if ( command.kind === "assembly" ) {
+				outbox.number( command.definition ? COMMAND_DEFINED_ASSEMBLY : COMMAND_ASSEMBLY );
+				outbox.text( command.id );
+				if ( command.definition ) outbox.value( command.definition );
+			} else if ( command.kind === "load" ) {
+				outbox.number( COMMAND_LOAD );
+				outbox.number( command.sequence );
+			} else if ( command.kind === "retain" ) {
+				outbox.number( COMMAND_RETAIN );
+				outbox.value( command.ids );
+			} else {
+				outbox.number( COMMAND_FOOTPRINTS );
+				outbox.value( command.value );
+			}
+		}
+	};
+	/*
+	================
+	reset
+	================
+	*/
+	const reset = () => {
+		characters.reset();
+		rendererStandIn.reset();
+	};
+	/*
+	================
+	step
+
+	The main thread's order (runtime.ts frame): the world batches and their
+	lifecycle events, the operations, the feedback, the HP owner's step, the
+	mall outfit, the presentation's step, then the answers it reads after.
+	================
+	*/
+	const step = (
+		frame: number,
+		ops: readonly CharacterWorkerOp[],
+		input: CharacterWorkerStep,
+		facts: CharacterWorkerFacts
+	) => {
+		const started = performance.now();
+		const arrived = batches;
+		batches = [];
+		for ( const batch of arrived ) {
+			if ( projection.apply( batch ) ) {
+				if ( RESET_PHASES.includes( input.phase ) ) reset();
+				else pendingReset = true;
+			}
+			characters.receiveLifecycle( batch.events );
+		}
+		if ( pendingReset && input.phase === "loading-world" ) {
+			pendingReset = false;
+			reset();
+		}
+		for ( const op of ops ) {
+			if ( op.kind === "options" ) characters.options( op.value as Parameters<typeof characters.options>[0] );
+			else characters.simulationOrigin( op.ms );
+		}
+		const answered = results;
+		results = [];
+		assets.frame( input.available, answered );
+		rendererStandIn.frame( facts, input.seconds );
+		if ( facts.soundTerrain ) soundTerrain = facts.soundTerrain;
+		soundEnabled = input.soundEnabled;
+		frameLevel = input.frameLevel;
+		characters.frameWork( frameWork );
+		characters.receiveFeedback( projection.takeFeedback(), projection.entities() );
+		projection.step( input.simulationMs );
+		characters.mallOutfit( input.mallItems, input.mallSkin );
+		characters.step(
+			projection.entities(),
+			projection.gameplay(),
+			input.seconds,
+			input.simulationMs,
+			input.cameraPitch,
+			input.dock,
+			input.preview,
+			input.lizard,
+			input.effectDetail,
+			input.blindHeld,
+			input.nativeServerName,
+			input.normalFortressClothes
+		);
+		const state: CharacterWorkerState = {
+			cameraTarget: characters.cameraTarget(),
+			cameraScripts: characters.takeCameraScripts(),
+			eventRain: characters.eventRain(),
+			damageText: characters.damageText(),
+			orbGauge: characters.orbGauge(),
+			ready: characters.ready( input.localGid ),
+			entryReady: characters.entryReady(),
+			previewReady: characters.previewReady(),
+			dockReady: characters.dockReady(),
+			error: characters.error() ?? null,
+			mallPreviewState: characters.mallPreviewState(),
+			uncensored: characters.uncensored( input.nativeServerName )
+		};
+		const { commands, loads } = rendererStandIn.take(), { requests, cancels } = assets.take();
+		const output: CharacterWorkerOutput = {
+			sounds,
+			health,
+			state,
+			requests,
+			cancels,
+			stepMs: performance.now() - started
+		};
+		outbox.begin();
+		outbox.number( loads );
+		writeCommands( commands );
+		outbox.value( output );
+		outbox.end();
+		sounds = [];
+		health = [];
+		postOutput( control, frame );
+	};
 	return {
 		/*
 		================
-		step
+		assets
 
-		The main thread's order (runtime.ts frame): its operations, the
-		feedback, the HP owner's step, the mall outfit, the presentation's
-		step, then the answers the main thread reads after it.
+		A results message: kept for the step of the frame that names it.
 		================
 		*/
-		step( frame: CharacterWorkerFrame ) {
-			const started = performance.now();
-			for ( const op of frame.ops ) {
-				if ( op.kind === "batch" ) {
-					lastBatch = op.batch;
-					projection.apply( op.batch );
-				} else if ( op.kind === "reset" ) {
-					characters.reset();
-					rendererStandIn.reset();
-				} else if ( op.kind === "lifecycle" ) {
-					if ( lastBatch ) characters.receiveLifecycle( lastBatch.events );
-				} else if ( op.kind === "options" ) characters.options( op.value );
-				else characters.simulationOrigin( op.ms );
+		assets( message: CharacterWorkerAssets ) {
+			results.push( ...message.results );
+			received = message.sequence;
+			resultWaiter?.();
+		},
+		/*
+		================
+		run
+
+		Frames until stopped: wait for the next, wait for the asset results
+		it follows, step it.
+		================
+		*/
+		async run() {
+			let seen = 0;
+			while ( !stopped ) {
+				seen = await nextFrame( control, seen );
+				inbox.begin();
+				const ops = inbox.value() as readonly CharacterWorkerOp[];
+				const input = inbox.value() as CharacterWorkerStep, facts = inbox.value() as CharacterWorkerFacts;
+				while ( received < input.assets ) await new Promise<void>( resolve => resultWaiter = resolve );
+				resultWaiter = null;
+				step( seen, ops, input, facts );
 			}
-			const { step, facts } = frame;
-			assets.frame( frame.available, frame.results );
-			rendererStandIn.frame( facts, step.seconds );
-			if ( facts.soundTerrain ) soundTerrain = facts.soundTerrain;
-			soundEnabled = step.soundEnabled;
-			frameLevel = step.frameLevel;
-			characters.frameWork( frameWork );
-			characters.receiveFeedback( projection.takeFeedback(), projection.entities() );
-			projection.step( step.simulationMs );
-			characters.mallOutfit( step.mallItems, step.mallSkin );
-			characters.step(
-				projection.entities(),
-				projection.gameplay(),
-				step.seconds,
-				step.simulationMs,
-				step.cameraPitch,
-				step.dock,
-				step.preview,
-				step.lizard,
-				step.effectDetail,
-				step.blindHeld,
-				step.nativeServerName,
-				step.normalFortressClothes
-			);
-			const state: CharacterWorkerState = {
-				cameraTarget: characters.cameraTarget(),
-				cameraScripts: characters.takeCameraScripts(),
-				eventRain: characters.eventRain(),
-				damageText: [ ...characters.damageText() ],
-				orbGauge: characters.orbGauge(),
-				ready: characters.ready( step.localGid ),
-				entryReady: characters.entryReady(),
-				previewReady: characters.previewReady(),
-				dockReady: characters.dockReady(),
-				error: characters.error() ?? null,
-				mallPreviewState: characters.mallPreviewState(),
-				uncensored: characters.uncensored( step.nativeServerName )
-			};
-			const { commands, transfer } = rendererStandIn.take(), { requests, cancels } = assets.take();
-			const output = {
-				kind: "output" as const,
-				commands,
-				sounds,
-				health,
-				state,
-				requests,
-				cancels,
-				stepMs: performance.now() - started
-			};
-			sounds = [];
-			health = [];
-			return { output, transfer };
+		},
+		stop() {
+			stopped = true;
 		}
 	};
 }
 
-let worker: ReturnType<typeof createCharacterWorkerStep> | null = null;
+let worker: ReturnType<typeof createCharacterWorker> | null = null;
+/*
+================
+fail
+================
+*/
+const fail = ( error: unknown ) => {
+	worker?.stop();
+	worker = null;
+	port.onmessage = null;
+	port.postMessage( { kind: "failure", message: String( error ) }, [] );
+};
 port.onmessage = event => {
 	try {
 		const message = event.data;
 		if ( message.kind === "start" ) {
-			worker = createCharacterWorkerStep( message.origin, message.seed );
+			worker = createCharacterWorker( message );
+			worker.run().catch( fail );
 			return;
 		}
-		if ( !worker ) throw Error( "Character worker stepped before its start" );
-		const { output, transfer } = worker.step( message );
-		port.postMessage( output, transfer );
+		if ( !worker ) throw Error( "Character worker given assets before its start" );
+		worker.assets( message );
 	} catch ( error ) {
-		worker = null;
-		port.onmessage = null;
-		port.postMessage( { kind: "failure", message: String( error ) }, [] );
+		fail( error );
 	}
 };
