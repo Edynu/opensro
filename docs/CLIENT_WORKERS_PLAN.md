@@ -1,6 +1,6 @@
 # Client worker threads: plan
 
-Status: step 1 and step 2 parts 1, 2a and 2b done (2026-10-22). Scope: the browser client's
+Status: step 1 and step 2 (parts 1, 2a, 2b, 2c) done (2026-10-22). Scope: the browser client's
 per-actor frame work (players, monsters, NPCs and pets, their poses, cloth,
 particles and the parallel parts of presentation) and the draw path that
 feeds it to the GPU. Goal: hundreds of players and monsters with their
@@ -426,6 +426,58 @@ thread:
   population up near the observer with GM `/LOADMONSTER`. The scratch
   character must hold GM rights, which the GameWorld grants at startup
   (`SRO_GM_CHARACTERS`), so it needs one restart after `asd2` is created.
+
+### 6.5 Step 2, part 2c: the movement poses on the frame workers (2026-10-22)
+
+- **Speculation with rollback.** `pose()` is called more than once per
+  character per frame (effect anchoring, then actor motion, then a re-pose
+  after a carry), and a repeated call is not provably a no-op. So
+  `prepare()` (called by `presentation-events.ts` just before effects
+  anchor, for the characters it is about to pose) computes each character's
+  next two calls in one `KERNEL_POSE` phase, keeping the record before them
+  and after the first as snapshots. A later call takes a precomputed result
+  only when its arguments match bit for bit; any other call, a carry, new
+  samples, a retained set or a new clock origin first rolls the record back
+  to the state after the last result handed out. Every drawn pose is the
+  one the calls in order would draw on one thread.
+- **Kernel memory** (`frame-kernels.ts`): records, snapshots, walk arena and
+  request list, owned by the frame workers; growable `SharedArrayBuffer`s
+  when workers run, plain buffers on one thread. Every thread keeps
+  **fixed-length** views and remakes one only when its table grew: a view
+  that tracks a growable shared buffer's length ran a loop about 33 times
+  slower than a fixed-length one (Node 24: plain 74 ms, fixed SAB 75,
+  growable SAB with a fixed view 76, with a length-tracking view 2,443;
+  resizable ArrayBuffers 257 to 314). The arena compacts in place only while
+  nothing is pending, and compaction remaps every record's input chain.
+- **Proof.** `pose-presentation-flat-walk.test.mjs` now also drives
+  `prepare()` against the frozen object code through every way a
+  prediction can miss (another target, settled calls, carries, unposed and
+  unprepared characters, extra calls) and through arena compaction in the
+  middle of a prepare; four deliberate breaks of the bookkeeping and the
+  compaction fault each fail it. `pose-kernel-threads.test.mjs` runs 300
+  characters for 240 frames with the phase on 4 real worker threads over
+  growing shared tables against one thread, bit for bit (10 of 10 runs).
+- **Scaling** (`tools/perf/bench/frame-kernel-bench.mjs`, Node worker
+  threads, ms per frame on the main thread):
+
+  | Characters | Setup (main only) | Phase, 0 workers | 1 | 2 | 4 | 8 | Join wait |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 200 | 0.26 | 0.55 | 0.32 | 0.25 | 0.25 | 0.22 | <= 0.06 |
+  | 1000 | 1.4 | 2.35 | 1.26 | 0.89 | 0.63 | 0.50 | <= 0.04 |
+  | 4000 | 7.5 | 9.78 | 5.04 | 3.48 | 2.23 | 1.50 | <= 0.03 |
+
+  The kernel phase scales 6.5 times at 4,000 characters with 8 workers; fork
+  and join cost hundredths of a millisecond. What does not scale is the
+  setup: writing each character's sample input from JavaScript objects into
+  its record. The fix is the simulation worker writing those inputs into
+  the shared table directly (it also removes the main thread's 2.4 ms of
+  world-batch decoding).
+- **Browser** (town crowd, 214 players, still, back to back): 8 of 8
+  workers ready, about 6,600 phases a session (one a frame), 128 to 136 ms
+  of join wait in all, none retired. Off 30, 26 fps; auto 27, 27 fps;
+  character presentation 8.7, 9.3 ms off against 8.3, 8.2 auto. The poses
+  are a small part of the frame since part 1; the machinery is proven, and
+  the next kernels carry the gain.
 
 ## 7. Open decisions for the owner
 
