@@ -33,10 +33,12 @@ export type FrameJobRunner = ( kernel: number, chunk: number ) => void;
 ================
 FrameWorkerSetting
 
-Port-only, not native: the Experimental "Worker threads" choice.
+Port-only, not native: the Experimental "Worker threads" setting. "off"
+keeps the frame on one thread, "auto" follows the machine, and a whole
+count from 1 to MAX_FRAME_WORKERS is the player's pick (frameWorkerSetting).
 ================
 */
-export type FrameWorkerSetting = "off" | "auto" | 1 | 2 | 4 | 8;
+export type FrameWorkerSetting = "off" | "auto" | number;
 
 // The control block, in 32-bit words. Counters sit one 64-byte cache line
 // (LINE words) apart so threads do not contend for a line:
@@ -70,11 +72,51 @@ const CHUNK_MASK = 0xffff;
 export const MAX_FRAME_CHUNKS = 1024;
 // The control block's length in 32-bit words: CHUNK_STATES + MAX_FRAME_CHUNKS.
 export const FRAME_CONTROL_WORDS = 1120;
-// The most frame workers a page starts.
-export const MAX_FRAME_WORKERS = 8;
-// Threads the page needs besides its frame workers: the main thread, the
+// The most frame workers Auto starts: past it each worker's own heap and
+// compiled kernels (about 15 MB) outweigh what one more adds.
+export const AUTO_FRAME_WORKERS = 8;
+// The most frame workers any setting starts, whatever the machine.
+export const MAX_FRAME_WORKERS = 64;
+// Threads Auto leaves besides its frame workers: the main thread, the
 // browser's GPU process, and the simulation and asset workers together.
 export const RESERVED_THREADS = 3;
+
+/*
+================
+logicalThreads
+
+navigator.hardwareConcurrency as a count; 1 when the browser gives none.
+================
+*/
+function logicalThreads( threads: number ): number {
+	return Number.isInteger( threads ) && threads > 0 ? threads : 1;
+}
+
+/*
+================
+frameWorkerSetting
+
+A stored or picked value as a setting; undefined when it is none.
+================
+*/
+export function frameWorkerSetting( value: unknown ): FrameWorkerSetting | undefined {
+	if ( value === "off" || value === "auto" ) return value;
+	return typeof value === "number" && Number.isInteger( value ) && value >= 1 && value <= MAX_FRAME_WORKERS ?
+		value :
+		undefined;
+}
+
+/*
+================
+frameWorkerLimit
+
+The most frame workers a player may pick on a machine with threads logical
+processors: every thread but the main thread's, at least one.
+================
+*/
+export function frameWorkerLimit( threads: number ): number {
+	return Math.max( 1, Math.min( MAX_FRAME_WORKERS, logicalThreads( threads ) - 1 ) );
+}
 
 /*
 ================
@@ -82,14 +124,15 @@ frameWorkerCount
 
 How many frame workers to start for a machine with threads logical
 processors (navigator.hardwareConcurrency) and the player's setting. Auto
-leaves RESERVED_THREADS free; an explicit count is the player's choice.
+leaves RESERVED_THREADS free and starts at most AUTO_FRAME_WORKERS; a
+picked count is the player's, up to frameWorkerLimit (a setting saved on a
+larger machine starts what this one allows).
 ================
 */
 export function frameWorkerCount( threads: number, setting: FrameWorkerSetting ): number {
 	if ( setting === "off" ) return 0;
-	if ( setting !== "auto" ) return Math.min( MAX_FRAME_WORKERS, setting );
-	const available = Number.isInteger( threads ) && threads > 0 ? threads : 1;
-	return Math.min( MAX_FRAME_WORKERS, Math.max( 0, available - RESERVED_THREADS ) );
+	if ( setting !== "auto" ) return Math.min( setting, frameWorkerLimit( threads ) );
+	return Math.min( AUTO_FRAME_WORKERS, Math.max( 0, logicalThreads( threads ) - RESERVED_THREADS ) );
 }
 
 /*

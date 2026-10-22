@@ -11,7 +11,7 @@ options (Water reflection, Metal detail), not experimental ones.
 
 ===========================================================================
 */
-import type { FrameWorkerSetting } from "@/engine/foundation/workers/frame-jobs";
+import { type FrameWorkerSetting, frameWorkerSetting } from "@/engine/foundation/workers/frame-jobs";
 
 /*
 ================
@@ -181,17 +181,6 @@ export function renderScales(): readonly RenderScale[] {
 
 /*
 ================
-frameWorkerSettings
-
-Port-only, not native. "off" keeps the frame on one thread.
-================
-*/
-export function frameWorkerSettings(): readonly FrameWorkerSetting[] {
-	return [ "off", "auto", 1, 2, 4, 8 ];
-}
-
-/*
-================
 experimentalOptions
 
 Only an explicit true enables a toggle, except smoothCamera, enchantSparks,
@@ -212,7 +201,7 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 	const enabled = ( key: ExperimentalKey ) => record[key] === true;
 	return {
 		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
-		frameWorkers: frameWorkerSettings().find( setting => setting === record.frameWorkers ) ?? "off",
+		frameWorkers: frameWorkerSetting( record.frameWorkers ) ?? "off",
 		chatTimestamps: enabled( "chatTimestamps" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),

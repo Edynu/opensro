@@ -24,6 +24,8 @@ const {
 	framePhaseComplete,
 	framePhaseFailed,
 	frameWorkerCount,
+	frameWorkerLimit,
+	frameWorkerSetting,
 	nextFrameGeneration,
 	publishFramePhase,
 	readyFrameWorkers,
@@ -79,7 +81,7 @@ function join( control, generation, run ) {
 	}
 }
 
-test("auto leaves three threads to the page and an explicit count is the player's", () => {
+test("auto leaves three threads to the page and a picked count is the player's, up to the machine", () => {
 	assert.equal( frameWorkerCount( 24, "off" ), 0 );
 	assert.deepEqual( [ 1, 2, 4, 6, 8, 12, 16, 24 ].map( threads => frameWorkerCount( threads, "auto" ) ), [
 		0,
@@ -92,8 +94,23 @@ test("auto leaves three threads to the page and an explicit count is the player'
 		8
 	] );
 	assert.equal( frameWorkerCount( Number.NaN, "auto" ), 0 );
-	assert.equal( frameWorkerCount( 4, 8 ), 8 );
+	assert.deepEqual( [ 1, 2, 4, 24, 66, Number.NaN ].map( frameWorkerLimit ), [ 1, 1, 3, 23, 64, 1 ] );
+	assert.equal( frameWorkerCount( 24, 16 ), 16, "past Auto's eight" );
+	assert.equal( frameWorkerCount( 24, 23 ), 23 );
+	assert.equal( frameWorkerCount( 4, 8 ), 3, "a count saved on a larger machine starts what this one allows" );
 	assert.equal( frameWorkerCount( 64, 2 ), 2 );
+	assert.deepEqual( [ "off", "auto", 1, 64, 0, 65, 2.5, "4", true, null ].map( frameWorkerSetting ), [
+		"off",
+		"auto",
+		1,
+		64,
+		undefined,
+		undefined,
+		undefined,
+		undefined,
+		undefined,
+		undefined
+	] );
 });
 
 test("consecutive generations alternate slots, across the wrap too", () => {

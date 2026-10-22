@@ -51,6 +51,10 @@ const TEAM_DEATH_MODE = 2;
 // past the text (the beginner mark mirrors it at -21.5 = -20 - 1.5).
 const JOB_MARK_GAP = 5.5;
 const STALL_PROMPT_QUANTITY = "stall-prompt-quantity";
+// Port-only: the Experimental window's Worker threads slider, between its
+// Auto button and the list's right edge (arrows outside the track).
+const FRAME_WORKER_SLIDER_LEFT = 240;
+const FRAME_WORKER_SLIDER_WIDTH = 88;
 const STALL_PROMPT_PRICE = "stall-prompt-price";
 const STALL_CHAT_TEXT = "stall-chat-text";
 // CIFChatModule sets both text boxes' row pitch through 523C20(15).
@@ -920,7 +924,8 @@ export function createUi(
 	extensions: UiExtensions = {}
 ) {
 	const bugReport = extensions.bugReport;
-	const experimental = createExperimentalHud();
+	// The Worker threads slider ranges over this machine's logical processors.
+	const experimental = createExperimentalHud( globalThis.navigator?.hardwareConcurrency ?? 1 );
 	let consolePhase: 0 | 1 | 2 | 3 = 0, consoleY = -112, consoleLast = 0, consoleText = "", gmObserved = 0;
 	let consoleRows: string[] = [], consoleHistory: string[] = [], consoleHistoryIndex = 0;
 	// +0x7BC, the /Debug flag: the native debug-message switch (690C40 case 0).
@@ -7697,6 +7702,8 @@ export function createUi(
 					else if ( key === "min" || key === "max" ) {
 						partyForm[key] = event.value.replace( /[^0-9]/g, "" ).slice( 0, 3 );
 					}
+				} else if ( event.id === "experimental-frame-workers-range" && panel === "Experimental" ) {
+					experimental.select( "frameWorkers", event.value );
 				} else if ( event.id.startsWith( "option-audio:" ) && panel === "Option" ) {
 					const key = event.id.slice( 13 ), n = Number( event.value );
 					if (
@@ -12563,7 +12570,58 @@ export function createUi(
 							py,
 							row.label
 						);
-						if ( isExperimentalChoice( row.key ) ) {
+						if ( row.key === "frameWorkers" ) {
+							// Port-only, not native: Auto, then the Option window's audio
+							// slider (CIFHScroll_Option thumb and arrows) from off to every
+							// thread but the main thread's.
+							const slider = experimental.frameWorkerSlider();
+							button( row.id + ":auto", "Auto", px + 177, py + top, 38, false, slider.auto );
+							const r: UiRect = [
+								px + FRAME_WORKER_SLIDER_LEFT,
+								py + top + 4,
+								FRAME_WORKER_SLIDER_WIDTH,
+								16
+							];
+							controls.push( {
+								id: row.id + "-range",
+								label: row.label,
+								kind: "range",
+								rect: r,
+								min: 0,
+								max: slider.max,
+								value: String( slider.position ),
+								valueText: slider.text,
+								helpText: slider.text
+							} );
+							const thumb = ROOT + "interface/ifcommon/com_scroll_button.png";
+							paths.push( thumb );
+							if ( resources.has( thumb ) ) {
+								rect(
+									[
+										r[0] +
+										Math.trunc( slider.position * (FRAME_WORKER_SLIDER_WIDTH - 16) / slider.max ),
+										r[1],
+										16,
+										16
+									],
+									white,
+									thumb
+								);
+							}
+							for ( const step of [ "less", "more" ] as const ) {
+								const arrow = ROOT + "interface/ifcommon/com_" + (step === "less" ? "left" : "right") +
+										"_bigarrow.png",
+									a: UiRect = [ step === "less" ? r[0] - 21 : r[0] + r[2], r[1] - 3, 24, 24 ];
+								paths.push( arrow );
+								if ( resources.has( arrow ) ) rect( a, white, arrow );
+								controls.push( {
+									id: row.id + ":" + step,
+									label: row.label + (step === "less" ? " -" : " +"),
+									kind: "button",
+									rect: a
+								} );
+							}
+						} else if ( isExperimentalChoice( row.key ) ) {
 							// Three render scales keep their 56-unit pitch; more choices
 							// share the same span.
 							const choices = experimentalChoices( row.key, draft );
@@ -12602,7 +12660,7 @@ export function createUi(
 							},
 							px,
 							py,
-							row.description
+							row.key === "frameWorkers" ? experimental.frameWorkerSlider().text : row.description
 						);
 					}
 					for (

@@ -16,8 +16,7 @@ import assert from "node:assert/strict";
 const experimentalModule = await import(
 	"../../src/engine/foundation/ui/experimental-options.ts"
 );
-const { experimentalGameplay, experimentalOptions, experimentalVideo, frameWorkerSettings, renderScales } =
-	experimentalModule;
+const { experimentalGameplay, experimentalOptions, experimentalVideo, renderScales } = experimentalModule;
 const { createExperimentalHud, EXPERIMENTAL_TABS } = await import(
 	"../../src/engine/runtime/ui/hud/experimental-hud.ts"
 );
@@ -534,29 +533,67 @@ test("expanded world map defaults off (native five towns and 28 x 8 overview) an
 	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "expandedWorldMap" ) ) );
 });
 
-test("worker threads default off, accept only the listed settings and stay out of every slice", () => {
+test("worker threads default off, keep off, auto or a whole count, and stay out of every slice", () => {
 	for (
-		const value of [ undefined, null, {}, { frameWorkers: true }, { frameWorkers: 3 }, { frameWorkers: "8" }, {
-			frameWorkers: "max"
-		} ]
+		const frameWorkers of [ undefined, null, true, 0, -1, 2.5, 65, Number.NaN, "8", "max", "on" ]
 	) {
-		const options = experimentalOptions( value );
-		assert.equal( options.frameWorkers, "off" );
+		const options = experimentalOptions( frameWorkers === undefined ? {} : { frameWorkers } );
+		assert.equal( options.frameWorkers, "off", String( frameWorkers ) );
 		assert.equal( "frameWorkers" in experimentalVideo( options ), false );
 		assert.equal( "frameWorkers" in experimentalGameplay( options ), false );
 	}
-	for ( const setting of frameWorkerSettings() ) {
+	for ( const setting of [ "off", "auto", 1, 3, 8, 23, 64 ] ) {
 		assert.equal( experimentalOptions( { frameWorkers: setting } ).frameWorkers, setting );
 	}
-	const hud = createExperimentalHud();
+	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "frameWorkers" ) ) );
+});
+
+test("the worker threads slider runs from off to every thread but the main thread's, beside Auto", () => {
+	const hud = createExperimentalHud( 24 );
 	hud.open();
+	assert.deepEqual( hud.frameWorkerSlider(), {
+		max: 23,
+		position: 0,
+		auto: false,
+		text: "Off: the frame runs on one thread (CPU: 24). After reload."
+	} );
 	hud.select( "frameWorkers", "auto" );
 	assert.equal( hud.state().draft.frameWorkers, "auto" );
 	assert.equal( hud.state().saved.frameWorkers, "off", "a draft until Confirm" );
-	hud.select( "frameWorkers", "3" );
-	hud.select( "frameWorkers", "max" );
-	assert.equal( hud.state().draft.frameWorkers, "auto", "unlisted values leave the draft" );
-	hud.select( "frameWorkers", "4" );
-	assert.equal( hud.confirm().frameWorkers, 4 );
-	assert.ok( EXPERIMENTAL_TABS.some( tab => tab.rows.some( row => row.key === "frameWorkers" ) ) );
+	assert.deepEqual( hud.frameWorkerSlider(), {
+		max: 23,
+		position: 8,
+		auto: true,
+		text: "Auto: 8 worker threads (CPU: 24). After reload."
+	} );
+	hud.select( "frameWorkers", "more" );
+	assert.equal( hud.state().draft.frameWorkers, 9, "a step starts where Auto's thumb stands" );
+	hud.select( "frameWorkers", "23" );
+	assert.equal( hud.state().draft.frameWorkers, 23 );
+	for ( const value of [ "more", "24", "-1", "max", "", "1.5", "auto2" ] ) {
+		hud.select( "frameWorkers", value );
+		assert.equal( hud.state().draft.frameWorkers, 23, `${value} leaves the draft` );
+	}
+	hud.select( "frameWorkers", "1" );
+	assert.equal( hud.frameWorkerSlider().text, "1 worker thread (CPU: 24). After reload." );
+	hud.select( "frameWorkers", "less" );
+	assert.equal( hud.state().draft.frameWorkers, "off", "position 0 is off" );
+	hud.select( "frameWorkers", "less" );
+	assert.equal( hud.state().draft.frameWorkers, "off" );
+	hud.select( "frameWorkers", "12" );
+	assert.equal( hud.confirm().frameWorkers, 12 );
+
+	// A four-thread CPU: Auto leaves three threads to the page; a pick may
+	// take all three, and a count saved on a larger machine shows what starts.
+	const small = createExperimentalHud( 4 );
+	small.restore( experimentalOptions( { frameWorkers: 12 } ) );
+	assert.deepEqual( small.frameWorkerSlider(), {
+		max: 3,
+		position: 3,
+		auto: false,
+		text: "3 worker threads (CPU: 4). After reload."
+	} );
+	small.select( "frameWorkers", "auto" );
+	assert.equal( small.frameWorkerSlider().position, 1 );
+	assert.equal( createExperimentalHud( Number.NaN ).frameWorkerSlider().max, 1 );
 });

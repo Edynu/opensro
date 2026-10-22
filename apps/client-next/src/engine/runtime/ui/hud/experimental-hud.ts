@@ -13,11 +13,11 @@ every tab edits the same draft.
 
 import {
 	experimentalOptions,
-	frameWorkerSettings,
 	type ExperimentalKey,
 	type ExperimentalOptions,
 	renderScales
 } from "@/engine/foundation/ui/experimental-options";
+import { frameWorkerCount, frameWorkerLimit } from "@/engine/foundation/workers/frame-jobs";
 
 /*
 ================
@@ -227,6 +227,7 @@ export const EXPERIMENTAL_TABS: readonly {
 			key: "frameWorkers",
 			id: "experimental-frame-workers",
 			label: "Worker threads",
+			// Replaced by frameWorkerSlider's line, which names the count.
 			description: "Share frame work across CPU cores. After reload."
 		}, {
 			key: "developerDiagnostics",
@@ -293,7 +294,8 @@ export function isExperimentalChoice( key: ExperimentalRow["key"] ): key is Expe
 experimentalChoices
 
 A choice row's buttons: each one's control value and caption, and whether
-the draft holds it.
+the draft holds it. Worker threads has one, Auto, beside its slider
+(frameWorkerSlider).
 ================
 */
 export function experimentalChoices( key: ExperimentalChoiceKey, draft: ExperimentalOptions ): readonly {
@@ -308,19 +310,44 @@ export function experimentalChoices( key: ExperimentalChoiceKey, draft: Experime
 			selected: draft.renderScale === scale
 		}) );
 	}
-	return frameWorkerSettings().map( setting => ({
-		value: String( setting ),
-		label: setting === "off" ? "Off" : setting === "auto" ? "Auto" : String( setting ),
-		selected: draft.frameWorkers === setting
-	}) );
+	return [ { value: "auto", label: "Auto", selected: draft.frameWorkers === "auto" } ];
+}
+
+/*
+================
+frameWorkerSlider
+
+Port-only, not native. The Worker threads slider for a machine with
+threads logical processors: 0 (off) to frameWorkerLimit workers, the
+thumb at the count the draft starts (Auto's own count while Auto is
+picked), and the help line naming it.
+================
+*/
+export function frameWorkerSlider( draft: ExperimentalOptions, threads: number ) {
+	const setting = draft.frameWorkers, position = frameWorkerCount( threads, setting );
+	const count = position === 1 ? "1 worker thread" : `${position} worker threads`;
+	const cpu = `(CPU: ${Number.isInteger( threads ) && threads > 0 ? threads : 1}). After reload.`;
+	return {
+		max: frameWorkerLimit( threads ),
+		position,
+		auto: setting === "auto",
+		text: setting === "off" ?
+			`Off: the frame runs on one thread ${cpu}` :
+			setting === "auto" ?
+			`Auto: ${count} ${cpu}` :
+			`${count} ${cpu}`
+	};
 }
 
 /*
 ================
 createExperimentalHud
+
+threads is the machine's logical processor count
+(navigator.hardwareConcurrency): the Worker threads slider's range.
 ================
 */
-export function createExperimentalHud() {
+export function createExperimentalHud( threads = 1 ) {
 	let saved = experimentalOptions(), draft = saved, tab = 0;
 	return {
 		/*
@@ -354,7 +381,9 @@ export function createExperimentalHud() {
 		select
 
 		Port-only, not native. A choice row's pick, by its control value;
-		invalid UI selections leave the draft intact.
+		invalid UI selections leave the draft intact. Worker threads takes
+		"auto", a slider position (0 is off) or a step, "less" or "more",
+		from where its thumb stands.
 		================
 		*/
 		select( key: ExperimentalChoiceKey, value: string ) {
@@ -363,8 +392,14 @@ export function createExperimentalHud() {
 				if ( renderScale !== undefined ) draft = { ...draft, renderScale };
 				return;
 			}
-			const frameWorkers = frameWorkerSettings().find( setting => String( setting ) === value );
-			if ( frameWorkers !== undefined ) draft = { ...draft, frameWorkers };
+			if ( value === "auto" ) {
+				draft = { ...draft, frameWorkers: "auto" };
+				return;
+			}
+			const position = frameWorkerCount( threads, draft.frameWorkers );
+			const next = value === "less" ? position - 1 : value === "more" ? position + 1 : Number( value );
+			if ( !/^(less|more|\d+)$/.test( value ) || next < 0 || next > frameWorkerLimit( threads ) ) return;
+			draft = { ...draft, frameWorkers: next === 0 ? "off" : next };
 		},
 		/*
 		================
@@ -401,6 +436,16 @@ export function createExperimentalHud() {
 		*/
 		state() {
 			return { saved, draft, tab };
+		},
+		/*
+		================
+		frameWorkerSlider
+
+		The draft's Worker threads slider on this machine.
+		================
+		*/
+		frameWorkerSlider() {
+			return frameWorkerSlider( draft, threads );
 		}
 	};
 }
