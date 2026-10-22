@@ -39,5 +39,5 @@ looks different from the rest of the client:
 Run the differential tests after any change here:
 
 ```
-node --test tests/runtime/pose-presentation-flat-walk.test.mjs tests/runtime/cloth-kernel.test.mjs
+node --test tests/runtime/pose-presentation-flat-walk.test.mjs tests/runtime/cloth-kernel.test.mjs tests/runtime/skeleton-kernel.test.mjs tests/runtime/particle-kernel.test.mjs
 ```

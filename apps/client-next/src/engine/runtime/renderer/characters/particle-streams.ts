@@ -45,14 +45,32 @@ import type { ParticlePresentation } from "../internal/gpu-contract";
 
 /*
 ================
+ParticleRecordsSource
+
+A graph ticked on the frame workers (particle-graphs.ts): its tick, the
+holder follow its linked elements ride this frame, and each drawn
+emitter's rows, live elements and GPU records as its last run wrote them
+(a view, read at once).
+================
+*/
+export interface ParticleRecordsSource {
+	readonly follow: Float32Array;
+	frame(): number;
+	emitter( n: number ): { readonly rows: number; readonly live: number; readonly records: Float32Array; } | undefined;
+}
+
+/*
+================
 ParticleHistory
 
 An actor's particle simulation (characters.ts owns it for the actor's
-lifetime): its graph, or its primitives' birth matrices and programs.
+lifetime): its graph (an object graph, or with Worker threads on one on
+the frame workers), or its primitives' birth matrices and programs.
 ================
 */
 export interface ParticleHistory {
 	readonly graph?: ParticleGraphState;
+	readonly flat?: ParticleRecordsSource;
 	// The graph's holder follow this frame (particle-holder-link.ts).
 	readonly link?: ParticleLink;
 	readonly matrices: readonly (Float32Array | undefined)[];
@@ -219,6 +237,36 @@ function writeGraphRow( stream: ParticleStream, index: number, history: Particle
 
 /*
 ================
+writeFlatRow
+
+writeGraphRow for a graph on the frame workers: its kernel wrote the
+records of its used slots at its last run, live or hidden, so a changed
+row copies them and hides the previous owner's tail.
+================
+*/
+function writeFlatRow( stream: ParticleStream, index: number, history: ParticleHistory, origin: number ): void {
+	const flat = history.flat!, frame = flat.frame();
+	if ( stream.owners[index] === history && stream.ticks[index] === frame && stream.origins[index] === origin ) {
+		stream.live += stream.liveCounts[index]!;
+		return;
+	}
+	const emitter = flat.emitter( stream.primitive.particleEmitter! );
+	if ( !emitter ) throw Error( "Particle graph stream of an undrawn emitter" );
+	if ( emitter.rows > stream.slots ) throw Error( "Particle graph outside its emission capacity" );
+	const base = index * stream.slots, extent = Math.max( emitter.rows, stream.extents[index]! );
+	stream.records.set( emitter.records.subarray( 0, emitter.rows * PARTICLE_RECORD ), base * PARTICLE_RECORD );
+	for ( let b = emitter.rows; b < extent; b++ ) hideRecord( stream.records, base + b );
+	stream.live += emitter.live;
+	stream.liveCounts[index] = emitter.live;
+	stream.extents[index] = emitter.rows;
+	stream.owners[index] = history;
+	stream.ticks[index] = frame;
+	stream.origins[index] = origin;
+	if ( extent ) markDirty( stream, base, base + extent );
+}
+
+/*
+================
 writeEmittedRow
 
 A primitive's own emission: births at fixed times, each drawn at its
@@ -298,11 +346,14 @@ export function writeParticleRow(
 	actors[at + ACTOR_TIME] = actor.time;
 	actors[at + ACTOR_OPACITY] = row.opacity;
 	if ( stream.graphPalette ) {
-		if ( !graph ) throw Error( "Graph particle stream without its graph" );
-		actors[at + ACTOR_FRACTION] = actor.time * PARTICLE_TICKS_PER_SECOND - graph.frame;
+		const flat = history.flat;
+		if ( !graph && !flat ) throw Error( "Graph particle stream without its graph" );
+		actors[at + ACTOR_FRACTION] = actor.time * PARTICLE_TICKS_PER_SECOND - (graph ? graph.frame : flat!.frame());
 		actors.set( stream.graphPalette, at + ACTOR_PALETTE );
-		if ( history.link ) actors.set( history.link.follow, at + ACTOR_FOLLOW );
-		writeGraphRow( stream, index, history, row.origin );
+		const follow = history.link?.follow ?? flat?.follow;
+		if ( follow ) actors.set( follow, at + ACTOR_FOLLOW );
+		if ( graph ) writeGraphRow( stream, index, history, row.origin );
+		else writeFlatRow( stream, index, history, row.origin );
 		return;
 	}
 	if ( !row.pose ) throw Error( "Emitted particle stream without its pose" );

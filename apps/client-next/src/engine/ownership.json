@@ -105,6 +105,7 @@
     "src/engine/runtime/renderer/characters/actor-snapshots.ts": "src/engine/runtime/renderer/characters/characters.ts",
     "src/engine/runtime/renderer/characters/palette-streams.ts": "src/engine/runtime/renderer/characters/characters.ts",
     "src/engine/runtime/renderer/characters/skeletons.ts": "src/engine/runtime/renderer/characters/characters.ts",
+    "src/engine/runtime/renderer/characters/particle-graphs.ts": "src/engine/runtime/renderer/characters/characters.ts",
     "src/engine/runtime/renderer/characters/particle-streams.ts": "src/engine/runtime/renderer/characters/characters.ts",
     "src/engine/runtime/characters/state-index.ts": "src/engine/runtime/characters/characters.ts",
     "src/engine/runtime/characters/presentation-events.ts": "src/engine/runtime/characters/characters.ts",

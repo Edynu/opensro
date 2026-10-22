@@ -24,11 +24,17 @@ which keep their own tables (the world* cloth tables) and lifetime.
 KERNEL_SKELETON: each requested character pose's matrices
 (skeleton-kernel.ts), for its owner (renderer/characters/skeletons.ts).
 
+KERNEL_PARTICLES: each requested particle graph's ticks and its drawn
+emitters' GPU records (particle-kernel.ts), for its owner
+(renderer/characters/particle-graphs.ts).
+
 ===========================================================================
 */
 import { advanceClothWearer } from "./cloth-kernel";
 import { CLOTH_RECORD } from "./cloth-record";
 import { materializeSkeleton } from "./skeleton-kernel";
+import { advanceParticleGraphAt } from "./particle-kernel";
+import { PARTICLE_GRAPH_RECORD, PARTICLE_MATRIX_WORK, PARTICLE_RANDOM_VALUES, PARTICLE_WORK } from "./particle-record";
 import { SKELETON_RECORD } from "./skeleton-record";
 import { POSE_SCRATCH, presentPose } from "./pose-kernel";
 import { O_POSE, POSE_RECORD } from "./pose-record";
@@ -38,6 +44,7 @@ export const KERNEL_POSE = 1;
 export const KERNEL_CLOTH = 2;
 export const KERNEL_SKELETON = 3;
 export const KERNEL_WORLD_CLOTH = 4;
+export const KERNEL_PARTICLES = 5;
 // Characters per KERNEL_POSE chunk.
 export const POSE_CHUNK = 8;
 // Snapshots per character record: before the first call, after it.
@@ -89,6 +96,22 @@ export const INITIAL_SKELETON_SCRATCH_WORDS = 131072;
 export const MAX_SKELETON_SCRATCH_WORDS = 4194304;
 export const INITIAL_SKELETON_STATE_FLOATS = 2097152;
 export const MAX_SKELETON_STATE_FLOATS = 33554432;
+// Particle graphs per KERNEL_PARTICLES chunk (one: their cost varies by
+// thousands), the instances the records hold before growing and at most,
+// and per phase. The world draws at most 512 actors.
+export const PARTICLE_CHUNK = 1;
+export const INITIAL_PARTICLE_GRAPHS = 256;
+export const MAX_PARTICLE_GRAPHS = 8192;
+export const MAX_PARTICLE_REQUESTS = 1024;
+// Particle tables before growing, and at most (particle-record.ts). An
+// instance holds two halves of every slot its emitters may fill: a large
+// effect (fireworks, 5,000 slots) takes about 9 MB.
+export const INITIAL_PARTICLE_DEF_WORDS = 65536;
+export const MAX_PARTICLE_DEF_WORDS = 8388608;
+export const INITIAL_PARTICLE_STATE_WORDS = 1048576;
+export const MAX_PARTICLE_STATE_WORDS = 67108864;
+export const INITIAL_PARTICLE_FRAME_FLOATS = 2097152;
+export const MAX_PARTICLE_FRAME_FLOATS = 134217728;
 
 /*
 ================
@@ -101,9 +124,11 @@ of the open pose phase; clothRecords, clothPrograms and clothState the
 cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
 cloth phase, the worldCloth* tables likewise the world's cloth meshes; the
 skeleton* tables the character poses (skeleton-record.ts) and
-skeletonRequests the poses of the open skeleton phase. With frame workers
-they are growable shared buffers that grow in place; on one thread they
-are ordinary buffers that growTable replaces with larger copies.
+skeletonRequests the poses of the open skeleton phase; the particle*
+tables the particle graphs (particle-record.ts), particleRequests those of
+the open particle phase. With frame workers they are growable shared
+buffers that grow in place; on one thread they are ordinary buffers that
+growTable replaces with larger copies.
 ================
 */
 export interface FrameKernelMemory {
@@ -126,6 +151,12 @@ export interface FrameKernelMemory {
 	skeletonScratch: ArrayBufferLike;
 	skeletonState: ArrayBufferLike;
 	skeletonRequests: ArrayBufferLike;
+	particleDefs: ArrayBufferLike;
+	particleGraphs: ArrayBufferLike;
+	particleState: ArrayBufferLike;
+	particleFrames: ArrayBufferLike;
+	particleRequests: ArrayBufferLike;
+	particleRandom: ArrayBufferLike;
 }
 
 /*
@@ -206,7 +237,19 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 		skeletonRequests: allocate(
 			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT
-		)
+		),
+		particleDefs: allocate( INITIAL_PARTICLE_DEF_WORDS * 8, MAX_PARTICLE_DEF_WORDS * 8 ),
+		particleGraphs: allocate(
+			INITIAL_PARTICLE_GRAPHS * PARTICLE_GRAPH_RECORD * 8,
+			MAX_PARTICLE_GRAPHS * PARTICLE_GRAPH_RECORD * 8
+		),
+		particleState: allocate( INITIAL_PARTICLE_STATE_WORDS * 8, MAX_PARTICLE_STATE_WORDS * 8 ),
+		particleFrames: allocate( INITIAL_PARTICLE_FRAME_FLOATS * 4, MAX_PARTICLE_FRAME_FLOATS * 4 ),
+		particleRequests: allocate(
+			(REQUEST_SLOTS + MAX_PARTICLE_REQUESTS) * Int32Array.BYTES_PER_ELEMENT,
+			(REQUEST_SLOTS + MAX_PARTICLE_REQUESTS) * Int32Array.BYTES_PER_ELEMENT
+		),
+		particleRandom: allocate( PARTICLE_RANDOM_VALUES * 4, PARTICLE_RANDOM_VALUES * 4 )
 	};
 }
 
@@ -285,7 +328,15 @@ export interface FrameKernelViews {
 	skeletonScratch: Float64Array;
 	skeletonState: Float32Array;
 	skeletonRequests: Int32Array;
+	particleDefs: Float64Array;
+	particleGraphs: Float64Array;
+	particleState: Float64Array;
+	particleFrames: Float32Array;
+	particleRequests: Int32Array;
+	particleRandom: Float32Array;
 	readonly scratch: Float64Array;
+	readonly particleWork: Float64Array;
+	readonly particleMatrices: Float32Array;
 }
 
 /*
@@ -317,7 +368,15 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		skeletonScratch: new Float64Array( 0 ),
 		skeletonState: new Float32Array( 0 ),
 		skeletonRequests: new Int32Array( 0 ),
-		scratch: new Float64Array( POSE_SCRATCH )
+		particleDefs: new Float64Array( 0 ),
+		particleGraphs: new Float64Array( 0 ),
+		particleState: new Float64Array( 0 ),
+		particleFrames: new Float32Array( 0 ),
+		particleRequests: new Int32Array( 0 ),
+		particleRandom: new Float32Array( 0 ),
+		scratch: new Float64Array( POSE_SCRATCH ),
+		particleWork: new Float64Array( PARTICLE_WORK ),
+		particleMatrices: new Float32Array( PARTICLE_MATRIX_WORK )
 	};
 	refreshViews( views );
 	return views;
@@ -355,6 +414,12 @@ export function refreshViews( views: FrameKernelViews ) {
 	views.skeletonScratch = float64View( views.skeletonScratch, memory.skeletonScratch );
 	views.skeletonState = float32View( views.skeletonState, memory.skeletonState );
 	views.skeletonRequests = int32View( views.skeletonRequests, memory.skeletonRequests );
+	views.particleDefs = float64View( views.particleDefs, memory.particleDefs );
+	views.particleGraphs = float64View( views.particleGraphs, memory.particleGraphs );
+	views.particleState = float64View( views.particleState, memory.particleState );
+	views.particleFrames = float32View( views.particleFrames, memory.particleFrames );
+	views.particleRequests = int32View( views.particleRequests, memory.particleRequests );
+	views.particleRandom = float32View( views.particleRandom, memory.particleRandom );
 }
 
 /*
@@ -516,6 +581,14 @@ export function runFrameKernel( views: FrameKernelViews, kernel: number, chunk: 
 		const requests = views.skeletonRequests, count = requests[REQUEST_COUNT]!;
 		const end = Math.min( count, (chunk + 1) * SKELETON_CHUNK );
 		for ( let i = chunk * SKELETON_CHUNK; i < end; i++ ) materializeSkeleton( views, requests[REQUEST_SLOTS + i]! );
+		return;
+	}
+	if ( kernel === KERNEL_PARTICLES ) {
+		const requests = views.particleRequests, count = requests[REQUEST_COUNT]!;
+		const end = Math.min( count, (chunk + 1) * PARTICLE_CHUNK );
+		for ( let i = chunk * PARTICLE_CHUNK; i < end; i++ ) {
+			advanceParticleGraphAt( views, requests[REQUEST_SLOTS + i]! );
+		}
 		return;
 	}
 	throw Error( `Unknown frame kernel ${kernel}` );

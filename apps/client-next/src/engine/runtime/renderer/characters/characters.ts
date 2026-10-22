@@ -8,6 +8,7 @@ characters.ts - admitted character models, world batches and separate portrait s
 import { createClothVertices } from "@/engine/foundation/animation/cloth-vertices";
 import { clothSeed, createClothWearers } from "@/engine/foundation/animation/cloth-wearers";
 import { sharedSkeletons } from "./skeletons";
+import { createParticleGraphs } from "./particle-graphs";
 import { characterLabelHeight } from "@/engine/foundation/ui/character-labels";
 import { regionOffsetXZ, regionRelativeXZ } from "@/engine/foundation/world/world-space";
 import type { WorldTexture } from "@/engine/contracts/texture";
@@ -56,6 +57,7 @@ import {
 	writeParticleRow,
 	type ParticleHistory,
 	type ParticleRandom,
+	type ParticleRecordsSource,
 	type ParticleStream
 } from "./particle-streams";
 import { type PickBounds, type PickRay } from "@/engine/foundation/rendering/picking";
@@ -214,6 +216,30 @@ const MAX_ATTACHMENT_DEPTH = 8;
 // model, which names its program in the effect bundle.
 const EQUIPMENT_SOCKET_PREFIX = "equipment:";
 const EFFECT_PROGRAMS = "/effects/programs.json#";
+// Port-only, with Worker threads on: particle graphs admitted in one frame
+// tick together later, so each steps the shared random cursor on by this
+// much and they start apart, as object graphs start after each other's
+// draws (a crowd's auras would otherwise all play the same draws).
+const FLAT_GRAPH_CURSOR_STRIDE = 1237;
+
+/*
+================
+ParticleHistoryEntry
+
+An actor's particle history and what it was made for: its model, time,
+cycle and origin, its charge, and its graph (an object graph, or the slot
+of one on the frame workers).
+================
+*/
+interface ParticleHistoryEntry extends ParticleHistory {
+	model: string;
+	time: number;
+	cycle: number;
+	origin: number;
+	bytes: number;
+	graph?: ParticleGraphState;
+	slot?: number;
+}
 
 /*
 ================
@@ -345,19 +371,15 @@ export function createCharacters(
 	// Birth transforms belong to the actor lifetime, not GPU batches. Keep them
 	// across culling, batch membership changes and device recreation.
 	const particleRandom: ParticleRandom = { table: particleRandomTable(), index: 0 };
+	// Port-only, not native: with Worker threads on, the particle graphs
+	// tick on the frame workers (particle-graphs.ts); advanceParticles
+	// requests them and forks their phase, prepare joins it before the
+	// poses' phase and then carries each graph's holder follow.
+	const particleGraphs = frameWorkers ? createParticleGraphs( frameWorkers, particleRandom.table ) : undefined;
+	const followHistories: ParticleHistoryEntry[] = [], followTransforms: Float32Array[] = [];
 	// One actor's inputs to its particle streams, refilled per actor.
 	const particleRow = createParticleRow();
-	const particleBirths = new Map<
-		number,
-		ParticleHistory & {
-			model: string;
-			time: number;
-			cycle: number;
-			origin: number;
-			bytes: number;
-			graph?: ParticleGraphState;
-		}
-	>();
+	const particleBirths = new Map<number, ParticleHistoryEntry>();
 	const batches = new Map<string, {
 		signature: string;
 		capacity: number;
@@ -1293,7 +1315,22 @@ export function createCharacters(
 			!history || history.model !== actor.model || actor.time < history.time ||
 			history.cycle !== (frame.cycles.get( actor.gid ) ?? 0)
 		) {
-			const graph = model.particleGraph ?
+			if ( history?.slot !== undefined ) particleGraphs!.release( history.slot );
+			// A model that draws ribbons reads its graph's elements on this
+			// thread (drawRibbon): its graph stays an object graph.
+			const slot = model.particleGraph && particleGraphs && !model.primitives.some( p => p.ribbon ) ?
+				particleGraphs.admit(
+					model.particleGraph,
+					model.particleGraph.map( ( _, n ) =>
+						model.primitives.some( p => p.particleEmitter === n && !!p.emission && !p.ribbon )
+					),
+					particleRandom.index
+				) :
+				undefined;
+			if ( slot !== undefined ) {
+				particleRandom.index = (particleRandom.index + FLAT_GRAPH_CURSOR_STRIDE) % particleRandom.table.length;
+			}
+			const graph = model.particleGraph && slot === undefined ?
 				createParticleGraph( model.particleGraph, particleRandom.index ) :
 				undefined;
 			history = {
@@ -1303,6 +1340,8 @@ export function createCharacters(
 				origin: frame.origin,
 				bytes: storage,
 				graph,
+				slot,
+				flat: slot === undefined ? undefined : flatSource( slot ),
 				link: graph ?
 					{
 						root: graph.root,
@@ -1321,6 +1360,42 @@ export function createCharacters(
 			particleBirths.set( actor.gid, history );
 		}
 		return history;
+	}
+	/*
+	================
+	flatSource
+
+	The records source of the graph in slot of the particle graphs.
+	================
+	*/
+	function flatSource( slot: number ): ParticleRecordsSource {
+		const graphs = particleGraphs!;
+		return {
+			follow: new Float32Array( HOLDER_FOLLOW ),
+			frame: () => graphs.frame( slot ),
+			emitter: n => graphs.emitter( slot, n )
+		};
+	}
+	/*
+	================
+	joinParticles
+
+	The particle phase advanceParticles forked, joined, and each requested
+	graph's holder follow this frame (advanceGraphEmitter's).
+	================
+	*/
+	function joinParticles() {
+		if ( !particleGraphs ) return;
+		particleGraphs.join();
+		for ( let i = 0; i < followHistories.length; i++ ) {
+			const history = followHistories[i]!;
+			particleGraphs.follow( history.slot!, followTransforms[i]!, history.flat!.follow );
+		}
+		// The shared cursor where the object path leaves it: at the last
+		// advanced graph's.
+		const last = followHistories.at( -1 );
+		if ( last ) particleRandom.index = particleGraphs.index( last.slot! );
+		followHistories.length = followTransforms.length = 0;
 	}
 	/*
 	================
@@ -1434,8 +1509,11 @@ export function createCharacters(
 	function advanceParticles( frame: PrepareFrame ) {
 		const { byGid, chains, origin, continuation } = frame;
 		const particleNeeded = new Set<number>(), particleAccepted = new Set<number>();
+		// A frame that failed after forking left its phase open.
+		joinParticles();
 		for ( const [gid, history] of particleBirths ) {
 			if ( byGid.get( gid )?.model !== history.model || !models.has( history.model ) ) {
+				if ( history.slot !== undefined ) particleGraphs!.release( history.slot );
 				particleBirths.delete( gid );
 			}
 		}
@@ -1460,13 +1538,31 @@ export function createCharacters(
 			const transform = transformFor( actor, byGid, origin, frame.transforms );
 			if ( !transform ) continue;
 			const shift = regionOffsetXZ( origin, history.origin );
-			if ( history.graph && model.particleGraph ) {
+			if ( history.slot !== undefined ) {
+				particleGraphs!.request(
+					history.slot,
+					actor.time,
+					transform,
+					actor.emissionEnd ?? Infinity,
+					shift[0],
+					shift[1],
+					actor.loop ?? false
+				);
+				followHistories.push( history );
+				followTransforms.push( transform );
+			} else if ( history.graph && model.particleGraph ) {
 				advanceGraphEmitter( actor, model, history, transform, shift );
 			} else {
 				advanceBirthEmitter( actor, model, history, transform, shift );
 			}
 			history.origin = origin;
 			history.time = actor.time;
+		}
+		// The particle phase runs while prepare plans the frame; the holder
+		// sockets' phase is done with (transformFor read them).
+		if ( particleGraphs && followHistories.length ) {
+			skeletons?.join();
+			particleGraphs.fork();
 		}
 		// Deferred draws retain bounded simulation history; only actor retirement releases it.
 		return { accepted: particleAccepted, needed: particleNeeded, bytes: particleBytes };
@@ -3370,6 +3466,7 @@ export function createCharacters(
 			// palette or socket read joins them.
 			skeletons?.collect();
 			evaluateNeededPoses( frameActors, needed );
+			joinParticles();
 			skeletons?.fork();
 			releaseUngrouped( frame, grouped );
 			const orderedGroups = [ ...grouped.entries() ];
@@ -3521,6 +3618,7 @@ export function createCharacters(
 			cullFrame.chains = new Map();
 			cullFrame.byGid = new Map();
 			particleBirths.clear();
+			particleGraphs?.reset();
 			materialClocks.reset();
 			deferred.reset();
 			particleSnapshots.clear();

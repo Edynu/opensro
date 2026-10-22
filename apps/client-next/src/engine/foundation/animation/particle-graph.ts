@@ -187,7 +187,7 @@ function programNeedsSibling( program: ParticleProgram | undefined ): boolean {
 needsSibling
 ================
 */
-function needsSibling( def: ParticleEmitter ): boolean {
+export function needsSibling( def: ParticleEmitter ): boolean {
 	if ( !def.emission ) return false;
 	if ( programNeedsSibling( def.program ) ) return true;
 	return def.commands?.some( command => {
@@ -504,7 +504,7 @@ The last tick a graph can change: unbounded when any emitter loops or
 emits, else the latest birth plus its lifetime.
 ================
 */
-function tickHorizon( graph: readonly ParticleEmitter[] ): number {
+export function tickHorizon( graph: readonly ParticleEmitter[] ): number {
 	let last = 0;
 	for ( let n = 0; n < graph.length; n++ ) {
 		const def = graph[n]!;

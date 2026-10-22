@@ -2421,6 +2421,30 @@
 			]
 		},
 		{
+			"consumer": "src/engine/runtime/renderer/characters/particle-graphs.ts",
+			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"functions": [
+				"fork",
+				"join",
+				"memory"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/frame-workers/frame-workers.ts",
+			"provider": "src/engine/runtime/renderer/characters/particle-graphs.ts",
+			"functions": [
+				"runLocal"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/particle-streams.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"emitter",
+				"frame"
+			]
+		},
+		{
 			"consumer": "src/engine/runtime/renderer/characters/characters.ts",
 			"provider": "src/engine/runtime/renderer/characters/skeletons.ts",
 			"functions": [

@@ -695,6 +695,49 @@ RX 6900 XT, after part 3a (main thread about 35 ms a frame).
   as indices, double-buffered for restarts, the GPU records written by the
   kernel at each tick.
 
+### 6.12 Step 4, part 5: particle graphs on the frame workers (2026-10-22)
+
+- **Kernel** (`foundation/kernels/particle-kernel.ts`, `particle-step.ts`,
+  `particle-output.ts`, layout `particle-record.ts`): `particle-graph.ts`
+  advanceParticleGraph with `particle-program.ts` initializeParticle and
+  advanceParticle, commands, vectors, emission, and `particle-records.ts`
+  writeGraphRecord, on one graph instance's flat state. An element slot
+  per emitter capacity and the root; parents, group owners and siblings
+  are indices, groups keep Map order. The object graph's numbers are
+  doubles and its Float32Arrays floats, so every store rounds where it
+  did. Double-buffered, copying only each emitter's used rows; births out
+  of slot order clear the holes they skip, so a run again finds none.
+- **Owner** (`renderer/characters/particle-graphs.ts`): a graph's
+  definition (emitters, programs, commands, lists; which emitters are
+  drawn) is encoded once; an instance lives as long as the actor's
+  particle history. `advanceParticles` requests the graphs a tick or a
+  region crossing falls due for and forks one `KERNEL_PARTICLES` phase;
+  `prepare` plans the frame and evaluates poses while the workers tick,
+  joins before the poses' phase, then writes each holder follow. The
+  particle streams copy the kernel's records (`writeFlatRow`). Models that
+  draw ribbons keep object graphs (the ribbon reads elements here).
+- **Random draws**: a graph keeps its own cursor into the shared table, as
+  before. Graphs admitted in one frame step the shared cursor apart (they
+  tick later, together), and after the phase the shared cursor is the last
+  graph's, where the object path leaves it.
+- **Proof**: `particle-kernel.test.mjs` drives 60 seeded graphs that use
+  every feature (`tests/helpers/particle-graph-cases.mjs`) through both and
+  requires every element field, group and live GPU record bit for bit, on
+  threads and with chunks run twice; 9 of 10 deliberate breaks fail it (the
+  tenth needs a looping element born behind a missing parent).
+  `particle-graph-workers.test.mjs` runs the shipped renderer both ways and
+  compares every presented stream, through a rewind.
+- **Browser**: `advanceParticles` 89 to 31 ms/s (the holder sockets, 20,
+  stay on the main thread); `writeParticleRow` 34 to 12.
+- **Frame rate**, 20-second rounds alternating Worker threads Auto and Off:
+  46, 51, 48 fps against 29, 28, 28; main thread 20.8, 18.7, 20.0 ms
+  against 33.1, 34.1, 34.7 (before: 39, 44, 39 fps on 24.6, 22.1, 24.9 ms).
+- **Where the main thread goes now** (Auto, ms/s): actor presentation 127
+  (`actor-motion.ts` present 52 of it), group building 167, uploads about
+  85 (`writeBuffer` 49, the upload arena's copies 25, of which cloth
+  vertices 22, `copyBufferToBuffer` 11), UI about 50, simulation snapshot
+  decoding 21, holder sockets 20, garbage collection 18.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame
