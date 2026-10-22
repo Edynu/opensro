@@ -37,7 +37,7 @@ export function verifyOwnership( base = root ) {
 	if (
 		!record( m ) || !sourcePath( m.root ) || !sourcePath( m.bootstrap ) ||
 		![ "modules", "internals", "workers" ].every( key => record( m[key] ) ) ||
-		m.contracts !== undefined && !record( m.contracts )
+		m.contracts !== undefined && !record( m.contracts ) || m.replicas !== undefined && !record( m.replicas )
 	) {
 		return [ "Invalid ownership manifest schema or root endpoints" ];
 	}
@@ -66,6 +66,22 @@ export function verifyOwnership( base = root ) {
 	}
 	for ( const [file, owner] of Object.entries( m.workers ) ) {
 		if ( m.modules[file] !== owner ) issues.push( `Worker ownership mismatch: ${file}` );
+	}
+	// A replica is a module a worker builds its own instance of: the worker
+	// shares no state with the module's owner, only its code (the character
+	// worker runs the presentation, docs/CLIENT_WORKERS_PLAN.md 5.11). Each
+	// entry names an owned module and the worker entries that may import it.
+	m.replicas ??= {};
+	for ( const [file, entries] of Object.entries( m.replicas ) ) {
+		if ( !Object.hasOwn( m.modules, file ) || !Array.isArray( entries ) || !entries.length ) {
+			issues.push( `Invalid replica: ${file}` );
+			continue;
+		}
+		for ( const entry of entries ) {
+			if ( typeof entry !== "string" || !Object.hasOwn( m.workers, entry ) ) {
+				issues.push( `Invalid replica: ${file} -> ${entry}` );
+			}
+		}
 	}
 	for ( const [file, owner] of Object.entries( m.modules ) ) {
 		if ( owner === m.bootstrap && file !== m.root ) issues.push( `Extra ownership root: ${file}` );
@@ -146,7 +162,9 @@ export function verifyOwnership( base = root ) {
 				m.modules[target] === file && (!m.workers[target] || edge.kind === "worker") ||
 				m.internals[target] === file || m.internals[file] && m.internals[file] === m.internals[target] ||
 				edge.typeOnly && m.contracts?.[target] &&
-					file.startsWith( path.posix.dirname( m.contracts[target] ) + "/" );
+					file.startsWith( path.posix.dirname( m.contracts[target] ) + "/" ) ||
+				Object.hasOwn( m.workers, file ) && Array.isArray( m.replicas[target] ) &&
+					m.replicas[target].includes( file );
 			if ( common( file ) && !common( target ) || !allowed ) {
 				issues.push( `${file}: forbidden ${edge.kind} of ${target}` );
 			}

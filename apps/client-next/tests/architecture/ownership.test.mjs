@@ -53,17 +53,18 @@ const MANIFEST = {
 withFixture
 
 Writes the fixture, applies one appended edit and hands the directory to fn.
+A case that changes the project's shape passes its own sources and manifest.
 ================
 */
-function withFixture( edit, fn ) {
+function withFixture( edit, fn, { sources = SOURCES, manifest = MANIFEST } = {} ) {
 	const dir = fs.mkdtempSync( path.join( os.tmpdir(), "sro-ownership-" ) );
 	const write = ( name, text ) => {
 		fs.mkdirSync( path.dirname( path.join( dir, name ) ), { recursive: true } );
 		fs.writeFileSync( path.join( dir, name ), text );
 	};
 	try {
-		for ( const [name, text] of Object.entries( SOURCES ) ) write( name, text );
-		write( "src/engine/ownership.json", JSON.stringify( MANIFEST ) );
+		for ( const [name, text] of Object.entries( sources ) ) write( name, text );
+		write( "src/engine/ownership.json", JSON.stringify( manifest ) );
 		write( "execution-contract.json", "{}" );
 		if ( edit ) fs.appendFileSync( path.join( dir, edit.file ), edit.code );
 		return fn( dir );
@@ -208,4 +209,40 @@ test("admit readonly literal tables but reject mutable or executable tables", ()
 	) {
 		rejects( { file: SESSION, code }, verifyOwnership, "shared module state" );
 	}
+});
+
+/*
+================
+A worker entry builds its own instance of another owner's module only when
+the manifest lists the module as that worker's replica.
+================
+*/
+test("a worker imports another owner's module only as a listed replica", () => {
+	const ENTRY = "src/engine/runtime/simulation/worker/entry.ts";
+	const sources = {
+		...SOURCES,
+		[HOST]: "export function createSimulationHost() {\n" +
+			'\treturn new Worker( new URL( "./worker/entry.ts", import.meta.url ), { type: "module" } );\n}\n',
+		[ENTRY]: 'import { platform } from "../../platform/platform";\nplatform();\n'
+	};
+	const manifest = ( replicas ) => ({
+		...MANIFEST,
+		modules: { ...MANIFEST.modules, [ENTRY]: HOST },
+		workers: { [ENTRY]: HOST },
+		...(replicas ? { replicas } : {})
+	});
+	const ownership = replicas => withFixture( null, verifyOwnership, { sources, manifest: manifest( replicas ) } );
+	assert.ok( ownership().some( issue => issue === `${ENTRY}: forbidden import of ${PLATFORM}` ) );
+	assert.deepEqual( ownership( { [PLATFORM]: [ ENTRY ] } ), [] );
+	// Only a worker entry may hold a replica, only of an owned module.
+	assert.ok( ownership( { [PLATFORM]: [ UI ] } ).includes( `Invalid replica: ${PLATFORM} -> ${UI}` ) );
+	assert.ok( ownership( { [SESSION]: [ ENTRY ] } ).includes( `Invalid replica: ${SESSION}` ) );
+	assert.ok( ownership( { [PLATFORM]: [] } ).includes( `Invalid replica: ${PLATFORM}` ) );
+	// A replica opens the module to its worker, not to its worker's siblings.
+	withFixture(
+		{ file: TEXT, code: '\nimport { platform } from "../../platform/platform";' },
+		dir =>
+			assert.ok( verifyOwnership( dir ).some( issue => issue === `${TEXT}: forbidden import of ${PLATFORM}` ) ),
+		{ sources, manifest: manifest( { [PLATFORM]: [ ENTRY ] } ) }
+	);
 });

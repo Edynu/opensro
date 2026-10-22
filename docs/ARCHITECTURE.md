@@ -56,6 +56,11 @@ parent, declared in `src/engine/ownership.json` and enforced by
 - the renderer subtree owns scene resources, poses, the GPU device, surface and pass submission;
 - UI owns display intent; audio exclusively owns the AudioContext and playback.
 
+A worker may build its own instance of a module another owner holds only
+when the manifest lists that module under `replicas` for the worker's entry:
+the two threads share the module's code, never its state (the character
+worker, [CLIENT_WORKERS_PLAN.md](CLIENT_WORKERS_PLAN.md) section 5.11).
+
 The client reaches the Agent through same-origin `/api` and each GameWorld
 through `/shards/<id>` edge routes (or directly, for WebTransport). Hosting
 requirements are in [HOSTING.md](../apps/client-next/docs/HOSTING.md).
