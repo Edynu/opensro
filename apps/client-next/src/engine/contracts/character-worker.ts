@@ -57,7 +57,8 @@ export interface CharacterWorkerMemory {
 CharacterWorkerStart
 
 The worker's construction, posted once before any frame; simulation is the
-simulation worker's port its world batches arrive on.
+simulation's shared world journal, which the worker reads its world
+batches from (foundation/workers/shared-journal.ts).
 ================
 */
 export interface CharacterWorkerStart {
@@ -66,7 +67,7 @@ export interface CharacterWorkerStart {
 	// The worker's own presentation random stream (decision 7.1).
 	readonly seed: number;
 	readonly memory: CharacterWorkerMemory;
-	readonly simulation: MessagePort;
+	readonly simulation: import("@/engine/foundation/workers/shared-journal").SharedJournal;
 }
 
 /*

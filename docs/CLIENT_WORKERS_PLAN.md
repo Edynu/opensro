@@ -1103,6 +1103,44 @@ move into tables of their own that are never growable.
 - **Next**: particle records (copied three times between the kernel and
   the GPU) and the simulation worker's world batches (structured clones).
 
+### 6.18 Step 7: the world journal in shared memory (2026-10-23)
+
+The simulation worker posted each world batch as a structured-clone
+message, twice with the character worker on (the main thread and its
+port). In the town crowd, about 1,600 entity states a second, each a whole
+`EntityState` with its equipment, appearance and movement path rebuilt by
+the clone: 21 ms/s of deserialization on the main thread.
+
+- **The journal** (`foundation/workers/shared-journal.ts`): the worker
+  publishes each batch once in a growable shared log; every reader (the
+  main thread, the character worker) reads every batch in order at its
+  own pace. Counters order it: the last batch published, each reader's
+  last read, and the main thread's acknowledgement, which replaces the
+  `world-ack` message (the worker still keeps one batch in flight). The
+  log starts again once every attached reader has read everything.
+- **Deltas, by reference**: an entity's state and a gameplay snapshot go as
+  the fields that changed since the last one published for it, compared by
+  reference (the worker builds each from the last by a shallow spread); a
+  plain object rebuilt around the same values (a movement path's leg) goes
+  as its own delta. A reader rebuilds the state from its previous one and
+  keeps every unchanged nested value by reference: what did not change is
+  neither encoded nor copied. Object keys cross as shared-strings ids;
+  string values are inline, so free text never grows the string table;
+  typed arrays (the walking chains) cross in one native copy.
+- **What crosses now** (town crowd, ms/s on the main thread): reading the
+  journal 12 against 21 to 24 of deserialization; the movement paths'
+  walking chains are most of it, because they change every sample. The
+  messages left are the start, a 32-byte snapshot a step (moved, not
+  copied), session states and the bug report's journal once a second.
+- **Frame rate**, 2560x1440, Worker threads Auto, Batched effects and the
+  character worker, about 175 bodies in view: 102.5 fps, main thread 9.4
+  ms (one round; 93 fps at 10.1 ms before the journal).
+- **Tests**: 400 generated batches read by two readers, one lagging, each
+  batch deep-equal to what was published and every unchanged nested value
+  the reader's own (fails with the deltas removed); unchanged values not
+  written again and the read log started again; a rebuilt plain object as
+  its own delta; a second thread publishing while this one reads.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame

@@ -14,6 +14,7 @@ import { createSimulationInput } from "./input/input";
 import { createClock } from "./clock/clock";
 import { PROTOCOL_VERSION, SNAPSHOT_BYTES, SIMULATION_STEP_MS, writeSnapshot } from "@/engine/contracts/simulation";
 import type { HostMessage, WorkerMessage } from "@/engine/contracts/simulation";
+import { createJournalWriter } from "@/engine/foundation/workers/shared-journal";
 const MAX_SNAPSHOTS = 3;
 
 // How often the transport's frame journal goes to the host (simulation ms).
@@ -33,9 +34,10 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 		new ArrayBuffer( SNAPSHOT_BYTES )
 	];
 	let sequence = 0, timeMs = 0, started = false, stopped = false, journalSentAtMs = 0;
-	// Port-only: the character worker, which keeps its own projection of the
-	// world batches (CLIENT_WORKERS_PLAN.md 5.11); absent, no one else listens.
-	let presentation: MessagePort | null = null;
+	// The shared world journal the host's start gave (shared-journal.ts): the
+	// world batches go there once for every reader, and the host's
+	// acknowledgement comes back there.
+	let journal: ReturnType<typeof createJournalWriter> | null = null, acknowledged = 0;
 	/*
 	================
 	fail
@@ -57,11 +59,14 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 		// of callbacks Chrome allowed while the tab was suspended.
 		timeMs += skippedMs;
 		const sessionState = session.step( timeMs );
-		const batch = session.takeWorld();
-		if ( batch ) {
-			send( { kind: "world", batch }, [] );
-			presentation?.postMessage( { kind: "world", batch } );
+		// The batch the host applied since, then the next one, if any.
+		const acked = journal?.acknowledged() ?? 0;
+		if ( acked !== acknowledged ) {
+			acknowledged = acked;
+			session.ackWorld( acked );
 		}
+		const batch = journal ? session.takeWorld() : null;
+		if ( batch ) journal!.publish( batch );
 		// Bug-report frame journal: one transfer a second, not one per frame.
 		if ( timeMs - journalSentAtMs >= NET_JOURNAL_PUSH_MS ) {
 			journalSentAtMs = timeMs;
@@ -106,6 +111,7 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 				}
 				if ( !started ) {
 					started = true;
+					journal = createJournalWriter( message.journal );
 					clock.start();
 				}
 			} else if ( message.kind === "session" ) {
@@ -127,20 +133,12 @@ export function createSimulation( send: ( message: WorkerMessage, transfer: Tran
 				) {
 					timeMs += clock.reanchor?.() ?? 0;
 				}
-			} else if ( message.kind === "world-ack" ) {
-				try {
-					session.ackWorld( message.sequence );
-				} catch ( error ) {
-					fail( error );
-				}
 			} else if ( message.kind === "input" ) {
 				try {
 					input.receive( message.batch );
 				} catch ( error ) {
 					fail( error );
 				}
-			} else if ( message.kind === "presentation-port" ) {
-				presentation = message.port;
 			} else if ( message.kind === "recycle" ) {
 				if ( message.buffer.byteLength !== SNAPSHOT_BYTES || pool.length >= MAX_SNAPSHOTS ) {
 					fail( "Invalid recycled snapshot buffer" );

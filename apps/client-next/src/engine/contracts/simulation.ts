@@ -1,9 +1,12 @@
 import type { SessionCommand, SessionState } from "./session";
 import type { InputBatch } from "./input";
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const SNAPSHOT_BYTES = 32;
 export const SIMULATION_STEP_MS = 16;
-export type HostMessage = { kind: "world-ack"; sequence: number; } | {
+// World batches are not messages: the worker publishes them in the shared
+// world journal the start carries (foundation/workers/shared-journal.ts),
+// and the host's acknowledgement is a counter there.
+export type HostMessage = {
 	kind: "session";
 	command: SessionCommand;
 } | {
@@ -11,19 +14,15 @@ export type HostMessage = { kind: "world-ack"; sequence: number; } | {
 	batch: InputBatch;
 } | {
 	kind: "start";
-	version: 3;
+	version: 4;
+	journal: import("@/engine/foundation/workers/shared-journal").SharedJournal;
 } | {
 	kind: "recycle";
 	buffer: ArrayBuffer;
 } | {
-	// Port-only: the character worker's port; each world batch is posted
-	// there as well (CLIENT_WORKERS_PLAN.md 5.11).
-	kind: "presentation-port";
-	port: MessagePort;
-} | {
 	kind: "stop";
 };
-export type WorkerMessage = { kind: "world"; batch: import("./world").WorldBatch; } | {
+export type WorkerMessage = {
 	kind: "session";
 	state: SessionState;
 } | {

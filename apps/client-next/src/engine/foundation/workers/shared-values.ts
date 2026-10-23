@@ -11,6 +11,11 @@ ids, arrays and objects by their lengths and keys. One thread writes a
 block while the other waits for it (the frame and output counters order
 them), so a block has one writer at a time and needs no locks.
 
+A writer may put string values inline instead (two UTF-16 units a word),
+interning only object keys: a journal of free text (shared-journal.ts)
+would otherwise grow its append-only string table for the session. A
+reader reads either.
+
 ===========================================================================
 */
 import type { createStringReader, createStringWriter } from "./shared-strings";
@@ -25,6 +30,7 @@ const TAG_STRING = 5;
 const TAG_ARRAY = 6;
 const TAG_OBJECT = 7;
 const TAG_TYPED = 8;
+const TAG_INLINE = 9;
 /*
 ================
 typedArrays
@@ -52,6 +58,8 @@ const INITIAL_BYTES = 65536;
 const MAX_BYTES = 67108864;
 // Nested deeper than this is not plain frame data.
 const MAX_DEPTH = 32;
+// The reader keeps its inline string scratch up to this many units.
+const INLINE_KEEP = 4096;
 
 /*
 ================
@@ -66,10 +74,16 @@ export function createSharedBlock(): SharedArrayBuffer {
 ================
 createValueWriter
 
-Writes one value a frame into block: begin, value, end.
+Writes one value a frame into block: begin, value, end. Or, for a log,
+values anywhere: seek, values, position. inline writes string values in
+place rather than interning them.
 ================
 */
-export function createValueWriter( block: SharedArrayBuffer, strings: ReturnType<typeof createStringWriter> ) {
+export function createValueWriter(
+	block: SharedArrayBuffer,
+	strings: ReturnType<typeof createStringWriter>,
+	inline = false
+) {
 	// Length-tracking: follows the block as it grows.
 	const words = new Float64Array( block ), typed = typedArrays();
 	let at = HEADER_WORDS;
@@ -89,6 +103,13 @@ export function createValueWriter( block: SharedArrayBuffer, strings: ReturnType
 		else if ( typeof value === "number" ) {
 			words[at++] = TAG_NUMBER;
 			words[at++] = value;
+		} else if ( typeof value === "string" && inline ) {
+			room( 2 + (value.length + 1) / 2 );
+			words[at++] = TAG_INLINE;
+			words[at++] = value.length;
+			for ( let i = 0; i < value.length; i += 2 ) {
+				words[at++] = value.charCodeAt( i ) + (i + 1 < value.length ? value.charCodeAt( i + 1 ) * 65536 : 0);
+			}
 		} else if ( typeof value === "string" ) {
 			words[at++] = TAG_STRING;
 			words[at++] = strings.intern( value );
@@ -100,7 +121,9 @@ export function createValueWriter( block: SharedArrayBuffer, strings: ReturnType
 			words[at++] = TAG_TYPED;
 			words[at++] = kind;
 			words[at++] = items.length;
-			for ( let i = 0; i < items.length; i++ ) words[at++] = items[i]!;
+			// One native copy, converting each element to a word.
+			words.set( items, at );
+			at += items.length;
 		} else if ( Array.isArray( value ) ) {
 			words[at++] = TAG_ARRAY;
 			words[at++] = value.length;
@@ -136,6 +159,11 @@ export function createValueWriter( block: SharedArrayBuffer, strings: ReturnType
 			room( 1 );
 			words[at++] = strings.intern( value );
 		},
+		// A log's writes: values from at on, and where the last one ended.
+		seek( position: number ) {
+			at = position;
+		},
+		position: () => at,
 		// Published by the frame counter that follows.
 		end() {
 			words[0] = at - HEADER_WORDS;
@@ -152,7 +180,7 @@ Reads back the values a writer put in block, in order: begin, value...
 */
 export function createValueReader( block: SharedArrayBuffer, strings: ReturnType<typeof createStringReader> ) {
 	const words = new Float64Array( block ), typed = typedArrays();
-	let at = HEADER_WORDS, end = HEADER_WORDS;
+	let at = HEADER_WORDS, end = HEADER_WORDS, units: number[] = [];
 	const read = (): unknown => {
 		if ( at >= end ) throw Error( "Shared value block overrun" );
 		const tag = words[at++]!;
@@ -169,11 +197,31 @@ export function createValueReader( block: SharedArrayBuffer, strings: ReturnType
 				return words[at++]!;
 			case TAG_STRING:
 				return strings.text( words[at++]! );
+			case TAG_INLINE: {
+				const length = words[at++]!;
+				units.length = 0;
+				for ( let i = 0; i < length; i += 2 ) {
+					const pair = words[at++]!;
+					units.push( pair % 65536 );
+					if ( i + 1 < length ) units.push( Math.floor( pair / 65536 ) );
+				}
+				// Below the engine's argument limit a call at a time.
+				let text = "";
+				for ( let i = 0; i < units.length; i += INLINE_KEEP ) {
+					text += String.fromCharCode.apply(
+						null,
+						units.length > INLINE_KEEP ? units.slice( i, i + INLINE_KEEP ) : units
+					);
+				}
+				if ( units.length > INLINE_KEEP ) units = [];
+				return text;
+			}
 			case TAG_TYPED: {
 				const type = typed[words[at++]!];
 				if ( !type ) break;
 				const length = words[at++]!, value = new type( length );
-				for ( let i = 0; i < length; i++ ) value[i] = words[at++]!;
+				value.set( words.subarray( at, at + length ) );
+				at += length;
 				return value;
 			}
 			case TAG_ARRAY: {
@@ -200,6 +248,12 @@ export function createValueReader( block: SharedArrayBuffer, strings: ReturnType
 		value: read,
 		number: () => words[at++]!,
 		text: () => strings.text( words[at++]! ),
-		more: () => at < end
+		more: () => at < end,
+		// A log's reads: values from at on, to the block's end.
+		seek( position: number ) {
+			at = position;
+			end = words.length;
+		},
+		position: () => at
 	};
 }

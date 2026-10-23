@@ -485,10 +485,9 @@ export function startRuntime(
 			characterWorkerOn = storedExperimentalOptions( globalThis.localStorage ).options.characterWorker;
 		} catch {}
 		let characterWorker: ReturnType<typeof createCharacterWorker> | null = null;
-		if ( characterWorkerOn ) {
-			// The simulation posts its world batches to the worker directly.
-			const channel = new MessageChannel();
-			simulation.presentationPort?.( channel.port1 );
+		// The worker reads the simulation's shared world journal itself.
+		const journal = characterWorkerOn ? simulation.presentationJournal?.() : undefined;
+		if ( journal ) {
 			characterWorker = own(
 				createCharacterWorker( {
 					assets,
@@ -498,7 +497,7 @@ export function startRuntime(
 					soundTerrain: world.soundTerrain,
 					health: presentation,
 					frontendPhase: () => frontend.snapshot().phase,
-					simulation: channel.port2,
+					simulation: journal,
 					origin: new URL( "/", import.meta.url ).href,
 					seed: (presentationSeed ^ 0x5eed) >>> 0,
 					report: message => bugReport.note( message )

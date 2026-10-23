@@ -5,12 +5,12 @@ entry.ts - the character worker: the character presentation off the main thread
 
 Port-only, not native (Experimental "Characters on a worker",
 docs/CLIENT_WORKERS_PLAN.md 5.11). Started by character-worker.ts with one
-start message carrying the shared memory and the simulation worker's port.
+start message carrying the shared memory and the simulation's world journal.
 It builds the presentation the main thread would (runtime/characters,
 unchanged) with stand-ins for what lives on the main thread: the
 renderer, the asset owner, the audio queue and the effective-HP owner. It
-keeps its own projection of the simulation's world batches, which arrive
-straight from the simulation worker, and its own random stream.
+keeps its own projection of the simulation's world batches, read from
+the simulation's shared world journal, and its own random stream.
 
 A frame crosses through shared memory: the worker waits for the frame
 counter (without blocking its message loop), reads the inbox, applies the
@@ -38,6 +38,7 @@ import type { SoundEvent } from "@/engine/contracts/audio";
 import type { FrameWork } from "@/engine/contracts/runtime";
 import type { WorldBatch } from "@/engine/contracts/world";
 import { createActorTableWriter } from "@/engine/foundation/animation/actor-table";
+import { createJournalReader, JOURNAL_PRESENTATION } from "@/engine/foundation/workers/shared-journal";
 import { sampleSoundTerrain, type SoundTerrain } from "@/engine/foundation/audio/terrain-sounds";
 import {
 	COMMAND_ACTORS,
@@ -129,9 +130,8 @@ function createCharacterWorker( start: CharacterWorkerStart ) {
 		},
 		() => soundEnabled
 	);
-	start.simulation.onmessage = ( event: MessageEvent<{ kind: "world"; batch: WorldBatch; }> ) => {
-		batches.push( event.data.batch );
-	};
+	// The world journal's batches, read as this worker's own (shared-journal.ts).
+	const worlds = createJournalReader( start.simulation, JOURNAL_PRESENTATION );
 	/*
 	================
 	writeCommands
@@ -185,6 +185,7 @@ function createCharacterWorker( start: CharacterWorkerStart ) {
 		facts: CharacterWorkerFacts
 	) => {
 		const started = performance.now();
+		for ( let batch = worlds.poll(); batch; batch = worlds.poll() ) batches.push( batch );
 		const arrived = batches;
 		batches = [];
 		for ( const batch of arrived ) {

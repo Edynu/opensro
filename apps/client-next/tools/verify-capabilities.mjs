@@ -233,12 +233,15 @@ export const rules = {
 		"src/engine/foundation/workers/shared-frame.ts",
 		"src/engine/foundation/workers/shared-strings.ts",
 		"src/engine/foundation/workers/shared-values.ts",
-		"src/engine/foundation/animation/actor-table.ts"
+		"src/engine/foundation/animation/actor-table.ts",
+		// The simulation's world journal, written once and read by every thread.
+		"src/engine/foundation/workers/shared-journal.ts"
 	],
 	Atomics: [
 		"src/engine/foundation/workers/frame-jobs.ts",
 		"src/engine/foundation/workers/shared-frame.ts",
-		"src/engine/foundation/workers/shared-strings.ts"
+		"src/engine/foundation/workers/shared-strings.ts",
+		"src/engine/foundation/workers/shared-journal.ts"
 	]
 };
 // A geometry pipeline for a native state no scene precompiles is compiled

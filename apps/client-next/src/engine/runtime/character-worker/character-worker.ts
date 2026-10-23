@@ -103,8 +103,9 @@ export interface CharacterWorkerOwners {
 	};
 	// The front end's phase, which the runtime's world-reset rule reads.
 	readonly frontendPhase: () => string;
-	// The simulation worker's port for its world batches (simulation/host.ts presentationPort).
-	readonly simulation: MessagePort;
+	// The simulation's shared world journal, read by the worker
+	// (simulation/host.ts presentationJournal).
+	readonly simulation: import("@/engine/foundation/workers/shared-journal").SharedJournal;
 	readonly origin: string;
 	readonly seed: number;
 	// Reports what the main thread's owners refused of the output (a model
@@ -178,9 +179,7 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 	};
 	const send = ( message: CharacterWorkerInput, transfer: Transferable[] = [] ) =>
 		worker.postMessage( message, transfer );
-	send( { kind: "start", origin: owners.origin, seed: owners.seed, memory, simulation: owners.simulation }, [
-		owners.simulation
-	] );
+	send( { kind: "start", origin: owners.origin, seed: owners.seed, memory, simulation: owners.simulation } );
 	/*
 	================
 	attempt

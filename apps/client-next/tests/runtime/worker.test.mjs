@@ -20,6 +20,7 @@ async function load( file ) {
 }
 const { createClock } = await load( "src/engine/runtime/simulation/worker/clock/clock.ts" );
 const { createSimulation } = await load( "src/engine/runtime/simulation/worker/simulation.ts" );
+const { createSharedJournal } = await load( "src/engine/foundation/workers/shared-journal.ts" );
 // Camera input stays on the display thread (contracts/input.ts); the worker
 // receives keys and focus release only.
 test("worker acknowledges input without owning or returning camera state", t => {
@@ -27,7 +28,7 @@ test("worker acknowledges input without owning or returning camera state", t => 
 	const simulation = createSimulation( ( message, transfer ) =>
 		messages.push( structuredClone( message, { transfer } ) )
 	);
-	simulation.receive( { kind: "start", version: 3 } );
+	simulation.receive( { kind: "start", version: 4, journal: createSharedJournal() } );
 	simulation.receive( {
 		kind: "input",
 		batch: {
@@ -93,7 +94,7 @@ test("worker bounds transferred snapshots and resumes with current state after b
 	const simulation = createSimulation( ( message, transfer ) =>
 		messages.push( structuredClone( message, { transfer } ) )
 	);
-	simulation.receive( { kind: "start", version: 3 } );
+	simulation.receive( { kind: "start", version: 4, journal: createSharedJournal() } );
 	for ( let tick = 1; tick <= 8; tick++ ) timers.wake( tick * 16 );
 	assert.equal( messages.length, 3, "only three pooled buffers can be outstanding" );
 	const buffer = messages.shift().buffer;
@@ -118,7 +119,7 @@ test("worker input acknowledgement is committed on a tick and survives snapshot 
 	const simulation = createSimulation( ( message, transfer ) =>
 		messages.push( structuredClone( message, { transfer } ) )
 	);
-	simulation.receive( { kind: "start", version: 3 } );
+	simulation.receive( { kind: "start", version: 4, journal: createSharedJournal() } );
 	for ( let tick = 1; tick <= 3; tick++ ) timers.wake( tick * 16 );
 	simulation.receive( {
 		kind: "input",
@@ -137,7 +138,7 @@ test("worker resumes with current elapsed time without replaying missing simulat
 	const simulation = createSimulation( ( message, transfer ) =>
 		messages.push( structuredClone( message, { transfer } ) )
 	);
-	simulation.receive( { kind: "start", version: 3 } );
+	simulation.receive( { kind: "start", version: 4, journal: createSharedJournal() } );
 	timers.wake( 3600000 );
 	assert.equal( messages.filter( m => m.kind === "snapshot" ).length, 3 );
 	const first = messages[0], last = messages.at( -1 );
@@ -154,7 +155,7 @@ test("between-tick session commands under worker clock debt do not jump ahead of
 	const simulation = createSimulation( ( message, transfer ) =>
 		messages.push( structuredClone( message, { transfer } ) )
 	);
-	simulation.receive( { kind: "start", version: 3 } );
+	simulation.receive( { kind: "start", version: 4, journal: createSharedJournal() } );
 	timers.wake( 16 );
 	const firstSnapshot = messages.find( m => m.kind === "snapshot" );
 	assert.ok( firstSnapshot.clock.originMs > 0 );

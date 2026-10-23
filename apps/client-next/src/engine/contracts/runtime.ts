@@ -421,9 +421,9 @@ export interface SimulationHost extends Disposable {
 	/** Resolves on the next worker message; paces frames while the tab is hidden. */
 	delivery(): Promise<void>;
 	ackWorld( sequence: number ): void;
-	// Port-only: the simulation posts each world batch to port as well (the
-	// character worker's own projection, CLIENT_WORKERS_PLAN.md 5.11).
-	presentationPort?( port: MessagePort ): void;
+	// Port-only: the shared world journal with the character worker attached
+	// as a reader, for its own projection (CLIENT_WORKERS_PLAN.md 5.11).
+	presentationJournal?(): import("@/engine/foundation/workers/shared-journal").SharedJournal;
 	session( command: SessionCommand ): void;
 	pollSession(): SessionState | null;
 	sendInput( batch: InputBatch ): void;
