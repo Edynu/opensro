@@ -15,8 +15,10 @@ import {
 	experimentalOptions,
 	type ExperimentalKey,
 	type ExperimentalOptions,
-	renderScales
+	renderScales,
+	uiScaleStop
 } from "@/engine/foundation/ui/experimental-options";
+import type { SessionState } from "@/engine/contracts/session";
 import { frameWorkerCount, frameWorkerLimit } from "@/engine/foundation/workers/frame-jobs";
 
 /*
@@ -32,12 +34,13 @@ export type ExperimentalChoiceKey = "renderScale" | "frameWorkers";
 ================
 ExperimentalRow
 
-A checkbox or a row of choices: its preference key, control id, label
-and one-line help. Choice preferences never pass through toggle().
+A checkbox, a row of choices or a slider: its preference key, control id,
+label and one-line help. Settings (isExperimentalSetting) never pass
+through toggle().
 ================
 */
 export interface ExperimentalRow {
-	readonly key: ExperimentalKey | ExperimentalChoiceKey;
+	readonly key: ExperimentalKey | ExperimentalChoiceKey | "uiScale";
 	readonly id: string;
 	readonly label: string;
 	readonly description: string;
@@ -67,6 +70,12 @@ export const EXPERIMENTAL_TABS: readonly {
 				id: "experimental-render-scale",
 				label: "Render scale",
 				description: "100% is native; lower values soften the scene."
+			},
+			{
+				key: "uiScale",
+				id: "experimental-ui-scale",
+				label: "UI size",
+				description: "Scale windows and text; 100% is native size."
 			},
 			{
 				key: "postProcessing",
@@ -102,8 +111,14 @@ export const EXPERIMENTAL_TABS: readonly {
 	},
 	{
 		title: "World",
-		section: "Lighting and terrain",
+		section: "World and map",
 		rows: [
+			{
+				key: "monsterGuide",
+				id: "experimental-monster-guide",
+				label: "Monster hunting guide",
+				description: "Monster portraits and approximate level ranges on M."
+			},
 			{
 				key: "heightFog",
 				id: "experimental-height-fog",
@@ -294,11 +309,35 @@ const EXPERIMENTAL_TAB_COUNT = EXPERIMENTAL_TABS.length;
 
 /*
 ================
+experimentalTabs
+
+Port-only, not native. The shard's published reference is the capability;
+a saved local preference cannot reveal an option the shard has disabled.
+================
+*/
+export function experimentalTabs( session: SessionState | null | undefined ) {
+	if ( session?.phase === "world" && session.huntingGuide ) return EXPERIMENTAL_TABS;
+	return EXPERIMENTAL_TABS.map( tab => ({ ...tab, rows: tab.rows.filter( row => row.key !== "monsterGuide" ) }) );
+}
+
+/*
+================
 isExperimentalChoice
 ================
 */
 export function isExperimentalChoice( key: ExperimentalRow["key"] ): key is ExperimentalChoiceKey {
 	return key === "renderScale" || key === "frameWorkers";
+}
+
+/*
+================
+isExperimentalSetting
+
+A row that is not a toggle: a row of choices, or the UI size slider.
+================
+*/
+export function isExperimentalSetting( key: ExperimentalRow["key"] ): key is ExperimentalChoiceKey | "uiScale" {
+	return isExperimentalChoice( key ) || key === "uiScale";
 }
 
 /*
@@ -412,6 +451,19 @@ export function createExperimentalHud( threads = 1 ) {
 			const next = value === "less" ? position - 1 : value === "more" ? position + 1 : Number( value );
 			if ( !/^(less|more|\d+)$/.test( value ) || next < 0 || next > frameWorkerLimit( threads ) ) return;
 			draft = { ...draft, frameWorkers: next === 0 ? "off" : next };
+		},
+		/*
+		================
+		setUiScale
+
+		Port-only, not native. The slider's stop becomes the draft's UI size;
+		a value off the slider leaves the draft intact.
+		================
+		*/
+		setUiScale( value: number ) {
+			const uiScale = uiScaleStop( value );
+			if ( uiScale === undefined ) return;
+			draft = { ...draft, uiScale };
 		},
 		/*
 		================

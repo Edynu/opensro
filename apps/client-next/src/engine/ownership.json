@@ -193,7 +193,9 @@
     "src/engine/runtime/character-worker/worker/entry.ts": "src/engine/runtime/character-worker/character-worker.ts",
     "src/engine/runtime/character-worker/worker/renderer-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts",
     "src/engine/runtime/character-worker/worker/asset-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts",
-    "src/engine/runtime/renderer/characters/shadow-candidates.ts": "src/engine/runtime/renderer/characters/characters.ts"
+    "src/engine/runtime/renderer/characters/shadow-candidates.ts": "src/engine/runtime/renderer/characters/characters.ts",
+    "src/engine/runtime/ui/hud/world-map.ts": "src/engine/runtime/ui/ui.ts",
+    "src/engine/runtime/ui/hud/hunting-guide.ts": "src/engine/runtime/ui/hud/world-map.ts"
   },
   "internals": {
     "src/engine/runtime/platform/telemetry.ts": "src/engine/runtime/platform/platform.ts",
@@ -236,7 +238,8 @@
     "src/engine/runtime/renderer/device/hdr.ts": "src/engine/runtime/renderer/device/device.ts",
     "src/engine/runtime/renderer/device/sun-shadow.ts": "src/engine/runtime/renderer/device/device.ts",
     "src/engine/runtime/renderer/device/environment-block.ts": "src/engine/runtime/renderer/device/device.ts",
-    "src/engine/runtime/renderer/frame/draw-bundles.ts": "src/engine/runtime/renderer/frame/frame.ts"
+    "src/engine/runtime/renderer/frame/draw-bundles.ts": "src/engine/runtime/renderer/frame/frame.ts",
+    "src/engine/runtime/platform/ui/drag-shield.ts": "src/engine/runtime/platform/ui/ui.ts"
   },
   "workers": {
     "src/engine/runtime/frame-workers/worker/entry.ts": "src/engine/runtime/frame-workers/frame-workers.ts",

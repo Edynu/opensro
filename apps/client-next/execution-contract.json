@@ -1029,8 +1029,17 @@
 				"available",
 				"request",
 				"take",
-				"cancel"
+				"cancel",
+				"progress"
 			]
+		},
+		{
+			"consumer": "src/engine/runtime/navigation/navigation.ts",
+			"provider": "src/engine/runtime/world/world.ts",
+			"functions": [
+				"progress"
+			],
+			"reason": "GH #1244: the execution graph unions same-named owner methods; navigation reads only the AssetOwner's progress to slide its load deadline, never the world scene's."
 		},
 		{
 			"consumer": "src/engine/runtime/navigation/navigation.ts",
@@ -1932,7 +1941,8 @@
 			"functions": [
 				"audioListener",
 				"presentationCamera",
-				"presentationNight"
+				"presentationNight",
+				"dungeonCharacterPvs"
 			]
 		},
 		{
@@ -2363,6 +2373,85 @@
 			"reason": "The Experimental shared actor room: the selection reads the previous frame's effect distances, which the auxiliary presentation records in presentStages, through a getter injected at construction."
 		},
 		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/hud/experimental-hud.ts",
+			"functions": [
+				"state",
+				"restore"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/runtime.ts",
+			"functions": [
+				"saveExperimental"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/hud/minimap.ts",
+			"functions": [
+				"positions"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/hud/map-teleport.ts",
+			"functions": [
+				"view"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/text/text.ts",
+			"functions": [
+				"path",
+				"quads",
+				"run",
+				"extentHeight"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/resources/resources.ts",
+			"functions": [
+				"has",
+				"size"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/hud/reverse-return-hud.ts",
+			"functions": [
+				"mapping"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/world-map.ts",
+			"provider": "src/engine/runtime/ui/ui.ts",
+			"functions": [
+				"hudCopy",
+				"beginWindow",
+				"windowBox",
+				"image",
+				"authoredButton",
+				"authoredLabeledButton",
+				"closeButton",
+				"endWindow",
+				"rect"
+			]
+		},
+		{
+			"consumer": "src/engine/runtime/ui/hud/hunting-guide.ts",
+			"provider": "src/engine/runtime/assets/assets.ts",
+			"functions": [
+				"available",
+				"cancel",
+				"request",
+				"take"
+			]
+		},
+		{
 			"consumer": "src/engine/foundation/workers/frame-jobs.ts",
 			"provider": "src/engine/runtime/frame-workers/frame-workers.ts",
 			"functions": [
@@ -2560,6 +2649,7 @@
 			"functions": [
 				"audioListener",
 				"batchedEffects",
+				"dungeonCharacterPvs",
 				"dungeonVisibility",
 				"enchantSparks",
 				"presentationCamera",
@@ -2690,6 +2780,7 @@
 			"functions": [
 				"audioListener",
 				"characterSocket",
+				"dungeonCharacterPvs",
 				"presentationCamera",
 				"setCharacterActors"
 			]
@@ -3301,13 +3392,6 @@
 			"function": "publishCharacters",
 			"kind": "callback",
 			"reason": "The parent renderer reports whether the Experimental V row also hides companions; it changes nothing."
-		},
-		{
-			"file": "src/engine/runtime/characters/presentation-finalize.ts",
-			"expression": "renderer.dungeonBlockHides",
-			"function": "publishCharacters",
-			"kind": "callback",
-			"reason": "The parent renderer reports whether a dungeon block the active block cannot see holds the actor; it changes nothing."
 		},
 		{
 			"file": "src/engine/runtime/characters/presentation-finalize.ts",
@@ -4337,6 +4421,13 @@
 			"function": "callback:port.onmessage",
 			"kind": "worker-port",
 			"reason": "Typed DedicatedWorker port projection; the character worker's outputs and failure cross the parent/worker boundary, their buffers and bitmaps transferred."
+		},
+		{
+			"file": "src/engine/foundation/animation/character-selection.ts",
+			"expression": "dungeonBlockHides",
+			"function": "admitCharacter",
+			"kind": "callback",
+			"reason": "The Experimental dungeon character PVS hook is an optional callback supplied by the renderer; it changes nothing."
 		}
 	],
 	"sequences": [

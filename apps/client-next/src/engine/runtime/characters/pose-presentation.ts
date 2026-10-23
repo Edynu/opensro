@@ -121,6 +121,11 @@ import {
 } from "@/engine/foundation/kernels/pose-record";
 
 const NO_CHAIN = -1;
+// Past this frame gap the interval was never drawn (a hidden or frozen
+// tab, not a visible hitch): snap to the authoritative pose on return
+// instead of gliding the unseen travel. Visible stalls stay below it and
+// keep the tested recovery above.
+const MAX_UNSEEN_GAP_SECONDS = 2;
 
 /*
 ================
@@ -227,6 +232,9 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 	const runLocal: FrameJobRunner = ( kernel, chunk ) => runFrameKernel( views, kernel, chunk );
 	// A KERNEL_POSE phase prepare forked and nothing has joined yet.
 	let forked = false;
+	// Frame-clock seconds of the last pose served; the return frame after a
+	// long unseen gap snaps instead of recovering (MAX_UNSEEN_GAP_SECONDS).
+	let lastPoseAt: number | undefined;
 
 	/*
 	================
@@ -592,6 +600,14 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 		*/
 		pose( gid: number, target: Pose, now: number, settledTranslation = false ): Pose {
 			joinPhase();
+			// Past MAX_UNSEEN_GAP_SECONDS the interval was never drawn (a hidden
+			// tab): every character starts again from its authoritative pose, as
+			// a fresh record does, rather than gliding the travel no one saw.
+			if ( lastPoseAt !== undefined && now - lastPoseAt > MAX_UNSEEN_GAP_SECONDS ) {
+				settle();
+				for ( const [held, slot] of slots ) releaseSlot( held, slot );
+			}
+			if ( lastPoseAt === undefined || now > lastPoseAt ) lastPoseAt = now;
 			const slot = slots.get( gid );
 			if ( slot !== undefined && pending[slot] ) {
 				if ( predicted( slot, target, now, settledTranslation ) ) {
@@ -673,6 +689,7 @@ export function createPosePresentation( workers?: PoseFrameWorkers ) {
 			settle();
 			for ( const [gid, slot] of slots ) releaseSlot( gid, slot );
 			inputs = new Map();
+			lastPoseAt = undefined;
 		}
 	};
 }

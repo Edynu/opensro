@@ -97,7 +97,6 @@ apps/client-next/src/engine/foundation/rendering/dock-slots.ts
 apps/client-next/src/engine/foundation/rendering/dungeon-water.ts
 apps/client-next/src/engine/foundation/rendering/equipment-glow.ts
 apps/client-next/src/engine/foundation/rendering/flares.ts
-apps/client-next/src/engine/foundation/rendering/frontend-camera.ts
 apps/client-next/src/engine/foundation/rendering/geometry-vertices.ts
 apps/client-next/src/engine/foundation/rendering/material-timeline.ts
 apps/client-next/src/engine/foundation/rendering/modifier-delta.ts
@@ -122,7 +121,6 @@ apps/client-next/src/engine/foundation/ui/damage-text.ts
 apps/client-next/src/engine/foundation/ui/disconnect-dialog.ts
 apps/client-next/src/engine/foundation/ui/extended-quickslot.ts
 apps/client-next/src/engine/foundation/ui/frame-ring.ts
-apps/client-next/src/engine/foundation/ui/guide-catalog.ts
 apps/client-next/src/engine/foundation/ui/guild-crest.ts
 apps/client-next/src/engine/foundation/ui/hit-test.ts
 apps/client-next/src/engine/foundation/ui/input-options.ts

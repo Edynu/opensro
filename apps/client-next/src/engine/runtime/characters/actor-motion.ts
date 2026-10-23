@@ -738,7 +738,7 @@ export function createActorMotion( owner: ActorOwner ) {
 					posture.started
 				).filter( layer =>
 					clips.has( layer.clip ) ||
-					(layer.clip === "pet-roar" && role === "pet-roar" && duration > 0)
+					((layer.clip === "pet-roar" || layer.clip === "pet-howl") && role === layer.clip && duration > 0)
 				);
 				if ( posture.kind === "down" ) layers.splice( 0, layers.length, ...projected );
 				else layers.unshift( ...projected );

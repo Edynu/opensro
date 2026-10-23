@@ -288,11 +288,14 @@ loading. Visibility producers retain the active-scene requirement.
 ================
 */
 type sceneBatchOptions struct {
-	revision     *uint64
-	reset        bool
-	observedGID  uint32
-	changes      []ObjectScopeChange
-	allowLoading bool
+	revision    *uint64
+	reset       bool
+	observedGID uint32
+	// unobservedGID is the converse: send only while the scene does not
+	// show that object yet.
+	unobservedGID uint32
+	changes       []ObjectScopeChange
+	allowLoading  bool
 }
 
 /*
@@ -335,6 +338,12 @@ func (s *Session) sendSceneObjectBatch(frames []Frame, options sceneBatchOptions
 	s.mu.Lock()
 	if options.observedGID != 0 {
 		if _, observed := s.observedObjects[options.observedGID]; !observed || s.sceneLoading {
+			s.mu.Unlock()
+			return nil
+		}
+	}
+	if options.unobservedGID != 0 {
+		if _, observed := s.observedObjects[options.unobservedGID]; observed || s.sceneLoading {
 			s.mu.Unlock()
 			return nil
 		}
@@ -634,8 +643,15 @@ func (s *Session) detachGen(gen int, cause error) {
 		s.readCancel()
 		s.readCancel = nil
 	}
+	// A condemned session (CloseWhenDrained) is never resumable, and with no
+	// connection its BYE can never leave: close it now, as CloseWhenDrained
+	// does for a session that is already detached, instead of sitting out
+	// the drain cap. The cap still bounds a live client that reads slowly.
+	condemned := s.drainClose
 	grace := s.hub.cfg.GracePeriod
-	s.expireTimer = time.AfterFunc(grace, func() { s.expireIfDetached() })
+	if !condemned {
+		s.expireTimer = time.AfterFunc(grace, func() { s.expireIfDetached() })
+	}
 	s.recordHistoryLocked("detached", cause)
 	s.cond.Broadcast()
 	s.mu.Unlock()
@@ -648,6 +664,11 @@ func (s *Session) detachGen(gen int, cause error) {
 
 	if conn != nil {
 		conn.Close("detached")
+	}
+	if condemned {
+		// closeSession takes s.mu via closeNow; never call it locked.
+		s.hub.closeSession(s, nil)
+		return
 	}
 	log.WithFields(log.Fields{"session": s.ID, "cause": fmt.Sprint(cause), "grace": grace}).
 		Info("transport: session detached, awaiting resume")

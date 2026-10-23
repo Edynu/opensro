@@ -37,7 +37,13 @@ export interface ExperimentalOptions {
 	// it on the main thread, in the frame, as the original does. Read at
 	// startup, so it applies after a reload.
 	readonly characterWorker: boolean;
+	// Port-only, not native: the interface drawn larger or smaller than the
+	// native 1:1 size (the platform's display scale). 100 is the native
+	// size; a missing or invalid stored value restores it.
+	readonly uiScale: number;
 	readonly chatTimestamps: boolean;
+	// Port-only, not native: beginner atlas on M, explicitly enabled.
+	readonly monsterGuide: boolean;
 	readonly developerDiagnostics: boolean;
 	// Video: renderer stages that deviate from the 2005 D3D9 look.
 	readonly postProcessing: boolean;
@@ -215,6 +221,47 @@ function workerThreads( value: unknown ): FrameWorkerSetting {
 
 /*
 ================
+UiScale
+
+Port-only, not native. The UI size slider's stops: 100 is the native 1:1
+interface, 50 and 200 its ends, in steps of 5.
+================
+*/
+export const UI_SCALE_DEFAULT = 100;
+export const UI_SCALE_MIN = 50;
+export const UI_SCALE_MAX = 200;
+export const UI_SCALE_STEP = 5;
+
+/*
+================
+uiScaleStop
+
+A UI size as a slider stop: a finite number inside the slider's range
+snapped to a step, else undefined, so each caller decides what an invalid
+value means (a stored preference restores the native 100; a UI selection
+leaves the draft intact).
+================
+*/
+export function uiScaleStop( value: unknown ): number | undefined {
+	if ( typeof value !== "number" || !Number.isFinite( value ) ) return undefined;
+	if ( value < UI_SCALE_MIN || value > UI_SCALE_MAX ) return undefined;
+	return Math.round( value / UI_SCALE_STEP ) * UI_SCALE_STEP;
+}
+
+/*
+================
+uiScaleFactor
+
+The multiple of the native UI size the preference asks the platform's
+display scale for. Exactly 1 at the native 100.
+================
+*/
+export function uiScaleFactor( options: ExperimentalOptions ): number {
+	return options.uiScale / UI_SCALE_DEFAULT;
+}
+
+/*
+================
 experimentalOptions
 
 Only an explicit true enables a toggle, except smoothCamera, enchantSparks,
@@ -222,7 +269,7 @@ compressedTextures, sharedActorRoom, greyDisabledTabs, jobKillNotices, dropPlusN
 plusSevenNotices, fitWindowLabels, dropOnBagTab, noticeLinks, shortNotices, confirmGuildBan,
 petClickOpensWindow, smartPetPickup and dungeonCharacterPvs, which only an explicit false turns off.
 Missing or invalid render scales restore full resolution and missing or
-invalid worker settings keep one thread; legacy Video
+invalid worker settings keep one thread; invalid UI sizes the native 100; legacy Video
 settings cannot enable scaling. Keys of retired rows (terrainRelief and texturedHorizon, removed at the owner's
 request on 2026-10-11) are never read, so a saved preference holding them
 loads cleanly.
@@ -237,7 +284,9 @@ export function experimentalOptions( value: unknown = null ): ExperimentalOption
 		renderScale: record.renderScale === 75 || record.renderScale === 50 ? record.renderScale : DEFAULT_RENDER_SCALE,
 		frameWorkers: workerThreads( record.frameWorkers ),
 		characterWorker: enabled( "characterWorker" ),
+		uiScale: uiScaleStop( record.uiScale ) ?? UI_SCALE_DEFAULT,
 		chatTimestamps: enabled( "chatTimestamps" ),
+		monsterGuide: enabled( "monsterGuide" ),
 		developerDiagnostics: enabled( "developerDiagnostics" ),
 		postProcessing: enabled( "postProcessing" ),
 		anisotropicFiltering: enabled( "anisotropicFiltering" ),
