@@ -109,7 +109,10 @@ createInlineWorkers
 */
 export function createInlineWorkers( repeat = 1, shared = false ) {
 	const kernels = createFrameKernelMemory(
-		shared ? ( bytes, maxBytes ) => new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } ) : plainBuffer
+		shared ?
+			( bytes, maxBytes, fixed ) =>
+				fixed ? new SharedArrayBuffer( bytes ) : new SharedArrayBuffer( bytes, { maxByteLength: maxBytes } ) :
+			plainBuffer
 	);
 	let phases = 0, open = null;
 	const workers = {

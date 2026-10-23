@@ -13,6 +13,7 @@ import "../helpers/native-source-loader.mjs";
 import { pathToFileURL as sourceFileUrl } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createInlineWorkers } from "../helpers/frame-kernel-threads.mjs";
 async function load( path ) {
 	return import( sourceFileUrl( path ).href );
 }
@@ -27,9 +28,10 @@ function fixture() {
 	const buffers = [],
 		writes = [],
 		gpu = {
-			createBuffer( { size } ) {
+			createBuffer( { size, label } ) {
 				const b = {
 					size,
+					label,
 					bytes: new Uint8Array( size ),
 					destroyed: 0,
 					destroy() {
@@ -63,7 +65,7 @@ function fixture() {
 				writeBuffer( buffer, offset, data, start, length ) {
 					assert.equal( buffer.destroyed, 0 );
 					buffer.bytes.set( new Uint8Array( data, start, length ), offset );
-					writes.push( { buffer, length } );
+					writes.push( { buffer, length, data } );
 				}
 			}
 		};
@@ -201,4 +203,108 @@ test("shader-addressed shared palettes equal expanded poses through merge, split
 	owner.dispose( f.resources.commands, null );
 	f.resources.dispose();
 	assert.ok( [ ...retired, ...f.buffers ].every( b => b.destroyed === 1 ) );
+});
+
+/*
+================
+poolModel
+
+A one-node model whose two primitives (one binding each) skin joints
+joints, every one to the root: each palette matrix is the root's.
+================
+*/
+function poolModel( joints = 1 ) {
+	const primitive = name => ({
+		name,
+		node: 0,
+		image: -1,
+		joints: new Array( joints ).fill( 0 ),
+		inverseBind: new Float32Array( joints * 16 ).map( ( _, i ) => i % 5 === 0 ? 1 : 0 ),
+		geometry: geometry()
+	});
+	return {
+		nodes: [ { name: "root", parent: -1, translation: [ 0, 0, 0 ], rotation: [ 0, 0, 0, 1 ], scale: [ 1, 1, 1 ] } ],
+		images: [],
+		clips: [ {
+			name: "move",
+			duration: 1,
+			channels: [ {
+				node: 0,
+				path: "translation",
+				interpolation: "LINEAR",
+				times: Float32Array.of( 0, 1 ),
+				values: Float32Array.of( 0, 0, 0, 1, 2, 3 )
+			} ]
+		} ],
+		primitives: [ primitive( "body" ), primitive( "clothing" ) ]
+	};
+}
+
+/*
+================
+drivePool
+
+The renderer on the frame workers' shared skeletons through frames of
+count( frame ) actors, membership changing; every instance's palettes
+read from the GPU buffer its draw binds, at its offset, must be its
+pose's.
+================
+*/
+function drivePool( joints, count, frames ) {
+	const f = fixture(), owner = createCharacters( undefined, createInlineWorkers( 1, true ) );
+	owner.model( "m", poolModel( joints ), [] );
+	for ( let frame = 0; frame < frames; frame++ ) {
+		const rows = Array.from( { length: count( frame ) }, ( _, i ) => ({
+			gid: i + 1,
+			model: "m",
+			clip: "move",
+			time: (frame * 7 + i) % 100 / 100,
+			loop: true,
+			scale: 1,
+			pose: { regionId: 257, x: i, y: 0, z: 10, yaw: 0 }
+		}) );
+		owner.actors( rows );
+		f.writes.length = 0;
+		const draws = owner.prepare( f.resources.commands, {}, 257 );
+		const pool = binding( draws[0], 7 );
+		assert.equal( pool.label, "geometry-palette-pool", "the draws bind the palette pool" );
+		for ( const draw of draws ) {
+			assert.equal( binding( draw, 7 ), pool );
+			const packed = bound( draw, 1 ), bones = new Float32Array( pool.bytes.buffer );
+			for ( let i = 0; i < rows.length; i++ ) {
+				const offset = packed[i * 40 + 17] * 16, expected = I();
+				expected[12] = rows[i].time;
+				expected[13] = rows[i].time * 2;
+				expected[14] = rows[i].time * 3;
+				for ( const joint of [ 0, joints - 1 ] ) {
+					assert.deepEqual(
+						bones.slice( offset + joint * 16, offset + joint * 16 + 16 ),
+						expected,
+						`frame ${frame} actor ${i} joint ${joint}`
+					);
+				}
+			}
+		}
+		// Straight from the shared table: no palette was copied to upload it.
+		const uploads = f.writes.filter( write => write.buffer.label === "geometry-palette-pool" );
+		assert.ok( uploads.length > 0, `frame ${frame} uploads its changed palettes` );
+		assert.ok( uploads.every( write => write.data instanceof SharedArrayBuffer ), `frame ${frame} shared` );
+	}
+	assert.equal( f.buffers.filter( buffer => buffer.label === "geometry-palette" ).length, 0, "no batch palette" );
+	owner.dispose( f.resources.commands, null );
+	f.resources.dispose();
+	return f;
+}
+
+test("pooled palettes are read by every draw at its instances' offsets, uploaded from shared memory", () => {
+	drivePool( 1, frame => 5 - frame % 2, 30 );
+});
+
+test("a palette table outgrown by its poses is replaced and the pooled draws bind the new pool", () => {
+	// 40 poses of two 4096-joint bindings outgrow the table's first size,
+	// after the first 10 have drawn from it.
+	const f = drivePool( 4096, frame => frame < 2 ? 10 : 40, 5 );
+	const pools = f.buffers.filter( buffer => buffer.label === "geometry-palette-pool" );
+	assert.ok( pools.length >= 2, `pools ${pools.length}` );
+	assert.ok( pools.every( buffer => buffer.destroyed === 1 ) );
 });

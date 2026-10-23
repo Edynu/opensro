@@ -17,8 +17,11 @@ layout) and materializes through foundation/kernels/skeleton-kernel.ts,
 now or in the frame's skeleton phase (renderer/characters/skeletons.ts);
 every other rule here is the same code either way. A phase that knows the
 palettes will be read on this thread (readsPalettes, or an evaluation the
-GPU does not take) writes them too, and palette copies those while they
-are current.
+GPU does not take) writes them too, into the skeleton's palette table;
+palettes it did not write are computed here into the same table, so a
+skeleton's current palettes are always there. palette copies them out;
+paletteSlot hands the renderer's palette pool their place instead, which
+it uploads straight from the table (renderer/characters/skeletons.ts).
 
 ===========================================================================
 */
@@ -43,7 +46,6 @@ import {
 	STATE_TRANSLATIONS,
 	STATE_WEIGHTS
 } from "@/engine/foundation/kernels/skeleton-record";
-import { skeletonPalettes } from "@/engine/foundation/kernels/skeleton-kernel";
 
 const DEFAULT_BODY_VOLUME = 2;
 
@@ -102,16 +104,24 @@ PoseSkeleton
 
 Where a pose's matrices live and what computes them
 (renderer/characters/skeletons.ts). state is a fixed view of the pose's
-region: 61 floats a node, 4, then the palettes of skeletonBindings
-(skeleton-record.ts). materialize computes it from input as timing says
-and calls done( changed, paletted, thicknessVersion ) once the matrices
-are ready, with the thickness version of the input it materialized.
-resetDirect makes the next materialization recompose rather than reuse a
-direct sample; release returns the region.
+region: 61 floats a node, then 4 (skeleton-record.ts). palettes is the
+pose's region of the palette table, the palettes of skeletonBindings in
+order, 16 floats a joint, starting at paletteAt floats into the table; a
+view, remade after the table is replaced. publish queues the region for
+the palette pool's next upload once its palettes at version are current,
+unless that version was queued already (force queues it again).
+materialize computes the state from input as timing says and calls
+done( changed, paletted, thicknessVersion ) once the matrices are ready,
+with the thickness version of the input it materialized. resetDirect makes
+the next materialization recompose rather than reuse a direct sample;
+release returns the regions.
 ================
 */
 export interface PoseSkeleton {
 	readonly state: Float32Array;
+	readonly paletteAt: number;
+	palettes(): Float32Array;
+	publish( version: number, force?: boolean ): void;
 	materialize(
 		input: PoseSkeletonInput,
 		done: ( changed: boolean, paletted: boolean, thicknessVersion: number ) => void,
@@ -176,12 +186,15 @@ export function createCharacterPose( model: CharacterModel, skeletons?: ( model:
 		if ( marker && marker !== "$root" && !sockets.has( marker ) ) sockets.set( marker, index );
 	}
 	const thickness = new Float32Array( model.nodes.length ).fill( 1 ), radial = new Float32Array( 16 );
-	// The skeleton's palettes by binding, as its phase writes them.
-	const skeletonPaletteViews = new Map<CharacterPrimitive, Float32Array>();
+	// Where each binding's palette starts in the skeleton's palette region,
+	// as its phase writes them, and their views over the table as it is.
+	const bindingOffsets = new Map<CharacterPrimitive, number>();
+	const paletteViews = new Map<CharacterPrimitive, Float32Array>();
+	let paletteViewsOf: ArrayBufferLike | null = null;
 	if ( skeleton ) {
-		let at = skeletonPalettes( count );
+		let at = 0;
 		for ( const binding of skeletonBindings( model, bindings ) ) {
-			skeletonPaletteViews.set( binding, skeleton.state.subarray( at, at + binding.joints.length * 16 ) );
+			bindingOffsets.set( binding, at );
 			at += binding.joints.length * 16;
 		}
 	}
@@ -338,6 +351,73 @@ words numerically with signed-zero preservation; NaNs always recompute.
 	}
 	/*
 ================
+writePalette
+
+primitive's palette from this thread's matrices into out at offset: each
+joint's global matrix, its radial rows scaled by the body's thickness,
+times its inverse bind.
+================
+	*/
+	function writePalette( primitive: CharacterPrimitive, out: Float32Array, offset: number ) {
+		let views = inverseViews.get( primitive );
+		if ( !views ) {
+			views = Array.from(
+				primitive.joints,
+				( _, i ) => primitive.inverseBind.subarray( i * 16, i * 16 + 16 )
+			);
+			inverseViews.set( primitive, views );
+		}
+		for ( let i = 0; i < primitive.joints.length; i++ ) {
+			const joint = primitive.joints[i]!, factor = thickness[joint]!;
+			let matrix = globals[joint]!;
+			// AB6B20 scales radial Y/Z rows of the native global matrix,
+			// then multiplies inverse bind. Children and sockets stay unchanged.
+			if ( factor !== 1 ) {
+				radial.set( matrix );
+				for ( const n of [ 4, 5, 6, 8, 9, 10 ] ) radial[n]! *= factor;
+				matrix = radial;
+			}
+			multiply( matrix, views[i]!, out, offset + i * 16 );
+		}
+	}
+	/*
+================
+paletteBase
+
+Where primitive's palette starts in the skeleton's palette table, in
+matrices (the palette pool's instance offset); -1 without one. Says
+nothing of whether the table holds it current: the GPU may write it.
+================
+	*/
+	function paletteBase( primitive: CharacterPrimitive ): number {
+		const at = skeleton ? bindingOffsets.get( bindings.get( primitive ) ?? primitive ) : undefined;
+		return at === undefined ? -1 : (skeleton!.paletteAt + at) / 16;
+	}
+	/*
+================
+currentPalettes
+
+The skeleton's palettes by binding, current in its palette table: as its
+phase wrote them, or computed here into the table when it did not. The
+views follow the table when it is replaced. The pose is materialized.
+================
+	*/
+	function currentPalettes(): ReadonlyMap<CharacterPrimitive, Float32Array> {
+		const table = skeleton!.palettes();
+		if ( paletteViewsOf !== table.buffer ) {
+			paletteViewsOf = table.buffer;
+			for ( const [binding, at] of bindingOffsets ) {
+				paletteViews.set( binding, table.subarray( at, at + binding.joints.length * 16 ) );
+			}
+		}
+		if ( skeletonPaletteVersion !== paletteVersion ) {
+			for ( const [binding, view] of paletteViews ) writePalette( binding, view, 0 );
+			skeletonPaletteVersion = paletteVersion;
+		}
+		return paletteViews;
+	}
+	/*
+================
 finishSkeleton
 
 The skeleton's materialization is in its state: the tail of materialize.
@@ -369,7 +449,7 @@ arrays materialize at once.
 			skeletonInput.releasedNode = releasedNode;
 			// The phase writes the palettes this thread will read: the owner's
 			// (readsPalettes) or an evaluation the GPU did not take.
-			skeletonInput.palettes = !skeletonPaletteViews.size || !readsPalettes && timing !== "frame" ?
+			skeletonInput.palettes = !bindingOffsets.size || !readsPalettes && timing !== "frame" ?
 				PALETTES_NONE :
 				skeletonPaletteVersion === paletteVersion ?
 				PALETTES_CHANGED :
@@ -696,25 +776,17 @@ quaternion scratch is charged and allocated only when playback needs it.
 		/*
         ================
         palette
+
+        primitive's palette copied into out at offset.
         ================
         */
 		palette( primitive: CharacterPrimitive, out: Float32Array, offset = 0 ) {
 			materialize();
 			primitive = bindings.get( primitive ) ?? primitive;
-			const written = skeletonPaletteVersion === paletteVersion ?
-				skeletonPaletteViews.get( primitive ) :
-				undefined;
+			const written = bindingOffsets.size ? currentPalettes().get( primitive ) : undefined;
 			if ( written ) {
 				out.set( written, offset );
 				return;
-			}
-			let views = inverseViews.get( primitive );
-			if ( !views ) {
-				views = Array.from(
-					primitive.joints,
-					( _, i ) => primitive.inverseBind.subarray( i * 16, i * 16 + 16 )
-				);
-				inverseViews.set( primitive, views );
 			}
 			let cached = palettes.get( primitive );
 			if ( !cached ) {
@@ -722,21 +794,29 @@ quaternion scratch is charged and allocated only when playback needs it.
 				palettes.set( primitive, cached );
 			}
 			if ( cached.version !== paletteVersion ) {
-				for ( let i = 0; i < primitive.joints.length; i++ ) {
-					const joint = primitive.joints[i]!, factor = thickness[joint]!;
-					let matrix = globals[joint]!;
-					// AB6B20 scales radial Y/Z rows of the native global matrix,
-					// then multiplies inverse bind. Children and sockets stay unchanged.
-					if ( factor !== 1 ) {
-						radial.set( matrix );
-						for ( const n of [ 4, 5, 6, 8, 9, 10 ] ) radial[n]! *= factor;
-						matrix = radial;
-					}
-					multiply( matrix, views[i]!, cached.data, i * 16 );
-				}
+				writePalette( primitive, cached.data, 0 );
 				cached.version = paletteVersion;
 			}
 			out.set( cached.data, offset );
+		},
+		paletteBase,
+		/*
+		================
+		paletteSlot
+
+		paletteBase, with the pose's palettes current in the table and
+		published for the palette pool's next upload: no copy is made.
+		republish publishes them again although their version was (the pool's
+		slot may hold what the GPU wrote since).
+		================
+		*/
+		paletteSlot( primitive: CharacterPrimitive, republish = false ): number {
+			const base = paletteBase( primitive );
+			if ( base < 0 ) return base;
+			materialize();
+			currentPalettes();
+			skeleton!.publish( paletteVersion, republish );
+			return base;
 		},
 		/*
         ================

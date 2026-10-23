@@ -61,6 +61,7 @@ import {
 	W_RANDOM,
 	W_SECONDS,
 	W_SPEED,
+	W_PALETTE,
 	W_STATE,
 	W_VERTICES
 } from "./cloth-record";
@@ -216,7 +217,11 @@ export function advanceClothWearer( views: FrameKernelViews, world: boolean, slo
 	const pins = weights + n * 5;
 	const current = records[w + W_CURRENT]!;
 	const from = clothStateHalf( base, n, current ), positions = clothStateHalf( base, n, 1 - current );
-	const anchors = base + n * 12, vertices = records[w + W_VERTICES]!, palette = clothStatePalette( base, n );
+	const anchors = base + n * 12, vertices = records[w + W_VERTICES]!;
+	// A character wearer skins from its pose's palette where the skeleton
+	// phase wrote it (skeletonPalettes); any other, from its own copy.
+	const shared = records[w + W_PALETTE]! >= 0, bones = shared ? views.skeletonPalettes : state;
+	const palette = shared ? records[w + W_PALETTE]! : clothStatePalette( base, n );
 	const seconds = records[w + W_SECONDS]!, enabled = records[w + W_ENABLED] === 1;
 	const updated = records[w + W_LAST_SET] === 1;
 	// Unskinned meshes have immutable model-space anchors. Option changes
@@ -241,28 +246,28 @@ export function advanceClothWearer( views: FrameKernelViews, world: boolean, slo
 				const weight = programs[weights + i * 4 + joint]!;
 				if ( !weight ) continue;
 				const bone = palette + programs[joints + i * 4 + joint]! * CLOTH_JOINT_FLOATS;
-				let ax = state[bone + 12]!, ay = state[bone + 13]!, az = state[bone + 14]!;
+				let ax = bones[bone + 12]!, ay = bones[bone + 13]!, az = bones[bone + 14]!;
 				let bx = 0, by = 0, bz = 0;
 				// Each axis retains its original double-precision accumulation
 				// order. Share the influence lookup, not intermediate rounding.
-				ax += state[bone]! * x;
-				ay += state[bone + 1]! * x;
-				az += state[bone + 2]! * x;
-				bx += state[bone]! * nx;
-				by += state[bone + 1]! * nx;
-				bz += state[bone + 2]! * nx;
-				ax += state[bone + 4]! * y;
-				ay += state[bone + 5]! * y;
-				az += state[bone + 6]! * y;
-				bx += state[bone + 4]! * ny;
-				by += state[bone + 5]! * ny;
-				bz += state[bone + 6]! * ny;
-				ax += state[bone + 8]! * z;
-				ay += state[bone + 9]! * z;
-				az += state[bone + 10]! * z;
-				bx += state[bone + 8]! * nz;
-				by += state[bone + 9]! * nz;
-				bz += state[bone + 10]! * nz;
+				ax += bones[bone]! * x;
+				ay += bones[bone + 1]! * x;
+				az += bones[bone + 2]! * x;
+				bx += bones[bone]! * nx;
+				by += bones[bone + 1]! * nx;
+				bz += bones[bone + 2]! * nx;
+				ax += bones[bone + 4]! * y;
+				ay += bones[bone + 5]! * y;
+				az += bones[bone + 6]! * y;
+				bx += bones[bone + 4]! * ny;
+				by += bones[bone + 5]! * ny;
+				bz += bones[bone + 6]! * ny;
+				ax += bones[bone + 8]! * z;
+				ay += bones[bone + 9]! * z;
+				az += bones[bone + 10]! * z;
+				bx += bones[bone + 8]! * nz;
+				by += bones[bone + 9]! * nz;
+				bz += bones[bone + 10]! * nz;
 				px += ax * weight;
 				py += ay * weight;
 				pz += az * weight;

@@ -732,7 +732,8 @@
 				"updateTextureFactor",
 				"streamVertices",
 				"streamOutputVertices",
-				"writeVertices"
+				"writeVertices",
+				"writePalettePool"
 			]
 		},
 		{
@@ -2470,7 +2471,9 @@
 			"provider": "src/engine/runtime/renderer/characters/skeletons.ts",
 			"functions": [
 				"materialize",
+				"palettes",
 				"pose",
+				"publish",
 				"release",
 				"resetDirect"
 			]

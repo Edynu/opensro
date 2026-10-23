@@ -7,7 +7,7 @@ The layout skeleton-kernel.ts reads and writes to materialize one pose
 (animation-pose.ts materialize): sample its layers' clips, blend event
 lanes before timed ones, compose local matrices and multiply them into
 global matrices parent first, then, when asked, its skin palettes
-(animation-pose.ts palette). Six tables (frame-kernels.ts):
+(animation-pose.ts palette). Seven tables (frame-kernels.ts):
 
 - skeletonModels (doubles): a model's skeleton, written once: S_HEADER,
   then for n nodes their parents (n), parent-first order (n), whether each
@@ -28,9 +28,12 @@ global matrices parent first, then, when asked, its skin palettes
 - skeletonState (floats): a pose's sampled translations (3n), rotations
   (4n) and scales (3n), blend passes (10n), lane weights (3n) and committed
   weights (3n), local and global matrices (16n each), changed-global and
-  animated-local flags (n each), body thickness (n), a 4-float sample
-  (STATE_* offsets in units of n), then the palettes of its bindings in
-  their order (16 floats a joint).
+  animated-local flags (n each), body thickness (n) and a 4-float sample
+  (STATE_* offsets in units of n).
+- skeletonPalettes (floats): a pose's skin palettes, its bindings' in
+  their order (16 floats a joint), at R_PALETTE_AT. An output table
+  (frame-kernels.ts OUTPUT_TABLES): the renderer's palette pool uploads
+  them to the GPU straight from it.
 
 R_BUSY makes a chunk run again after a stalled worker recompute every
 matrix, and R_CHANGED and R_PALETTED only ever gain, so the pose's owner
@@ -78,7 +81,8 @@ export const R_CHANNEL_CAPACITY = 17; // quaternion brackets the scratch holds
 export const R_CLOCK_CAPACITY = 18; // key clocks the scratch holds
 export const R_PALETTES = 19; // input: PALETTES_* below
 export const R_PALETTED = 20; // output: the palettes were written (only ever set by the kernel)
-export const SKELETON_RECORD = 21;
+export const R_PALETTE_AT = 21; // offset of the palettes in skeletonPalettes
+export const SKELETON_RECORD = 22;
 
 // Whether a materialization writes the pose's palettes: never, when a
 // matrix changed (the palettes written last are current otherwise), always.

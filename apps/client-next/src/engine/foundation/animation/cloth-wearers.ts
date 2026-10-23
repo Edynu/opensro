@@ -76,6 +76,7 @@ import {
 	W_RANDOM,
 	W_SECONDS,
 	W_SPEED,
+	W_PALETTE,
 	W_STATE,
 	W_VERTICES
 } from "@/engine/foundation/kernels/cloth-record";
@@ -385,6 +386,7 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 			records[w + W_PROGRAM] = program.offset;
 			records[w + W_STATE] = state;
 			records[w + W_VERTICES] = output;
+			records[w + W_PALETTE] = -1;
 			records[w + W_RANDOM] = seed >>> 0;
 			cloth.fill( 0, state, state + floats );
 			cloth.set( mesh.positions, clothStateHalf( state, n, 0 ) );
@@ -398,12 +400,15 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 
 		The wearer's frame, as createClothVertices' update takes it: its palette
 		(the batch's, 16 floats a joint), the frame time, whether it simulates,
-		and the wind.
+		and the wind. A character wearer's palette may be a number instead: where
+		its pose's palette starts in the skeletons' palette table
+		(frame-kernels.ts skeletonPalettes), which the kernel reads in place,
+		so nothing is copied; the skeleton phase that wrote it is over.
 		================
 		*/
 		request(
 			slot: number,
-			palette: Float32Array,
+			palette: Float32Array | number,
 			seconds: number,
 			enabled: boolean,
 			motion: { readonly direction: readonly number[]; readonly speed: number; }
@@ -420,10 +425,16 @@ export function createClothWearers( workers: FrameKernelPhases, name: ClothBankN
 			records[w + W_SPEED] = motion.speed;
 			const n = slotVertices[slot]!, program = slotPrograms[slot]!.offset;
 			const joints = views[bank.programs][program + P_JOINTS]! * CLOTH_JOINT_FLOATS;
-			views[bank.state].set(
-				palette.subarray( 0, Math.min( joints, palette.length ) ),
-				clothStatePalette( slotState[slot]!, n )
-			);
+			if ( typeof palette === "number" ) {
+				if ( !Number.isInteger( palette ) || palette < 0 ) throw Error( "Invalid cloth palette offset" );
+				records[w + W_PALETTE] = palette;
+			} else {
+				records[w + W_PALETTE] = -1;
+				views[bank.state].set(
+					palette.subarray( 0, Math.min( joints, palette.length ) ),
+					clothStatePalette( slotState[slot]!, n )
+				);
+			}
 			requested.push( slot );
 		},
 		/*

@@ -100,7 +100,17 @@ test( "shipping GPU pose owner matches CPU palettes across clocks, bindings, rel
 								pose.palette( primitive, cpu, i * primitive.joints.length * 16 );
 								return pose.gpuSample();
 							} );
-						if ( !owner.prepare( source, output, model, primitive, samples ) ) {
+						const job = {
+							key: source,
+							output,
+							outputMatrices: source.length / 16,
+							model,
+							primitive,
+							samples,
+							bases: samples.map( ( _, i ) => i * primitive.joints.length ),
+							capacity: samples.length
+						};
+						if ( !owner.prepare( job ) ) {
 							throw Error( "Published animation unexpectedly refused" );
 						}
 						if ( model === assembled && owner.stats().clipSets !== 1 ) {
@@ -120,7 +130,7 @@ test( "shipping GPU pose owner matches CPU palettes across clocks, bindings, rel
 						}
 						read.unmap();
 						// A retired output must not remain in the next command encoder.
-						owner.prepare( source, output, model, primitive, samples );
+						owner.prepare( job );
 						owner.release( source );
 						const empty = device.createCommandEncoder();
 						owner.encode( empty );

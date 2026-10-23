@@ -191,11 +191,34 @@ export function createGeometryResources(
 		} );
 	/*
 	================
-	SharedPalette
+	PalettePool
+
+	The GPU mirror of a frame kernel's palette table (renderer/characters/
+	skeletons.ts): every batch stream bound to it reads its instances'
+	palettes at their offsets, and writePalettePool uploads the table's
+	published ranges straight from shared memory. A replaced table gets a
+	new pool; the old one is retired with the frame.
 	================
 	*/
-	type SharedPalette = { source: Float32Array; buffer: GPUBuffer; refs: number; revision: number; };
+	type PalettePool = { table: Float32Array; buffer: GPUBuffer; matrices: number; };
+	let palettePool: PalettePool | undefined;
+	/*
+	================
+	SharedPalette
+
+	A batch stream's palette storage: its own buffer, or the palette pool's.
+	================
+	*/
+	type SharedPalette = {
+		source: Float32Array;
+		buffer: GPUBuffer;
+		refs: number;
+		revision: number;
+		pool?: PalettePool;
+	};
 	const sharedPalettes = new Map<Float32Array, SharedPalette>();
+	// prepareGpuBones' slot bases for a stream's own buffer, reused.
+	const slotBases: number[] = [];
 	/*
 	================
 	releasePalette
@@ -204,9 +227,30 @@ export function createGeometryResources(
 	function releasePalette( palette: SharedPalette | undefined ) {
 		if ( palette && !--palette.refs ) {
 			animation?.release( palette.source );
-			retire( palette.buffer );
+			if ( !palette.pool ) retire( palette.buffer );
 			sharedPalettes.delete( palette.source );
 		}
+	}
+	/*
+	================
+	poolFor
+
+	The palette pool mirroring table, made for a new or replaced table.
+	================
+	*/
+	function poolFor( table: Float32Array ): PalettePool {
+		if ( palettePool?.table.buffer === table.buffer && palettePool.matrices === table.length / 16 ) {
+			return palettePool;
+		}
+		if ( table.length % 16 ) throw Error( "Invalid palette table" );
+		const buffer = current().createBuffer( {
+			label: "geometry-palette-pool",
+			size: table.byteLength,
+			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+		} );
+		if ( palettePool ) retire( palettePool.buffer );
+		palettePool = { table, buffer, matrices: table.length / 16 };
+		return palettePool;
 	}
 	/*
 	================
@@ -520,26 +564,42 @@ export function createGeometryResources(
 		...(animation ?
 			{
 				gpuAnimationStats: () => ({ ...animation.stats(), cpuUploadBytes: mixedCpuUploadBytes }),
-				prepareGpuBones: (
-					source: Float32Array,
-					model: import("@/engine/contracts/character").CharacterModel,
-					primitive: import("@/engine/contracts/character").CharacterPrimitive,
-					samples: readonly ({
-						readonly clip: import("@/engine/contracts/character").CharacterClip;
-						readonly time: number;
-					} | null)[],
-					revision: number
-				) => {
+				prepareGpuBones: ( job: import("../internal/gpu-contract").GpuBonesJob ) => {
 					current();
+					const { source, model, primitive, samples, revision } = job;
 					const palette = sharedPalettes.get( source );
 					if ( !palette ) return false;
 					if (
 						!Number.isSafeInteger( revision ) || revision < 0 || revision < palette.revision
 					) throw Error( "Invalid GPU palette revision" );
 					if ( palette.revision === revision ) return true;
-					if ( !animation.prepare( source, palette.buffer, model, primitive, samples ) ) return false;
+					const joints = primitive.joints.length, pool = palette.pool;
+					if ( pool && (!job.bases || job.capacity === undefined) ) {
+						throw Error( "Palette pool job without its bases" );
+					}
+					if ( !pool ) {
+						slotBases.length = samples.length;
+						for ( let i = 0; i < samples.length; i++ ) slotBases[i] = i * joints;
+					}
+					if (
+						!animation.prepare( {
+							key: source,
+							output: palette.buffer,
+							outputMatrices: pool ? pool.matrices : source.length / 16,
+							model,
+							primitive,
+							samples,
+							bases: job.bases ?? slotBases,
+							capacity: pool ? job.capacity! : source.length / (joints * 16)
+						} )
+					) return false;
+					// The pool's CPU-owned poses are uploaded with its table.
+					if ( pool ) {
+						palette.revision = revision;
+						return true;
+					}
 					// CPU writes and GPU jobs own disjoint canonical pose slots.
-					const stride = primitive.joints.length * 64;
+					const stride = joints * 64;
 					for ( let i = 0; i < samples.length; ) {
 						if ( samples[i] !== null ) {
 							i++;
@@ -562,6 +622,25 @@ export function createGeometryResources(
 				}
 			} :
 			{}),
+		/*
+		================
+		writePalettePool
+
+		The published ranges of a frame kernel's palette table (start, end
+		pairs in floats) into its palette pool, read from shared memory at the
+		frame's submit (geometry-uploads.ts writeOutput): no copy is made, and
+		the GPU animation pass, encoded after, keeps the slots it writes.
+		================
+		*/
+		writePalettePool( table: Float32Array, ranges: readonly number[] ) {
+			current();
+			const pool = poolFor( table );
+			for ( let i = 0; i < ranges.length; i += 2 ) {
+				const start = ranges[i]!, end = ranges[i + 1]!;
+				if ( !(start >= 0 && end > start && end <= table.length) ) throw Error( "Invalid palette range" );
+				uploads.writeOutput( pool.buffer, start * 4, table.subarray( start, end ) );
+			}
+		},
 		/*
 		================
 		presentParticles
@@ -589,6 +668,7 @@ export function createGeometryResources(
 			if ( !meta || meta.bones === defaultBones || bones.byteLength > meta.boneBytes ) {
 				throw new Error( "Invalid bone palette" );
 			}
+			if ( meta.palette?.pool ) throw Error( "A palette pool draw is uploaded with its pool" );
 			if ( meta.palette ) {
 				if (
 					typeof revision !== "number" || !Number.isSafeInteger( revision ) || revision < 0 ||
@@ -1021,12 +1101,15 @@ export function createGeometryResources(
 					if ( paletteOffsets ) {
 						palette = sharedPalettes.get( data.bones );
 						if ( !palette ) {
-							const storage = gpu.createBuffer( {
+							// A stream on the palette pool reads the pool; any other
+							// has a buffer of its own.
+							const pool = data.palettePool ? poolFor( data.palettePool ) : undefined;
+							const storage = pool?.buffer ?? gpu.createBuffer( {
 								label: "geometry-palette",
 								size: data.bones.byteLength,
 								usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 							} );
-							palette = { source: data.bones, buffer: storage, refs: 0, revision: -1 };
+							palette = { source: data.bones, buffer: storage, refs: 0, revision: -1, pool };
 							sharedPalettes.set( data.bones, palette );
 						}
 						palette.refs++;
@@ -1421,8 +1504,10 @@ export function createGeometryResources(
 					buffer.destroy();
 				}
 			}
-			for ( const palette of sharedPalettes.values() ) palette.buffer.destroy();
+			for ( const palette of sharedPalettes.values() ) if ( !palette.pool ) palette.buffer.destroy();
 			sharedPalettes.clear();
+			palettePool?.buffer.destroy();
+			palettePool = undefined;
 			transformSlabs.dispose();
 			materialSlabs.dispose();
 			instanceSlabs.dispose();

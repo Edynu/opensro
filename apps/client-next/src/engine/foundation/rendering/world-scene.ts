@@ -455,6 +455,7 @@ export function prepareWorldScene( scene: WorldScene ): PreparedWorldScene {
 			joints: g.joints,
 			weights: g.weights,
 			bones: g.bones ? mutable( g.bones ) : undefined,
+			palettePool: undefined,
 			// Terrain stitches its seams by rewriting positions (world.ts).
 			dynamicVertices: group.ranges !== undefined,
 			vertices: undefined as Float32Array | undefined

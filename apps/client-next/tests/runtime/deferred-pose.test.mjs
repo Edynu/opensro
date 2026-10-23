@@ -106,7 +106,7 @@ test("retained palettes use the appended GPU catalog and recover exact CPU data 
 	prepareGpuBones
 	================
 	*/
-	function prepareGpuBones( storage, source ) {
+	function prepareGpuBones( { source: storage, model: source } ) {
 		assert.equal( storage, data );
 		catalogs.push( source );
 		return gpuAccepts;
@@ -215,7 +215,7 @@ test("one layered pose cannot force eligible siblings onto CPU", () => {
 		lane: "timed",
 		loop: true
 	} ], true );
-	bank.update( [ b, a ], ( source, model, primitive, samples ) => {
+	bank.update( [ b, a ], ( { source, model, primitive, samples } ) => {
 		assert.equal( samples[0], null );
 		assert.equal( samples[1].clip, m.clips[0] );
 		const expected = new Float32Array( 32 );

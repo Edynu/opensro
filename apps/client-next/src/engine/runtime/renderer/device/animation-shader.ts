@@ -48,5 +48,5 @@ fn compose(t:vec4f,qr:vec4f,s:vec4f)->mat4x4f{
   if(node<config.nodes&&u32(skeleton[config.depthAt+node])==depth){let parent=i32(skeleton[config.parents+node]);if(parent<0){worlds[node]=locals[node];}else{worlds[node]=worlds[u32(parent)]*locals[node];}}
   workgroupBarrier();
  }
- for(var joint=node;joint<config.joints;joint+=128){palettes[u32(input.z)*config.joints+joint]=worlds[u32(skeleton[config.jointAt+joint])]*matrix(config.inverse+joint*16);}
+ for(var joint=node;joint<config.joints;joint+=128){palettes[u32(input.z)+joint]=worlds[u32(skeleton[config.jointAt+joint])]*matrix(config.inverse+joint*16);}
 }`;

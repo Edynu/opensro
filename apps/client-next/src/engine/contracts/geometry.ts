@@ -18,6 +18,10 @@ export interface Geometry {
 	readonly joints?: Uint32Array;
 	readonly weights?: Float32Array;
 	readonly bones?: Float32Array;
+	// A frame kernel's palette table (renderer/characters/skeletons.ts) whose
+	// GPU mirror, the palette pool, the draw reads its instances' palettes
+	// from; bones is then only the batch stream's key.
+	readonly palettePool?: Float32Array;
 	readonly world?: boolean;
 	readonly material?: import("./scene").WorldMaterial;
 	readonly normals?: Float32Array;

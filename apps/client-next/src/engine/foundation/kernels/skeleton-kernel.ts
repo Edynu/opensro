@@ -10,7 +10,8 @@ the remaining headroom, apply the bone rotator, then compose each changed
 local matrix and multiply globals parent first. When the record asks
 (R_PALETTES), animation-pose.ts palette follows for every binding of the
 model: the global matrices with the body's radial thickness, times the
-inverse binds.
+inverse binds, into the pose's region of skeletonPalettes (R_PALETTE_AT),
+from which the renderer's palette pool uploads them.
 
 Every expression keeps the object code's operation order and float32
 stores, and the pose math (pose-math.ts compose, multiplyDisjoint, slerp,
@@ -48,6 +49,7 @@ import {
 	R_LAYER_CAPACITY,
 	R_LAYERS,
 	R_MODEL,
+	R_PALETTE_AT,
 	R_PALETTED,
 	R_PALETTES,
 	R_RELEASED,
@@ -90,6 +92,7 @@ export interface SkeletonViews {
 	readonly skeletonRecords: Float64Array;
 	readonly skeletonScratch: Float64Array;
 	readonly skeletonState: Float32Array;
+	readonly skeletonPalettes: Float32Array;
 }
 
 /*
@@ -108,22 +111,11 @@ export function skeletonModelWords( nodes: number, bindings: number, joints: num
 ================
 skeletonStateFloats
 
-Floats a pose of nodes takes in skeletonState, with the palettes of its
-bindings' joints in all.
+Floats a pose of nodes takes in skeletonState. Its palettes are in
+skeletonPalettes, 16 floats a joint of its bindings.
 ================
 */
-export function skeletonStateFloats( nodes: number, joints: number ): number {
-	return nodes * STATE_FLOATS_PER_NODE + STATE_SAMPLE_FLOATS + joints * 16;
-}
-
-/*
-================
-skeletonPalettes
-
-Where a pose's palettes start in its state, from the state's offset.
-================
-*/
-export function skeletonPalettes( nodes: number ): number {
+export function skeletonStateFloats( nodes: number ): number {
 	return nodes * STATE_FLOATS_PER_NODE + STATE_SAMPLE_FLOATS;
 }
 
@@ -198,7 +190,15 @@ radial Y/Z rows scaled by factor and rounded as the object's float32
 scratch rounds them, times the inverse bind at b in models.
 ================
 */
-function paletteAt( s: Float32Array, a: number, factor: number, models: Float64Array, b: number, out: number ) {
+function paletteAt(
+	s: Float32Array,
+	a: number,
+	factor: number,
+	models: Float64Array,
+	b: number,
+	p: Float32Array,
+	out: number
+) {
 	const a0 = s[a]!, a1 = s[a + 1]!, a2 = s[a + 2]!, a3 = s[a + 3]!, a7 = s[a + 7]!, a11 = s[a + 11]!;
 	const a12 = s[a + 12]!, a13 = s[a + 13]!, a14 = s[a + 14]!, a15 = s[a + 15]!;
 	let a4 = s[a + 4]!, a5 = s[a + 5]!, a6 = s[a + 6]!, a8 = s[a + 8]!, a9 = s[a + 9]!, a10 = s[a + 10]!;
@@ -213,10 +213,10 @@ function paletteAt( s: Float32Array, a: number, factor: number, models: Float64A
 	for ( let c = 0; c < 4; c++ ) {
 		const at = c * 4, b0 = models[b + at]!, b1 = models[b + at + 1]!, b2 = models[b + at + 2]!;
 		const b3 = models[b + at + 3]!, to = out + at;
-		s[to] = ((0 + a0 * b0 + a4 * b1) + a8 * b2) + a12 * b3;
-		s[to + 1] = ((0 + a1 * b0 + a5 * b1) + a9 * b2) + a13 * b3;
-		s[to + 2] = ((0 + a2 * b0 + a6 * b1) + a10 * b2) + a14 * b3;
-		s[to + 3] = ((0 + a3 * b0 + a7 * b1) + a11 * b2) + a15 * b3;
+		p[to] = ((0 + a0 * b0 + a4 * b1) + a8 * b2) + a12 * b3;
+		p[to + 1] = ((0 + a1 * b0 + a5 * b1) + a9 * b2) + a13 * b3;
+		p[to + 2] = ((0 + a2 * b0 + a6 * b1) + a10 * b2) + a14 * b3;
+		p[to + 3] = ((0 + a3 * b0 + a7 * b1) + a11 * b2) + a15 * b3;
 	}
 }
 
@@ -228,14 +228,17 @@ Every binding's palette after the pose's sample, in the model's binding
 order (skeleton-record.ts).
 ================
 */
-function writePalettes( models: Float64Array, s: Float32Array, model: number, n: number, base: number ) {
-	const G = base + n * STATE_GLOBALS, TH = base + n * STATE_THICKNESS, bindings = models[model + S_BINDINGS]!;
-	let at = model + S_HEADER + n * S_NODE_WORDS, out = base + skeletonPalettes( n );
+function writePalettes( views: SkeletonViews, w: number ) {
+	const records = views.skeletonRecords, models = views.skeletonModels, s = views.skeletonState;
+	const p = views.skeletonPalettes, model = records[w + R_MODEL]!, base = records[w + R_STATE]!;
+	const n = models[model + S_NODES]!, bindings = models[model + S_BINDINGS]!;
+	const G = base + n * STATE_GLOBALS, TH = base + n * STATE_THICKNESS;
+	let at = model + S_HEADER + n * S_NODE_WORDS, out = records[w + R_PALETTE_AT]!;
 	for ( let binding = 0; binding < bindings; binding++ ) {
 		const joints = models[at]!, inverse = at + 1 + joints;
 		for ( let i = 0; i < joints; i++ ) {
 			const joint = models[at + 1 + i]!;
-			paletteAt( s, G + joint * 16, s[TH + joint]!, models, inverse + i * 16, out + i * 16 );
+			paletteAt( s, G + joint * 16, s[TH + joint]!, models, inverse + i * 16, p, out + i * 16 );
 		}
 		at = inverse + joints * 16;
 		out += joints * 16;
@@ -511,7 +514,7 @@ export function materializeSkeleton( views: SkeletonViews, slot: number ) {
 	if ( matricesChanged ) records[w + R_CHANGED] = 1;
 	const palettes = records[w + R_PALETTES]!;
 	if ( palettes === PALETTES_ALWAYS || palettes === PALETTES_CHANGED && matricesChanged ) {
-		writePalettes( models, s, model, n, base );
+		writePalettes( views, w );
 		records[w + R_PALETTED] = 1;
 	}
 	records[w + R_INITIALIZED] = 1;

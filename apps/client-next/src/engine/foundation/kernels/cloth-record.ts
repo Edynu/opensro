@@ -16,7 +16,8 @@ actor wears. Four tables (frame-kernels.ts):
   current (W_*) and next (N_*).
 - clothState (floats): a wearer's arrays: two halves of positions (3n) and
   previous positions (3n), skin anchors (3n) and this frame's palette (16
-  a joint).
+  a joint), unless W_PALETTE names the wearer's pose's palette in the
+  skeletons' table (frame-kernels.ts skeletonPalettes), read there.
 - clothVertices (floats): a wearer's packed vertex stream
   (geometry-vertices.ts, 14n), the kernel's output, which the renderer
   uploads straight from the table (frame-kernels.ts OUTPUT_TABLES).
@@ -64,6 +65,9 @@ export const N_INITIALIZED = 16;
 // so the next advance moves it back (cloth.ts due); else 1.
 export const N_SETTLED = 17;
 export const W_VERTICES = 18; // offset of the packed vertices in clothVertices
+// input: offset of the frame's palette in skeletonPalettes, or -1 for the
+// wearer's own copy in clothState
+export const W_PALETTE = 19;
 export const CLOTH_RECORD = 20;
 
 // Packed vertex stride (geometry-vertices.ts): position, normal, uv, color, mask uv.

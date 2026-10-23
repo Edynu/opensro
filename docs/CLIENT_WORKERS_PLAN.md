@@ -1075,9 +1075,33 @@ move into tables of their own that are never growable.
   (it fails with the table check removed); the arena's output ranges
   against the immediate path in both orders, read at the submit, spilling
   under a small `maxBufferSize`.
+- **Bone palettes: the palette pool.** The skeleton kernel writes a pose's
+  palettes into an output table of their own (`skeletonPalettes`, the
+  record's `R_PALETTE_AT`), not the end of its state. A shared-palette
+  batch keeps no palettes: each instance's offset is its pose's slot in
+  the table (`animation-pose.ts paletteBase`), and the draws bind one GPU
+  buffer that mirrors the table (`geometry.ts` palette pool). A CPU pose
+  publishes its current palettes (`paletteSlot`; palettes the phase did
+  not write are computed into the table, the same bits); the frame's
+  published ranges go up through `writeOutput`, read from shared memory at
+  the submit. The GPU animation pass writes a sampled pose's slot in place
+  (its jobs carry each sample's base); its compute runs after the upload
+  copies in the same submit, so its slots win. The shadow passes already
+  read the per-instance offset. A cloth wearer skins from its pose's
+  palette in the table (`W_PALETTE`), read in place by the cloth kernel.
+  A table outgrown by its poses is replaced; its batches upload again
+  against the new pool at the next frame.
+- **What it removed** (town crowd, about 172 bodies, ms/s): `updateBones`
+  32 to 2.5, the poses' `palette` copies 30 to 1.5, the cloth wearers'
+  palette copies 13 to 3.3. Chrome's copy of the palettes into the GPU
+  process moved into the arena's `writeBuffer` (31 to 51).
+- **Tests**: the renderer on the frame workers' shared skeletons over 30
+  frames, every instance's palette read from the buffer its draw binds at
+  its offset (fails with publishing removed), the table outgrown and
+  replaced; cloth on worker threads (pool, table palettes) against cloth
+  inline (copies), bit for bit; GPU jobs at explicit bases.
 - **Next**: particle records (copied three times between the kernel and
-  the GPU) and bone palettes (copied into batch order, then uploaded per
-  batch).
+  the GPU) and the simulation worker's world batches (structured clones).
 
 ## 7. Open decisions for the owner
 

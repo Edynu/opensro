@@ -25,6 +25,27 @@ const { createGpuAnimationResources } = { ...(await load( "src/engine/runtime/re
 globalThis.GPUBufferUsage = { UNIFORM: 1, COPY_DST: 2, STORAGE: 4 };
 /*
 ================
+slots
+
+The owner's job for samples into source's own palette, sample i at slot i
+(geometry.ts prepareGpuBones for a stream's own buffer).
+================
+*/
+function slots( source, output, model, primitive, samples ) {
+	const joints = primitive.joints.length;
+	return {
+		key: source,
+		output,
+		outputMatrices: output.size / 64,
+		model,
+		primitive,
+		samples,
+		bases: samples.map( ( _, i ) => i * joints ),
+		capacity: source.length / (joints * 16)
+	};
+}
+/*
+================
 I
 ================
 */
@@ -142,19 +163,22 @@ function fixture( { reject = false, failBinding = false } = {} ) {
 test("an appended clip rebinds compute inputs while retaining the geometry palette", async () => {
 	const f = fixture();
 	await f.owner.ready;
-	assert.equal( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .2 } ] ), true );
+	assert.equal(
+		f.owner.prepare( slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .2 } ] ) ),
+		true
+	);
 	const clip = { ...f.clip, name: "new-action" }, model = { ...f.model, clips: [ f.clip, clip ] };
-	assert.equal( f.owner.prepare( f.source, f.output, model, f.primitive, [ { clip, time: .3 } ] ), true );
+	assert.equal( f.owner.prepare( slots( f.source, f.output, model, f.primitive, [ { clip, time: .3 } ] ) ), true );
 	assert.equal( f.owner.stats().models, 1 );
 	assert.equal( f.writes.at( -1 ).values[1], 1, "new catalog selects the appended clip" );
 	assert.throws( () =>
-		f.owner.prepare(
+		f.owner.prepare( slots(
 			f.source,
 			f.output,
 			{ ...model, nodes: [ ...model.nodes ] },
 			f.primitive,
 			[ { clip, time: .3 } ]
-		), /stream identity/ );
+		) ), /stream identity/ );
 	f.owner.release( f.source );
 	f.owner.dispose();
 	assert.ok( f.buffers.every( buffer => buffer.destroyed === 1 ) );
@@ -164,7 +188,9 @@ test("STEP phase cannot round forward across a key; cancellation removes queued 
 	const f = fixture();
 	await f.owner.ready;
 	assert.ok(
-		f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .5 - Number.EPSILON } ] )
+		f.owner.prepare(
+			slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .5 - Number.EPSILON } ] )
+		)
 	);
 	assert.ok( f.writes.at( -1 ).values[0] < .5 );
 	f.owner.cancel( f.source );
@@ -187,13 +213,16 @@ test("STEP phase cannot round forward across a key; cancellation removes queued 
 test("failed pipeline permits CPU fallback and partial allocation failure retires owned buffers", async () => {
 	const f = fixture( { reject: true } );
 	await f.owner.ready;
-	assert.equal( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ), false );
+	assert.equal(
+		f.owner.prepare( slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ) ),
+		false
+	);
 	assert.match( f.owner.stats().failure, /pipeline failed/ );
 	f.owner.dispose();
 	const g = fixture( { failBinding: true } );
 	await g.owner.ready;
 	assert.throws(
-		() => g.owner.prepare( g.source, g.output, g.model, g.primitive, [ { clip: g.clip, time: 0 } ] ),
+		() => g.owner.prepare( slots( g.source, g.output, g.model, g.primitive, [ { clip: g.clip, time: 0 } ] ) ),
 		/binding failed/
 	);
 	assert.equal( g.owner.stats().models, 0 );
@@ -205,13 +234,16 @@ test("invalid requests cannot admit orphan model storage; disposal invalidates p
 	const f = fixture();
 	await f.owner.ready;
 	assert.throws(
-		() => f.owner.prepare( f.source, { size: 1 }, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ),
+		() => f.owner.prepare( slots( f.source, { size: 1 }, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ) ),
 		/capacity/
 	);
 	assert.equal( f.owner.stats().models, 0 );
-	assert.equal( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: NaN } ] ), false );
+	assert.equal(
+		f.owner.prepare( slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: NaN } ] ) ),
+		false
+	);
 	assert.equal( f.owner.stats().models, 0 );
-	f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] );
+	f.owner.prepare( slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: 0 } ] ) );
 	f.owner.dispose();
 	assert.throws( () => f.owner.encode( {} ), /Disposed/ );
 	assert.ok( f.buffers.every( b => b.destroyed === 1 ) );
@@ -220,12 +252,12 @@ test("invalid requests cannot admit orphan model storage; disposal invalidates p
 test("sparse GPU inputs preserve destination indices around CPU-owned slots", async () => {
 	const f = fixture();
 	await f.owner.ready;
-	f.owner.prepare( new Float32Array( 64 ), { size: 256 }, f.model, f.primitive, [
+	f.owner.prepare( slots( new Float32Array( 64 ), { size: 256 }, f.model, f.primitive, [
 		null,
 		{ clip: f.clip, time: .1 },
 		null,
 		{ clip: f.clip, time: .6 }
-	] );
+	] ) );
 	const inputs = f.writes.at( -1 ).values;
 	assert.equal( inputs.length, 8 );
 	assert.equal( inputs[2], 1 );
@@ -266,13 +298,36 @@ the clip set already resident, upload only its skeleton, and the clip set
 must outlive every model but the last.
 ================
 */
+test("a pool job writes each sample at its own base and refuses one past the output", async () => {
+	const f = fixture();
+	await f.owner.ready;
+	const job = {
+		key: {},
+		output: f.output,
+		outputMatrices: 100,
+		model: f.model,
+		primitive: f.primitive,
+		samples: [ null, { clip: f.clip, time: .1 }, null, { clip: f.clip, time: .6 } ],
+		bases: [ 0, 37, 0, 99 ],
+		capacity: 4
+	};
+	assert.ok( f.owner.prepare( job ) );
+	const inputs = f.writes.at( -1 ).values;
+	assert.equal( inputs[2], 37 );
+	assert.equal( inputs[6], 99 );
+	assert.throws( () => f.owner.prepare( { ...job, bases: [ 0, 37, 0, 100 ] } ), /capacity/ );
+	f.owner.dispose();
+});
+
 test("models on the same clips share one clip buffer until the last one is released", async () => {
 	const f = fixture();
 	await f.owner.ready;
 	const assembled = { ...f.model, nodes: [ ...f.model.nodes ], primitives: [ { ...f.primitive } ] };
 	const other = new Float32Array( 16 );
-	assert.ok( f.owner.prepare( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .1 } ] ) );
-	assert.ok( f.owner.prepare( other, f.output, assembled, assembled.primitives[0], [ { clip: f.clip, time: .2 } ] ) );
+	assert.ok( f.owner.prepare( slots( f.source, f.output, f.model, f.primitive, [ { clip: f.clip, time: .1 } ] ) ) );
+	assert.ok(
+		f.owner.prepare( slots( other, f.output, assembled, assembled.primitives[0], [ { clip: f.clip, time: .2 } ] ) )
+	);
 	assert.equal( f.owner.stats().models, 2 );
 	assert.equal( f.owner.stats().clipSets, 1 );
 	assert.equal( f.buffers.filter( b => b.label === "animation-clips" ).length, 1 );

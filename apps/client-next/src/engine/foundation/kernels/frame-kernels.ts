@@ -26,7 +26,9 @@ its packed vertices in clothVertices, for its owner
 which keep their own tables (the world* cloth tables) and lifetime.
 
 KERNEL_SKELETON: each requested character pose's matrices
-(skeleton-kernel.ts), for its owner (renderer/characters/skeletons.ts).
+(skeleton-kernel.ts), for its owner (renderer/characters/skeletons.ts),
+and its skin palettes into skeletonPalettes, which the renderer's palette
+pool uploads straight from.
 
 KERNEL_PARTICLES: each requested particle graph's ticks and its drawn
 emitters' GPU records (particle-kernel.ts), for its owner
@@ -105,6 +107,10 @@ export const INITIAL_SKELETON_SCRATCH_WORDS = 131072;
 export const MAX_SKELETON_SCRATCH_WORDS = 4194304;
 export const INITIAL_SKELETON_STATE_FLOATS = 2097152;
 export const MAX_SKELETON_STATE_FLOATS = 33554432;
+// Skin palettes before growing, and at most: 16 floats a joint; 350 bodies
+// of about 60 joints take about a sixth. The most is the GPU pool's size.
+export const INITIAL_SKELETON_PALETTE_FLOATS = 2097152;
+export const MAX_SKELETON_PALETTE_FLOATS = 16777216;
 // Particle graphs per KERNEL_PARTICLES chunk (one: their cost varies by
 // thousands), the instances the records hold before growing and at most,
 // and per phase. The world draws at most 512 actors.
@@ -133,8 +139,8 @@ of the open pose phase; clothRecords, clothPrograms and clothState the
 cloth wearers (cloth-record.ts) and clothRequests the wearers of the open
 cloth phase, clothVertices their packed vertices, the worldCloth* tables
 likewise the world's cloth meshes; the
-skeleton* tables the character poses (skeleton-record.ts) and
-skeletonRequests the poses of the open skeleton phase; the particle*
+skeleton* tables the character poses (skeleton-record.ts), skeletonPalettes their
+skin palettes, and skeletonRequests the poses of the open skeleton phase; the particle*
 tables the particle graphs (particle-record.ts), particleRequests those of
 the open particle phase. With frame workers they are growable shared
 buffers that grow in place, but for the OUTPUT_TABLES, fixed-size shared
@@ -163,6 +169,7 @@ export interface FrameKernelMemory {
 	skeletonRecords: ArrayBufferLike;
 	skeletonScratch: ArrayBufferLike;
 	skeletonState: ArrayBufferLike;
+	skeletonPalettes: ArrayBufferLike;
 	skeletonRequests: ArrayBufferLike;
 	particleDefs: ArrayBufferLike;
 	particleGraphs: ArrayBufferLike;
@@ -188,7 +195,7 @@ the upload arena), so never growable: Chrome refuses a resizable buffer
 ("must not be resizable", docs/CLIENT_WORKERS_PLAN.md 6.13).
 ================
 */
-export const OUTPUT_TABLES = [ "clothVertices", "worldClothVertices" ] as const;
+export const OUTPUT_TABLES = [ "clothVertices", "worldClothVertices", "skeletonPalettes" ] as const;
 
 /*
 ================
@@ -268,6 +275,7 @@ export function createFrameKernelMemory( allocate: KernelBufferAllocator ): Fram
 		skeletonRecords: allocate( INITIAL_SKELETONS * SKELETON_RECORD * 8, MAX_SKELETONS * SKELETON_RECORD * 8 ),
 		skeletonScratch: allocate( INITIAL_SKELETON_SCRATCH_WORDS * 8, MAX_SKELETON_SCRATCH_WORDS * 8 ),
 		skeletonState: allocate( INITIAL_SKELETON_STATE_FLOATS * 4, MAX_SKELETON_STATE_FLOATS * 4 ),
+		skeletonPalettes: output( INITIAL_SKELETON_PALETTE_FLOATS * 4, MAX_SKELETON_PALETTE_FLOATS * 4 ),
 		skeletonRequests: allocate(
 			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT,
 			(REQUEST_SLOTS + MAX_SKELETON_REQUESTS) * Int32Array.BYTES_PER_ELEMENT
@@ -365,6 +373,7 @@ export interface FrameKernelViews {
 	skeletonRecords: Float64Array;
 	skeletonScratch: Float64Array;
 	skeletonState: Float32Array;
+	skeletonPalettes: Float32Array;
 	skeletonRequests: Int32Array;
 	particleDefs: Float64Array;
 	particleGraphs: Float64Array;
@@ -407,6 +416,7 @@ export function frameKernelViews( memory: FrameKernelMemory ): FrameKernelViews 
 		skeletonRecords: new Float64Array( 0 ),
 		skeletonScratch: new Float64Array( 0 ),
 		skeletonState: new Float32Array( 0 ),
+		skeletonPalettes: new Float32Array( 0 ),
 		skeletonRequests: new Int32Array( 0 ),
 		particleDefs: new Float64Array( 0 ),
 		particleGraphs: new Float64Array( 0 ),
@@ -455,6 +465,7 @@ export function refreshViews( views: FrameKernelViews ) {
 	views.skeletonRecords = float64View( views.skeletonRecords, memory.skeletonRecords );
 	views.skeletonScratch = float64View( views.skeletonScratch, memory.skeletonScratch );
 	views.skeletonState = float32View( views.skeletonState, memory.skeletonState );
+	views.skeletonPalettes = float32View( views.skeletonPalettes, memory.skeletonPalettes );
 	views.skeletonRequests = int32View( views.skeletonRequests, memory.skeletonRequests );
 	views.particleDefs = float64View( views.particleDefs, memory.particleDefs );
 	views.particleGraphs = float64View( views.particleGraphs, memory.particleGraphs );

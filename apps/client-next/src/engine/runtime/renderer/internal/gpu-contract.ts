@@ -357,6 +357,33 @@ export interface DrawRelease {
 }
 /*
 ================
+GpuBonesJob
+
+One batch stream's poses for the GPU animation pass (palette-streams.ts):
+source is the stream's palette (its key, for a stream on the palette
+pool), revision its palette revision. A null sample is a CPU-owned pose,
+its palette already in source (or published to the pool); a sample's
+palette goes to slot i of source, or to bases[i] (in matrices) of the
+palette pool.
+================
+*/
+export interface GpuBonesJob {
+	readonly source: Float32Array;
+	readonly model: import("@/engine/contracts/character").CharacterModel;
+	readonly primitive: import("@/engine/contracts/character").CharacterPrimitive;
+	readonly samples: readonly (
+		| { readonly clip: import("@/engine/contracts/character").CharacterClip; readonly time: number; }
+		| null
+	)[];
+	readonly revision: number;
+	// A palette pool stream's: each sample's palette start, and the samples
+	// the stream holds.
+	readonly bases?: ArrayLike<number>;
+	readonly capacity?: number;
+}
+
+/*
+================
 GeometryCommands
 ================
 */
@@ -373,17 +400,11 @@ export interface GeometryCommands {
 	// while the draw is live.
 	releasedDraw?( draw: GeometryDraw ): DrawRelease | undefined;
 	characterShadows?( requests: readonly CharacterShadowRequest[], blob?: ImageDraw ): readonly GeometryDraw[];
-	// Null samples are CPU-owned slots already materialized in source; GPU samples preserve their canonical indices.
-	prepareGpuBones?(
-		source: Float32Array,
-		model: import("@/engine/contracts/character").CharacterModel,
-		primitive: import("@/engine/contracts/character").CharacterPrimitive,
-		samples: readonly (
-			| { readonly clip: import("@/engine/contracts/character").CharacterClip; readonly time: number; }
-			| null
-		)[],
-		revision: number
-	): boolean;
+	prepareGpuBones?( job: GpuBonesJob ): boolean;
+	// Uploads ranges of a frame kernel's palette table (start, end pairs in
+	// floats) to its palette pool, read from shared memory at the frame's
+	// submit; the pool is made, or remade for a replaced table, here.
+	writePalettePool?( table: Float32Array, ranges: readonly number[] ): void;
 	gpuAnimationStats?(): {
 		enabled: boolean;
 		ready: boolean;

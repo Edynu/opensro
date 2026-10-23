@@ -209,6 +209,8 @@ export function copyGeometry( data: Geometry, byteLimit = 64 << 20, instanceLimi
 		joints: data.joints?.slice(),
 		weights: data.weights?.slice(),
 		bones: data.bones?.slice(),
+		// Shared memory a frame kernel owns: read where it is, never copied.
+		palettePool: data.palettePool,
 		dynamicVertices: data.dynamicVertices,
 		vertices: data.vertices?.slice()
 	} satisfies Record<keyof Geometry, unknown>;

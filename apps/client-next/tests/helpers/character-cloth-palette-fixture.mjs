@@ -183,7 +183,9 @@ function captureGeometry( tags, gpuAvailable ) {
 				tag: tags.get( source.positions[0] ),
 				material: source.material,
 				instances: source.instances.slice(),
-				bones: source.bones?.slice(),
+				// A pooled draw's palettes are the skeletons' shared table at its
+				// offsets, read as the frame being compared left it.
+				bones: source.bones && (source.palettePool ?? source.bones.slice()),
 				offsets: offsets?.slice(),
 				capturedVertices: undefined,
 				fade: undefined,
@@ -212,6 +214,16 @@ function captureGeometry( tags, gpuAvailable ) {
 			draw.lights = lights?.slice();
 			draw.offsets = offsets?.slice();
 			return draw;
+		},
+		/*
+		================
+		writePalettePool
+
+		The palette pool's upload, on the current device.
+		================
+		*/
+		writePalettePool( table, ranges ) {
+			device.resources.commands.writePalettePool?.( table, ranges );
 		},
 		/*
 		================

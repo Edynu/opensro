@@ -4,8 +4,10 @@
 animation.ts - GPU skeletal animation: admission, streams and encoding
 
 Admits a model's animation inputs to the GPU once, keeps one input stream
-per palette source, and encodes the compute pass that evaluates the
-bones. Models the GPU path cannot run fall back to CPU poses.
+per job key (a batch's palette source), and encodes the compute pass that
+evaluates the bones into each sample's palette, at the base the job gives
+it: a batch's own palette buffer, or a slot of the palette pool. Models
+the GPU path cannot run fall back to CPU poses.
 
 A model's inputs are two buffers (gpu-animation-plan.ts): its skeleton,
 owned by the model, and its clip set, shared by every admitted model with
@@ -34,6 +36,26 @@ Sample
 ================
 */
 type Sample = { readonly clip: CharacterClip; readonly time: number; };
+/*
+================
+AnimationJob
+
+One batch's GPU-sampled poses: key names the job's input stream, kept
+until released; output receives each sample's palette at its base (in
+matrices); outputMatrices is output's size in matrices, and capacity the
+samples the key's stream holds.
+================
+*/
+export interface AnimationJob {
+	readonly key: object;
+	readonly output: GPUBuffer;
+	readonly outputMatrices: number;
+	readonly model: CharacterModel;
+	readonly primitive: CharacterPrimitive;
+	readonly samples: readonly (Sample | null)[];
+	readonly bases: ArrayLike<number>;
+	readonly capacity: number;
+}
 /*
 ================
 ClipSet
@@ -101,7 +123,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		poses = 0;
 	const models = new Map<CharacterModel, Model>(),
 		clipSets = new Map<readonly CharacterClip[], ClipSet>(),
-		streams = new Map<Float32Array, Stream>(),
+		streams = new Map<object, Stream>(),
 		pending = new Set<Stream>(),
 		unsupported = new WeakSet<CharacterModel>();
 	// CPU-side plans. A model whose current clip is not GPU-eligible is refused
@@ -248,7 +270,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 	release
 	================
 	*/
-	function release( source: Float32Array ) {
+	function release( source: object ) {
 		const row = streams.get( source );
 		if ( !row ) return;
 		pending.delete( row );
@@ -272,29 +294,26 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		================
 		prepare
 
-		Queues the bones of samples into source's palette; false leaves them to
-		the CPU path.
+		Queues the bones of the job's samples into its output, each at its
+		base; false leaves them to the CPU path.
 		================
 		*/
-		prepare(
-			source: Float32Array,
-			output: GPUBuffer,
-			model: CharacterModel,
-			primitive: CharacterPrimitive,
-			samples: readonly (Sample | null)[]
-		): boolean {
+		prepare( job: AnimationJob ): boolean {
 			if ( disposed ) throw Error( "Disposed GPU animation owner" );
+			const { key: source, output, model, primitive, samples, bases, capacity } = job;
 			if (
 				!pipeline || unsupported.has( model ) || !samples.some( s => s !== null ) || !primitive.joints.length
 			) return false;
-			const capacity = source.length / (primitive.joints.length * 16);
-			// A row keeps its output (checked below on every prepare), so the
-			// output's size is read for a new row only: reading it crosses into
-			// the browser. Either way it is refused before anything is admitted.
-			if (
-				!Number.isInteger( capacity ) || samples.length > capacity ||
-				!streams.has( source ) && source.byteLength > output.size
-			) throw Error( "GPU animation palette capacity exceeded" );
+			if ( !Number.isInteger( capacity ) || samples.length > capacity || bases.length < samples.length ) {
+				throw Error( "GPU animation palette capacity exceeded" );
+			}
+			for ( let i = 0; i < samples.length; i++ ) {
+				const base = bases[i]!;
+				if (
+					samples[i] &&
+					(!Number.isInteger( base ) || base < 0 || base + primitive.joints.length > job.outputMatrices)
+				) throw Error( "GPU animation palette capacity exceeded" );
+			}
 			if ( samples.some( s => s !== null && (!Number.isFinite( s.time ) || s.time < 0) ) ) return false;
 			if ( !model.primitives.includes( primitive ) ) throw Error( "Unknown GPU palette binding" );
 			if ( !streams.has( source ) && streamBytes + capacity * 16 + CONFIGURATION_BYTES > STREAM_BYTES ) {
@@ -377,7 +396,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 				row.data[at] = sample.time; /* Do not round a STEP phase across an authored f32 key. */
 				if ( row.data[at]! > sample.time ) row.words[at]!--;
 				row.data[at + 1] = clipPlan.index.get( sample.clip )!;
-				row.data[at + 2] = i;
+				row.data[at + 2] = bases[i]!;
 			}
 			row.count = count;
 			device.queue.writeBuffer( row.input, 0, row.data.buffer, 0, count * 16 );
@@ -389,7 +408,7 @@ export function createGpuAnimationResources( device: GPUDevice, retire: Retire =
 		cancel
 		================
 		*/
-		cancel( source: Float32Array ) {
+		cancel( source: object ) {
 			const row = streams.get( source );
 			if ( row ) pending.delete( row );
 		},

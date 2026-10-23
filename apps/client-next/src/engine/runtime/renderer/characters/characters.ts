@@ -74,6 +74,7 @@ import {
 } from "@/engine/foundation/animation/character-budget";
 import { multiply } from "@/engine/foundation/math/pose-math";
 import { createCharacterPose } from "./animation/animation";
+import { skeletonBindings } from "@/engine/foundation/animation/animation-pose";
 import {
 	placement,
 	identity,
@@ -261,6 +262,8 @@ export function createCharacters(
 	// With them on and shared memory, the world's poses keep their matrices in
 	// the workers' tables and materialize in one phase a frame (skeletons.ts).
 	const skeletons = sharedSkeletons( frameWorkers );
+	// The palette table's generation the pooled batches were uploaded for.
+	let paletteGeneration = 0;
 	// prepareGroup consumes this scratch synchronously before the next group.
 	// Account it separately from admission: caching must not remove actors
 	// that fit the existing draw budget. Actor snapshots bound both arrays.
@@ -1984,8 +1987,12 @@ export function createCharacters(
 					frame.geometry.release( draw );
 				}
 			}
+			// With the frame workers' skeletons, a shared-palette batch reads its
+			// palettes from the palette pool, uploaded from the skeletons' shared
+			// table, and its cloth from the same table.
+			const pooled = !!skeletons && !!frame.geometry.writePalettePool && skeletonBindings( model ).length > 0;
 			const streams = plan.sharedPalette ?
-				createPaletteStreams( model, capacity ) :
+				createPaletteStreams( model, capacity, pooled ) :
 				undefined;
 			batch = {
 				preview: frame.preview,
@@ -2021,6 +2028,41 @@ export function createCharacters(
 			batch.poseKey = undefined;
 		}
 		return { batch, capacity, membershipChanged };
+	}
+	/*
+	================
+	releaseStalePools
+
+	Pooled batches whose draws bind a palette pool the skeletons' table has
+	since outgrown: released before this frame draws, so they upload again
+	against the new table's pool.
+	================
+	*/
+	function releaseStalePools( geometry: GeometryCommands ) {
+		if ( !skeletons || skeletons.paletteGeneration() === paletteGeneration ) return;
+		paletteGeneration = skeletons.paletteGeneration();
+		for ( const [id, batch] of batches ) {
+			if ( !batch.streams?.pooled ) continue;
+			for ( const draw of batch.draws ) geometry.release( draw );
+			releaseWearers( batch );
+			batches.delete( id );
+		}
+	}
+	/*
+	================
+	uploadPalettePool
+
+	The palettes the frame's poses published (skeletons.ts takePaletteRanges)
+	to the palette pool, read from the skeletons' shared table at the frame's
+	submit: no palette is copied.
+	================
+	*/
+	function uploadPalettePool( geometry: GeometryCommands ) {
+		if ( !skeletons ) return;
+		const ranges = skeletons.takePaletteRanges();
+		if ( ranges.length && geometry.writePalettePool ) {
+			geometry.writePalettePool( skeletons.paletteTable(), ranges );
+		}
 	}
 	/*
 	================
@@ -2347,6 +2389,8 @@ export function createCharacters(
 				},
 				instances,
 				bones: group.batch.palettes[p],
+				// A cloth draw is unskinned: its vertices come from the cloth kernel.
+				...(group.batch.streams?.pooled && !primitive.cloth ? { palettePool: skeletons!.paletteTable() } : {}),
 				...(primitive.cloth ?
 					{ joints: undefined, weights: undefined, bones: undefined, dynamicVertices: true } :
 					{}),
@@ -2475,7 +2519,12 @@ export function createCharacters(
 				slot = clothWearers.admit( primitive, clothSeed( rows[0]!.gid, p ) );
 				batch.wearers.set( p, slot );
 			}
-			clothWearers.request( slot, batch.palettes[p]!, frame.seconds, enabled, motion );
+			// A pooled batch's wearer skins from its pose's palette in the
+			// skeletons' table, read in place by the cloth kernel.
+			const palette = batch.streams?.pooled ?
+				poses.get( rows[0]!.gid )!.pose.paletteSlot( primitive ) * 16 :
+				batch.palettes[p]!;
+			clothWearers.request( slot, palette, frame.seconds, enabled, motion );
 			// prepare uploads its vertices after the frame's cloth phase.
 			frame.clothDraws.push( draw );
 			frame.clothSlots.push( slot );
@@ -2534,7 +2583,8 @@ export function createCharacters(
 			}
 			if ( preview ) geometry.updateTransform( draw, view! );
 		}
-		if ( stream ) {
+		// A pooled stream's palettes reach the GPU with the palette pool.
+		if ( stream && !batch.streams!.pooled ) {
 			boneUploadBytes +=
 				geometry.updateBones( draw, stream.data.subarray( 0, stream.length ), stream.revision ) ??
 					0;
@@ -3491,6 +3541,7 @@ export function createCharacters(
 			if ( !continuation ) {
 				poseFrame++;
 				submitted.clear();
+				releaseStalePools( geometry );
 			}
 			if ( !continuation ) deferred.begin( seconds, hasDeferred ? actors : [], deferredEnabled, night );
 			deferPoses = !!geometry.prepareGpuBones;
@@ -3644,6 +3695,7 @@ export function createCharacters(
 			} else build( undefined );
 			// The next frame phase (the pose presentation's) must find none open.
 			skeletons?.join();
+			uploadPalettePool( geometry );
 			probe?.characterMark( "character-upload" );
 			probe?.characterCount( "pose-evaluations", poseEvaluations );
 			frameGroups = grouped.size;

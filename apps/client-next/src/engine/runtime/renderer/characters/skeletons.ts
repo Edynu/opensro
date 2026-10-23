@@ -18,9 +18,16 @@ bit (skeleton-kernel.test.mjs), so this changes when they are computed,
 not what they are.
 
 Owns the tables: one skeleton a model, one entry a sampled clip (its key
-clocks and values), and each pose's state and scratch regions, reused by
-size. Models and clips are rebuilt from the live poses when their tables
-pass three quarters full, between phases.
+clocks and values), and each pose's state, scratch and palette regions,
+reused by size. Models and clips are rebuilt from the live poses when
+their tables pass three quarters full, between phases.
+
+The palettes are an output table (frame-kernels.ts OUTPUT_TABLES): the
+renderer's palette pool uploads them to the GPU straight from shared
+memory. A pose publishes its palettes when they are current and read
+(animation-pose.ts paletteSlot); takePaletteRanges hands the frame's
+published ranges to the upload. A replaced table (a larger one) bumps
+paletteGeneration, and every pose publishes again.
 
 ===========================================================================
 */
@@ -38,6 +45,7 @@ import {
 	MAX_SKELETON_CLIP_WORDS,
 	MAX_SKELETON_KEY_FLOATS,
 	MAX_SKELETON_MODEL_WORDS,
+	MAX_SKELETON_PALETTE_FLOATS,
 	MAX_SKELETON_REQUESTS,
 	MAX_SKELETON_SCRATCH_WORDS,
 	MAX_SKELETON_STATE_FLOATS,
@@ -77,6 +85,7 @@ import {
 	R_LAYERS,
 	R_LAYER_CAPACITY,
 	R_MODEL,
+	R_PALETTE_AT,
 	R_PALETTED,
 	R_PALETTES,
 	R_RELEASED,
@@ -128,6 +137,7 @@ interface SkeletonSlot {
 	model: CharacterModel;
 	state: Region;
 	scratch: Region;
+	palettes: Region;
 	layers: number;
 	channels: number;
 	clocks: number;
@@ -161,9 +171,15 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 	const clips = new Map<CharacterClip, number>();
 	const slots: (SkeletonSlot | undefined)[] = [], freeSlots: number[] = [];
 	const freeState = new Map<number, number[]>(), freeScratch = new Map<number, number[]>();
+	const freePalettes = new Map<number, number[]>();
 	const queued: number[] = [];
-	let modelUsed = 0, clipUsed = 0, keyUsed = 0, stateUsed = 0, scratchUsed = 0, slotCount = 0;
-	let collecting = false, forked = false;
+	// The palette ranges published since the last upload: start, end pairs in
+	// floats; merged by takePaletteRanges.
+	const published: number[] = [];
+	// takePaletteRanges' scratch, reused frame to frame.
+	const rangeOrder: number[] = [], rangeMerged: number[] = [], rangeTaken: number[] = [];
+	let modelUsed = 0, clipUsed = 0, keyUsed = 0, stateUsed = 0, scratchUsed = 0, paletteUsed = 0, slotCount = 0;
+	let collecting = false, forked = false, paletteGeneration = 0;
 	/*
 	================
 	runLocal
@@ -185,8 +201,11 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 		if ( used + size > max ) throw Error( "Skeleton capacity exceeded" );
 		let grown = length;
 		while ( grown < used + size ) grown *= 2;
+		const before = memory[table];
 		growTable( memory, table, Math.min( max, grown ) * unit );
 		refreshViews( views );
+		// An output table is replaced, not grown: its pool uploads it again.
+		if ( memory[table] !== before && table === "skeletonPalettes" ) paletteGeneration++;
 	}
 
 	/*
@@ -529,11 +548,18 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 					MAX_SKELETONS * SKELETON_RECORD
 				);
 			}
-			const n = model.nodes.length, floats = skeletonStateFloats( n, bindingsOf( model ).joints );
+			const n = model.nodes.length, floats = skeletonStateFloats( n );
 			const state = allocate( freeState, floats, () => {
 				reserve( "skeletonState", 4, stateUsed, floats, MAX_SKELETON_STATE_FLOATS );
 				const offset = stateUsed;
 				stateUsed += floats;
+				return offset;
+			} );
+			const paletteFloats = bindingsOf( model ).joints * 16;
+			const palettes = allocate( freePalettes, paletteFloats, () => {
+				reserve( "skeletonPalettes", 4, paletteUsed, paletteFloats, MAX_SKELETON_PALETTE_FLOATS );
+				const offset = paletteUsed;
+				paletteUsed += paletteFloats;
 				return offset;
 			} );
 			const channels = model.clips.reduce( ( max, clip ) => Math.max( max, clip.channels.length ), 0 );
@@ -548,6 +574,7 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 				model,
 				state,
 				scratch,
+				palettes,
 				layers: INITIAL_LAYERS,
 				channels,
 				clocks: channels,
@@ -560,6 +587,7 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 			records[w + R_MODEL] = modelOf( model );
 			records[w + R_STATE] = state.offset;
 			records[w + R_SCRATCH] = scratch.offset;
+			records[w + R_PALETTE_AT] = palettes.offset;
 			records[w + R_LAYER_CAPACITY] = INITIAL_LAYERS;
 			records[w + R_CHANNEL_CAPACITY] = channels;
 			records[w + R_CLOCK_CAPACITY] = channels;
@@ -568,9 +596,24 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 			records[w + R_RELEASED] = -1;
 			views.skeletonState.fill( 0, state.offset, state.offset + floats );
 			const view = new Float32Array( memory.skeletonState, state.offset * 4, floats );
+			let paletteView: Float32Array = new Float32Array( 0 ), publishedVersion = -1, publishedGeneration = -1;
 			let released = false;
 			return {
 				state: view,
+				paletteAt: palettes.offset,
+				palettes() {
+					// The table is replaced as it grows: the view follows it.
+					if ( paletteView.buffer !== memory.skeletonPalettes ) {
+						paletteView = new Float32Array( memory.skeletonPalettes, palettes.offset * 4, palettes.size );
+					}
+					return paletteView;
+				},
+				publish( version, force = false ) {
+					if ( !force && version === publishedVersion && publishedGeneration === paletteGeneration ) return;
+					publishedVersion = version;
+					publishedGeneration = paletteGeneration;
+					if ( palettes.size ) published.push( palettes.offset, palettes.offset + palettes.size );
+				},
 				materialize( input, done, timing ) {
 					if ( released ) throw Error( "Released skeleton" );
 					if ( timing === "spare" && !collecting ) return;
@@ -606,6 +649,7 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 					released = true;
 					retire( freeState, slot.state );
 					retire( freeScratch, slot.scratch );
+					retire( freePalettes, slot.palettes );
 					slots[index] = undefined;
 					views.skeletonRecords[w + R_BUSY] = 0;
 					freeSlots.push( index );
@@ -645,6 +689,57 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 		join,
 		/*
 		================
+		paletteTable
+
+		The palette table as it is now, which the palette pool mirrors.
+		================
+		*/
+		paletteTable(): Float32Array {
+			refreshViews( views );
+			return views.skeletonPalettes;
+		},
+		/*
+		================
+		paletteGeneration
+
+		Bumped each time the palette table is replaced by a larger one.
+		================
+		*/
+		paletteGeneration: () => paletteGeneration,
+		/*
+		================
+		takePaletteRanges
+
+		The palette ranges published since the last take, start and end pairs
+		in floats, sorted and merged where they meet. The frame's phase is
+		joined first: the upload reads the table at the frame's submit, and
+		no worker may be writing it then. The list is reused by the next take.
+		================
+		*/
+		takePaletteRanges(): readonly number[] {
+			join();
+			const pairs = published.length / 2;
+			if ( pairs > 1 ) {
+				rangeOrder.length = 0;
+				for ( let i = 0; i < pairs; i++ ) rangeOrder.push( i );
+				rangeOrder.sort( ( a, b ) => published[a * 2]! - published[b * 2]! );
+				rangeMerged.length = 0;
+				for ( const i of rangeOrder ) {
+					const start = published[i * 2]!, end = published[i * 2 + 1]!;
+					if ( rangeMerged.length && start <= rangeMerged[rangeMerged.length - 1]! ) {
+						rangeMerged[rangeMerged.length - 1] = Math.max( rangeMerged[rangeMerged.length - 1]!, end );
+					} else rangeMerged.push( start, end );
+				}
+				published.length = 0;
+				published.push( ...rangeMerged );
+			}
+			rangeTaken.length = 0;
+			rangeTaken.push( ...published );
+			published.length = 0;
+			return rangeTaken;
+		},
+		/*
+		================
 		reset
 
 		Every pose released: the renderer dropped them.
@@ -659,11 +754,14 @@ export function createSkeletons( workers: FrameKernelPhases ) {
 			slots.length = freeSlots.length = 0;
 			freeState.clear();
 			freeScratch.clear();
+			freePalettes.clear();
+			published.length = 0;
 			modelUsed =
 				clipUsed =
 				keyUsed =
 				stateUsed =
 				scratchUsed =
+				paletteUsed =
 				slotCount =
 					0;
 		}
