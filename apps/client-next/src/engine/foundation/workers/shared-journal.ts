@@ -218,6 +218,8 @@ export function createJournalWriter( memory: SharedJournal ) {
 			}
 			values.seek( end );
 			values.number( batch.sequence );
+			// How long its oldest event waited for the main thread (entities.ts).
+			values.value( batch.spanMs );
 			values.number( batch.events.length );
 			for ( const event of batch.events ) writeEvent( event );
 			end = values.position();
@@ -303,14 +305,14 @@ export function createJournalReader( memory: SharedJournal, reader: number ) {
 				at = 0;
 			}
 			values.seek( at );
-			const sequence = values.number(), count = values.number();
+			const sequence = values.number(), spanMs = values.value() as number | undefined, count = values.number();
 			if ( sequence !== seen + 1 ) throw Error( "World journal delivery sequence violation" );
 			const events: WorldEvent[] = new Array( count );
 			for ( let i = 0; i < count; i++ ) events[i] = readEvent();
 			at = values.position();
 			seen = sequence;
 			Atomics.store( control, CONSUMED + reader, seen );
-			return { sequence, events };
+			return spanMs === undefined ? { sequence, events } : { sequence, spanMs, events };
 		},
 		/*
 		================

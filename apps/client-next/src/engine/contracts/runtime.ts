@@ -395,6 +395,7 @@ export type PresentationRenderer = Pick<
 	| "sharedActorRoom"
 	| "batchedEffects"
 	| "vHidesCompanions"
+	| "dungeonCharacterPvs"
 	| "dungeonBlockHides"
 >;
 

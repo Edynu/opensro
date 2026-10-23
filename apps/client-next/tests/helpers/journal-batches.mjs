@@ -74,7 +74,10 @@ export function journalBatches( seed, count ) {
 				events.push( { kind: "reset", epoch: sequence } );
 			}
 		}
-		batches.push( { sequence, events } );
+		// The worker stamps how long the batch's oldest event waited (entities.ts).
+		batches.push(
+			sequence % 3 ? { sequence, spanMs: Math.floor( random() * 1000 ), events } : { sequence, events }
+		);
 	}
 	return batches;
 }

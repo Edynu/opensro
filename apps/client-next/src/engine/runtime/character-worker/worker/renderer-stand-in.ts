@@ -182,6 +182,8 @@ export function createRendererStandIn(
 		sharedActorRoom: () => facts?.sharedActorRoom ?? false,
 		batchedEffects: () => facts?.batchedEffects ?? false,
 		vHidesCompanions: () => facts?.vHidesCompanions ?? false,
+		// On by default, as the renderer's Experimental row.
+		dungeonCharacterPvs: () => facts?.dungeonCharacterPvs ?? true,
 		dungeonBlockHides( block, activeBlock ) {
 			if ( !dungeonVisibility || activeBlock === undefined ) return false;
 			const visible = dungeonVisibility[activeBlock];

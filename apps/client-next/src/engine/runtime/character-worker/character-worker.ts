@@ -91,6 +91,7 @@ export interface CharacterWorkerOwners {
 		| "sharedActorRoom"
 		| "batchedEffects"
 		| "vHidesCompanions"
+		| "dungeonCharacterPvs"
 		| "dungeonVisibility"
 	>;
 	readonly play: ( event: SoundEvent ) => void;
@@ -288,6 +289,7 @@ export function createCharacterWorker( owners: CharacterWorkerOwners ) {
 			sharedActorRoom: owners.renderer.sharedActorRoom?.(),
 			batchedEffects: owners.renderer.batchedEffects?.(),
 			vHidesCompanions: owners.renderer.vHidesCompanions?.(),
+			dungeonCharacterPvs: owners.renderer.dungeonCharacterPvs?.(),
 			scenery: owners.renderer.scenery(),
 			...(visibility !== sentVisibility ? { dungeonVisibility: visibility } : {}),
 			...(terrain !== sentTerrain ? { soundTerrain: terrain } : {})

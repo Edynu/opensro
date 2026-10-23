@@ -183,6 +183,7 @@ export interface CharacterWorkerFacts {
 	readonly sharedActorRoom: boolean | undefined;
 	readonly batchedEffects: boolean | undefined;
 	readonly vHidesCompanions: boolean | undefined;
+	readonly dungeonCharacterPvs: boolean | undefined;
 	readonly scenery: SceneryPresentation | null;
 	readonly dungeonVisibility?: readonly (readonly number[])[] | null;
 	readonly soundTerrain?: readonly SoundTerrain[];
