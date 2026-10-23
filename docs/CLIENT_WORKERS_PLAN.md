@@ -112,6 +112,15 @@ on the measuring machine, and Chrome's GPU process is the next limit.
 7. **Kernels in one place.** Frame kernels on flat arrays live in one
    folder with its own short `AGENTS.md`. Gameplay, UI, network and the
    rest keep their current style.
+8. **No copies between threads (2026-10-23, the owner).** Every thread,
+   the main thread and every worker, shares its data through
+   `SharedArrayBuffer`; nothing crosses as a per-frame message or a
+   structured clone, and GPU uploads read the shared output tables
+   directly. Messages only start a worker, move a buffer that arrives once,
+   or report a failure. The rule and the primitives to reuse are in
+   [`apps/client-next/AGENTS.md`](../apps/client-next/AGENTS.md) ("Threads
+   share memory, never copies"); the copies still left are listed there
+   and in 6.15 to 6.19.
 
 ## 4. Platform facts the design rests on
 

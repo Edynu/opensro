@@ -24,6 +24,43 @@ root).
   frame order and disposal order. The resolved graph is a derived artifact
   (`temp/artifacts/execution/execution-map.json`); never commit it.
 
+## Threads share memory, never copies
+
+The owner's rule for every thread, the main thread and every worker
+(frame workers, the character worker, the simulation worker and any added
+later): data crosses between threads through `SharedArrayBuffer`, not
+messages, and is not copied on the way
+([`docs/CLIENT_WORKERS_PLAN.md`](../../docs/CLIENT_WORKERS_PLAN.md)
+sections 3 and 5.1).
+
+- **No per-frame message or structured clone.** A message is allowed only
+  to start a worker (handing it its shared memory once), to move a buffer
+  that arrives once (a model, a clip, an asset result: transferred, not
+  copied) and to report a failure.
+- **Design the shared layout first.** A new worker path starts from shared
+  tables, integer ids for names and counters ordered with `Atomics`; one
+  writer per byte in each phase, no locks.
+- **Reuse the shared primitives** before writing new ones:
+  `foundation/workers/shared-frame.ts` (turn-taking counters),
+  `shared-strings.ts` (names as ids), `shared-values.ts` (tagged values,
+  typed arrays in one native copy), `shared-journal.ts` (one writer, many
+  readers, deltas by reference), `foundation/animation/actor-table.ts`
+  (records read straight into owned rows), `foundation/kernels/frame-kernels.ts`
+  (kernel tables; `OUTPUT_TABLES` for what the GPU reads).
+- **A reader rebuilds only what changed**, keeping every unchanged value
+  by reference; it does not deserialize whole objects again.
+- **GPU uploads read shared memory directly.** `writeBuffer` refuses a
+  growable `SharedArrayBuffer`, so what the GPU reads lives in a fixed-size
+  output table (replaced by a larger one, the frame workers re-attach) and
+  goes up through the upload arena's `writeOutput` or a pool such as the
+  palette pool: no main-thread copy first.
+- **Copies left, not to be copied as patterns**: particle records (three
+  copies between kernel and GPU), walking chains decoded from the world
+  journal, the actor table read into the renderer's rows, the private
+  palettes of effect batches. Remove them; do not add new ones. A change
+  that adds a copy or a per-frame message between threads needs the
+  owner's approval.
+
 ## Degraded reports
 
 A packet failure ends the session, so the client throws only when the
