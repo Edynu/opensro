@@ -86,12 +86,20 @@ function fixture( options = {} ) {
 		},
 		queue: {
 			writeTexture() {},
-			writeBuffer( buffer, offset, data, start, size ) {
+			/** @param {any} data @param {number} [start] @param {number} [length] */
+			writeBuffer( buffer, offset, data, start = 0, length = undefined ) {
+				// WebGPU counts a typed array's start and size in its elements.
+				const unit = ArrayBuffer.isView( data ) ? /** @type {any} */ (data).BYTES_PER_ELEMENT : 1;
+				const bytes = ArrayBuffer.isView( data ) ?
+					new Uint8Array( data.buffer, data.byteOffset, data.byteLength ) :
+					new Uint8Array( data );
+				start *= unit;
+				const size = length === undefined ? bytes.byteLength - start : length * unit;
 				assert.equal( buffer.destroyed, false );
 				assert.equal( buffer.usage & GPU_BUFFER_USAGE.COPY_DST, GPU_BUFFER_USAGE.COPY_DST );
 				assert.equal( (offset | size) % 4, 0 );
 				assert.ok( offset + size <= buffer.size );
-				buffer.bytes.set( new Uint8Array( data, start, size ), offset );
+				buffer.bytes.set( bytes.subarray( start, start + size ), offset );
 				writes.push( buffer );
 				sources.push( data );
 			},
@@ -452,5 +460,22 @@ test("output table spans spill within maxBufferSize and keep their bytes", () =>
 		arena.buffers.filter( buffer => buffer.label === "geometry-upload-arena" ).every( buffer => buffer.size <= 512 )
 	);
 	assert.ok( arena.submissions() > 1, "spilled" );
+	arena.resources.dispose();
+});
+
+test("the water reflection keeps each reflected draw frame to frame, so its bundles are retained", () => {
+	const arena = fixture(), commands = arena.resources.commands;
+	const draws = Array.from( { length: 3 }, () => commands.upload( geometry() ) );
+	const matrix = Float32Array.of( 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
+	const first = commands.waterReflection( { matrix, height: 0, above: true, seconds: 0 }, draws );
+	const second = commands.waterReflection( { matrix, height: 0, above: true, seconds: 1 }, draws );
+	assert.equal( first.draws.length, draws.length );
+	for ( let i = 0; i < draws.length; i++ ) {
+		assert.equal( second.draws[i], first.draws[i], "the same reflected draw" );
+		assert.equal( second.draws[i].instanceCount, draws[i].instanceCount );
+		assert.equal( second.draws[i].indexCount, draws[i].indexCount );
+		assert.notEqual( second.draws[i].binding, draws[i].binding, "the capture binding" );
+	}
+	assert.equal( commands.waterReflection( { height: 0, above: true, seconds: 2 }, draws ), undefined );
 	arena.resources.dispose();
 });

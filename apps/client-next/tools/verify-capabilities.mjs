@@ -153,7 +153,8 @@ export const rules = {
 	createEncoder: [ frame, device ],
 	beginRenderPass: [ frame, device ],
 	beginComputePass: [ frame ],
-	finish: [ frame, device ],
+	// The frame owner's retained runs finish their bundles (frame/draw-bundles.ts).
+	finish: [ frame, device, runtime + "renderer/frame/draw-bundles.ts" ],
 	submit: [ frame, device ],
 	createImageBitmap: [ runtime + "assets/worker/loader.ts" ],
 	createSampler: [ device ],
@@ -506,7 +507,9 @@ export function verifyCapabilities( base = root ) {
 					runtime + "renderer/surface/surface.ts"
 				].includes( file ) &&
 					n.text === "GPUCommandEncoder") &&
-				![ frame, runtime + "renderer/internal/gpu-contract.ts" ].includes( file )
+				// The frame owner's retained runs (frame/draw-bundles.ts) record bundles.
+				![ frame, runtime + "renderer/frame/draw-bundles.ts", runtime + "renderer/internal/gpu-contract.ts" ]
+					.includes( file )
 			) {
 				issues.push( `${file}: raw command encoder outside frame capability` );
 			}

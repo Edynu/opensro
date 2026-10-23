@@ -247,7 +247,7 @@ export interface FrameOwner {
 		frameId?: number,
 		deferred?: DeferredDraw,
 		bloom?: BloomDraw,
-		reflection?: { encode( encoder: GPUCommandEncoder ): void; },
+		reflection?: WaterReflectionPass,
 		experimental?: ExperimentalFrame,
 		presentation?: SurfaceOwner
 	): void | Promise<void>;
@@ -357,6 +357,21 @@ export interface DrawRelease {
 }
 /*
 ================
+WaterReflectionPass
+
+The frame's water reflection: its draws, and begin, which opens its pass
+on the frame's encoder (undefined without a target). The frame owner
+replays the draws there as retained bundles (frame/draw-bundles.ts) and
+ends the pass.
+================
+*/
+export interface WaterReflectionPass {
+	readonly draws: readonly GeometryDraw[];
+	begin( encoder: GPUCommandEncoder ): GPURenderPassEncoder | undefined;
+}
+
+/*
+================
 GpuBonesJob
 
 One batch stream's poses for the GPU animation pass (palette-streams.ts):
@@ -395,7 +410,7 @@ export interface GeometryCommands {
 	waterReflection(
 		input: { matrix?: Float32Array; height: number; above: boolean; seconds: number; },
 		draws: readonly GeometryDraw[]
-	): { encode( encoder: GPUCommandEncoder ): void; } | undefined;
+	): WaterReflectionPass | undefined;
 	// The release record of a draw no owner may draw any more; undefined
 	// while the draw is live.
 	releasedDraw?( draw: GeometryDraw ): DrawRelease | undefined;

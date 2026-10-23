@@ -375,8 +375,10 @@ test("sun cascade completes before reflection receivers encode", async () => {
 			}
 		},
 		reflection: {
-			encode() {
+			draws: [],
+			begin() {
 				order.push( "reflection" );
+				return undefined;
 			}
 		}
 	} );

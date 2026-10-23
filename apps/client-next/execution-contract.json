@@ -2140,7 +2140,7 @@
 			"consumer": "src/engine/runtime/renderer/frame/frame.ts",
 			"provider": "src/engine/runtime/renderer/device/geometry.ts",
 			"functions": [
-				"encode"
+				"begin"
 			]
 		},
 		{

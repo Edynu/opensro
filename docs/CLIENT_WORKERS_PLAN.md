@@ -1141,6 +1141,30 @@ the clone: 21 ms/s of deserialization on the main thread.
   written again and the read log started again; a rebuilt plain object as
   its own delta; a second thread publishing while this one reads.
 
+### 6.19 The owner's settings: the water reflection's bundles (2026-10-23)
+
+Measured in the owner's own session (the developer readout, Jangan crowd,
+331 actors): frame 14 ms, main thread 14 ms, p95 20 ms, at the highest
+settings (graphics high, shadow detail, sight ranges 5, water reflection
+and bloom on). On a 165 Hz display a 12.1 to 18.2 ms frame shows at 55
+fps; the probe now takes the owner's video options (`--video`) and
+reproduces it (13.8 ms, p95 19.9 ms).
+
+- **What those settings add** (ms/s against the defaults, same build):
+  the water reflection's pass about 85 (it encoded every scene and
+  character draw each frame, about 1,670 draws), the character shadows
+  60 to 80, and draw encoding for the longer sight ranges about 58.
+- **The reflection replays retained bundles**: the world pass's bounded
+  runs (`frame/draw-bundles.ts`, moved out of `frame.ts`) record the
+  reflection too; the reflection opens its pass (`begin`) and the frame
+  owner replays the runs in it. Its draws keep their identity frame to
+  frame (only their counts follow the source), so an unchanged run is not
+  recorded again. Recording it costs 0.32 ms a frame for 1,668 draws at
+  316 actors, against about 1 ms of direct encoding at half as many.
+- **Next**: the character shadows (candidates, receiver projection and
+  encoding), and the reflection is drawn whenever a water group's sphere
+  meets the view, though the water itself is off screen.
+
 ## 7. Open decisions for the owner
 
 1. **Random order. Decided 2026-10-22:** cloth and particles on the frame

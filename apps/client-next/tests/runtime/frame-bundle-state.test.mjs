@@ -88,6 +88,36 @@ function fixture() {
 			executed = [];
 			frame.draw( {}, undefined, undefined, undefined, world, ui );
 			return executed;
+		},
+		/*
+		================
+		reflect
+
+		A frame of only the water reflection's draws, in the pass it begins.
+		================
+		*/
+		reflect( draws ) {
+			executed = [];
+			const reflection = { draws, begin: encoder => encoder.beginRenderPass( { label: "water-reflection" } ) };
+			frame.draw(
+				{},
+				undefined,
+				undefined,
+				undefined,
+				[],
+				[],
+				[],
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				[],
+				0,
+				undefined,
+				undefined,
+				reflection
+			);
+			return executed;
 		}
 	};
 }
@@ -141,4 +171,27 @@ test("UI bundles initialize their own state and retain draw instance ranges", ()
 	const before = { ...f.calls };
 	assert.deepEqual( f.draw( [], ui ), ui.map( draw => [ pipeline, binding, 6, draw.count, 0, draw.first ] ) );
 	assert.deepEqual( f.calls, before );
+});
+
+test("the water reflection replays retained bundles, re-recording only a changed run", () => {
+	const f = fixture(), pipeline = {}, binding = {}, vertices = {}, indices = {};
+	const draws = Array.from( { length: 40 }, ( _, index ) => ({
+		pipeline,
+		binding,
+		vertices,
+		indices,
+		indexCount: index + 1,
+		instanceCount: 1
+	}) );
+	const expected = () =>
+		draws.map( draw => [ pipeline, binding, vertices, indices, draw.indexCount, draw.instanceCount, 0, 0, 0 ] );
+	assert.deepEqual( f.reflect( draws ), expected() );
+	const recorded = f.calls.bundles;
+	assert.ok( recorded > 0 );
+	assert.deepEqual( f.reflect( draws ), expected() );
+	assert.equal( f.calls.bundles, recorded, "an unchanged reflection replays its bundles" );
+	// A character's instances change: its run alone is recorded again.
+	draws[35] = { ...draws[35], instanceCount: 3 };
+	assert.deepEqual( f.reflect( draws ), expected() );
+	assert.equal( f.calls.bundles, recorded + 1 );
 });

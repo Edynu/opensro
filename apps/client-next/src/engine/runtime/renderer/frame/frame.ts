@@ -18,6 +18,7 @@ import type {
 	FlareDraw
 } from "@/engine/runtime/renderer/internal/gpu-contract";
 import { BLOOM_BLEND_BYTE } from "@/engine/foundation/rendering/blend-state";
+import { createDrawBundles } from "./draw-bundles";
 /*
 ================
 createFrame
@@ -39,42 +40,14 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 		backgroundBundle: GPURenderBundle | null = null,
 		worldUiBundle: GPURenderBundle | null = null;
 	let recordedFlares: FlareDraw["entries"] | null = null, flareBundle: GPURenderBundle | null = null;
-	const geometryBundles = new WeakMap<
-		GeometryDraw,
-		{
-			draws: readonly GeometryDraw[];
-			counts: readonly number[];
-			bindings: readonly GPUBindGroup[];
-			bundle: GPURenderBundle;
-		}
-	>();
-	let anchors = new Set<GeometryDraw>(), nextAnchors = new Set<GeometryDraw>();
+	// The world pass's retained runs, and the water reflection's, whose target
+	// follows the scene's format (draw-bundles.ts).
+	const worldBundles = createDrawBundles( () => commands.createBundleEncoder( true, true ) );
+	const reflectionBundles = createDrawBundles( () => commands.createBundleEncoder( true, true ) );
+	const reflectionReplay: GPURenderBundle[] = [];
 	// The frame's drawable geometry, refilled every frame.
 	const live: GeometryDraw[] = [];
 	let recordedImage: ImageDraw | undefined, imageBundle: GPURenderBundle | null = null;
-	/*
-	================
-	bundleCurrent
-
-	True when cached still records live[start..end): the same draws, with
-	the same counts and bindings.
-	================
-	*/
-	function bundleCurrent(
-		cached: { draws: readonly GeometryDraw[]; counts: readonly number[]; bindings: readonly GPUBindGroup[]; },
-		start: number,
-		end: number
-	): boolean {
-		if ( cached.draws.length !== end - start ) return false;
-		for ( let i = 0; i < end - start; i++ ) {
-			const draw = live[start + i]!;
-			if (
-				draw !== cached.draws[i] || draw.binding !== cached.bindings[i] ||
-				draw.indexCount !== cached.counts[i * 2] || draw.instanceCount !== cached.counts[i * 2 + 1]
-			) return false;
-		}
-		return true;
-	}
 	return {
 		/*
 		================
@@ -156,55 +129,7 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 			live.length = 0;
 			if ( geometry && geometry.indexCount > 0 && geometry.instanceCount > 0 ) live.push( geometry );
 			for ( const draw of world ) if ( draw.indexCount > 0 && draw.instanceCount > 0 ) live.push( draw );
-			nextAnchors.clear();
-			for ( let start = 0; start < live.length; ) {
-				let end = start + 1;
-				while ( end < live.length && end - start < 32 && (end - start < 16 || !anchors.has( live[end]! )) ) {
-					end++;
-				}
-				const first = live[start]!;
-				let cached = geometryBundles.get( first );
-				if ( !cached || !bundleCurrent( cached, start, end ) ) {
-					const draws = live.slice( start, end ), counts: number[] = [];
-					const encoder = commands.createBundleEncoder( true, true );
-					let pipeline: GPURenderPipeline | undefined, binding: GPUBindGroup | undefined;
-					let vertices: GPUBuffer | undefined, indices: GPUBuffer | undefined;
-					for ( const draw of draws ) {
-						counts.push( draw.indexCount, draw.instanceCount );
-						if ( pipeline !== draw.pipeline ) {
-							encoder.setPipeline( draw.pipeline );
-							pipeline = draw.pipeline;
-						}
-						if ( binding !== draw.binding ) {
-							encoder.setBindGroup( 0, draw.binding );
-							binding = draw.binding;
-						}
-						if ( vertices !== draw.vertices ) {
-							encoder.setVertexBuffer( 0, draw.vertices );
-							vertices = draw.vertices;
-						}
-						if ( indices !== draw.indices ) {
-							encoder.setIndexBuffer( draw.indices, "uint32" );
-							indices = draw.indices;
-						}
-						encoder.drawIndexed(
-							draw.indexCount,
-							draw.instanceCount,
-							draw.firstIndex ?? 0,
-							draw.baseVertex ?? 0,
-							0
-						);
-					}
-					cached = { draws, counts, bindings: draws.map( draw => draw.binding ), bundle: encoder.finish() };
-					geometryBundles.set( first, cached );
-				}
-				bundles.push( cached.bundle );
-				nextAnchors.add( first );
-				start = end;
-			}
-			const previousAnchors = anchors;
-			anchors = nextAnchors;
-			nextAnchors = previousAnchors;
+			worldBundles.record( live, bundles );
 			if ( (flares?.entries ?? null) !== recordedFlares ) {
 				recordedFlares = flares?.entries ?? null;
 				flareBundle = null;
@@ -223,7 +148,13 @@ export function createFrame( commands: FrameCommands ): FrameOwner {
 			commands.prepare?.( encoder, timing );
 			// The sun cascade renders before anything shades its receivers.
 			experimental?.sunShadow?.encode( encoder, experimental.casters ?? [], timing );
-			reflection?.encode( encoder );
+			const reflected = reflection?.begin( encoder );
+			if ( reflected ) {
+				reflectionReplay.length = 0;
+				reflectionBundles.record( reflection!.draws, reflectionReplay );
+				if ( reflectionReplay.length ) reflected.executeBundles( reflectionReplay );
+				reflected.end();
+			}
 			const portraitPreview = portrait;
 			for ( const portrait of [ portraitPreview, ...partyPortraits, doll ] ) {
 				if ( portrait ) {

@@ -109,7 +109,7 @@ test("reflection allocates once, retires after submission, recreates and dispose
 	assert.equal( water.view(), first );
 	retirement.open();
 	const encoder = gpu.device.createCommandEncoder( { label: "water-frame" } );
-	water.encode( /** @type {GPUCommandEncoder} */ (/** @type {unknown} */ (encoder)), [] );
+	water.begin( /** @type {GPUCommandEncoder} */ (/** @type {unknown} */ (encoder)) )?.end();
 	assert.equal( water.update( undefined, 0, true, 2 ), true );
 	assert.equal( retirement.waiting(), 2 );
 	assert.doesNotThrow( () => gpu.device.queue.submit( [ encoder.finish() ] ) );

@@ -5,11 +5,12 @@ water-reflection.ts - the native 512-square planar reflection target
 
 Owns separate main/capture uniforms so queue writes cannot change a pass
 already recorded for the same frame. Capture bindings never sample the target.
+The frame owner replays the reflected draws in the pass begin opens, as
+retained render bundles (frame/draw-bundles.ts).
 
 ===========================================================================
 */
 import { WATER_REFLECTION_SIZE, waterTextureProjection } from "@/engine/foundation/rendering/water-reflection";
-import type { GeometryDraw } from "../internal/gpu-contract";
 import type { Retire } from "./retirement";
 const UNIFORM_BYTES = 112;
 
@@ -119,11 +120,14 @@ export function createWaterReflection( device: GPUDevice, initialFormat: GPUText
 		},
 		/*
 		================
-		encode
+		begin
+
+		The reflection pass on encoder, cleared, with the native blend factor;
+		undefined without a target.
 		================
 		*/
-		encode( encoder: GPUCommandEncoder, draws: readonly GeometryDraw[] ) {
-			if ( !target ) return;
+		begin( encoder: GPUCommandEncoder ): GPURenderPassEncoder | undefined {
+			if ( !target ) return undefined;
 			const pass = encoder.beginRenderPass( {
 				label: "water-reflection",
 				colorAttachments: [ { view: target, clearValue: [ 0, 0, 0, 1 ], loadOp: "clear", storeOp: "store" } ],
@@ -135,15 +139,7 @@ export function createWaterReflection( device: GPUDevice, initialFormat: GPUText
 				}
 			} );
 			pass.setBlendConstant( { r: 1, g: 1, b: 1, a: 1 } );
-			for ( const draw of draws ) {
-				if ( !draw.indexCount || !draw.instanceCount ) continue;
-				pass.setPipeline( draw.pipeline );
-				pass.setBindGroup( 0, draw.binding );
-				pass.setVertexBuffer( 0, draw.vertices );
-				pass.setIndexBuffer( draw.indices, "uint32" );
-				pass.drawIndexed( draw.indexCount, draw.instanceCount, draw.firstIndex ?? 0, draw.baseVertex ?? 0 );
-			}
-			pass.end();
+			return pass;
 		},
 		/*
 		================

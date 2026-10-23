@@ -96,7 +96,13 @@ export function createGeometryResources(
 	const waterReflection = createWaterReflection( created, format, retire );
 	// 8BA130 fixes water MIN/MAG to linear independently of the video filter.
 	const waterSampler = worldSampler;
-	const reflectedBindings = new WeakMap<GeometryDraw, { source: GPUBindGroup; draw: GeometryDraw; }>();
+	// The water reflection's own draw per source draw, kept frame to frame so
+	// its render bundles are retained (frame/draw-bundles.ts); only its counts follow
+	// the source.
+	const reflectedBindings = new WeakMap<
+		GeometryDraw,
+		{ source: GPUBindGroup; draw: { -readonly [K in keyof GeometryDraw]: GeometryDraw[K]; }; }
+	>();
 	const previewBindings = new WeakMap<GeometryDraw, { source: GPUBindGroup; draw: GeometryDraw; }>();
 	const geometryBuffers = new Map<GeometryDraw, GPUBuffer[]>();
 	// Released draws and their release records (releasedDraw).
@@ -494,7 +500,7 @@ export function createGeometryResources(
 			const reflected: GeometryDraw[] = [];
 			for ( const draw of draws ) {
 				const meta = metadata.get( draw );
-				if ( !meta || meta.water || draw.deferredParticle ) continue;
+				if ( !meta || meta.water || draw.deferredParticle || !draw.indexCount || !draw.instanceCount ) continue;
 				let cached = reflectedBindings.get( draw );
 				if ( !cached || cached.source !== draw.binding ) {
 					const pipeline = pipelines( meta.state, floatScene );
@@ -526,13 +532,11 @@ export function createGeometryResources(
 					};
 					reflectedBindings.set( draw, cached );
 				}
-				reflected.push( { ...cached.draw, indexCount: draw.indexCount, instanceCount: draw.instanceCount } );
+				cached.draw.indexCount = draw.indexCount;
+				cached.draw.instanceCount = draw.instanceCount;
+				reflected.push( cached.draw );
 			}
-			return {
-				encode( encoder: GPUCommandEncoder ) {
-					waterReflection.encode( encoder, reflected );
-				}
-			};
+			return { draws: reflected, begin: ( encoder: GPUCommandEncoder ) => waterReflection.begin( encoder ) };
 		},
 		/*
 		================
