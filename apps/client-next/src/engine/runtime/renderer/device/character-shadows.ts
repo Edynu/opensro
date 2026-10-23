@@ -169,7 +169,10 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 		groundBinding?: GPUBindGroup;
 		vertices: GPUBuffer;
 		indices: GPUBuffer;
-		draw: GeometryDraw;
+		// The slot's ground draw, kept frame to frame so the world pass's
+		// retained bundles keep its run (frame/draw-bundles.ts); only its
+		// pipeline, binding and counts follow the frame.
+		draw: { -readonly [K in keyof GeometryDraw]: GeometryDraw[K]; } | undefined;
 		parts: { draw: GeometryDraw; instance: number; binding: GPUBindGroup; }[];
 		// Prepared this frame and not yet rendered: a silhouette to generate.
 		fresh: boolean;
@@ -263,7 +266,7 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 							size: Math.max( 4, indices.byteLength ),
 							usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
 						} ),
-						draw: null!,
+						draw: undefined,
 						parts: [],
 						fresh: false
 					};
@@ -323,17 +326,20 @@ struct Out {@builtin(position) p:vec4f,@location(0) uv:vec2f};
 						}, { binding: 2, resource: sampler } ]
 					} );
 				}
-				s.draw = {
+				const draw = s.draw ??= {
 					pipeline: ground,
 					binding: s.groundBinding!,
 					vertices: s.vertices,
 					indices: s.indices,
-					count: indices.length,
-					indexCount: indices.length,
+					count: 0,
+					indexCount: 0,
 					instanceCount: 1,
 					instanceCapacity: 1
 				};
-				draws.push( s.draw );
+				draw.pipeline = ground;
+				draw.binding = s.groundBinding!;
+				draw.count = draw.indexCount = indices.length;
+				draws.push( draw );
 			}
 			return draws;
 		},

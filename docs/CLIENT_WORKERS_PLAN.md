@@ -1170,9 +1170,27 @@ reproduces it (13.8 ms, p95 19.9 ms).
   frame (only their counts follow the source), so an unchanged run is not
   recorded again. Recording it costs 0.32 ms a frame for 1,668 draws at
   316 actors, against about 1 ms of direct encoding at half as many.
-- **Next**: the character shadows (candidates, receiver projection and
-  encoding), and the reflection is drawn whenever a water group's sphere
-  meets the view, though the water itself is off screen.
+- **Character shadows** (Shadow detail, at most SHADOW_LIMIT = 10 of
+  them, the nearest; about 60 ms/s at the owner's settings):
+  - candidate selection (`characters/shadow-candidates.ts`) works in two
+    passes over reused scratch: every shadowed root's position and
+    distance, the nearest chosen, then the parts of the chosen roots only;
+    it built every actor's parts and several collections a frame, then
+    kept ten. 21 to 16 ms/s; the output is the old one's over 360
+    generated crowds (6 eyes each, both modes).
+  - each shadow slot keeps its ground draw frame to frame, so the world
+    pass's retained bundles keep its run while its character stands.
+- **Next**:
+  - the receiver projection: every moving character among the ten
+    re-projects its receiver mesh on this thread each frame (13 ms/s), and
+    the device packs and uploads it again (13 ms/s); projecting in the
+    ground shader from the slot's projection matrix would leave a moving
+    character only that matrix to upload (check the float32 UVs against
+    the double-precision ones first).
+  - the reflection is drawn whenever a water group's sphere meets the
+    view, though its water may be off screen; a box test of the water
+    cells against the view would skip it exactly (with the waves' height
+    in the boxes).
 
 ## 7. Open decisions for the owner
 

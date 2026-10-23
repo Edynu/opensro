@@ -2759,6 +2759,14 @@
 				"callback:createCharacterPresentation:3",
 				"callback:createCharacterPresentation:7"
 			]
+		},
+		{
+			"consumer": "src/engine/runtime/renderer/characters/shadow-candidates.ts",
+			"provider": "src/engine/runtime/renderer/characters/characters.ts",
+			"functions": [
+				"bindBoundsOf",
+				"model"
+			]
 		}
 	],
 	"boundaries": [

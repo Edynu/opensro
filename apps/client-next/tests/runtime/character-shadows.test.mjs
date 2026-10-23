@@ -394,12 +394,14 @@ test("shadow cache follows texture changes, forget during blob frames, and slot 
 	try {
 		owner.prepare( [ request ] );
 		const blobRequest = { ...request, blob: true };
-		const first = owner.prepare( [ blobRequest ], blob )[0];
+		const first = owner.prepare( [ blobRequest ], blob )[0], firstBinding = first.binding;
 		assert.equal( bindings.length, 4 );
-		assert.equal( owner.prepare( [ blobRequest ], blob )[0].binding, first.binding );
+		// The slot keeps its ground draw, so the world pass's bundles keep it.
+		assert.equal( owner.prepare( [ blobRequest ], blob )[0], first );
+		assert.equal( first.binding, firstBinding );
 		assert.equal( bindings.length, 4 );
 		blob.texture = { createView: () => ({}) };
-		assert.notEqual( owner.prepare( [ blobRequest ], blob )[0].binding, first.binding );
+		assert.notEqual( owner.prepare( [ blobRequest ], blob )[0].binding, firstBinding );
 		assert.equal( bindings.length, 5 );
 		owner.forget( draw );
 		owner.prepare( [ request ] );

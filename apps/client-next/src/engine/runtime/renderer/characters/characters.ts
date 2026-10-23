@@ -12,7 +12,6 @@ import { createParticleGraphs } from "./particle-graphs";
 import { characterLabelHeight } from "@/engine/foundation/ui/character-labels";
 import { regionOffsetXZ, regionRelativeXZ } from "@/engine/foundation/world/world-space";
 import type { WorldTexture } from "@/engine/contracts/texture";
-import { shadowProjection, SHADOW_LIMIT, SHADOW_DISTANCE } from "@/engine/foundation/rendering/character-shadow";
 import { appendEquipmentSockets } from "@/engine/foundation/animation/equipment-sockets";
 import { selectEquipmentGlow } from "@/engine/foundation/rendering/equipment-glow";
 import { createPoseLod } from "@/engine/foundation/animation/pose-lod";
@@ -30,6 +29,7 @@ import { createActorSnapshots } from "./actor-snapshots";
 import type { PortraitPart, PortraitSource } from "@/engine/contracts/portrait";
 import { bsrParticleAttachment } from "@/engine/foundation/animation/bsr-particle-transform";
 import { createPaletteStreams } from "./palette-streams";
+import { createShadowCandidates, type ShadowSource } from "./shadow-candidates";
 import {
 	createCharacterRenderPlan,
 	isCharacterAnimationExtension
@@ -344,6 +344,18 @@ export function createCharacters(
 			bindBounds.set( model.primitives, entry );
 		}
 		return entry.bounds;
+	};
+	// The frame's shadow casters (shadow-candidates.ts), read from the batches.
+	const shadowSelection = createShadowCandidates();
+	const shadowSource: ShadowSource = {
+		get batches() {
+			return batches.values();
+		},
+		get actors() {
+			return actors;
+		},
+		model: id => models.get( id )?.model,
+		bindBounds: bindBoundsOf
 	};
 	// Scratch evaluators for mesh-refined picks, one per admitted model.
 	const pickPoses = new WeakMap<CharacterModel, ReturnType<typeof createCharacterPose>>();
@@ -3102,63 +3114,7 @@ export function createCharacters(
 		================
 		*/
 		shadowCandidates( draws: readonly GeometryDraw[], eye: readonly number[], mode: number ) {
-			if ( mode === 0 ) return [];
-			const active = new Set( draws ),
-				byId = new Map( actors.map( a => [ a.gid, a ] ) ),
-				parts = new Map<number, { draw: GeometryDraw; instance: number; }[]>(),
-				points = new Map<number, readonly [number, number, number]>();
-			for ( const batch of batches.values() ) {
-				for ( let i = 0; i < batch.gids.length; i++ ) {
-					const actor = byId.get( batch.gids[i]! );
-					if ( !actor || actor.attachment && !actor.shadowAttachment ) continue;
-					let root = actor;
-					const visited = new Set<number>();
-					while ( root.attachment ) {
-						if ( visited.has( root.gid ) ) break;
-						visited.add( root.gid );
-						const parent = byId.get( root.attachment.gid );
-						if ( !parent ) break;
-						root = parent;
-					}
-					if (
-						root.shadowSize === undefined || (root.opacity ?? 1) <= 0 || root.drawGeometry === false
-					) continue;
-					const model = models.get( actor.model )?.model;
-					if ( !model ) continue;
-					const admitted = batch.draws.flatMap( ( draw, p ) =>
-						active.has( draw ) && !model.primitives[p]?.emission && !model.primitives[p]?.particleProgram ?
-							[ { draw, instance: i } ] :
-							[]
-					);
-					if ( !admitted.length ) continue;
-					const list = parts.get( root.gid ) ?? [];
-					list.push( ...admitted );
-					parts.set( root.gid, list );
-					if ( root === actor ) {
-						points.set( root.gid, [
-							batch.instances[i * 16 + 12]!,
-							batch.instances[i * 16 + 13]!,
-							batch.instances[i * 16 + 14]!
-						] );
-					}
-				}
-			}
-			return [ ...points ].map( ( [gid, point] ) => ({
-				gid,
-				point,
-				distance: hypot3( point[0]! - eye[0]!, point[1]! - eye[1]!, point[2]! - eye[2]! )
-			}) ).sort( ( a, b ) => a.distance - b.distance || a.gid - b.gid ).filter( r =>
-				mode !== 2 || r.distance <= SHADOW_DISTANCE
-			).slice( 0, SHADOW_LIMIT ).flatMap( ( { gid, point } ) => {
-				const actor = byId.get( gid )!, resource = models.get( actor.model )!;
-				const b = bindBoundsOf( resource.model );
-				if ( mode === 1 && actor.shadowSize === 0 ) return [];
-				return [ {
-					projection: shadowProjection( point, (b[4] - b[1]) * actor.scale ),
-					blobSize: mode === 1 ? actor.shadowSize! + 5 : undefined,
-					parts: parts.get( gid )!
-				} ];
-			} );
+			return shadowSelection.select( shadowSource, draws, eye, mode );
 		},
 		/*
 		================

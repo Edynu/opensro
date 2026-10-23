@@ -192,7 +192,8 @@
     "src/engine/runtime/character-worker/asset-relay.ts": "src/engine/runtime/character-worker/character-worker.ts",
     "src/engine/runtime/character-worker/worker/entry.ts": "src/engine/runtime/character-worker/character-worker.ts",
     "src/engine/runtime/character-worker/worker/renderer-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts",
-    "src/engine/runtime/character-worker/worker/asset-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts"
+    "src/engine/runtime/character-worker/worker/asset-stand-in.ts": "src/engine/runtime/character-worker/worker/entry.ts",
+    "src/engine/runtime/renderer/characters/shadow-candidates.ts": "src/engine/runtime/renderer/characters/characters.ts"
   },
   "internals": {
     "src/engine/runtime/platform/telemetry.ts": "src/engine/runtime/platform/platform.ts",
